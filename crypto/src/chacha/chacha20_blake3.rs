@@ -3,6 +3,47 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{Aead, AeadError, Hash, Hasher, StreamCipher, Xof, blake3::Blake3, chacha::ChaCha20Djb};
 
+/// ChaCha20-BLAKE3 AEAD (encrypt-then-MAC).
+///
+/// The master key and nonce are fed through a BLAKE3-based KDF to derive
+/// a ChaCha20 encryption key, a ChaCha20 nonce, and an authentication key.
+/// The plaintext is encrypted with ChaCha20 and then MACed with
+/// BLAKE3(keyed, aad || len(aad) || ciphertext || len(ciphertext)).
+///
+/// # Parameters
+///
+/// - Key: 256 bits (32 bytes)
+/// - Nonce: 256 bits (32 bytes)
+/// - Tag: 256 bits (32 bytes)
+///
+/// # Panics
+///
+/// [`encrypt_in_place`](Aead::encrypt_in_place) and
+/// [`decrypt_in_place`](Aead::decrypt_in_place) **panic** if the nonce is
+/// not exactly 32 bytes. [`decrypt_in_place`](Aead::decrypt_in_place)
+/// returns [`AeadError::InvalidCiphertext`] when the tag does not match.
+///
+/// # Example
+///
+/// ```
+/// use crypto::{Aead, chacha::ChaCha20Blake3};
+///
+/// let key = [0xab; 32];
+/// let nonce = [0xcd; 32];
+/// let aad = b"associated data";
+/// let plaintext = b"hello world";
+///
+/// let cipher = ChaCha20Blake3::new(&key);
+///
+/// let mut buf = plaintext.to_vec();
+/// let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad);
+///
+/// // buf now holds the ciphertext; tag is the 32-byte authentication tag.
+///
+/// cipher.decrypt_in_place(&mut buf, &nonce, aad, tag.as_ref())
+///     .expect("decryption failed");
+/// assert_eq!(&buf, plaintext);
+/// ```
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct ChaCha20Blake3 {
     key: [u8; 32],

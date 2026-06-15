@@ -265,6 +265,9 @@ fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
             tmp_state[word_index] = tmp_state[word_index].wrapping_add(state[word_index]);
 
             // then we serialize the keystream
+            // SAFETY: this is safe because `tmp_state` and `keystream` both have fixed, known size.
+            // We are just merely converting [u32; STATE_WORDS] to [u8; BLOCK_SIZE] with the correct
+            // endianness.
             unsafe {
                 core::ptr::copy_nonoverlapping(
                     tmp_state[word_index].to_le_bytes().as_ptr(),
@@ -966,5 +969,509 @@ Expected: {}",
         let mut buf3 = plaintext.to_vec();
         cipher3.xor_keystream(&mut buf3);
         assert_ne!(buf1, buf3);
+    }
+
+    // -------------------------------------------------------------------------
+    // Edge-case leftover tests
+    // -------------------------------------------------------------------------
+
+    /// Helper: encrypt in one shot to get the expected reference.
+    fn encrypt_one_shot_djb(key: &[u8; 32], nonce: &[u8; 8], plaintext: &[u8]) -> Vec<u8> {
+        let mut buf = plaintext.to_vec();
+        ChaCha20Djb::new(key, nonce).xor_keystream(&mut buf);
+        buf
+    }
+
+    fn encrypt_one_shot_ietf(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8]) -> Vec<u8> {
+        let mut buf = plaintext.to_vec();
+        ChaCha20Ietf::new(key, nonce).xor_keystream(&mut buf);
+        buf
+    }
+
+    fn encrypt_one_shot_xchacha(key: &[u8; 32], nonce: &[u8; 24], plaintext: &[u8]) -> Vec<u8> {
+        let mut buf = plaintext.to_vec();
+        XChaCha20::new(key, nonce).xor_keystream(&mut buf);
+        buf
+    }
+
+    fn make_djb_test(key: &[u8; 32], nonce: &[u8; 8], plaintext: &[u8], split_sizes: &[usize]) {
+        let expected = encrypt_one_shot_djb(key, nonce, plaintext);
+        let mut buf = plaintext.to_vec();
+        let mut cipher = ChaCha20Djb::new(key, nonce);
+        let mut offset = 0;
+        for &size in split_sizes {
+            let end = core::cmp::min(offset + size, buf.len());
+            cipher.xor_keystream(&mut buf[offset..end]);
+            offset = end;
+        }
+        assert_eq!(buf, expected, "DJB leftover test failed for splits {split_sizes:?}");
+    }
+
+    fn make_ietf_test(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8], split_sizes: &[usize]) {
+        let expected = encrypt_one_shot_ietf(key, nonce, plaintext);
+        let mut buf = plaintext.to_vec();
+        let mut cipher = ChaCha20Ietf::new(key, nonce);
+        let mut offset = 0;
+        for &size in split_sizes {
+            let end = core::cmp::min(offset + size, buf.len());
+            cipher.xor_keystream(&mut buf[offset..end]);
+            offset = end;
+        }
+        assert_eq!(buf, expected, "IETF leftover test failed for splits {split_sizes:?}");
+    }
+
+    fn make_xchacha_test(key: &[u8; 32], nonce: &[u8; 24], plaintext: &[u8], split_sizes: &[usize]) {
+        let expected = encrypt_one_shot_xchacha(key, nonce, plaintext);
+        let mut buf = plaintext.to_vec();
+        let mut cipher = XChaCha20::new(key, nonce);
+        let mut offset = 0;
+        for &size in split_sizes {
+            let end = core::cmp::min(offset + size, buf.len());
+            cipher.xor_keystream(&mut buf[offset..end]);
+            offset = end;
+        }
+        assert_eq!(buf, expected, "XChaCha leftover test failed for splits {split_sizes:?}");
+    }
+
+    fn test_key_32() -> [u8; 32] {
+        let mut k = [0u8; 32];
+        for i in 0..32 {
+            k[i] = i as u8;
+        }
+        k
+    }
+
+    fn test_nonce_8() -> [u8; 8] {
+        [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]
+    }
+
+    fn test_nonce_12() -> [u8; 12] {
+        [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b]
+    }
+
+    fn test_nonce_24() -> [u8; 24] {
+        let mut n = [0u8; 24];
+        for i in 0..24 {
+            n[i] = i as u8;
+        }
+        n
+    }
+
+    fn test_plaintext(len: usize) -> Vec<u8> {
+        (0..len).map(|i| (i % 251) as u8).collect()
+    }
+
+    /// IETF variant: multi-call leftover consumption (analogous to the DJB test above).
+    #[test]
+    fn chacha20_ietf_keystream_leftover_multi_call() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+        let pt = test_plaintext(300);
+
+        let expected = encrypt_one_shot_ietf(&key, &nonce, &pt);
+
+        // partial block -> leaves leftover, partially consume, then finish
+        {
+            let mut buf = pt.clone();
+            let mut c = ChaCha20Ietf::new(&key, &nonce);
+            c.xor_keystream(&mut buf[..10]);
+            c.xor_keystream(&mut buf[10..15]);
+            c.xor_keystream(&mut buf[15..]);
+            assert_eq!(buf, expected, "ietf partial leftover consumption");
+        }
+
+        // partial block -> exactly exhaust leftover -> fresh blocks
+        {
+            let mut buf = pt.clone();
+            let mut c = ChaCha20Ietf::new(&key, &nonce);
+            c.xor_keystream(&mut buf[..3]);
+            c.xor_keystream(&mut buf[3..64]);
+            c.xor_keystream(&mut buf[64..]);
+            assert_eq!(buf, expected, "ietf exact leftover exhaustion");
+        }
+
+        // three rounds of partial leftover consumption
+        {
+            let mut buf = pt.clone();
+            let mut c = ChaCha20Ietf::new(&key, &nonce);
+            c.xor_keystream(&mut buf[..5]);
+            c.xor_keystream(&mut buf[5..12]);
+            c.xor_keystream(&mut buf[12..20]);
+            c.xor_keystream(&mut buf[20..]);
+            assert_eq!(buf, expected, "ietf multiple partial leftover consumptions");
+        }
+    }
+
+    /// XChaCha20: multi-call leftover consumption.
+    #[test]
+    fn xchacha20_keystream_leftover_multi_call() {
+        let key = test_key_32();
+        let nonce = test_nonce_24();
+        let pt = test_plaintext(300);
+
+        let expected = encrypt_one_shot_xchacha(&key, &nonce, &pt);
+
+        // partial block -> leaves leftover, partially consume, then finish
+        {
+            let mut buf = pt.clone();
+            let mut c = XChaCha20::new(&key, &nonce);
+            c.xor_keystream(&mut buf[..8]);
+            c.xor_keystream(&mut buf[8..20]);
+            c.xor_keystream(&mut buf[20..]);
+            assert_eq!(buf, expected, "xchacha partial leftover consumption");
+        }
+
+        // three rounds of partial consumption
+        {
+            let mut buf = pt.clone();
+            let mut c = XChaCha20::new(&key, &nonce);
+            c.xor_keystream(&mut buf[..13]);
+            c.xor_keystream(&mut buf[13..27]);
+            c.xor_keystream(&mut buf[27..40]);
+            c.xor_keystream(&mut buf[40..]);
+            assert_eq!(buf, expected, "xchacha multiple partial leftover consumptions");
+        }
+    }
+
+    /// Very small chunks: 1-byte calls to stress the leftover offset state machine.
+    #[test]
+    fn chacha_keystream_leftover_tiny_chunks() {
+        let key = test_key_32();
+        let nonce = test_nonce_8();
+        let pt = test_plaintext(200);
+
+        // 10 calls of 1 byte each, then the rest in one shot
+        let mut cipher = ChaCha20Djb::new(&key, &nonce);
+        let mut buf = pt.clone();
+        for n in 0..10 {
+            cipher.xor_keystream(&mut buf[n..n + 1]);
+        }
+        cipher.xor_keystream(&mut buf[10..]);
+        let expected = encrypt_one_shot_djb(&key, &nonce, &pt);
+        assert_eq!(buf, expected, "tiny-chunk DJB failed");
+
+        // IETF variant
+        let nonce12 = test_nonce_12();
+        let mut buf = pt.clone();
+        let mut cipher = ChaCha20Ietf::new(&key, &nonce12);
+        for n in 0..10 {
+            cipher.xor_keystream(&mut buf[n..n + 1]);
+        }
+        cipher.xor_keystream(&mut buf[10..]);
+        let expected = encrypt_one_shot_ietf(&key, &nonce12, &pt);
+        assert_eq!(buf, expected, "tiny-chunk IETF failed");
+
+        // XChaCha variant
+        let nonce24 = test_nonce_24();
+        let mut buf = pt.clone();
+        let mut cipher = XChaCha20::new(&key, &nonce24);
+        for n in 0..10 {
+            cipher.xor_keystream(&mut buf[n..n + 1]);
+        }
+        cipher.xor_keystream(&mut buf[10..]);
+        let expected = encrypt_one_shot_xchacha(&key, &nonce24, &pt);
+        assert_eq!(buf, expected, "tiny-chunk XChaCha failed");
+    }
+
+    /// Boundary sizes: 63, 64, 65, 127, 128, 129 bytes.
+    /// Tests the leftover offset formula at exact transition points.
+    #[test]
+    fn chacha_keystream_leftover_boundary_sizes() {
+        let key = test_key_32();
+        let nonce = test_nonce_8();
+
+        for &len in &[63usize, 64, 65, 127, 128, 129, 191, 192, 193, 255, 256, 257] {
+            let pt = test_plaintext(len);
+            let expected = encrypt_one_shot_djb(&key, &nonce, &pt);
+
+            // split into 3 chunks: a, b, c where a+b+c = len
+            // Use varying split sizes to exercise different leftover states
+            for a in [0usize, 1, 8, 31, 32, 33, 62, 63].iter().copied() {
+                if a > len {
+                    continue;
+                }
+                for b in [0usize, 1, 7, 32, 63, 64].iter().copied() {
+                    if a + b > len {
+                        continue;
+                    }
+                    let c = len - a - b;
+                    let splits = [a, b, c];
+
+                    let mut cipher = ChaCha20Djb::new(&key, &nonce);
+                    let mut buf = pt.clone();
+                    let mut offset = 0;
+                    for &size in &splits {
+                        cipher.xor_keystream(&mut buf[offset..offset + size]);
+                        offset += size;
+                    }
+                    assert_eq!(buf, expected, "Boundary DJB failed for len={len} splits={splits:?}",);
+                }
+            }
+        }
+    }
+
+    /// Boundary sizes for IETF variant.
+    #[test]
+    fn chacha_keystream_leftover_boundary_sizes_ietf() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+
+        for &len in &[63usize, 64, 65, 127, 128, 129] {
+            let pt = test_plaintext(len);
+            let expected = encrypt_one_shot_ietf(&key, &nonce, &pt);
+
+            for &a in &[0usize, 1, 31, 32, 33, 63] {
+                if a > len {
+                    continue;
+                }
+                let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+                let mut buf = pt.clone();
+                cipher.xor_keystream(&mut buf[..a]);
+                cipher.xor_keystream(&mut buf[a..]);
+                assert_eq!(buf, expected, "Boundary IETF failed for len={len} a={a}",);
+            }
+        }
+    }
+
+    /// Zero-byte intermediate calls: should be no-ops that don't corrupt leftover state.
+    #[test]
+    fn chacha_keystream_leftover_zero_byte_intermediate() {
+        let key = test_key_32();
+        let nonce = test_nonce_8();
+        let pt = test_plaintext(150);
+        let expected = encrypt_one_shot_djb(&key, &nonce, &pt);
+
+        let mut buf = pt.clone();
+        let mut cipher = ChaCha20Djb::new(&key, &nonce);
+
+        // first partial call
+        cipher.xor_keystream(&mut buf[..10]);
+        // zero-byte call in the middle
+        cipher.xor_keystream(&mut []);
+        // second partial call
+        cipher.xor_keystream(&mut buf[10..20]);
+        // another zero-byte call
+        cipher.xor_keystream(&mut []);
+        // final call
+        cipher.xor_keystream(&mut buf[20..]);
+
+        assert_eq!(buf, expected, "zero-byte intermediate DJB failed");
+    }
+
+    /// set_counter mid-stream, then partial encryption: verifies leftover is cleared
+    /// and counter is correctly reset.
+    #[test]
+    fn chacha_keystream_leftover_set_counter_mid_stream() {
+        let key = test_key_32();
+        let nonce = test_nonce_8();
+        let pt = test_plaintext(200);
+
+        // one-shot reference
+        let full_encrypted = encrypt_one_shot_djb(&key, &nonce, &pt);
+
+        // encrypt all at once with a fresh cipher
+        let mut buf = pt.clone();
+        let mut cipher = ChaCha20Djb::new(&key, &nonce);
+        cipher.xor_keystream(&mut buf);
+        assert_eq!(buf, full_encrypted, "baseline DJB");
+
+        // encrypt 10 bytes, reset counter to 0, re-encrypt those 10 bytes
+        // (this XORs again → back to plaintext), then encrypt the rest.
+        let mut buf = pt.clone();
+        let mut cipher = ChaCha20Djb::new(&key, &nonce);
+        cipher.xor_keystream(&mut buf[..10]);
+        cipher.set_counter(0);
+        cipher.xor_keystream(&mut buf[..10]); // re-XOR → bytes 0-9 are plaintext again
+        cipher.xor_keystream(&mut buf[10..]);
+
+        // first 10 bytes are back to plaintext
+        assert_eq!(
+            &buf[..10],
+            &pt[..10],
+            "set_counter mid-stream: first 10 bytes should be plaintext"
+        );
+        // remaining bytes match the one-shot encryption
+        assert_eq!(&buf[10..], &full_encrypted[10..], "set_counter mid-stream DJB failed");
+
+        // IETF variant: same pattern
+        let nonce12 = test_nonce_12();
+        let full_encrypted = encrypt_one_shot_ietf(&key, &nonce12, &pt);
+
+        let mut buf = pt.clone();
+        let mut cipher = ChaCha20Ietf::new(&key, &nonce12);
+        cipher.xor_keystream(&mut buf[..10]);
+        cipher.set_counter(0);
+        cipher.xor_keystream(&mut buf[..10]);
+        cipher.xor_keystream(&mut buf[10..]);
+        assert_eq!(&buf[..10], &pt[..10], "set_counter mid-stream: IETF first 10 bytes");
+        assert_eq!(&buf[10..], &full_encrypted[10..], "set_counter mid-stream IETF failed");
+    }
+
+    /// Stress test: many sequential calls with random-sized splits at block boundaries.
+    #[test]
+    fn chacha_keystream_leftover_stress_random_splits() {
+        let key = test_key_32();
+        let nonce = test_nonce_8();
+
+        let sizes = [50usize, 127, 128, 129, 200, 256, 300, 400, 512];
+        let split_patterns: &[&[usize]] = &[
+            &[1, 2, 3, 4, 5],
+            &[7, 13, 23, 31],
+            &[32, 32, 32],
+            &[63, 1],
+            &[64, 64],
+            &[65, 63],
+            &[33, 33, 33, 33],
+            &[10, 10, 10, 10, 10],
+            &[50, 50, 50],
+        ];
+
+        for &len in &sizes {
+            let pt = test_plaintext(len);
+
+            // ChaCha20
+            let expected20 = {
+                let mut b = pt.clone();
+                ChaCha20Djb::new(&key, &nonce).xor_keystream(&mut b);
+                b
+            };
+            for &splits in split_patterns {
+                let mut buf = pt.clone();
+                let mut offset = 0;
+                let mut c = ChaCha20Djb::new(&key, &nonce);
+                for &size in splits {
+                    let end = core::cmp::min(offset + size, buf.len());
+                    c.xor_keystream(&mut buf[offset..end]);
+                    offset = end;
+                    if offset >= buf.len() {
+                        break;
+                    }
+                }
+                if offset < buf.len() {
+                    c.xor_keystream(&mut buf[offset..]);
+                }
+                assert_eq!(buf, expected20, "Stress ChaCha20 failed for len={len} splits={splits:?}",);
+            }
+
+            // ChaCha12
+            let expected12 = {
+                let mut b = pt.clone();
+                ChaCha12Djb::new(&key, &nonce).xor_keystream(&mut b);
+                b
+            };
+            for &splits in split_patterns {
+                let mut buf = pt.clone();
+                let mut offset = 0;
+                let mut c = ChaCha12Djb::new(&key, &nonce);
+                for &size in splits {
+                    let end = core::cmp::min(offset + size, buf.len());
+                    c.xor_keystream(&mut buf[offset..end]);
+                    offset = end;
+                    if offset >= buf.len() {
+                        break;
+                    }
+                }
+                if offset < buf.len() {
+                    c.xor_keystream(&mut buf[offset..]);
+                }
+                assert_eq!(buf, expected12, "Stress ChaCha12 failed for len={len} splits={splits:?}",);
+            }
+
+            // ChaCha8
+            let expected8 = {
+                let mut b = pt.clone();
+                ChaCha8Djb::new(&key, &nonce).xor_keystream(&mut b);
+                b
+            };
+            for &splits in split_patterns {
+                let mut buf = pt.clone();
+                let mut offset = 0;
+                let mut c = ChaCha8Djb::new(&key, &nonce);
+                for &size in splits {
+                    let end = core::cmp::min(offset + size, buf.len());
+                    c.xor_keystream(&mut buf[offset..end]);
+                    offset = end;
+                    if offset >= buf.len() {
+                        break;
+                    }
+                }
+                if offset < buf.len() {
+                    c.xor_keystream(&mut buf[offset..]);
+                }
+                assert_eq!(buf, expected8, "Stress ChaCha8 failed for len={len} splits={splits:?}",);
+            }
+        }
+    }
+
+    /// IETF-specific variant of the stress test.
+    #[test]
+    fn chacha_keystream_leftover_stress_random_splits_ietf() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+
+        for &len in &[50usize, 127, 128, 129, 200, 256, 300] {
+            let pt = test_plaintext(len);
+            let expected = encrypt_one_shot_ietf(&key, &nonce, &pt);
+
+            let split_patterns: &[&[usize]] = &[
+                &[1, 2, 3, 4, 5],
+                &[7, 13, 23, 31],
+                &[63, 1],
+                &[64, 64],
+                &[65, 63],
+                &[33, 33, 33, 33],
+                &[50, 50, 50],
+            ];
+
+            for &splits in split_patterns {
+                let mut buf = pt.clone();
+                let mut offset = 0;
+                let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+                for &size in splits {
+                    let end = core::cmp::min(offset + size, buf.len());
+                    cipher.xor_keystream(&mut buf[offset..end]);
+                    offset = end;
+                    if offset >= buf.len() {
+                        break;
+                    }
+                }
+                if offset < buf.len() {
+                    cipher.xor_keystream(&mut buf[offset..]);
+                }
+                assert_eq!(buf, expected, "Stress IETF failed for len={len} splits={splits:?}",);
+            }
+        }
+    }
+
+    /// XChaCha-specific variant of the stress test.
+    #[test]
+    fn keystream_leftover_stress_random_splits_xchacha() {
+        let key = test_key_32();
+        let nonce = test_nonce_24();
+
+        for &len in &[50usize, 127, 128, 129, 200] {
+            let pt = test_plaintext(len);
+            let expected = encrypt_one_shot_xchacha(&key, &nonce, &pt);
+
+            let split_patterns: &[&[usize]] = &[&[1, 2, 3, 4, 5], &[7, 13, 23], &[63, 1], &[64, 64], &[65, 63]];
+
+            for &splits in split_patterns {
+                let mut buf = pt.clone();
+                let mut offset = 0;
+                let mut cipher = XChaCha20::new(&key, &nonce);
+                for &size in splits {
+                    let end = core::cmp::min(offset + size, buf.len());
+                    cipher.xor_keystream(&mut buf[offset..end]);
+                    offset = end;
+                    if offset >= buf.len() {
+                        break;
+                    }
+                }
+                if offset < buf.len() {
+                    cipher.xor_keystream(&mut buf[offset..]);
+                }
+                assert_eq!(buf, expected, "Stress XChaCha failed for len={len} splits={splits:?}",);
+            }
+        }
     }
 }
