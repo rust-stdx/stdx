@@ -67,7 +67,7 @@ fn bench_decrypt(c: &mut Criterion) {
     let chacha = ChaCha20Poly1305::new(&KEY);
     let chacha_blake3 = ChaCha20Blake3::new(&KEY);
 
-    for &size in &DATA_SIZES {
+    for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
         group.throughput(Throughput::Bytes(size as u64));
 
