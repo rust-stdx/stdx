@@ -96,8 +96,8 @@ impl Blake3 {
     }
 
     #[inline]
-    pub fn finalize_xof(self) -> Blake3Xof {
-        Blake3Xof {
+    pub fn finalize_xof(self) -> Blake3XofReader {
+        Blake3XofReader {
             reader: self.hasher.finalize_xof(),
         }
     }
@@ -125,8 +125,7 @@ impl Hasher for Blake3 {
 
 /// BLAKE3 extensible-output function (XOF) reader.
 ///
-/// Produced by [`Blake3::finalize_xof`]. Implements the [`Xof`] trait and
-/// also provides a direct [`fill`](Blake3Xof::fill) method.
+/// Produced by [`Blake3::finalize_xof`]. Implements the [`Xof`] trait.
 ///
 /// ```ignore
 /// use crypto::{blake3::Blake3, Xof};
@@ -139,17 +138,11 @@ impl Hasher for Blake3 {
 /// ```
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
-pub struct Blake3Xof {
+pub struct Blake3XofReader {
     reader: blake3::OutputReader,
 }
 
-impl Blake3Xof {
-    pub fn fill(&mut self, output: &mut [u8]) {
-        self.reader.fill(output);
-    }
-}
-
-impl Xof for Blake3Xof {
+impl Xof for Blake3XofReader {
     /// Do nothing.
     fn absorb(&mut self, _data: &[u8]) {}
 

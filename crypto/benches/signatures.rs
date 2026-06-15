@@ -13,7 +13,7 @@ fn bench_sign(c: &mut Criterion) {
     let (mldsa65_seed, _) = black_box(ml_dsa_65_generate_keypair());
 
     for &size in DATA_SIZES {
-        let mut group = c.benchmark_group(size.to_string());
+        let mut group = c.benchmark_group(format!("sign/{size}"));
         group.throughput(Throughput::Bytes(size as u64));
 
         let data = vec![0xA5_u8; size];
@@ -43,7 +43,7 @@ fn bench_verify(c: &mut Criterion) {
     let (mldsa65_seed, mldsa65_pk) = black_box(ml_dsa_65_generate_keypair());
 
     for &size in DATA_SIZES {
-        let mut group = c.benchmark_group(size.to_string());
+        let mut group = c.benchmark_group(format!("verify/{size}"));
         group.throughput(Throughput::Bytes(size as u64));
 
         let data = vec![0xA5_u8; size];

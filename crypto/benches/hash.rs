@@ -5,7 +5,7 @@ use crypto::{
     Hasher,
     blake3::Blake3,
     sha2::{Sha256, Sha512},
-    sha3::{Sha3_256, Sha3_512},
+    sha3::{Sha3_256, Sha3_512, Shake256},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
@@ -38,6 +38,12 @@ fn bench_hashes(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("SHA3-512"), &data, |b, data| {
             b.iter(|| {
                 let _ = Sha3_512::hash(black_box(data.as_slice()));
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("SHAKE256-64"), &data, |b, data| {
+            b.iter(|| {
+                let _ = <Shake256 as Hasher>::hash(black_box(data.as_slice()));
             });
         });
 
