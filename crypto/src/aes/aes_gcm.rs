@@ -8,7 +8,7 @@ use super::{
     aes_ctr::Aes256Ctr,
     ghash::{compute_tag, precompute_ghash_powers, precompute_ghash_table},
 };
-use crate::{Aead, AeadError, StreamCipher, Tag};
+use crate::{Aead, AeadError, Hash, StreamCipher};
 
 /// AES-256-GCM authenticated cipher.
 ///
@@ -107,7 +107,7 @@ impl Aes256Gcm {
     /// The expanded key is recomputed here because on x86_64/aarch64 we store
     /// only the hardware-specific keys. This path is only reached when
     /// the hardware accelerator is unavailable, so the overhead is negligible.
-    pub(crate) fn encrypt_in_place_soft(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Tag {
+    pub(crate) fn encrypt_in_place_soft(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Hash {
         assert!(
             in_out.len() <= MAX_GCM_LEN,
             "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
@@ -181,7 +181,7 @@ impl Aead for Aes256Gcm {
 
     #[inline]
     #[allow(unreachable_code)]
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Tag {
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         assert_eq!(nonce.len(), 12, "AES-256-GCM nonce must be 12 bytes");
         let nonce_arr: &[u8; 12] = nonce.try_into().unwrap();
 

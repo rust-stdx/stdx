@@ -1,4 +1,4 @@
-use crate::{Hash, Hasher, Xof};
+use crate::{Bytes, Hash, Hasher, Xof};
 
 /// BLAKE3 hash function.
 ///
@@ -23,29 +23,16 @@ use crate::{Hash, Hasher, Xof};
 /// let hash = hasher.sum();
 /// ```
 ///
-/// # XOF API
+/// # XOF (Extendable-Output Function) API
 ///
 /// ```ignore
-/// use crypto::blake3::Blake3;
+/// use crypto::{Hasher, blake3::Blake3};
 ///
+/// let mut out = [0u8; 64];
 /// let mut hasher = Blake3::new();
 /// hasher.update(b"hello world");
-/// let mut out = [0u8; 64];
-/// hasher.xof(&mut out);
+/// hasher.finalize_xof().squeeze(&mut out);
 /// ```
-///
-/// Or with the [`Blake3Xof`] type:
-///
-/// ```ignore
-/// use crypto::{blake3::Blake3, Xof};
-///
-/// let mut hasher = Blake3::new();
-/// hasher.update(b"hello world");
-/// let mut xof = hasher.finalize_xof();
-/// let mut out = [0u8; 64];
-/// xof.squeeze(&mut out);
-/// ```
-///
 /// # Keyed hashing
 ///
 /// ```ignore
@@ -105,9 +92,7 @@ impl Blake3 {
     #[inline]
     pub fn keyed_hash(key: &[u8; 32], input: &[u8]) -> Hash {
         let blake3_hash = blake3::keyed_hash(key, input);
-        let mut hash = crate::Bytes::<64>::new();
-        hash.append(blake3_hash.as_bytes());
-        Hash(hash)
+        Hash(Bytes::<64>::from(blake3_hash.as_bytes()))
     }
 
     #[inline]
@@ -115,11 +100,6 @@ impl Blake3 {
         Blake3Xof {
             reader: self.hasher.finalize_xof(),
         }
-    }
-
-    #[inline]
-    pub fn xof(self, output: &mut [u8]) {
-        self.finalize_xof().fill(output);
     }
 }
 
@@ -139,9 +119,7 @@ impl Hasher for Blake3 {
 
     fn sum(self) -> Hash {
         let blake3_hash = self.hasher.finalize();
-        let mut hash = crate::Bytes::<64>::new();
-        hash.append(blake3_hash.as_bytes());
-        Hash(hash)
+        Hash(Bytes::<64>::from(blake3_hash.as_bytes()))
     }
 }
 

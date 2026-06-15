@@ -43,7 +43,7 @@ use super::{
     aes_gcm::MAX_GCM_LEN,
     ghash_amd64::{bitreverse_per_byte, clmul_gcm, ghash_4blocks, ghash_8blocks, ghash_update},
 };
-use crate::{AeadError, Tag, bytes::Bytes};
+use crate::{AeadError, Hash, bytes::Bytes};
 
 // ── AES-256-GCM encrypt (hardware) ────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
     in_out: &mut [u8],
     nonce: &[u8; 12],
     aad: &[u8],
-) -> Tag {
+) -> Hash {
     assert!(
         in_out.len() <= MAX_GCM_LEN,
         "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
@@ -222,10 +222,10 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
     state = clmul_gcm(_mm_xor_si128(state, len_br), h_powers[0]);
 
     // ── Tag ────────────────────────────────────────────────────────────────
-    let mut tag = Bytes::<32>::with_length(16);
+    let mut tag = Bytes::<64>::with_length(16);
     let tag_xmm = _mm_xor_si128(bitreverse_per_byte(state), _mm_loadu_si128(ej0_bytes.as_ptr().cast()));
     _mm_storeu_si128(tag.as_mut().as_mut_ptr().cast(), tag_xmm);
-    Tag(tag)
+    Hash(tag)
 }
 
 // ── AES-256-GCM decrypt (hardware) ───────────────────────────────────────────

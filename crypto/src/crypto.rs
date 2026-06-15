@@ -35,7 +35,7 @@ pub mod encoding;
 pub mod p256;
 pub mod pbkdf2;
 pub(crate) use bytes::Bytes;
-pub use bytes::{Hash, Tag};
+pub use bytes::Hash;
 
 const MAX_HASH_BLOCK_SIZE: usize = 128;
 
@@ -132,7 +132,7 @@ pub trait Aead: Sized {
     const TAG_SIZE: usize;
     const NONCE_SIZE: usize;
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Tag;
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash;
 
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError>;
 

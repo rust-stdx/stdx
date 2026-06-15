@@ -1,5 +1,5 @@
 use super::{ChaCha, hchacha20};
-use crate::{Aead, AeadError, StreamCipher, Tag, bytes::Bytes, poly1305::Poly1305};
+use crate::{Aead, AeadError, Hash, StreamCipher, bytes::Bytes, poly1305::Poly1305};
 
 /// ChaCha20-Poly1305 AEAD as specified in RFC 8439.
 ///
@@ -37,7 +37,7 @@ impl Aead for ChaCha20Poly1305 {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Tag {
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         let nonce: &[u8; 12] = nonce.try_into().expect("nonce must be 12 bytes");
         let otk = self.poly1305_key_gen(nonce);
 
@@ -52,7 +52,7 @@ impl Aead for ChaCha20Poly1305 {
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let tag_bytes = mac.finalize();
 
-        let mut tag = Tag(Bytes::<32>::with_length(16));
+        let mut tag = Hash(Bytes::<64>::with_length(16));
         tag.as_mut().copy_from_slice(&tag_bytes);
         return tag;
     }
@@ -117,7 +117,7 @@ impl Aead for XChaCha20Poly1305 {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 24;
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Tag {
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         let nonce: &[u8; 24] = nonce.try_into().expect("nonce must be 24 bytes");
         let (subkey, ietf_nonce) = self.derive_subkey(nonce);
 
@@ -139,7 +139,7 @@ impl Aead for XChaCha20Poly1305 {
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let tag_bytes = mac.finalize();
 
-        let mut tag = Tag(Bytes::<32>::with_length(16));
+        let mut tag = Hash(Bytes::<64>::with_length(16));
         tag.as_mut().copy_from_slice(&tag_bytes);
         return tag;
     }

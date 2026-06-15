@@ -11,7 +11,7 @@
 ///
 /// This matches `u128::from_be_bytes(block)` exactly.
 use super::aes::{encrypt_block, key_expand};
-use crate::{Tag, bytes::Bytes};
+use crate::{Hash, bytes::Bytes};
 
 /// Precomputed bit-reversal lookup table for all 256 byte values.
 /// Replaces 16 x reverse_bits() calls with simple table lookups.
@@ -26,8 +26,8 @@ const BIT_REVERSE: [u8; 256] = {
 };
 
 /// Compute the GCM authentication tag (pure Rust).
-pub(crate) fn compute_tag(table: &GhashTable, aad: &[u8], ciphertext: &[u8], ej0: &[u8; 16]) -> Tag {
-    let mut tag = Tag(Bytes::<32>::with_length(16));
+pub(crate) fn compute_tag(table: &GhashTable, aad: &[u8], ciphertext: &[u8], ej0: &[u8; 16]) -> Hash {
+    let mut tag = Hash(Bytes::<64>::with_length(16));
     let state: &mut [u8; 16] = tag.as_mut().try_into().unwrap();
 
     ghash_update(state, table, aad);

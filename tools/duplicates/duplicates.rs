@@ -110,6 +110,7 @@ async fn hash_file(path: &Path) -> Result<([u8; 32], u64), io::Error> {
     let size = file.metadata().await?.len();
     let mut hasher = Blake3::new();
     let mut buf = vec![0u8; 1024 * 1024];
+
     loop {
         let n = file.read(&mut buf).await?;
         if n == 0 {

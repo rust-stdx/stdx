@@ -35,16 +35,52 @@ impl<const N: usize> Bytes<N> {
         };
     }
 
+    #[inline]
     pub(crate) fn push(&mut self, byte: u8) {
         assert!(self.length as usize + 1 <= N);
         self.bytes[self.length as usize] = byte;
         self.length += 1;
     }
 
+    #[inline]
     pub(crate) fn append(&mut self, data: &[u8]) {
         assert!(self.length as usize + data.len() <= N);
         self.bytes[self.length as usize..data.len() + self.length as usize].copy_from_slice(data);
         self.length += data.len() as u16;
+    }
+}
+
+impl<const N: usize, const L: usize> From<[u8; L]> for Bytes<N> {
+    #[inline]
+    fn from(data: [u8; L]) -> Self {
+        const {
+            assert!(L <= N);
+        }
+
+        let mut bytes = [0u8; N];
+        bytes[..L].copy_from_slice(&data);
+
+        Bytes {
+            bytes,
+            length: L as u16,
+        }
+    }
+}
+
+impl<const N: usize, const L: usize> From<&[u8; L]> for Bytes<N> {
+    #[inline]
+    fn from(data: &[u8; L]) -> Self {
+        const {
+            assert!(L <= N);
+        }
+
+        let mut bytes = [0u8; N];
+        bytes[..L].copy_from_slice(data);
+
+        Bytes {
+            bytes,
+            length: L as u16,
+        }
     }
 }
 
@@ -78,14 +114,6 @@ impl<const N: usize> AsMut<[u8]> for Bytes<N> {
 #[repr(transparent)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Hash(pub(crate) Bytes<64>);
-
-/// A stack-allocated bytes buffer.
-/// Use [`Self::as_ref`] to get the bytes as a `&[u8]` and [`Self::as_mut`] to get the bytes as a `&mut [u8]`.
-/// Comparing `Tag` is a constant-time operation.
-#[derive(Clone)]
-#[repr(transparent)]
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
-pub struct Tag(pub(crate) Bytes<32>);
 
 /// implement the required public methods for `Type` to be used as a bytes buffer.
 macro_rules! impl_bytes {
@@ -122,5 +150,4 @@ macro_rules! impl_bytes {
     };
 }
 
-impl_bytes!(Tag(Bytes<32>));
 impl_bytes!(Hash(Bytes<64>));

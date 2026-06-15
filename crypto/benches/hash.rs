@@ -8,10 +8,10 @@ use crypto::{
     sha3::{Sha3_256, Sha3_512},
 };
 
-const DATA_SIZES: [usize; 7] = [64, 256, 1024, 16 * 1024, 64 * 1024, 1024 * 1024, 10 * 1024 * 1024];
+const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_hashes(c: &mut Criterion) {
-    for &size in &DATA_SIZES {
+    for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
         group.throughput(Throughput::Bytes(size as u64));
 

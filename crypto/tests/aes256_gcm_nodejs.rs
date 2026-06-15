@@ -4,7 +4,7 @@ use crypto::{Aead, aes::Aes256Gcm};
 
 fn node_encrypt(key: &[u8; 32], nonce: &[u8; 12], aad: &[u8], plaintext: &[u8]) -> (Vec<u8>, [u8; 16]) {
     let output = Command::new("node")
-        .arg("tests/helpers/aes256_gcm_node.js")
+        .arg("tests/aes256_gcm_node.js")
         .arg("encrypt")
         .arg(hex::encode(key))
         .arg(hex::encode(nonce))
@@ -35,7 +35,7 @@ fn node_decrypt(key: &[u8; 32], nonce: &[u8; 12], aad: &[u8], ciphertext: &[u8],
     data.extend_from_slice(tag);
 
     let output = Command::new("node")
-        .arg("tests/helpers/aes256_gcm_node.js")
+        .arg("tests/aes256_gcm_node.js")
         .arg("decrypt")
         .arg(hex::encode(key))
         .arg(hex::encode(nonce))
@@ -60,7 +60,7 @@ fn node_decrypt(key: &[u8; 32], nonce: &[u8; 12], aad: &[u8], ciphertext: &[u8],
 }
 
 #[test]
-fn rust_encrypt_node_decrypt_roundtrip() {
+fn aes256_gcm_rust_encrypt_node_decrypt_roundtrip() {
     let test_cases: Vec<([u8; 32], [u8; 12], Vec<u8>, Vec<u8>)> = vec![
         ([0x00; 32], [0x00; 12], vec![], vec![]),
         ([0x01; 32], [0x02; 12], b"additional data".to_vec(), b"hello world".to_vec()),
@@ -89,7 +89,7 @@ fn rust_encrypt_node_decrypt_roundtrip() {
 }
 
 #[test]
-fn node_encrypt_rust_decrypt_roundtrip() {
+fn aes256_gcm_node_encrypt_rust_decrypt_roundtrip() {
     let test_cases: Vec<([u8; 32], [u8; 12], Vec<u8>, Vec<u8>)> = vec![
         ([0x00; 32], [0x00; 12], vec![], vec![]),
         ([0x01; 32], [0x02; 12], b"additional data".to_vec(), b"hello world".to_vec()),
@@ -121,7 +121,7 @@ fn node_encrypt_rust_decrypt_roundtrip() {
 }
 
 #[test]
-fn bidirectional_large_payload() {
+fn aes256_gcm_bidirectional_large_payload() {
     let key = [0xde; 32];
     let nonce = [0xad; 12];
     let aad = b"large payload test";
@@ -143,7 +143,7 @@ fn bidirectional_large_payload() {
 }
 
 #[test]
-fn bidirectional_empty_plaintext_with_aad() {
+fn aes256_gcm_bidirectional_empty_plaintext_with_aad() {
     let key = [0x55; 32];
     let nonce = [0x66; 12];
     let aad = b"only authenticated data";
@@ -165,12 +165,12 @@ fn bidirectional_empty_plaintext_with_aad() {
 }
 
 #[test]
-fn bidirectional_various_sizes() {
+fn aes256_gcm_bidirectional_various_sizes() {
     let key = [0x77; 32];
     let nonce = [0x88; 12];
     let aad = b"test";
 
-    for size in [1, 15, 16, 17, 31, 32, 33, 100, 255, 256, 257, 512, 1000] {
+    for size in 1..512 {
         let plaintext: Vec<u8> = (0..size).map(|_| rand::random::<u8>()).collect();
 
         let cipher = Aes256Gcm::new(&key);

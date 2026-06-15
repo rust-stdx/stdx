@@ -8,7 +8,7 @@ use crypto::{
     sha3::Kmac256,
 };
 
-const DATA_SIZES: [usize; 7] = [64, 256, 1024, 16 * 1024, 64 * 1024, 1024 * 1024, 10 * 1024 * 1024];
+const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
 
 const KEY: [u8; 32] = [
     0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52,
@@ -19,7 +19,7 @@ fn bench_macs(c: &mut Criterion) {
     let hmac_key = b"rust-stdx-crypto-bench-key";
     let customization = b"rust-stdx";
 
-    for &size in &DATA_SIZES {
+    for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
         group.throughput(Throughput::Bytes(size as u64));
 

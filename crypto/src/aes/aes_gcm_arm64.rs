@@ -23,7 +23,7 @@ use super::{
     aes_gcm::MAX_GCM_LEN,
     ghash_arm64::{clmul_gcm_pmull, ghash_4blocks, ghash_8blocks, ghash_update},
 };
-use crate::{AeadError, Tag, bytes::Bytes};
+use crate::{AeadError, Hash, bytes::Bytes};
 
 // ── Encrypt ───────────────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8(
     in_out: &mut [u8],
     nonce: &[u8; 12],
     aad: &[u8],
-) -> Tag {
+) -> Hash {
     assert!(
         in_out.len() <= MAX_GCM_LEN,
         "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
@@ -188,10 +188,10 @@ pub(crate) unsafe fn gcm_encrypt_armv8(
     state = clmul_gcm_pmull(veorq_u8(state, len_br), h_powers[0]);
 
     // Tag
-    let mut tag = Bytes::<32>::with_length(16);
+    let mut tag = Bytes::<64>::with_length(16);
     let tag_neon = veorq_u8(vrbitq_u8(state), vld1q_u8(ej0_bytes.as_ptr()));
     vst1q_u8(tag.as_mut().as_mut_ptr(), tag_neon);
-    Tag(tag)
+    Hash(tag)
 }
 
 // ── Decrypt ───────────────────────────────────────────────────────────────────

@@ -38,17 +38,15 @@ pub struct ChaCha<const ROUNDS: usize, const IS_IETF: bool> {
     /// xor_keystream(plaintext[0..3]), xor_keystream(plaintext[3..50]), xor_keystream(plaintext[50..150]);
     /// Should be equal to calling it only once:
     /// xor_keystream(plaintext[0..150]);
-    /// For that, we keep the last computed keystream block, as well as how many bytes remain
-    /// from that block after completing the last call.
-    /// Then, when calling `xor_keystream` again, we first check if there is some leftover from
-    /// the last keystream.
-    /// NOTE: the `last_keystream_block` is valid only if the previous call to `xor_keystream` had
-    /// an input.len() % 64 != 0.
-    /// Otherwise there is no need to preserve the last keystream block.
-    /// The unconsumed tail of the last keystream block is stored starting at `last_keystream_block[0]`,
-    /// and `last_keystream_block_remaining` holds the number of remaining bytes (0..=63).
-    last_keystream_block: [u8; BLOCK_SIZE - 1],
-    last_keystream_block_remaining: u8,
+    /// For that, we keep the last computed keystream block, as well as an offset indicating where
+    /// the unconsumed tail starts.
+    /// The full leftover block is stored in `keystream_leftover` minus 1 byte because if there is leftover
+    /// it means that the leftover is <= (BLOCK_SIZE - 1).
+    /// When `keystream_leftover_offset == (BLOCK_SIZE - 1)`, there is no leftover (empty slice).
+    /// NOTE: the `keystream_leftover` buffer is valid only if the previous call to `xor_keystream` had
+    /// an `input.len() % 64 != 0`, Otherwise there is no need to preserve the last keystream block.
+    keystream_leftover: [u8; BLOCK_SIZE - 1],
+    keystream_leftover_offset: u8,
 }
 
 impl<const ROUNDS: usize, const IS_IETF: bool> ChaCha<ROUNDS, IS_IETF> {
@@ -86,8 +84,8 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, false> {
 
         return ChaCha {
             state,
-            last_keystream_block: [0u8; BLOCK_SIZE - 1],
-            last_keystream_block_remaining: 0,
+            keystream_leftover: [0u8; BLOCK_SIZE - 1],
+            keystream_leftover_offset: (BLOCK_SIZE - 1) as u8,
         };
     }
 
@@ -96,7 +94,7 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, false> {
     #[inline(always)]
     pub fn set_counter(&mut self, counter: u64) {
         Self::inject_counter(&mut self.state, counter);
-        self.last_keystream_block_remaining = 0;
+        self.keystream_leftover_offset = (BLOCK_SIZE - 1) as u8;
     }
 }
 
@@ -117,8 +115,8 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, true> {
 
         return ChaCha {
             state,
-            last_keystream_block: [0u8; BLOCK_SIZE - 1],
-            last_keystream_block_remaining: 0,
+            keystream_leftover: [0u8; BLOCK_SIZE - 1],
+            keystream_leftover_offset: (BLOCK_SIZE - 1) as u8,
         };
     }
 
@@ -127,7 +125,7 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, true> {
     #[inline(always)]
     pub fn set_counter(&mut self, counter: u32) {
         Self::inject_counter(&mut self.state, counter as u64);
-        self.last_keystream_block_remaining = 0;
+        self.keystream_leftover_offset = (BLOCK_SIZE - 1) as u8;
     }
 }
 
@@ -139,29 +137,28 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         }
 
         // first, consume the keystream leftover, if any
-        if self.last_keystream_block_remaining != 0 {
-            let remaining = self.last_keystream_block_remaining as usize;
-            let remaining_keystream = &self.last_keystream_block[..remaining];
+        if self.keystream_leftover_offset < (BLOCK_SIZE - 1) as u8 {
+            let keystream_leftover = &self.keystream_leftover[(self.keystream_leftover_offset as usize)..];
 
             in_out
                 .iter_mut()
-                .zip(remaining_keystream)
+                .zip(keystream_leftover)
                 .for_each(|(plaintext, keystream)| *plaintext ^= *keystream);
 
-            if in_out.len() > remaining_keystream.len() {
-                in_out = &mut in_out[remaining_keystream.len()..];
-            } else if in_out.len() < remaining_keystream.len() {
-                self.last_keystream_block_remaining -= in_out.len() as u8;
+            if in_out.len() > keystream_leftover.len() {
+                in_out = &mut in_out[keystream_leftover.len()..];
+            } else if in_out.len() < keystream_leftover.len() {
+                self.keystream_leftover_offset += in_out.len() as u8;
                 return;
             } else {
-                // plaintext.len() == remaining_keystream.len()
-                self.last_keystream_block_remaining = 0;
+                // in_out.len() == keystream_leftover.len() -> in_out has consumed exactly all the
+                // leftover keystream
+                self.keystream_leftover_offset = (BLOCK_SIZE - 1) as u8;
                 return;
             }
         }
-
-        let consumed = in_out.len() % BLOCK_SIZE;
-        self.last_keystream_block_remaining = ((BLOCK_SIZE - consumed) % BLOCK_SIZE) as u8;
+        // at this point, we already know how many bytes of leftover there will be
+        self.keystream_leftover_offset = ((in_out.len() + BLOCK_SIZE - 1) % BLOCK_SIZE) as u8;
 
         // aarch64 assumes that NEON is always available
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -169,7 +166,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
             use super::chacha_neon::chacha_neon;
             // SAFETY: the cfg attribute above ensures that the required CPU feature(s) are available
             unsafe {
-                chacha_neon::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.last_keystream_block);
+                chacha_neon::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
             }
             return;
         }
@@ -178,7 +175,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         if in_out.len() >= 128 {
             use super::chacha_wasm_simd128::chacha_wasm_simd128;
-            chacha_wasm_simd128::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.last_keystream_block);
+            chacha_wasm_simd128::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
             return;
         }
 
@@ -189,7 +186,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
             if is_x86_feature_detected!("avx512f") && in_out.len() >= 128 {
                 use super::chacha_avx512::chacha_avx512;
                 unsafe {
-                    chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.last_keystream_block);
+                    chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
                 }
                 return;
             }
@@ -198,7 +195,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
             if is_x86_feature_detected!("avx2") && in_out.len() >= 128 {
                 use super::chacha_avx2::chacha_avx2;
                 unsafe {
-                    chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.last_keystream_block);
+                    chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
                 }
                 return;
             }
@@ -210,27 +207,27 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
             #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
             if in_out.len() >= 128 {
                 use super::chacha_avx512::chacha_avx512;
-                unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.last_keystream_block) };
+                unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
                 return;
             }
 
             #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
             if in_out.len() >= 128 {
                 use super::chacha_avx2::chacha_avx2;
-                unsafe { chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.last_keystream_block) };
+                unsafe { chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
                 return;
             }
         }
 
         // fallback for when SIMD acceleration is not available
-        chacha_generic::<ROUNDS, IS_IETF>(&mut self.state, &mut self.last_keystream_block, in_out);
+        chacha_generic::<ROUNDS, IS_IETF>(&mut self.state, &mut self.keystream_leftover, in_out);
     }
 }
 
 #[inline]
 fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
     mut state: &mut [u32; STATE_WORDS],
-    last_keystream_block: &mut [u8; BLOCK_SIZE - 1],
+    keystream_leftover: &mut [u8; BLOCK_SIZE - 1],
     plaintext: &mut [u8],
 ) {
     let mut keystream = [0u8; BLOCK_SIZE];
@@ -289,9 +286,8 @@ fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
     ChaCha::<ROUNDS, IS_IETF>::inject_counter(state, counter);
 
     if plaintext.len() % BLOCK_SIZE != 0 {
-        let consumed = plaintext.len() % BLOCK_SIZE;
-        let remaining = BLOCK_SIZE - consumed;
-        last_keystream_block[..remaining].copy_from_slice(&keystream[consumed..]);
+        // copy the last 63 bytes of the leftover keystream block
+        keystream_leftover.copy_from_slice(&keystream[1..]);
     }
 }
 
@@ -568,6 +564,69 @@ Expected: {}",
                     hex::encode(&plaintext),
                 )
             }
+        }
+    }
+
+    #[test]
+    fn chacha20_keystream_leftover_multi_call() {
+        // Regression: verifies that leftovers are correctly consumed across 3+
+        // partial calls. The old length-based approach did not compact the array
+        // after partial consumption, causing stale keystream reuse on subsequent calls.
+        let key = hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let nonce = hex::decode("0000004a00000000").unwrap().try_into().unwrap();
+        let plaintext = hex::decode(
+            "4c616469657320616e642047656e746c\
+656d656e206f662074686520636c6173\
+73206f66202739393a20496620492063\
+6f756c64206f6666657220796f75206f\
+6e6c79206f6e652074697020666f7220\
+746865206675747572652c2073756e73\
+637265656e20776f756c642062652069\
+742e",
+        )
+        .unwrap();
+
+        let mut expected = plaintext.clone();
+        ChaCha20Djb::new(&key, &nonce).xor_keystream(&mut expected);
+
+        // call 1: partial block -> leaves leftover
+        // call 2: partially consumes leftover
+        // call 3: consumes remaining leftover + fresh blocks
+        {
+            let mut buf = plaintext.clone();
+            let mut cipher = ChaCha20Djb::new(&key, &nonce);
+            cipher.xor_keystream(&mut buf[..10]);
+            cipher.xor_keystream(&mut buf[10..15]);
+            cipher.xor_keystream(&mut buf[15..]);
+            assert_eq!(buf, expected, "partial leftover consumption");
+        }
+
+        // call 1: partial block -> leaves leftover
+        // call 2: exactly exhausts leftover
+        // call 3: fresh blocks
+        {
+            let mut buf = plaintext.clone();
+            let mut cipher = ChaCha20Djb::new(&key, &nonce);
+            cipher.xor_keystream(&mut buf[..10]);
+            cipher.xor_keystream(&mut buf[10..64]);
+            cipher.xor_keystream(&mut buf[64..]);
+            assert_eq!(buf, expected, "exact leftover exhaustion");
+        }
+
+        // call 1: partial block -> leaves leftover
+        // call 2 + call 3: two rounds of partial consumption
+        // call 4: consumes remaining leftover + fresh blocks
+        {
+            let mut buf = plaintext.clone();
+            let mut cipher = ChaCha20Djb::new(&key, &nonce);
+            cipher.xor_keystream(&mut buf[..8]);
+            cipher.xor_keystream(&mut buf[8..13]);
+            cipher.xor_keystream(&mut buf[13..33]);
+            cipher.xor_keystream(&mut buf[33..]);
+            assert_eq!(buf, expected, "multiple partial leftover consumptions");
         }
     }
 

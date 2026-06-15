@@ -6,7 +6,7 @@ use crypto::{
     mldsa::{ml_dsa_65_generate_keypair, ml_dsa_65_sign, ml_dsa_65_verify},
 };
 
-const DATA_SIZES: &[usize] = &[64, 1024, 64 * 1024, 10 * 1024 * 1024];
+const DATA_SIZES: &[usize] = &[64, 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_sign(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
