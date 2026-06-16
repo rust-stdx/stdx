@@ -73,9 +73,9 @@
 
 use core::fmt;
 
-mod xxhash_xxh3;
-mod xxhash_xxh32;
-mod xxhash_xxh64;
+mod xxh3;
+mod xxh32;
+mod xxh64;
 
 mod sealed {
     pub trait Sealed {}
@@ -123,9 +123,9 @@ pub trait Checksum {
     fn sum(self) -> Self::Output;
 }
 
-pub use xxhash_xxh3::{Xxh3_64, Xxh3_128, xxh3_64, xxh3_128};
-pub use xxhash_xxh32::{Xxh32, xxh32};
-pub use xxhash_xxh64::{Xxh64, xxh64};
+pub use xxh3::{Xxh3_64, Xxh3_128, xxh3_64, xxh3_128};
+pub use xxh32::{Xxh32, xxh32};
+pub use xxh64::{Xxh64, xxh64};
 
 #[cfg(test)]
 mod test_helpers {

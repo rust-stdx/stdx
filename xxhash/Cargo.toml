@@ -11,4 +11,9 @@ categories = ["algorithms", "no-std"]
 path = "./xxhash.rs"
 
 [dev-dependencies]
+criterion = { workspace = true }
 rand = { workspace = true }
+
+[[bench]]
+name = "hash"
+harness = false

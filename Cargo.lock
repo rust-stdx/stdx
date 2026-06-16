@@ -4014,6 +4014,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 name = "xxhash"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "rand 0.10.1",
 ]
 

@@ -50,38 +50,24 @@ const INITIAL_ACC: [u64; ACC_NB] = [
 // ---------------------------------------------------------------------------
 // Low-level helpers
 // ---------------------------------------------------------------------------
-
-#[inline]
-const fn read_u64_le(ptr: *const u8) -> u64 {
-    unsafe {
-        u64::from_le_bytes([
-            *ptr,
-            *ptr.add(1),
-            *ptr.add(2),
-            *ptr.add(3),
-            *ptr.add(4),
-            *ptr.add(5),
-            *ptr.add(6),
-            *ptr.add(7),
-        ])
-    }
-}
-
-#[inline]
-const fn read_u32_le(ptr: *const u8) -> u32 {
-    unsafe { u32::from_le_bytes([*ptr, *ptr.add(1), *ptr.add(2), *ptr.add(3)]) }
-}
-
 #[inline]
 const fn read_64le(data: &[u8], offset: usize) -> u64 {
-    read_u64_le(data.as_ptr().wrapping_add(offset))
+    u64::from_le_bytes([
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3],
+        data[offset + 4],
+        data[offset + 5],
+        data[offset + 6],
+        data[offset + 7],
+    ])
 }
 
 #[inline]
 const fn read_32le(data: &[u8], offset: usize) -> u32 {
-    read_u32_le(data.as_ptr().wrapping_add(offset))
+    u32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]])
 }
-
 #[inline]
 const fn xorshift64(value: u64, shift: u64) -> u64 {
     value ^ (value >> shift)
@@ -804,6 +790,16 @@ impl Checksum for Xxh3_64 {
         Self::with_seed(0)
     }
 
+    fn checksum(data: &[u8]) -> Self::Output {
+        if data.len() <= MID_SIZE_MAX {
+            xxh3_64(data)
+        } else {
+            let mut hasher = Self::new();
+            hasher.update(data);
+            hasher.sum()
+        }
+    }
+
     fn update(&mut self, data: &[u8]) {
         if let Some(long) = &mut self.long {
             long.update(data);
@@ -925,6 +921,16 @@ impl Checksum for Xxh3_128 {
 
     fn new() -> Self {
         Self::with_seed(0)
+    }
+
+    fn checksum(data: &[u8]) -> Self::Output {
+        if data.len() <= MID_SIZE_MAX {
+            xxh3_128(data)
+        } else {
+            let mut hasher = Self::new();
+            hasher.update(data);
+            hasher.sum()
+        }
     }
 
     fn update(&mut self, data: &[u8]) {
