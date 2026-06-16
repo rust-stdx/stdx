@@ -8,11 +8,12 @@ description = "Semantic Versioning 2.0 parser and comparator"
 path = "./semver.rs"
 
 [features]
-default = []
+default = ["std"]
+std = ["serde/std"]
 serde = ["dep:serde"]
 
 [dependencies]
-serde = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, default-features = false, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }

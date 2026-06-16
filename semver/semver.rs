@@ -1,4 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
+
 //! A [Semantic Versioning 2.0.0] parser and comparator.
 //!
 //! # Usage
@@ -78,9 +80,12 @@
 //!
 //! [Semantic Versioning 2.0.0]: https://semver.org/spec/v2.0.0.html
 
+extern crate alloc;
+
 #[cfg(feature = "serde")]
 mod serde;
 
+use alloc::vec::Vec;
 use core::{cmp::Ordering, fmt};
 
 /// Errors that can occur when parsing a SemVer version string.
@@ -109,6 +114,7 @@ impl fmt::Display for ParseError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for ParseError {}
 
 /// A parsed pre-release identifier: either a numeric value or an alphanumeric string.
@@ -423,6 +429,8 @@ impl<'a> Ord for Version<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{string::ToString, vec};
+
     use super::*;
 
     #[test]
