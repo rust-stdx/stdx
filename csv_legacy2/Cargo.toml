@@ -14,4 +14,4 @@ serde = ["dep:serde"]
 
 [dependencies]
 memchr = { workspace = true }
-serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
+serde = { workspace = true, default-features = false, features = ["derive", "alloc"], optional = true }

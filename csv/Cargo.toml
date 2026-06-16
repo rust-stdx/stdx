@@ -16,4 +16,4 @@ serde = ["dep:itoa", "dep:ryu", "dep:serde"]
 itoa = { path = "../itoa", optional = true }
 memchr = { workspace = true }
 ryu = { path = "../ryu", optional = true }
-serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
+serde = { workspace = true, default-features = false, features = ["derive", "alloc"], optional = true }
