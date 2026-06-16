@@ -259,23 +259,15 @@ fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secre
         return;
     }
 
-    // runtime dispatch when the "std" feature is enabled
-    #[cfg(feature = "std")]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     {
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
-            return;
-        }
+        unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
+        return;
     }
 
-    // compile-time dispatch when the "std" feature is not enabled
-    #[cfg(all(
-        not(feature = "std"),
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx2",
-    ))]
-    {
+    // runtime dispatch when the "std" feature is enabled
+    #[cfg(all(feature = "std", any(target_arch = "x86", target_arch = "x86_64")))]
+    if std::arch::is_x86_feature_detected!("avx2") {
         unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
         return;
     }
@@ -293,70 +285,17 @@ fn accumulate_loop(
     secret_off: usize,
     nb_stripes: usize,
 ) {
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    {
-        let mut idx = 0;
-        while idx < nb_stripes {
-            unsafe {
-                crate::xxh3_neon::accumulate_512(
-                    acc,
-                    input,
-                    input_off + idx * STRIPE_LEN,
-                    secret,
-                    secret_off + idx * SECRET_CONSUME_RATE,
-                );
-            }
-            idx += 1;
-        }
-        return;
+    let mut idx = 0;
+    while idx < nb_stripes {
+        accumulate_512(
+            acc,
+            input,
+            input_off + idx * STRIPE_LEN,
+            secret,
+            secret_off + idx * SECRET_CONSUME_RATE,
+        );
+        idx += 1;
     }
-
-    // runtime dispatch when the "std" feature is enabled
-    #[cfg(feature = "std")]
-    {
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            let mut idx = 0;
-            while idx < nb_stripes {
-                unsafe {
-                    crate::xxh3_avx2::accumulate_512(
-                        acc,
-                        input,
-                        input_off + idx * STRIPE_LEN,
-                        secret,
-                        secret_off + idx * SECRET_CONSUME_RATE,
-                    );
-                }
-                idx += 1;
-            }
-            return;
-        }
-    }
-
-    // compile-time dispatch when the "std" feature is not enabled
-    #[cfg(all(
-        not(feature = "std"),
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx2",
-    ))]
-    {
-        let mut idx = 0;
-        while idx < nb_stripes {
-            unsafe {
-                crate::xxh3_avx2::accumulate_512(
-                    acc,
-                    input,
-                    input_off + idx * STRIPE_LEN,
-                    secret,
-                    secret_off + idx * SECRET_CONSUME_RATE,
-                );
-            }
-            idx += 1;
-        }
-        return;
-    }
-
-    accumulate_loop_scalar(acc, input, input_off, secret, secret_off, nb_stripes);
 }
 
 #[inline]
@@ -368,21 +307,15 @@ fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
         return;
     }
 
-    #[cfg(feature = "std")]
+    // compile-time dispatch when AVX2 is a compile-time target feature
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     {
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
-            return;
-        }
+        unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
+        return;
     }
 
-    #[cfg(all(
-        not(feature = "std"),
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx2",
-    ))]
-    {
+    #[cfg(all(feature = "std", any(target_arch = "x86", target_arch = "x86_64")))]
+    if std::arch::is_x86_feature_detected!("avx2") {
         unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
         return;
     }

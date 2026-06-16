@@ -6,6 +6,7 @@ use core::arch::x86_64::*;
 use crate::xxh3::{ACC_NB, PRIME32_1};
 
 #[allow(clippy::similar_names)]
+#[target_feature(enable = "avx2")]
 pub unsafe fn accumulate_512(
     acc: &mut [u64; ACC_NB],
     input: &[u8],
@@ -36,6 +37,7 @@ pub unsafe fn accumulate_512(
 }
 
 #[allow(clippy::similar_names)]
+#[target_feature(enable = "avx2")]
 pub unsafe fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
     unsafe {
         let prime32 = _mm256_set1_epi32(PRIME32_1 as i32);
