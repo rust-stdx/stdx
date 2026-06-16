@@ -2,13 +2,15 @@
 name = "xxhash"
 version = "0.1.0"
 edition = "2024"
-description = "xxHash non-cryptographic hash functions (XXH32, XXH64, XXH3-64, XXH3-128) in pure Rust"
 license = "MIT"
-keywords = ["xxhash", "hash", "xxh3", "xxh32", "xxh64"]
-categories = ["algorithms", "no-std"]
 
 [lib]
 path = "./xxhash.rs"
+
+[features]
+default = ["std"]
+std = []
+
 
 [dev-dependencies]
 criterion = { workspace = true }

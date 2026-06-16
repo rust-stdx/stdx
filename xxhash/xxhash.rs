@@ -1,4 +1,5 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![allow(unexpected_cfgs)]
 
 //! xxHash — extremely fast non-cryptographic hash algorithm.
 //!
@@ -72,6 +73,14 @@
 //! ```
 
 use core::fmt;
+
+#[cfg(target_arch = "aarch64")]
+#[path = "xxh3_neon.rs"]
+mod xxh3_neon;
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[path = "xxh3_avx2.rs"]
+mod xxh3_avx2;
 
 mod xxh3;
 mod xxh32;

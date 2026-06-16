@@ -4,8 +4,8 @@ use crate::Checksum;
 // Constants
 // ---------------------------------------------------------------------------
 
-const PRIME32_1: u64 = 0x9E3779B1;
-const PRIME32_3: u64 = 0xC2B2AE3D;
+pub(crate) const PRIME32_1: u64 = 0x9E3779B1;
+pub(crate) const PRIME32_3: u64 = 0xC2B2AE3D;
 
 const PRIME64_1: u64 = 0x9E3779B185EBCA87;
 const PRIME64_2: u64 = 0xC2B2AE3D27D4EB4F;
@@ -13,7 +13,7 @@ const PRIME64_5: u64 = 0x27D4EB2F165667C5;
 
 const STRIPE_LEN: usize = 64;
 const SECRET_CONSUME_RATE: usize = 8;
-const ACC_NB: usize = 8;
+pub(crate) const ACC_NB: usize = 8;
 const SECRET_MERGEACCS_START: usize = 11;
 const SECRET_LASTACC_START: usize = 7;
 const MID_SIZE_MAX: usize = 240;
@@ -144,7 +144,13 @@ const fn merge_accs(acc: &[u64; ACC_NB], secret: &[u8], start_offset: usize, mut
 // ---------------------------------------------------------------------------
 
 #[inline]
-const fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
+const fn accumulate_512_scalar(
+    acc: &mut [u64; ACC_NB],
+    input: &[u8],
+    input_off: usize,
+    secret: &[u8],
+    secret_off: usize,
+) {
     let mut i = 0;
     while i < ACC_NB {
         let data_val = read_64le(input, input_off + i * 8);
@@ -156,7 +162,7 @@ const fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize,
 }
 
 #[inline]
-const fn accumulate_loop(
+const fn accumulate_loop_scalar(
     acc: &mut [u64; ACC_NB],
     input: &[u8],
     input_off: usize,
@@ -166,7 +172,7 @@ const fn accumulate_loop(
 ) {
     let mut i = 0;
     while i < nb_stripes {
-        accumulate_512(
+        accumulate_512_scalar(
             acc,
             input,
             input_off + i * STRIPE_LEN,
@@ -178,7 +184,7 @@ const fn accumulate_loop(
 }
 
 #[inline]
-const fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
+const fn scramble_acc_scalar(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
     let mut i = 0;
     while i < ACC_NB {
         let key = read_64le(secret, secret_off + i * 8);
@@ -197,26 +203,26 @@ const fn hash_long_internal_loop(acc: &mut [u64; ACC_NB], input: &[u8], secret: 
 
     let mut i = 0;
     while i < nb_blocks {
-        accumulate_loop(acc, input, i * block_len, secret, 0, nb_stripes);
-        scramble_acc(acc, secret, secret.len() - STRIPE_LEN);
+        accumulate_loop_scalar(acc, input, i * block_len, secret, 0, nb_stripes);
+        scramble_acc_scalar(acc, secret, secret.len() - STRIPE_LEN);
         i += 1;
     }
 
     // Last partial block
     let nb_stripes = ((input.len() - 1) - (block_len * nb_blocks)) / STRIPE_LEN;
-    accumulate_loop(acc, input, nb_blocks * block_len, secret, 0, nb_stripes);
+    accumulate_loop_scalar(acc, input, nb_blocks * block_len, secret, 0, nb_stripes);
 
     // Last stripe
     let last_stripe_start = input.len() - STRIPE_LEN;
     let last_secret_off = secret.len() - STRIPE_LEN - SECRET_LASTACC_START;
-    accumulate_512(acc, input, last_stripe_start, secret, last_secret_off);
+    accumulate_512_scalar(acc, input, last_stripe_start, secret, last_secret_off);
 }
 
 // ---------------------------------------------------------------------------
 // Custom default secret generation for seeded hashing
 // ---------------------------------------------------------------------------
 
-const fn custom_default_secret(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
+const fn custom_default_secret_scalar(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
     let mut result = [0u8; DEFAULT_SECRET_SIZE];
     let nb_rounds = DEFAULT_SECRET_SIZE / 16;
     let mut i = 0;
@@ -234,6 +240,158 @@ const fn custom_default_secret(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
         i += 1;
     }
     result
+}
+
+// ---------------------------------------------------------------------------
+// Dispatch wrappers — select SIMD or scalar at compile / run time.
+// On aarch64  NEON is always available (compile-time dispatch).
+// On x86_64   AVX2 uses runtime detection when `std` is enabled,
+//             and falls back to compile-time `#[cfg(target_feature)]` in no_std.
+// ---------------------------------------------------------------------------
+
+#[inline]
+#[allow(unreachable_code)]
+fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        unsafe { crate::xxh3_neon::accumulate_512(acc, input, input_off, secret, secret_off) };
+        return;
+    }
+
+    // runtime dispatch when the "std" feature is enabled
+    #[cfg(feature = "std")]
+    {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        if std::arch::is_x86_feature_detected!("avx2") {
+            unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
+            return;
+        }
+    }
+
+    // compile-time dispatch when the "std" feature is not enabled
+    #[cfg(all(
+        not(feature = "std"),
+        any(target_arch = "x86", target_arch = "x86_64"),
+        target_feature = "avx2",
+    ))]
+    {
+        unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
+        return;
+    }
+
+    accumulate_512_scalar(acc, input, input_off, secret, secret_off);
+}
+
+#[inline]
+#[allow(unreachable_code)]
+fn accumulate_loop(
+    acc: &mut [u64; ACC_NB],
+    input: &[u8],
+    input_off: usize,
+    secret: &[u8],
+    secret_off: usize,
+    nb_stripes: usize,
+) {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        let mut idx = 0;
+        while idx < nb_stripes {
+            unsafe {
+                crate::xxh3_neon::accumulate_512(
+                    acc,
+                    input,
+                    input_off + idx * STRIPE_LEN,
+                    secret,
+                    secret_off + idx * SECRET_CONSUME_RATE,
+                );
+            }
+            idx += 1;
+        }
+        return;
+    }
+
+    // runtime dispatch when the "std" feature is enabled
+    #[cfg(feature = "std")]
+    {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        if std::arch::is_x86_feature_detected!("avx2") {
+            let mut idx = 0;
+            while idx < nb_stripes {
+                unsafe {
+                    crate::xxh3_avx2::accumulate_512(
+                        acc,
+                        input,
+                        input_off + idx * STRIPE_LEN,
+                        secret,
+                        secret_off + idx * SECRET_CONSUME_RATE,
+                    );
+                }
+                idx += 1;
+            }
+            return;
+        }
+    }
+
+    // compile-time dispatch when the "std" feature is not enabled
+    #[cfg(all(
+        not(feature = "std"),
+        any(target_arch = "x86", target_arch = "x86_64"),
+        target_feature = "avx2",
+    ))]
+    {
+        let mut idx = 0;
+        while idx < nb_stripes {
+            unsafe {
+                crate::xxh3_avx2::accumulate_512(
+                    acc,
+                    input,
+                    input_off + idx * STRIPE_LEN,
+                    secret,
+                    secret_off + idx * SECRET_CONSUME_RATE,
+                );
+            }
+            idx += 1;
+        }
+        return;
+    }
+
+    accumulate_loop_scalar(acc, input, input_off, secret, secret_off, nb_stripes);
+}
+
+#[inline]
+#[allow(unreachable_code)]
+fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        unsafe { crate::xxh3_neon::scramble_acc(acc, secret, secret_off) };
+        return;
+    }
+
+    #[cfg(feature = "std")]
+    {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        if std::arch::is_x86_feature_detected!("avx2") {
+            unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
+            return;
+        }
+    }
+
+    #[cfg(all(
+        not(feature = "std"),
+        any(target_arch = "x86", target_arch = "x86_64"),
+        target_feature = "avx2",
+    ))]
+    {
+        unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
+        return;
+    }
+
+    scramble_acc_scalar(acc, secret, secret_off);
+}
+
+#[inline]
+fn custom_default_secret(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
+    custom_default_secret_scalar(seed)
 }
 
 // ---------------------------------------------------------------------------
@@ -358,7 +516,7 @@ const fn xxh3_64_long_with_seed(input: &[u8], seed: u64, secret: &[u8]) -> u64 {
     if seed == 0 {
         xxh3_64_long_impl(input, secret)
     } else {
-        xxh3_64_long_impl(input, &custom_default_secret(seed))
+        xxh3_64_long_impl(input, &custom_default_secret_scalar(seed))
     }
 }
 
@@ -574,7 +732,7 @@ const fn xxh3_128_long_with_seed(input: &[u8], seed: u64, secret: &[u8]) -> u128
     if seed == 0 {
         xxh3_128_long_impl(input, secret)
     } else {
-        xxh3_128_long_impl(input, &custom_default_secret(seed))
+        xxh3_128_long_impl(input, &custom_default_secret_scalar(seed))
     }
 }
 
