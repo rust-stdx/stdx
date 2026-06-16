@@ -62,6 +62,7 @@ members = [
     "tld",
     "tools/crypt",
     "tools/duplicates",
+    "tools/energy_bench",
     "unsafe_libyaml",
     "uuid",
     "work_in_progress/pg",
@@ -85,7 +86,7 @@ rand = "0.10"
 regex = { version = "1" }
 reqwest = { version = "0.13", default-features = false, features = ["charset", "gzip", "http2", "multipart", "json", "rustls", "zstd"] }
 aws-lc-rs = { version = "1" }
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", default-features = false }
 serde_json = "1"
 sqlx = { git = "https://github.com/transact-rs/sqlx", ref = "3da582ad1dca5054ec8eda1c87b3b16ca079f47a" }
 thiserror = "2"

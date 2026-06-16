@@ -1,0 +1,11 @@
+[package]
+name = "energy_bench"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "energy_bench"
+path = "energy_bench.rs"
+
+[dependencies]
+crypto = { path = "../../crypto" }

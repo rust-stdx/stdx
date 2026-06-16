@@ -1000,6 +1000,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "energy_bench"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
