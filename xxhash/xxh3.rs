@@ -52,21 +52,22 @@ const INITIAL_ACC: [u64; ACC_NB] = [
 // ---------------------------------------------------------------------------
 #[inline]
 const fn read_64le(data: &[u8], offset: usize) -> u64 {
-    u64::from_le_bytes([
-        data[offset],
-        data[offset + 1],
-        data[offset + 2],
-        data[offset + 3],
-        data[offset + 4],
-        data[offset + 5],
-        data[offset + 6],
-        data[offset + 7],
-    ])
+    let (_, rest) = data.split_at(offset);
+    let arr = match rest.split_first_chunk::<8>() {
+        Some((arr, _)) => arr,
+        None => panic!("read_64le: out of bounds"),
+    };
+    u64::from_le_bytes(*arr)
 }
 
 #[inline]
 const fn read_32le(data: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]])
+    let (_, rest) = data.split_at(offset);
+    let arr = match rest.split_first_chunk::<4>() {
+        Some((arr, _)) => arr,
+        None => panic!("read_32le: out of bounds"),
+    };
+    u32::from_le_bytes(*arr)
 }
 #[inline]
 const fn xorshift64(value: u64, shift: u64) -> u64 {
