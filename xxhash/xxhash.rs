@@ -17,9 +17,21 @@
 //!
 //! All types implement the [`Checksum`] trait.
 //!
+//! # Const one-shot hashing
+//!
+//! Use the free functions [`xxh32`], [`xxh64`], [`xxh3_64`], and
+//! [`xxh3_128`] for `const`-compatible one-shot hashing:
+//!
+//! ```rust
+//! use xxhash::xxh3_64;
+//!
+//! const HASH: u64 = xxh3_64(b"hello");
+//! assert_eq!(HASH, 0x9555E8555C62DCFD);
+//! ```
+//!
 //! # Examples
 //!
-//! ## One-shot hashing
+//! ## One-shot hashing (via trait)
 //!
 //! ```rust
 //! use xxhash::{Xxh3_64, Checksum};
@@ -111,9 +123,9 @@ pub trait Checksum {
     fn sum(self) -> Self::Output;
 }
 
-pub use xxhash_xxh3::{Xxh3_64, Xxh3_128};
-pub use xxhash_xxh32::Xxh32;
-pub use xxhash_xxh64::Xxh64;
+pub use xxhash_xxh3::{Xxh3_64, Xxh3_128, xxh3_64, xxh3_128};
+pub use xxhash_xxh32::{Xxh32, xxh32};
+pub use xxhash_xxh64::{Xxh64, xxh64};
 
 #[cfg(test)]
 mod test_helpers {

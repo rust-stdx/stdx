@@ -32,7 +32,7 @@ pub struct Xxh32 {
 impl Xxh32 {
     /// Create a new XXH32 hasher with the given seed.
     #[inline]
-    pub fn with_seed(seed: u32) -> Self {
+    pub const fn with_seed(seed: u32) -> Self {
         Xxh32 {
             seed,
             v: [0; 4],
@@ -167,13 +167,89 @@ impl core::fmt::Debug for Xxh32 {
 }
 
 impl Default for Xxh32 {
+    #[inline]
     fn default() -> Self {
-        Self::new()
+        Self::with_seed(0)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Standalone const one-shot function
+// ---------------------------------------------------------------------------
+
+/// Compute the XXH32 hash of `data` in a single call.
+///
+/// Available as a `const fn` for compile-time hashing with seed=0.
+///
+/// # Example
+///
+/// ```rust
+/// use xxhash::xxh32;
+///
+/// let hash: u32 = xxh32(b"hello");
+/// assert_eq!(hash, 0xFB0077F9);
+/// ```
 #[inline]
-fn avalanche(mut h32: u32) -> u32 {
+pub const fn xxh32(data: &[u8]) -> u32 {
+    let len = data.len();
+    let seed: u32 = 0;
+    let mut h32: u32;
+
+    if len >= 16 {
+        let mut v = [
+            seed.wrapping_add(PRIME32_1).wrapping_add(PRIME32_2),
+            seed.wrapping_add(PRIME32_2),
+            seed,
+            seed.wrapping_sub(PRIME32_1),
+        ];
+        let mut p = 0;
+        while p + 16 <= len {
+            let mut i = 0;
+            while i < 4 {
+                let off = p + i * 4;
+                let lane = u32::from_le_bytes([data[off], data[off + 1], data[off + 2], data[off + 3]]);
+                v[i] = v[i].wrapping_add(lane.wrapping_mul(PRIME32_2));
+                v[i] = v[i].rotate_left(13);
+                v[i] = v[i].wrapping_mul(PRIME32_1);
+                i += 1;
+            }
+            p += 16;
+        }
+        h32 = v[0]
+            .rotate_left(1)
+            .wrapping_add(v[1].rotate_left(7))
+            .wrapping_add(v[2].rotate_left(12))
+            .wrapping_add(v[3].rotate_left(18));
+    } else {
+        h32 = seed.wrapping_add(PRIME32_5);
+    }
+
+    h32 = h32.wrapping_add(len as u32);
+
+    let mut p = (len / 16) * 16;
+    while p + 4 <= len {
+        let lane = u32::from_le_bytes([data[p], data[p + 1], data[p + 2], data[p + 3]]);
+        h32 = h32.wrapping_add(lane.wrapping_mul(PRIME32_3));
+        h32 = h32.rotate_left(17).wrapping_mul(PRIME32_4);
+        p += 4;
+    }
+    while p < len {
+        h32 = h32.wrapping_add((data[p] as u32).wrapping_mul(PRIME32_5));
+        h32 = h32.rotate_left(11).wrapping_mul(PRIME32_1);
+        p += 1;
+    }
+
+    let mut h = h32;
+    h ^= h >> 15;
+    h = h.wrapping_mul(PRIME32_2);
+    h ^= h >> 13;
+    h = h.wrapping_mul(PRIME32_3);
+    h ^= h >> 16;
+    h
+}
+
+#[inline]
+const fn avalanche(mut h32: u32) -> u32 {
     h32 ^= h32 >> 15;
     h32 = h32.wrapping_mul(PRIME32_2);
     h32 ^= h32 >> 13;
@@ -256,5 +332,19 @@ mod tests {
             }
             assert_eq!(h.sum(), expected, "XXH32 byte-at-a-time length {len} seed {seed:#x}");
         }
+    }
+
+    /// The `const fn` one-shot produces the same result as the trait-based
+    /// [`Checksum::checksum`] and is usable at compile time.
+    #[test]
+    fn test_const_fn() {
+        assert_eq!(xxh32(b""), Xxh32::checksum(b""));
+        assert_eq!(xxh32(b"hello"), Xxh32::checksum(b"hello"));
+        assert_eq!(
+            xxh32(b"The quick brown fox jumps over the lazy dog"),
+            Xxh32::checksum(b"The quick brown fox jumps over the lazy dog")
+        );
+        let buf = &[0x42u8; 256];
+        assert_eq!(xxh32(buf), Xxh32::checksum(buf));
     }
 }

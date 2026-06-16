@@ -32,7 +32,7 @@ pub struct Xxh64 {
 impl Xxh64 {
     /// Create a new XXH64 hasher with the given seed.
     #[inline]
-    pub fn with_seed(seed: u64) -> Self {
+    pub const fn with_seed(seed: u64) -> Self {
         Xxh64 {
             seed,
             v: [0; 4],
@@ -174,7 +174,7 @@ impl Checksum for Xxh64 {
 }
 
 #[inline]
-fn xxh64_merge_round(mut acc: u64, val: u64) -> u64 {
+const fn xxh64_merge_round(mut acc: u64, val: u64) -> u64 {
     let mut val = val.wrapping_mul(PRIME64_2);
     val = val.rotate_left(31);
     val = val.wrapping_mul(PRIME64_1);
@@ -184,7 +184,7 @@ fn xxh64_merge_round(mut acc: u64, val: u64) -> u64 {
 }
 
 #[inline]
-fn avalanche(mut h64: u64) -> u64 {
+const fn avalanche(mut h64: u64) -> u64 {
     h64 ^= h64 >> 33;
     h64 = h64.wrapping_mul(PRIME64_2);
     h64 ^= h64 >> 29;
@@ -200,9 +200,114 @@ impl core::fmt::Debug for Xxh64 {
 }
 
 impl Default for Xxh64 {
+    #[inline]
     fn default() -> Self {
-        Self::new()
+        Self::with_seed(0)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Standalone const one-shot function
+// ---------------------------------------------------------------------------
+
+/// Compute the XXH64 hash of `data` in a single call.
+///
+/// Available as a `const fn` for compile-time hashing with seed=0.
+///
+/// # Example
+///
+/// ```rust
+/// use xxhash::xxh64;
+///
+/// let hash: u64 = xxh64(b"hello");
+/// assert_eq!(hash, 0x26C7827D889F6DA3);
+/// ```
+#[inline]
+pub const fn xxh64(data: &[u8]) -> u64 {
+    let len = data.len();
+    let seed: u64 = 0;
+    let mut h64: u64;
+
+    if len >= 32 {
+        let mut v = [
+            seed.wrapping_add(PRIME64_1).wrapping_add(PRIME64_2),
+            seed.wrapping_add(PRIME64_2),
+            seed,
+            seed.wrapping_sub(PRIME64_1),
+        ];
+        let mut p = 0;
+        while p + 32 <= len {
+            let mut i = 0;
+            while i < 4 {
+                let off = p + i * 8;
+                let lane = u64::from_le_bytes([
+                    data[off],
+                    data[off + 1],
+                    data[off + 2],
+                    data[off + 3],
+                    data[off + 4],
+                    data[off + 5],
+                    data[off + 6],
+                    data[off + 7],
+                ]);
+                v[i] = v[i].wrapping_add(lane.wrapping_mul(PRIME64_2));
+                v[i] = v[i].rotate_left(31);
+                v[i] = v[i].wrapping_mul(PRIME64_1);
+                i += 1;
+            }
+            p += 32;
+        }
+        h64 = v[0]
+            .rotate_left(1)
+            .wrapping_add(v[1].rotate_left(7))
+            .wrapping_add(v[2].rotate_left(12))
+            .wrapping_add(v[3].rotate_left(18));
+        h64 = xxh64_merge_round(h64, v[0]);
+        h64 = xxh64_merge_round(h64, v[1]);
+        h64 = xxh64_merge_round(h64, v[2]);
+        h64 = xxh64_merge_round(h64, v[3]);
+    } else {
+        h64 = seed.wrapping_add(PRIME64_5);
+    }
+
+    h64 = h64.wrapping_add(len as u64);
+
+    let mut p = (len / 32) * 32;
+    while p + 8 <= len {
+        let lane = u64::from_le_bytes([
+            data[p],
+            data[p + 1],
+            data[p + 2],
+            data[p + 3],
+            data[p + 4],
+            data[p + 5],
+            data[p + 6],
+            data[p + 7],
+        ]);
+        let k1 = lane.wrapping_mul(PRIME64_2).rotate_left(31).wrapping_mul(PRIME64_1);
+        h64 ^= k1;
+        h64 = h64.rotate_left(27).wrapping_mul(PRIME64_1).wrapping_add(PRIME64_4);
+        p += 8;
+    }
+    if p + 4 <= len {
+        let lane = u32::from_le_bytes([data[p], data[p + 1], data[p + 2], data[p + 3]]) as u64;
+        h64 ^= lane.wrapping_mul(PRIME64_1);
+        h64 = h64.rotate_left(23).wrapping_mul(PRIME64_2).wrapping_add(PRIME64_3);
+        p += 4;
+    }
+    while p < len {
+        h64 ^= (data[p] as u64).wrapping_mul(PRIME64_5);
+        h64 = h64.rotate_left(11).wrapping_mul(PRIME64_1);
+        p += 1;
+    }
+
+    let mut h = h64;
+    h ^= h >> 33;
+    h = h.wrapping_mul(PRIME64_2);
+    h ^= h >> 29;
+    h = h.wrapping_mul(PRIME64_3);
+    h ^= h >> 32;
+    h
 }
 
 #[cfg(test)]
@@ -281,5 +386,19 @@ mod tests {
             }
             assert_eq!(h.sum(), expected, "XXH64 byte-at-a-time length {len} seed {seed:#x}");
         }
+    }
+
+    /// The `const fn` one-shot produces the same result as the trait-based
+    /// [`Checksum::checksum`] and is usable at compile time.
+    #[test]
+    fn test_const_fn() {
+        assert_eq!(xxh64(b""), Xxh64::checksum(b""));
+        assert_eq!(xxh64(b"hello"), Xxh64::checksum(b"hello"));
+        assert_eq!(
+            xxh64(b"The quick brown fox jumps over the lazy dog"),
+            Xxh64::checksum(b"The quick brown fox jumps over the lazy dog")
+        );
+        let buf = &[0x42u8; 256];
+        assert_eq!(xxh64(buf), Xxh64::checksum(buf));
     }
 }
