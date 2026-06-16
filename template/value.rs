@@ -8,13 +8,16 @@ use core::fmt;
 #[cfg(feature = "std")]
 use serde::ser::{self, Serialize, Serializer};
 
+#[cfg(feature = "std")]
+use crate::SerdeError;
+
 /// A dynamic value used during template rendering.
 ///
 /// Supports strings, numbers, booleans, null, arrays, maps, and
 /// `Safe` strings that bypass auto-escaping.
 ///
 /// This type is not meant to be used directly. Use the [`context!`] macro
-/// or the [`IntoContext`] trait instead.
+/// or the [`IntoContext`](crate::context::IntoContext) trait instead.
 #[doc(hidden)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -29,72 +32,6 @@ pub enum Value {
     Safe(Rc<str>),
     Array(Rc<Vec<Value>>),
     Map(Rc<BTreeMap<String, Value>>),
-}
-
-/// Error returned when serializing a value fails.
-#[derive(Debug)]
-pub struct SerdeError(pub String);
-
-impl fmt::Display for SerdeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for SerdeError {}
-
-#[cfg(feature = "std")]
-impl ser::Error for SerdeError {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
-        SerdeError(msg.to_string())
-    }
-}
-
-/// A template rendering context.
-///
-/// Constructed via the [`context!`](crate::context) macro or through the
-/// [`IntoContext`] trait (implemented for all `Serialize` types when the
-/// `std` feature is enabled).
-pub struct Context(pub(crate) Value);
-
-impl From<Context> for Value {
-    fn from(ctx: Context) -> Value {
-        ctx.0
-    }
-}
-
-/// Trait for types that can be converted into a [`Context`] for template rendering.
-///
-/// Implemented for [`Context`] directly and, with the `std` feature, for all
-/// types that implement [`Serialize`](serde::Serialize).
-///
-/// The `std` blanket impl requires the result to be a map-like value
-/// (i.e. [`Value::Map`](crate::value::Value::Map)). Non-map values such as
-/// plain strings or numbers return an error.
-pub trait IntoContext {
-    /// Convert into a [`Context`].
-    ///
-    /// Returns an error if the conversion fails or if the result is not a map
-    /// (when using the `serde::Serialize`-based blanket impl).
-    fn into_context(&self) -> Result<Context, SerdeError>;
-}
-
-impl IntoContext for Context {
-    fn into_context(&self) -> Result<Context, SerdeError> {
-        Ok(Context(self.0.clone()))
-    }
-}
-
-#[cfg(feature = "std")]
-impl<T: Serialize + ?Sized> IntoContext for T {
-    fn into_context(&self) -> Result<Context, SerdeError> {
-        let v = to_value(self)?;
-        match v {
-            Value::Map(_) => Ok(Context(v)),
-            _ => Err(SerdeError("context must be a map-like value".into())),
-        }
-    }
 }
 
 impl Value {
@@ -688,7 +625,7 @@ impl fmt::Display for Value {
 }
 
 #[cfg(feature = "std")]
-fn to_value<S: Serialize>(value: S) -> Result<Value, SerdeError> {
+pub(crate) fn to_value<S: Serialize>(value: S) -> Result<Value, SerdeError> {
     Value::from_serialize_impl(&value)
 }
 

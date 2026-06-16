@@ -8,9 +8,10 @@ use alloc::{
 
 use crate::{
     ast::{Node, NodeList},
+    context::{Context, IntoContext},
     error::Error,
     parser::TemplateParser,
-    value::{Context, IntoContext, Value},
+    value::Value,
     vm::Renderer,
 };
 
@@ -71,28 +72,29 @@ impl Engine {
 
     /// Render a named template with the given context variables.
     ///
-    /// Pass a [`Context`] built with the [`context!`] macro, or any type that
-    /// implements [`Serialize`](serde::Serialize) (requires the `std` feature).
-    /// Non-map values such as plain strings or numbers produce a render error.
+    /// Pass a [`Context`] built with the [`context!`] macro, or a reference to
+    /// any type that implements [`Serialize`](serde::Serialize) (requires the
+    /// `std` feature). Non-map values such as plain strings or numbers produce
+    /// a render error.
     ///
     /// ```rust
     /// use template::{Engine, EscapeMode, context};
     ///
     /// let mut engine = Engine::new(EscapeMode::Text);
     /// engine.add_template("t", "Hello, {{ name }}!").unwrap();
-    /// let result = engine.render("t", &context! { name: "World" }).unwrap();
+    /// let result = engine.render("t", context! { name: "World" }).unwrap();
     /// assert_eq!(result, "Hello, World!");
     /// ```
     ///
     /// Returns an error if the template name is not registered or if an
     /// expression fails during rendering.
-    pub fn render<C: IntoContext + ?Sized>(&self, name: &str, variables: &C) -> Result<String, Error> {
+    pub fn render(&self, name: &str, context: impl IntoContext) -> Result<String, Error> {
         let template = self
             .templates
             .get(name)
             .ok_or_else(|| Error::undefined_template(name))?;
 
-        let context: Context = variables.into_context().map_err(|e| Error::parse(e.0))?;
+        let context: Context = context.into_context().map_err(|e| Error::parse(e.0))?;
 
         let mut output = String::new();
 
@@ -193,7 +195,7 @@ mod tests {
     fn test_simple_template() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("hello", "Hello, {{ name }}!").unwrap();
-        let result = engine.render("hello", &context! { name: "World" }).unwrap();
+        let result = engine.render("hello", context! { name: "World" }).unwrap();
         assert_eq!(result, "Hello, World!");
     }
 
@@ -202,7 +204,7 @@ mod tests {
         let mut engine = Engine::new(EscapeMode::Html);
         engine.add_template("t", "<p>{{ content }}</p>").unwrap();
         let result = engine
-            .render("t", &context! { content: "<script>alert('xss')</script>" })
+            .render("t", context! { content: "<script>alert('xss')</script>" })
             .unwrap();
         assert_eq!(result, "<p>&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</p>");
     }
@@ -212,7 +214,7 @@ mod tests {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ content }}").unwrap();
         let result = engine
-            .render("t", &context! { content: "<script>alert('xss')</script>" })
+            .render("t", context! { content: "<script>alert('xss')</script>" })
             .unwrap();
         assert_eq!(result, "<script>alert('xss')</script>");
     }
@@ -221,7 +223,7 @@ mod tests {
     fn test_if_true() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% if show %}visible{% endif %}").unwrap();
-        let result = engine.render("t", &context! { show: true }).unwrap();
+        let result = engine.render("t", context! { show: true }).unwrap();
         assert_eq!(result, "visible");
     }
 
@@ -229,7 +231,7 @@ mod tests {
     fn test_if_false() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% if show %}visible{% endif %}").unwrap();
-        let result = engine.render("t", &context! { show: false }).unwrap();
+        let result = engine.render("t", context! { show: false }).unwrap();
         assert_eq!(result, "");
     }
 
@@ -239,7 +241,7 @@ mod tests {
         engine
             .add_template("t", "{% if show %}yes{% else %}no{% endif %}")
             .unwrap();
-        let result = engine.render("t", &context! { show: false }).unwrap();
+        let result = engine.render("t", context! { show: false }).unwrap();
         assert_eq!(result, "no");
     }
 
@@ -249,9 +251,9 @@ mod tests {
         engine
             .add_template("t", "{% if x == 1 %}one{% elif x == 2 %}two{% else %}other{% endif %}")
             .unwrap();
-        assert_eq!(engine.render("t", &context! { x: 1 }).unwrap(), "one");
-        assert_eq!(engine.render("t", &context! { x: 2 }).unwrap(), "two");
-        assert_eq!(engine.render("t", &context! { x: 3 }).unwrap(), "other");
+        assert_eq!(engine.render("t", context! { x: 1 }).unwrap(), "one");
+        assert_eq!(engine.render("t", context! { x: 2 }).unwrap(), "two");
+        assert_eq!(engine.render("t", context! { x: 3 }).unwrap(), "other");
     }
 
     #[test]
@@ -260,7 +262,7 @@ mod tests {
         engine
             .add_template("t", "{% for item in items %}{{ item }},{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! { items: vec!["a", "b", "c"] }).unwrap();
+        let result = engine.render("t", context! { items: vec!["a", "b", "c"] }).unwrap();
         assert_eq!(result, "a,b,c,");
     }
 
@@ -269,7 +271,7 @@ mod tests {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ user.name }}").unwrap();
         let result = engine
-            .render("t", &context! { user: context! { name: "Alice" } })
+            .render("t", context! { user: context! { name: "Alice" } })
             .unwrap();
         assert_eq!(result, "Alice");
     }
@@ -278,7 +280,7 @@ mod tests {
     fn test_filter_upper() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ name | upper }}").unwrap();
-        let result = engine.render("t", &context! { name: "hello" }).unwrap();
+        let result = engine.render("t", context! { name: "hello" }).unwrap();
         assert_eq!(result, "HELLO");
     }
 
@@ -286,7 +288,7 @@ mod tests {
     fn test_filter_chain() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ name | upper | reverse }}").unwrap();
-        let result = engine.render("t", &context! { name: "abc" }).unwrap();
+        let result = engine.render("t", context! { name: "abc" }).unwrap();
         assert_eq!(result, "CBA");
     }
 
@@ -294,7 +296,7 @@ mod tests {
     fn test_set_variable() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% set x = 42 %}{{ x }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "42");
     }
 
@@ -304,7 +306,7 @@ mod tests {
         engine
             .add_template("t", "before{% raw %}{{ not processed }}{% endraw %}after")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "before{{ not processed }}after");
     }
 
@@ -313,7 +315,7 @@ mod tests {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("header", "Header").unwrap();
         engine.add_template("page", "{% include \"header\" %}Body").unwrap();
-        let result = engine.render("page", &context! {}).unwrap();
+        let result = engine.render("page", context! {}).unwrap();
         assert_eq!(result, "HeaderBody");
     }
 
@@ -321,15 +323,15 @@ mod tests {
     fn test_comparisons() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% if x == 1 %}eq{% endif %}").unwrap();
-        assert_eq!(engine.render("t", &context! { x: 1 }).unwrap(), "eq");
-        assert_eq!(engine.render("t", &context! { x: 2 }).unwrap(), "");
+        assert_eq!(engine.render("t", context! { x: 1 }).unwrap(), "eq");
+        assert_eq!(engine.render("t", context! { x: 2 }).unwrap(), "");
     }
 
     #[test]
     fn test_not_operator() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% if not x %}empty{% endif %}").unwrap();
-        let result = engine.render("t", &context! { x: false }).unwrap();
+        let result = engine.render("t", context! { x: false }).unwrap();
         assert_eq!(result, "empty");
     }
 
@@ -339,7 +341,7 @@ mod tests {
         engine
             .add_template("t", "{% if \"a\" in items %}found{% endif %}")
             .unwrap();
-        let result = engine.render("t", &context! { items: vec!["a", "b", "c"] }).unwrap();
+        let result = engine.render("t", context! { items: vec!["a", "b", "c"] }).unwrap();
         assert_eq!(result, "found");
     }
 
@@ -355,7 +357,7 @@ mod tests {
         let result = engine
             .render(
                 "t",
-                &context! {
+                context! {
                     items: vec![
                         context! { name: "a", active: true },
                         context! { name: "b", active: false },
@@ -376,7 +378,7 @@ mod tests {
         engine
             .add_template("child", "{% extends \"base\" %}{% block content %}child content{% endblock %}")
             .unwrap();
-        let result = engine.render("child", &context! {}).unwrap();
+        let result = engine.render("child", context! {}).unwrap();
         assert_eq!(result, "beforechild contentafter");
     }
 
@@ -392,7 +394,7 @@ mod tests {
                 "{% extends \"base\" %}{% block content %}{{ super() }} + child{% endblock %}",
             )
             .unwrap();
-        let result = engine.render("child", &context! {}).unwrap();
+        let result = engine.render("child", context! {}).unwrap();
         assert_eq!(result, "parent + child");
     }
 
@@ -400,7 +402,7 @@ mod tests {
     fn test_comment_is_ignored() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "before{# comment #}after").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "beforeafter");
     }
 
@@ -408,7 +410,7 @@ mod tests {
     fn test_empty_variable() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ missing }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -436,11 +438,11 @@ mod tests {
         engine.add_template("t", "{{ name | default(\"unknown\") }}").unwrap();
 
         // With variable set
-        let result = engine.render("t", &context! { name: "Alice" }).unwrap();
+        let result = engine.render("t", context! { name: "Alice" }).unwrap();
         assert_eq!(result, "Alice");
 
         // Without variable
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "unknown");
     }
 
@@ -448,7 +450,7 @@ mod tests {
     fn test_length_filter() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ items | length }}").unwrap();
-        let result = engine.render("t", &context! { items: vec![1, 2, 3] }).unwrap();
+        let result = engine.render("t", context! { items: vec![1, 2, 3] }).unwrap();
         assert_eq!(result, "3");
     }
 
@@ -456,7 +458,7 @@ mod tests {
     fn test_arithmetic() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 1 + 2 * 3 }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "7");
     }
 
@@ -464,7 +466,7 @@ mod tests {
     fn test_float_arithmetic() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 3.5 + 2.5 }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "6");
     }
 
@@ -472,7 +474,7 @@ mod tests {
     fn test_float_division() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 10.0 / 3 }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert!(
             result == "3.3333333333333335" || result == "3.333333333333333",
             "unexpected float division result: {result}"
@@ -491,7 +493,7 @@ mod tests {
                 "{% extends \"base\" %}{% block content %}{{ super() }}<i>child</i>{% endblock %}",
             )
             .unwrap();
-        let result = engine.render("child", &context! {}).unwrap();
+        let result = engine.render("child", context! {}).unwrap();
         assert_eq!(result, "<b>parent</b><i>child</i>");
     }
 
@@ -513,7 +515,7 @@ mod tests {
                 "{% extends \"child\" %}{% block content %}grandchild {{ super() }}{% endblock %}",
             )
             .unwrap();
-        let result = engine.render("grandchild", &context! {}).unwrap();
+        let result = engine.render("grandchild", context! {}).unwrap();
         assert_eq!(result, "grandchild child base");
     }
 
@@ -521,7 +523,7 @@ mod tests {
     fn test_safe_filter_html_mode() {
         let mut engine = Engine::new(EscapeMode::Html);
         engine.add_template("t", "{{ content | safe }}").unwrap();
-        let result = engine.render("t", &context! { content: "<b>bold</b>" }).unwrap();
+        let result = engine.render("t", context! { content: "<b>bold</b>" }).unwrap();
         assert_eq!(result, "<b>bold</b>");
     }
 
@@ -531,7 +533,7 @@ mod tests {
         engine
             .add_template("t", "{{ content }} and {{ content | escape }}")
             .unwrap();
-        let result = engine.render("t", &context! { content: "<br>" }).unwrap();
+        let result = engine.render("t", context! { content: "<br>" }).unwrap();
         // Already auto-escaped in HTML mode, |escape should not double-escape
         assert_eq!(result, "&lt;br&gt; and &lt;br&gt;");
     }
@@ -542,7 +544,7 @@ mod tests {
         engine
             .add_template("t", "{% for c in s %}{{ c }}|{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! { s: "ab" }).unwrap();
+        let result = engine.render("t", context! { s: "ab" }).unwrap();
         assert_eq!(result, "a|b|");
     }
 
@@ -550,7 +552,7 @@ mod tests {
     fn test_index_access() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ items[0] }},{{ items[1] }}").unwrap();
-        let result = engine.render("t", &context! { items: vec!["a", "b"] }).unwrap();
+        let result = engine.render("t", context! { items: vec!["a", "b"] }).unwrap();
         assert_eq!(result, "a,b");
     }
 
@@ -560,7 +562,7 @@ mod tests {
         engine
             .add_template("t", "{% if \"world\" in \"hello world\" %}found{% endif %}")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "found");
     }
 
@@ -575,14 +577,14 @@ mod tests {
     fn test_length_filter_map() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ obj | length }}").unwrap();
-        let result = engine.render("t", &context! { obj: context! { a: 1, b: 2 } }).unwrap();
+        let result = engine.render("t", context! { obj: context! { a: 1, b: 2 } }).unwrap();
         assert_eq!(result, "2");
     }
 
     #[test]
     fn test_undefined_template_error() {
         let engine = Engine::new(EscapeMode::Text);
-        let result = engine.render("nonexistent", &context! {});
+        let result = engine.render("nonexistent", context! {});
         assert!(result.is_err());
     }
 
@@ -590,7 +592,7 @@ mod tests {
     fn test_division_by_zero() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 1 / 0 }}").unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -598,7 +600,7 @@ mod tests {
     fn test_modulo_by_zero() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 10 % 0 }}").unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -607,7 +609,7 @@ mod tests {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("a", "{% include \"b\" %}").unwrap();
         engine.add_template("b", "{% include \"a\" %}").unwrap();
-        let result = engine.render("a", &context! {});
+        let result = engine.render("a", context! {});
         assert!(result.is_err());
     }
 
@@ -620,7 +622,7 @@ mod tests {
         engine
             .add_template("b", "{% extends \"a\" %}{% block x %}b{% endblock %}")
             .unwrap();
-        let result = engine.render("a", &context! {});
+        let result = engine.render("a", context! {});
         assert!(result.is_err());
     }
 
@@ -628,7 +630,7 @@ mod tests {
     fn test_unknown_function() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ foobar() }}").unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -638,7 +640,7 @@ mod tests {
         engine
             .add_template("t", "{% for i in range(5.5) %}{{ i }}{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -670,7 +672,7 @@ mod tests {
         engine
             .add_template("t", "before{% raw %}{% inner %}{% endraw %}after")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "before{% inner %}after");
     }
 
@@ -680,7 +682,7 @@ mod tests {
         engine
             .add_template("t", "before{% raw %}hello   {% endraw %}after")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "beforehello   after");
     }
 
@@ -690,7 +692,7 @@ mod tests {
         engine
             .add_template("t", "{% for i in range(3) %}{{ i }}{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "012");
     }
 
@@ -698,7 +700,7 @@ mod tests {
     fn test_length_filter_in_html_mode_on_safe() {
         let mut engine = Engine::new(EscapeMode::Html);
         engine.add_template("t", "{{ \"hello\" | escape | length }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         // "hello" escaped is "hello" (no HTML chars), and length is 5 chars
         assert_eq!(result, "5");
     }
@@ -707,7 +709,7 @@ mod tests {
     fn test_first_on_safe_string() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ \"abc\" | safe | first }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "a");
     }
 
@@ -715,7 +717,7 @@ mod tests {
     fn test_last_on_safe_string() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ \"abc\" | safe | last }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "c");
     }
 
@@ -723,7 +725,7 @@ mod tests {
     fn test_reverse_on_safe_string() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ \"abc\" | safe | reverse }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "cba");
     }
 
@@ -731,7 +733,7 @@ mod tests {
     fn test_length_on_safe_string() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ \"hello\" | safe | length }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "5");
     }
 
@@ -739,7 +741,7 @@ mod tests {
     fn test_short_circuit_and() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% if false and 1/0 %}ok{% endif %}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -747,7 +749,7 @@ mod tests {
     fn test_short_circuit_or() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% if true or 1/0 %}ok{% endif %}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "ok");
     }
 
@@ -755,7 +757,7 @@ mod tests {
     fn test_range_no_args() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ range() }}").unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -765,7 +767,7 @@ mod tests {
         engine
             .add_template("t", "{% for i in range(1,2,3) %}{{ i }}{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -775,7 +777,7 @@ mod tests {
         engine
             .add_template("t", "{% for c in \"\" %}{{ c }}{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -785,7 +787,7 @@ mod tests {
         engine
             .add_template("t", "{% for i in items %}{{ i }}{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! { items: Vec::<i32>::new() }).unwrap();
+        let result = engine.render("t", context! { items: Vec::<i32>::new() }).unwrap();
         assert_eq!(result, "");
     }
 
@@ -795,7 +797,7 @@ mod tests {
         engine
             .add_template("t", "{% for i in 42 %}{{ i }}{% endfor %}")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -803,7 +805,7 @@ mod tests {
     fn test_for_over_map() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% for i in m %}{{ i }}{% endfor %}").unwrap();
-        let result = engine.render("t", &context! { m: context! { a: 1 } }).unwrap();
+        let result = engine.render("t", context! { m: context! { a: 1 } }).unwrap();
         assert_eq!(result, "");
     }
 
@@ -811,7 +813,7 @@ mod tests {
     fn test_missing_include() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% include \"missing\" %}").unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -819,7 +821,7 @@ mod tests {
     fn test_missing_extends() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{% extends \"missing\" %}").unwrap();
-        let result = engine.render("t", &context! {});
+        let result = engine.render("t", context! {});
         assert!(result.is_err());
     }
 
@@ -827,7 +829,7 @@ mod tests {
     fn test_super_without_parent() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ super() }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -837,7 +839,7 @@ mod tests {
         engine
             .add_template("t", "{% set x = 1 %}{% set x = 2 %}{{ x }}")
             .unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "2");
     }
 
@@ -845,7 +847,7 @@ mod tests {
     fn test_nested_missing() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ a.b.c }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -853,7 +855,7 @@ mod tests {
     fn test_negative_index_runtime() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ items[i] }}").unwrap();
-        let result = engine.render("t", &context! { items: vec![1, 2], i: -1 });
+        let result = engine.render("t", context! { items: vec![1, 2], i: -1 });
         assert!(result.is_err());
     }
 
@@ -861,7 +863,7 @@ mod tests {
     fn test_float_index_runtime() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ items[i] }}").unwrap();
-        let result = engine.render("t", &context! { items: vec![1, 2], i: 1.5 });
+        let result = engine.render("t", context! { items: vec![1, 2], i: 1.5 });
         assert!(result.is_err());
     }
 
@@ -869,7 +871,7 @@ mod tests {
     fn test_empty_map_index() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ m.key }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "");
     }
 
@@ -877,7 +879,7 @@ mod tests {
     fn test_float_div_by_zero_inf() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 1.0 / 0.0 }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "inf");
     }
 
@@ -885,7 +887,7 @@ mod tests {
     fn test_neg_float_div_by_zero_neg_inf() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ -1.0 / 0.0 }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "-inf");
     }
 
@@ -893,7 +895,7 @@ mod tests {
     fn test_float_zero_div_by_zero_nan() {
         let mut engine = Engine::new(EscapeMode::Text);
         engine.add_template("t", "{{ 0.0 / 0.0 }}").unwrap();
-        let result = engine.render("t", &context! {}).unwrap();
+        let result = engine.render("t", context! {}).unwrap();
         assert_eq!(result, "NaN");
     }
 

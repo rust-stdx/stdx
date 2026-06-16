@@ -15,7 +15,7 @@
 //! let mut engine = Engine::new(EscapeMode::Html);
 //! engine.add_template("hello", "<p>Hello, {{ name }}!</p>");
 //!
-//! let result = engine.render("hello", &context! { name: "World" });
+//! let result = engine.render("hello", context! { name: "World" });
 //! assert_eq!(result.unwrap(), "<p>Hello, World!</p>");
 //! ```
 //!
@@ -41,7 +41,7 @@
 //! engine.add_template("list", "{% for item in items %}- {{ item }}
 //! {% endfor %}").unwrap();
 //!
-//! let result = engine.render("list", &context! {
+//! let result = engine.render("list", context! {
 //!     items: vec!["apple", "banana", "cherry"],
 //! }).unwrap();
 //! assert_eq!(result, "- apple\n- banana\n- cherry\n");
@@ -55,7 +55,7 @@
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t", "{{ users[0].name }}, {{ users[1].name }}").unwrap();
 //!
-//! let result = engine.render("t", &context! {
+//! let result = engine.render("t", context! {
 //!     users: vec![
 //!         context! { name: "Alice", age: 30 },
 //!         context! { name: "Bob", age: 25 },
@@ -78,7 +78,7 @@
 //! rev:   {{ items | reverse | join(\", \") }}
 //! ").unwrap();
 //!
-//! let result = engine.render("t", &context! {
+//! let result = engine.render("t", context! {
 //!     items: vec!["a", "b", "c"],
 //! }).unwrap();
 //! assert_eq!(result, "\
@@ -100,7 +100,7 @@
 //!     "{% if \"admin\" in roles %}Welcome, admin!{% endif %}"
 //! ).unwrap();
 //!
-//! let result = engine.render("t", &context! {
+//! let result = engine.render("t", context! {
 //!     roles: vec!["user", "admin", "moderator"],
 //! }).unwrap();
 //! assert_eq!(result, "Welcome, admin!");
@@ -114,7 +114,7 @@
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t", "{% for n in numbers %}{{ n }} {% endfor %}").unwrap();
 //!
-//! let result = engine.render("t", &context! {
+//! let result = engine.render("t", context! {
 //!     numbers: vec![10, 20, 30],
 //! }).unwrap();
 //! assert_eq!(result, "10 20 30 ");
@@ -130,7 +130,7 @@
 //!     "{% for tag in post.tags %}{{ tag | upper }} {% endfor %}"
 //! ).unwrap();
 //!
-//! let result = engine.render("t", &context! {
+//! let result = engine.render("t", context! {
 //!     post: context! {
 //!         title: "Hello",
 //!         tags: vec!["rust", "template", "dev"],
@@ -248,6 +248,7 @@ extern crate alloc;
 extern crate std;
 
 mod ast;
+pub mod context;
 pub mod engine;
 pub mod error;
 mod escapers;
@@ -257,9 +258,9 @@ mod parser;
 pub mod value;
 mod vm;
 
+pub use context::{Context, IntoContext};
 pub use engine::{Engine, EscapeMode};
-pub use error::Error;
-pub use value::{Context, IntoContext};
+pub use error::{Error, SerdeError};
 
 #[doc(hidden)]
 pub mod __macro_support {
@@ -270,8 +271,8 @@ pub mod __macro_support {
         v.into()
     }
 
-    pub fn build_context(map: BTreeMap<String, crate::value::Value>) -> crate::value::Context {
-        crate::value::Context(crate::value::Value::Map(Rc::new(map)))
+    pub fn build_context(map: BTreeMap<String, crate::value::Value>) -> crate::context::Context {
+        crate::context::Context(crate::value::Value::Map(Rc::new(map)))
     }
 }
 
@@ -287,7 +288,7 @@ pub mod __macro_support {
 /// let mut engine = Engine::new(EscapeMode::Text);
 /// engine.add_template("t", "Hello, {{ name }}!").unwrap();
 ///
-/// let result = engine.render("t", &context! { name: "World" }).unwrap();
+/// let result = engine.render("t", context! { name: "World" }).unwrap();
 /// assert_eq!(result, "Hello, World!");
 /// ```
 ///
@@ -301,7 +302,7 @@ pub mod __macro_support {
 /// {% for item in items %}- {{ item }}
 /// {% endfor %}").unwrap();
 ///
-/// let result = engine.render("t", &context! {
+/// let result = engine.render("t", context! {
 ///     items: vec!["apple", "banana"],
 /// }).unwrap();
 /// assert_eq!(result, "- apple\n- banana\n");

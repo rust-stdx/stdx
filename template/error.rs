@@ -1,7 +1,12 @@
 //! Error types for parse, syntax, render, and type errors with source positions.
 
+#[cfg(any(feature = "std", test))]
+use alloc::string::ToString;
 use alloc::{boxed::Box, string::String};
 use core::fmt;
+
+#[cfg(feature = "std")]
+use serde::ser;
 
 /// A source position (line and column) in a template.
 #[derive(Clone, Debug, PartialEq)]
@@ -193,5 +198,25 @@ impl std::error::Error for Error {
             ErrorKind::Io(err) => Some(err),
             _ => None,
         }
+    }
+}
+
+/// Error returned when serializing a value fails.
+#[derive(Debug)]
+pub struct SerdeError(pub String);
+
+impl fmt::Display for SerdeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for SerdeError {}
+
+#[cfg(feature = "std")]
+impl ser::Error for SerdeError {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        SerdeError(msg.to_string())
     }
 }
