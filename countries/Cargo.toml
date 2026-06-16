@@ -7,7 +7,9 @@ edition = "2024"
 path = "./countries.rs"
 
 [features]
+default = ["std"]
+std = ["serde/std"]
 serde = ["serde/derive"]
 
 [dependencies]
-serde = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, default-features = false, features = ["derive", "alloc"] }

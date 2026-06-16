@@ -1,3 +1,5 @@
+#![no_std]
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
