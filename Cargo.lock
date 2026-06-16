@@ -380,7 +380,7 @@ dependencies = [
 [[package]]
 name = "blake3"
 version = "1.8.5"
-source = "git+https://github.com/BLAKE3-team/BLAKE3#8aa5145039b972ba30e98e788752d37d14568824"
+source = "git+https://github.com/BLAKE3-team/BLAKE3?rev=93a431c78a52d7ccf0f366f106467f5070e6075e#93a431c78a52d7ccf0f366f106467f5070e6075e"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -794,7 +794,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.1.0",
  "big_number",
- "blake3 1.8.5 (git+https://github.com/BLAKE3-team/BLAKE3)",
+ "blake3 1.8.5 (git+https://github.com/BLAKE3-team/BLAKE3?rev=93a431c78a52d7ccf0f366f106467f5070e6075e)",
  "constant_time_eq 0.3.0",
  "criterion",
  "hex 0.1.0",
@@ -2095,7 +2095,7 @@ dependencies = [
 [[package]]
 name = "paste"
 version = "1.0.15"
-source = "git+https://github.com/dtolnay/paste#6a302522990cbfd9de4e0c61d91854622f7b2999"
+source = "git+https://github.com/dtolnay/paste?rev=6a302522990cbfd9de4e0c61d91854622f7b2999#6a302522990cbfd9de4e0c61d91854622f7b2999"
 
 [[package]]
 name = "percent-encoding"
@@ -2879,7 +2879,7 @@ dependencies = [
 [[package]]
 name = "sqlx"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "sqlx-core",
  "sqlx-macros",
@@ -2891,7 +2891,7 @@ dependencies = [
 [[package]]
 name = "sqlx-core"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2922,7 +2922,7 @@ dependencies = [
 [[package]]
 name = "sqlx-macros"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2934,7 +2934,7 @@ dependencies = [
 [[package]]
 name = "sqlx-macros-core"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "cfg-if",
  "dotenvy",
@@ -2958,7 +2958,7 @@ dependencies = [
 [[package]]
 name = "sqlx-mysql"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -2983,7 +2983,7 @@ dependencies = [
 [[package]]
 name = "sqlx-postgres"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "atoi",
  "base64 0.22.1",
@@ -3017,7 +3017,7 @@ dependencies = [
 [[package]]
 name = "sqlx-sqlite"
 version = "0.9.0"
-source = "git+https://github.com/transact-rs/sqlx#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
+source = "git+https://github.com/transact-rs/sqlx?rev=3da582ad1dca5054ec8eda1c87b3b16ca079f47a#3da582ad1dca5054ec8eda1c87b3b16ca079f47a"
 dependencies = [
  "atoi",
  "flume",
@@ -4009,6 +4009,13 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+
+[[package]]
+name = "xxhash"
+version = "0.1.0"
+dependencies = [
+ "rand 0.10.1",
+]
 
 [[package]]
 name = "yoke"

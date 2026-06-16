@@ -108,6 +108,7 @@ Complete catalog of all crates in the stdx monorepo. Import any of these directl
 | Crate | Description | Features | Forked from |
 |-------|-------------|----------|-------------|
 | `crc32fast` | Fast, SIMD-accelerated CRC32 (IEEE) checksum | `std` (default) | srijs/rust-crc32fast |
+| `xxhash` | xxHash non-cryptographic hash (XXH32, XXH64, XXH3-64, XXH3-128) | `std` (default) | — |
 
 ## Math
 

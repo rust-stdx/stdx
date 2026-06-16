@@ -67,10 +67,11 @@ members = [
     "uuid",
     "work_in_progress/pg",
     "work_in_progress/pg_derive",
+    "xxhash",
 ]
 
 [workspace.dependencies]
-blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", ref = "93a431c78a52d7ccf0f366f106467f5070e6075e" } # 1.8.5
+blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "93a431c78a52d7ccf0f366f106467f5070e6075e" } # 1.8.5
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "oldtime", "serde", "std", ] }
 futures-util = "0.3"
@@ -81,14 +82,14 @@ memchr = "2"
 mime = "0.3"
 nix = { version = "0.31", features = ["socket"] }
 nom = "8"
-paste = { git = "https://github.com/dtolnay/paste", ref = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
+paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
 rand = "0.10"
 regex = { version = "1" }
 reqwest = { version = "0.13", default-features = false, features = ["charset", "gzip", "http2", "multipart", "json", "rustls", "zstd"] }
 aws-lc-rs = { version = "1" }
 serde = { version = "1", default-features = false }
 serde_json = "1"
-sqlx = { git = "https://github.com/transact-rs/sqlx", ref = "3da582ad1dca5054ec8eda1c87b3b16ca079f47a" }
+sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "3da582ad1dca5054ec8eda1c87b3b16ca079f47a" }
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"

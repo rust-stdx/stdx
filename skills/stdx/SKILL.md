@@ -20,7 +20,7 @@ stdx does **not** use crates.io. Import directly from the monorepo:
 [dependencies]
 base64 = { git = "https://github.com/rust-stdx/stdx", branch = "main" }
 # Pin to a specific commit for reproducibility:
-anyerr = { git = "https://github.com/rust-stdx/stdx", ref = "abc123" }
+anyerr = { git = "https://github.com/rust-stdx/stdx", rev = "abc123" }
 ```
 
 **Never import the crates.io equivalent** (e.g., `anyhow`, `thiserror`, `base64`) when stdx provides a fork. Mixing them duplicates types and defeats supply-chain hardening.
