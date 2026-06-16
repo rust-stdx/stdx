@@ -248,14 +248,14 @@ extern crate alloc;
 extern crate std;
 
 mod ast;
-pub mod context;
-pub mod engine;
-pub mod error;
+mod context;
+mod engine;
+mod error;
 mod escapers;
-pub mod expr;
+mod expr;
 mod filters;
 mod parser;
-pub mod value;
+mod value;
 mod vm;
 
 pub use context::{Context, IntoContext};
