@@ -10,40 +10,38 @@
 //! # Quick start
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Html);
 //! engine.add_template("hello", "<p>Hello, {{ name }}!</p>");
 //!
-//! let result = engine.render("hello", args! { name: "World" });
+//! let result = engine.render("hello", &context! { name: "World" });
 //! assert_eq!(result.unwrap(), "<p>Hello, World!</p>");
 //! ```
 //!
-//! The [`args!`] macro builds a context map.
-//! You can also pass any `#[derive(Serialize)]` struct, or `serde_json::Value`.
-//! Quoted keys (e.g. `"my-key"`) are also accepted for programmatic context
-//! construction from external data, though template variables must currently be
-//! valid Rust identifiers.
+//! The [`context!`] macro builds a context map.
+//! You can also pass any `#[derive(Serialize)]` struct (requires the `std`
+//! feature), using `&` to pass a reference: `engine.render("t", &my_struct)`.
 //!
 //! # Features
 //!
 //! | Feature    | Description                                                                 |
 //! |------------|-----------------------------------------------------------------------------|
 //! | `default`  | Enables the `std` feature.                                                  |
-//! | `std`      | Enables `std`-dependent features such as `std::error::Error` on error types and full `serde`/`memchr` `std` integration. |
+//! | `std`      | Enables `std`-dependent features such as `std::error::Error` on error types, `serde` integration, and the ability to pass `#[derive(Serialize)]` structs directly to [`Engine::render`]. |
 //!
 //! # Working with slices and vectors
 //!
 //! Iterate over a list with `{% for %}`:
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("list", "{% for item in items %}- {{ item }}
 //! {% endfor %}").unwrap();
 //!
-//! let result = engine.render("list", args! {
+//! let result = engine.render("list", &context! {
 //!     items: vec!["apple", "banana", "cherry"],
 //! }).unwrap();
 //! assert_eq!(result, "- apple\n- banana\n- cherry\n");
@@ -52,15 +50,15 @@
 //! Access elements by index, including nested fields:
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t", "{{ users[0].name }}, {{ users[1].name }}").unwrap();
 //!
-//! let result = engine.render("t", args! {
+//! let result = engine.render("t", &context! {
 //!     users: vec![
-//!         args! { name: "Alice", age: 30 },
-//!         args! { name: "Bob", age: 25 },
+//!         context! { name: "Alice", age: 30 },
+//!         context! { name: "Bob", age: 25 },
 //!     ],
 //! }).unwrap();
 //! assert_eq!(result, "Alice, Bob");
@@ -69,7 +67,7 @@
 //! Use filters on arrays — `join`, `first`, `last`, `length`, `reverse`:
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t", "\
@@ -80,7 +78,7 @@
 //! rev:   {{ items | reverse | join(\", \") }}
 //! ").unwrap();
 //!
-//! let result = engine.render("t", args! {
+//! let result = engine.render("t", &context! {
 //!     items: vec!["a", "b", "c"],
 //! }).unwrap();
 //! assert_eq!(result, "\
@@ -95,14 +93,14 @@
 //! Check membership with the `in` operator:
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t",
 //!     "{% if \"admin\" in roles %}Welcome, admin!{% endif %}"
 //! ).unwrap();
 //!
-//! let result = engine.render("t", args! {
+//! let result = engine.render("t", &context! {
 //!     roles: vec!["user", "admin", "moderator"],
 //! }).unwrap();
 //! assert_eq!(result, "Welcome, admin!");
@@ -111,12 +109,12 @@
 //! Render directly from a Rust `Vec`:
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t", "{% for n in numbers %}{{ n }} {% endfor %}").unwrap();
 //!
-//! let result = engine.render("t", args! {
+//! let result = engine.render("t", &context! {
 //!     numbers: vec![10, 20, 30],
 //! }).unwrap();
 //! assert_eq!(result, "10 20 30 ");
@@ -125,15 +123,15 @@
 //! Filter across a nested array field:
 //!
 //! ```rust
-//! use template::{Engine, EscapeMode, args};
+//! use template::{Engine, EscapeMode, context};
 //!
 //! let mut engine = Engine::new(EscapeMode::Text);
 //! engine.add_template("t",
 //!     "{% for tag in post.tags %}{{ tag | upper }} {% endfor %}"
 //! ).unwrap();
 //!
-//! let result = engine.render("t", args! {
-//!     post: args! {
+//! let result = engine.render("t", &context! {
+//!     post: context! {
 //!         title: "Hello",
 //!         tags: vec!["rust", "template", "dev"],
 //!     },
@@ -261,47 +259,55 @@ mod vm;
 
 pub use engine::{Engine, EscapeMode};
 pub use error::Error;
-pub use value::Value;
+pub use value::{Context, IntoContext};
 
 #[doc(hidden)]
 pub mod __macro_support {
-    pub use alloc::{collections::BTreeMap, rc::Rc};
+    pub use alloc::{collections::BTreeMap, rc::Rc, string::String};
     pub use core::convert::Into;
+
+    pub fn into_value<T: Into<crate::value::Value>>(v: T) -> crate::value::Value {
+        v.into()
+    }
+
+    pub fn build_context(map: BTreeMap<String, crate::value::Value>) -> crate::value::Context {
+        crate::value::Context(crate::value::Value::Map(Rc::new(map)))
+    }
 }
 
-/// Build a context map for [`Engine::render`] without requiring `serde_json`.
+/// Build a context map for [`Engine::render`] without requiring `Serialize`.
 ///
 /// Unquoted identifiers (e.g. `name`) are stringified automatically.
 /// Quoted string keys (e.g. `"my-key"`) are also accepted for programmatic
 /// construction from external data.
 ///
 /// ```rust
-/// use template::{Engine, EscapeMode, args};
+/// use template::{Engine, EscapeMode, context};
 ///
 /// let mut engine = Engine::new(EscapeMode::Text);
 /// engine.add_template("t", "Hello, {{ name }}!").unwrap();
 ///
-/// let result = engine.render("t", args! { name: "World" }).unwrap();
+/// let result = engine.render("t", &context! { name: "World" }).unwrap();
 /// assert_eq!(result, "Hello, World!");
 /// ```
 ///
 /// Supports nesting, vectors, and all types that implement [`Into<Value>`]:
 ///
 /// ```rust
-/// use template::{Engine, EscapeMode, args};
+/// use template::{Engine, EscapeMode, context};
 ///
 /// let mut engine = Engine::new(EscapeMode::Text);
 /// engine.add_template("t", "\
 /// {% for item in items %}- {{ item }}
 /// {% endfor %}").unwrap();
 ///
-/// let result = engine.render("t", args! {
+/// let result = engine.render("t", &context! {
 ///     items: vec!["apple", "banana"],
 /// }).unwrap();
 /// assert_eq!(result, "- apple\n- banana\n");
 /// ```
 #[macro_export]
-macro_rules! args {
+macro_rules! context {
     (@key $key:ident) => { stringify!($key) };
     (@key $key:expr) => { $key };
 
@@ -309,10 +315,10 @@ macro_rules! args {
         let mut __map = $crate::__macro_support::BTreeMap::new();
         $(
             __map.insert(
-                $crate::args!(@key $key).to_string(),
-                $crate::__macro_support::Into::<$crate::Value>::into($value),
+                $crate::context!(@key $key).to_string(),
+                $crate::__macro_support::into_value($value),
             );
         )*
-        $crate::Value::Map($crate::__macro_support::Rc::new(__map))
+        $crate::__macro_support::build_context(__map)
     }};
 }

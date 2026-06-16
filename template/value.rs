@@ -1,19 +1,21 @@
 //! Dynamic value type used during template rendering, with serde serialization support.
 
-use alloc::{
-    collections::BTreeMap,
-    rc::Rc,
-    string::{String, ToString},
-    vec::Vec,
-};
+#[cfg(any(feature = "std", test))]
+use alloc::string::ToString;
+use alloc::{collections::BTreeMap, rc::Rc, string::String, vec::Vec};
 use core::fmt;
 
+#[cfg(feature = "std")]
 use serde::ser::{self, Serialize, Serializer};
 
 /// A dynamic value used during template rendering.
 ///
 /// Supports strings, numbers, booleans, null, arrays, maps, and
 /// `Safe` strings that bypass auto-escaping.
+///
+/// This type is not meant to be used directly. Use the [`context!`] macro
+/// or the [`IntoContext`] trait instead.
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
@@ -42,13 +44,61 @@ impl fmt::Display for SerdeError {
 #[cfg(feature = "std")]
 impl std::error::Error for SerdeError {}
 
+#[cfg(feature = "std")]
 impl ser::Error for SerdeError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         SerdeError(msg.to_string())
     }
 }
 
+/// A template rendering context.
+///
+/// Constructed via the [`context!`](crate::context) macro or through the
+/// [`IntoContext`] trait (implemented for all `Serialize` types when the
+/// `std` feature is enabled).
+pub struct Context(pub(crate) Value);
+
+impl From<Context> for Value {
+    fn from(ctx: Context) -> Value {
+        ctx.0
+    }
+}
+
+/// Trait for types that can be converted into a [`Context`] for template rendering.
+///
+/// Implemented for [`Context`] directly and, with the `std` feature, for all
+/// types that implement [`Serialize`](serde::Serialize).
+///
+/// The `std` blanket impl requires the result to be a map-like value
+/// (i.e. [`Value::Map`](crate::value::Value::Map)). Non-map values such as
+/// plain strings or numbers return an error.
+pub trait IntoContext {
+    /// Convert into a [`Context`].
+    ///
+    /// Returns an error if the conversion fails or if the result is not a map
+    /// (when using the `serde::Serialize`-based blanket impl).
+    fn into_context(&self) -> Result<Context, SerdeError>;
+}
+
+impl IntoContext for Context {
+    fn into_context(&self) -> Result<Context, SerdeError> {
+        Ok(Context(self.0.clone()))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<T: Serialize + ?Sized> IntoContext for T {
+    fn into_context(&self) -> Result<Context, SerdeError> {
+        let v = to_value(self)?;
+        match v {
+            Value::Map(_) => Ok(Context(v)),
+            _ => Err(SerdeError("context must be a map-like value".into())),
+        }
+    }
+}
+
 impl Value {
+    #[cfg(feature = "std")]
     fn from_serialize_impl<S: Serialize>(value: &S) -> Result<Self, SerdeError> {
         let serializer = ValueSerializer;
         value.serialize(serializer)
@@ -110,36 +160,10 @@ impl Value {
     }
 }
 
-impl Serialize for Value {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Value::Null => serializer.serialize_unit(),
-            Value::Bool(b) => serializer.serialize_bool(*b),
-            Value::I64(n) => serializer.serialize_i64(*n),
-            Value::F64(n) => serializer.serialize_f64(*n),
-            Value::Str(s) | Value::Safe(s) => serializer.serialize_str(s),
-            Value::Array(a) => {
-                use serde::ser::SerializeSeq;
-                let mut seq = serializer.serialize_seq(Some(a.len()))?;
-                for v in a.iter() {
-                    seq.serialize_element(v)?;
-                }
-                seq.end()
-            }
-            Value::Map(m) => {
-                use serde::ser::SerializeMap;
-                let mut map = serializer.serialize_map(Some(m.len()))?;
-                for (k, v) in m.iter() {
-                    map.serialize_entry(k, v)?;
-                }
-                map.end()
-            }
-        }
-    }
-}
-
+#[cfg(feature = "std")]
 struct ValueSerializer;
 
+#[cfg(feature = "std")]
 impl Serializer for ValueSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -303,8 +327,10 @@ impl Serializer for ValueSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 struct ValueSeqSerializer(Vec<Value>);
 
+#[cfg(feature = "std")]
 impl ser::SerializeSeq for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -322,6 +348,7 @@ impl ser::SerializeSeq for ValueSeqSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 impl ser::SerializeTuple for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -338,6 +365,7 @@ impl ser::SerializeTuple for ValueSeqSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 impl ser::SerializeTupleStruct for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -354,6 +382,7 @@ impl ser::SerializeTupleStruct for ValueSeqSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 impl ser::SerializeTupleVariant for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -370,8 +399,10 @@ impl ser::SerializeTupleVariant for ValueSeqSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 struct ValueMapSerializer(BTreeMap<String, Value>, Option<String>);
 
+#[cfg(feature = "std")]
 impl ser::SerializeMap for ValueMapSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -414,6 +445,7 @@ impl ser::SerializeMap for ValueMapSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 impl ser::SerializeStruct for ValueMapSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -432,6 +464,7 @@ impl ser::SerializeStruct for ValueMapSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 impl ser::SerializeStructVariant for ValueMapSerializer {
     type Ok = Value;
     type Error = SerdeError;
@@ -448,8 +481,10 @@ impl ser::SerializeStructVariant for ValueMapSerializer {
     }
 }
 
+#[cfg(feature = "std")]
 struct MapKeySerializer;
 
+#[cfg(feature = "std")]
 impl Serializer for MapKeySerializer {
     type Ok = String;
     type Error = SerdeError;
@@ -652,11 +687,8 @@ impl fmt::Display for Value {
     }
 }
 
-/// Convert a `Serialize` value into a `Value` for template rendering.
-///
-/// Supports all standard Rust types and any `#[derive(Serialize)]` struct/enum.
-/// `u64` values larger than `i64::MAX` are stored as `F64`.
-pub fn to_value<S: Serialize>(value: S) -> Result<Value, SerdeError> {
+#[cfg(feature = "std")]
+fn to_value<S: Serialize>(value: S) -> Result<Value, SerdeError> {
     Value::from_serialize_impl(&value)
 }
 
