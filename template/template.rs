@@ -1,4 +1,7 @@
-//! A fast, safe template engine for HTML and text rendering, inspired by Jinja2.
+#![no_std]
+
+//! A fast, safe template engine for HTML and text rendering, inspired by Jinja2
+//! with `no_std`support.
 //!
 //! `template` provides a runtime template engine that compiles templates into
 //! an AST and renders them via a tree-walking interpreter. It supports both
@@ -16,29 +19,18 @@
 //! assert_eq!(result.unwrap(), "<p>Hello, World!</p>");
 //! ```
 //!
-//! The [`args!`] macro builds a context map without requiring `serde_json`.
+//! The [`args!`] macro builds a context map.
 //! You can also pass any `#[derive(Serialize)]` struct, or `serde_json::Value`.
-//!
-//! # Passing context with `args!`
-//!
-//! The [`args!`] macro builds a context map without requiring `serde_json`:
-//!
-//! ```rust
-//! use template::{Engine, EscapeMode, args};
-//!
-//! let mut engine = Engine::new(EscapeMode::Text);
-//! engine.add_template("t", "{{ name }} is {{ age }}").unwrap();
-//!
-//! let result = engine.render("t", args! {
-//!     name: "Alice",
-//!     age: 30,
-//! }).unwrap();
-//! assert_eq!(result, "Alice is 30");
-//! ```
-//!
 //! Quoted keys (e.g. `"my-key"`) are also accepted for programmatic context
 //! construction from external data, though template variables must currently be
 //! valid Rust identifiers.
+//!
+//! # Features
+//!
+//! | Feature    | Description                                                                 |
+//! |------------|-----------------------------------------------------------------------------|
+//! | `default`  | Enables the `std` feature.                                                  |
+//! | `std`      | Enables `std`-dependent features such as `std::error::Error` on error types and full `serde`/`memchr` `std` integration. |
 //!
 //! # Working with slices and vectors
 //!
@@ -237,7 +229,7 @@
 //!               ┌──────▼───────┐
 //!               │  RENDERER    │
 //!               │  (tree-walk  │
-//!               │   VM with   │
+//!               │   VM with    │
 //!               │   extends /  │
 //!               │   blocks /   │
 //!               │   includes   │
@@ -252,6 +244,11 @@
 //!               └──────────────┘
 //! ```
 
+extern crate alloc;
+
+#[cfg(feature = "std")]
+extern crate std;
+
 mod ast;
 pub mod engine;
 pub mod error;
@@ -265,6 +262,12 @@ mod vm;
 pub use engine::{Engine, EscapeMode};
 pub use error::Error;
 pub use value::Value;
+
+#[doc(hidden)]
+pub mod __macro_support {
+    pub use alloc::{collections::BTreeMap, rc::Rc};
+    pub use core::convert::Into;
+}
 
 /// Build a context map for [`Engine::render`] without requiring `serde_json`.
 ///
@@ -303,13 +306,13 @@ macro_rules! args {
     (@key $key:expr) => { $key };
 
     ($($key:tt : $value:expr),* $(,)?) => {{
-        let mut __map = ::std::collections::BTreeMap::new();
+        let mut __map = $crate::__macro_support::BTreeMap::new();
         $(
             __map.insert(
                 $crate::args!(@key $key).to_string(),
-                ::std::convert::Into::<$crate::Value>::into($value),
+                $crate::__macro_support::Into::<$crate::Value>::into($value),
             );
         )*
-        $crate::Value::Map(::std::rc::Rc::new(__map))
+        $crate::Value::Map($crate::__macro_support::Rc::new(__map))
     }};
 }

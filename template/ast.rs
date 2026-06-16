@@ -1,5 +1,7 @@
 //! AST types for the template engine — nodes, expressions, and operators.
 
+use alloc::{boxed::Box, string::String, vec::Vec};
+
 pub type NodeList = Vec<Node>;
 
 #[derive(Clone, Debug)]

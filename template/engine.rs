@@ -1,4 +1,10 @@
-use std::collections::BTreeMap;
+use alloc::{
+    collections::BTreeMap,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use serde::Serialize;
 
@@ -170,6 +176,8 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
+
     use serde::Serialize;
 
     use super::*;

@@ -6,9 +6,13 @@ edition = "2024"
 [lib]
 path = "./template.rs"
 
+[features]
+default = ["std"]
+std = ["serde/std", "memchr/std"]
+
 [dependencies]
-memchr = { workspace = true }
-serde = { workspace = true }
+memchr = { version = "2", default-features = false }
+serde = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }

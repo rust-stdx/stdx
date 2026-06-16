@@ -1,6 +1,7 @@
 //! Error types for parse, syntax, render, and type errors with source positions.
 
-use std::fmt;
+use alloc::{boxed::Box, string::String};
+use core::fmt;
 
 /// A source position (line and column) in a template.
 #[derive(Clone, Debug, PartialEq)]
@@ -20,13 +21,31 @@ impl SourcePosition {
 
 #[derive(Debug)]
 enum ErrorKind {
-    Parse { message: String },
-    Syntax { message: String, position: SourcePosition },
-    UndefinedVariable { name: String, position: SourcePosition },
-    UndefinedFilter { name: String, position: SourcePosition },
-    UndefinedTemplate { name: String },
-    Render { message: String },
-    Type { message: String },
+    Parse {
+        message: String,
+    },
+    Syntax {
+        message: String,
+        position: SourcePosition,
+    },
+    UndefinedVariable {
+        name: String,
+        position: SourcePosition,
+    },
+    UndefinedFilter {
+        name: String,
+        position: SourcePosition,
+    },
+    UndefinedTemplate {
+        name: String,
+    },
+    Render {
+        message: String,
+    },
+    Type {
+        message: String,
+    },
+    #[cfg(feature = "std")]
     Io(std::io::Error),
 }
 
@@ -111,6 +130,7 @@ impl Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Self::new(ErrorKind::Io(err))
@@ -158,6 +178,7 @@ impl fmt::Display for Error {
             } => {
                 write!(f, "type error: {message}")
             }
+            #[cfg(feature = "std")]
             ErrorKind::Io(err) => {
                 write!(f, "I/O error: {err}")
             }
@@ -165,6 +186,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.inner.kind {

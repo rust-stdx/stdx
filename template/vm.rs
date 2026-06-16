@@ -1,6 +1,14 @@
 //! Tree-walking interpreter that evaluates template AST nodes and expressions.
 
-use std::{collections::BTreeMap, fmt, rc::Rc, sync::OnceLock};
+use alloc::{
+    collections::BTreeMap,
+    format,
+    rc::Rc,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
 
 use crate::{
     ast::{BinOp, Expr, ForNode, IfNode, Node, NodeList, UnaryOp},
@@ -20,17 +28,6 @@ pub struct Renderer<'a> {
 }
 
 const MAX_INCLUDE_DEPTH: usize = 64;
-
-fn ascii_char_cache() -> &'static [&'static str; 128] {
-    static CACHE: OnceLock<[&'static str; 128]> = OnceLock::new();
-    CACHE.get_or_init(|| {
-        // Leak one-byte strings so they live forever as &'static str
-        std::array::from_fn(|i| {
-            let s: &'static str = Box::leak((i as u8 as char).to_string().into_boxed_str());
-            s
-        })
-    })
-}
 
 impl<'a> Renderer<'a> {
     pub fn new(engine: &'a crate::engine::Engine, out: &'a mut dyn fmt::Write, variables: Value) -> Self {
@@ -187,7 +184,8 @@ impl<'a> Renderer<'a> {
                 .chars()
                 .map(|c| {
                     if c.is_ascii() {
-                        Value::Str(ascii_char_cache()[c as usize].into())
+                        let mut buf = [0u8; 4];
+                        Value::Str(c.encode_utf8(&mut buf).into())
                     } else {
                         Value::Str(c.to_string().into())
                     }
@@ -238,7 +236,10 @@ impl<'a> Renderer<'a> {
                         Ok(val.get_index(n as usize).unwrap_or(Value::Null))
                     }
                     Value::F64(n) => {
-                        if n < 0.0 || !n.is_finite() || n.fract() != 0.0 {
+                        // .fract() is not available in `no_std` environments, so we
+                        // cast through i64 to check that there is not fractional part.
+                        // Rejects floats with decimals or outside i64 range.
+                        if n < 0.0 || !n.is_finite() || (n as i64) as f64 != n {
                             return Err(Error::render("invalid index"));
                         }
                         Ok(val.get_index(n as usize).unwrap_or(Value::Null))
@@ -261,7 +262,9 @@ impl<'a> Renderer<'a> {
                 let eval_args: Vec<Value> = args.iter().map(|a| self.eval_expr(a)).collect::<Result<Vec<_>, _>>()?;
                 let filters = builtin_filters();
                 let filter_fn = filters
-                    .get(name.as_str())
+                    .binary_search_by_key(&name.as_str(), |&(k, _)| k)
+                    .ok()
+                    .map(|i| filters[i].1)
                     .ok_or_else(|| Error::undefined_filter(name.clone(), 0, 0))?;
                 filter_fn(&val, &eval_args)
             }
@@ -352,10 +355,10 @@ impl<'a> Renderer<'a> {
                 (Value::F64(a), Value::F64(b)) if a.is_nan() || b.is_nan() => true,
                 _ => left != right,
             })),
-            BinOp::Lt => self.cmp_op(left, right, |o| o == std::cmp::Ordering::Less),
-            BinOp::Gt => self.cmp_op(left, right, |o| o == std::cmp::Ordering::Greater),
-            BinOp::Lte => self.cmp_op(left, right, |o| o != std::cmp::Ordering::Greater),
-            BinOp::Gte => self.cmp_op(left, right, |o| o != std::cmp::Ordering::Less),
+            BinOp::Lt => self.cmp_op(left, right, |o| o == core::cmp::Ordering::Less),
+            BinOp::Gt => self.cmp_op(left, right, |o| o == core::cmp::Ordering::Greater),
+            BinOp::Lte => self.cmp_op(left, right, |o| o != core::cmp::Ordering::Greater),
+            BinOp::Gte => self.cmp_op(left, right, |o| o != core::cmp::Ordering::Less),
             BinOp::And => Ok(Value::Bool(left.is_truthy() && right.is_truthy())),
             BinOp::Or => Ok(Value::Bool(left.is_truthy() || right.is_truthy())),
             BinOp::Add => self.arithmetic_op(left, right, |a, b| a + b, |a, b| a + b),
@@ -392,7 +395,7 @@ impl<'a> Renderer<'a> {
 
     fn cmp_op<F>(&self, left: &Value, right: &Value, cmp: F) -> Result<Value, Error>
     where
-        F: FnOnce(std::cmp::Ordering) -> bool,
+        F: FnOnce(core::cmp::Ordering) -> bool,
     {
         match (left, right) {
             (Value::I64(a), Value::I64(b)) => Ok(Value::Bool(cmp(a.cmp(b)))),

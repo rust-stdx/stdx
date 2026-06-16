@@ -1,31 +1,34 @@
 //! Built-in template filters: string transforms, escaping, URL encoding, etc.
 
-use std::{collections::BTreeMap, rc::Rc, sync::OnceLock};
+use alloc::{
+    format,
+    rc::Rc,
+    string::{String, ToString},
+};
 
 use crate::{escapers::html_escape_to_string, value::Value};
 
 pub type FilterFn = fn(&Value, &[Value]) -> Result<Value, crate::error::Error>;
 
-pub fn builtin_filters() -> &'static BTreeMap<String, FilterFn> {
-    static FILTERS: OnceLock<BTreeMap<String, FilterFn>> = OnceLock::new();
-    FILTERS.get_or_init(|| {
-        let mut m: BTreeMap<String, FilterFn> = BTreeMap::new();
-        m.insert("upper".into(), filter_upper);
-        m.insert("lower".into(), filter_lower);
-        m.insert("trim".into(), filter_trim);
-        m.insert("escape".into(), filter_escape);
-        m.insert("safe".into(), filter_safe);
-        m.insert("length".into(), filter_length);
-        m.insert("default".into(), filter_default);
-        m.insert("capitalize".into(), filter_capitalize);
-        m.insert("join".into(), filter_join);
-        m.insert("title".into(), filter_title);
-        m.insert("reverse".into(), filter_reverse);
-        m.insert("first".into(), filter_first);
-        m.insert("last".into(), filter_last);
-        m.insert("urlencode".into(), filter_urlencode);
-        m
-    })
+// Must stay sorted alphabetically for binary_search_by_key in vm.rs
+pub const fn builtin_filters() -> &'static [(&'static str, FilterFn)] {
+    const FILTERS: &[(&'static str, FilterFn)] = &[
+        ("capitalize", filter_capitalize),
+        ("default", filter_default),
+        ("escape", filter_escape),
+        ("first", filter_first),
+        ("join", filter_join),
+        ("last", filter_last),
+        ("length", filter_length),
+        ("lower", filter_lower),
+        ("reverse", filter_reverse),
+        ("safe", filter_safe),
+        ("title", filter_title),
+        ("trim", filter_trim),
+        ("upper", filter_upper),
+        ("urlencode", filter_urlencode),
+    ];
+    FILTERS
 }
 
 fn filter_upper(val: &Value, _args: &[Value]) -> Result<Value, crate::error::Error> {
@@ -228,6 +231,8 @@ fn filter_urlencode(val: &Value, _args: &[Value]) -> Result<Value, crate::error:
 
 #[cfg(test)]
 mod tests {
+    use alloc::{collections::BTreeMap, vec, vec::Vec};
+
     use super::*;
 
     #[test]

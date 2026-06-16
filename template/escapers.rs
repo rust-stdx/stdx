@@ -1,5 +1,7 @@
 //! HTML escaping functions for auto-escaping mode and the `escape` filter.
 
+use alloc::string::String;
+
 use memchr::{memchr2, memchr3};
 
 use crate::error::Error;

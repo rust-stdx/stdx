@@ -1,5 +1,7 @@
 //! Expression lexer and recursive-descent parser for template expressions.
 
+use alloc::{boxed::Box, format, string::String, vec::Vec};
+
 use crate::{
     ast::{BinOp, Expr, UnaryOp},
     error::{Error, SourcePosition},

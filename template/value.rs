@@ -1,6 +1,12 @@
 //! Dynamic value type used during template rendering, with serde serialization support.
 
-use std::{collections::BTreeMap, fmt, rc::Rc};
+use alloc::{
+    collections::BTreeMap,
+    rc::Rc,
+    string::{String, ToString},
+    vec::Vec,
+};
+use core::fmt;
 
 use serde::ser::{self, Serialize, Serializer};
 
@@ -33,6 +39,7 @@ impl fmt::Display for SerdeError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for SerdeError {}
 
 impl ser::Error for SerdeError {
@@ -655,7 +662,7 @@ pub fn to_value<S: Serialize>(value: S) -> Result<Value, SerdeError> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use alloc::{collections::BTreeMap, vec};
 
     use super::*;
 

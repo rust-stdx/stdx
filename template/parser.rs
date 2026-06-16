@@ -1,5 +1,11 @@
 //! Template source parser — transforms template text into a `NodeList` AST.
 
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
+
 use memchr::memchr;
 
 use crate::{
@@ -108,7 +114,7 @@ impl TemplateParser {
                         let next = bytes[self.pos + 1];
                         if next == b'{' || next == b'%' || next == b'#' {
                             if !raw_buf.is_empty() {
-                                nodes.push(Node::Raw(std::mem::take(&mut raw_buf)));
+                                nodes.push(Node::Raw(core::mem::take(&mut raw_buf)));
                             }
 
                             if next == b'{' {
