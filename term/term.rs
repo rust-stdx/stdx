@@ -6,10 +6,18 @@ pub enum Error {
 }
 
 /// Reads a password from stdin without echoing it to the terminal.
-/// The returned bytes do not include the trailing newline.
+/// The returned string does not include the trailing newline.
+/// Returns an error if the input is not valid UTF-8.
 /// Mimics the behaviour of Go's `golang.org/x/term.ReadPassword`.
-pub fn read_password() -> Result<Vec<u8>, Error> {
+pub fn read_password() -> Result<String, Error> {
     platform::read_password()
+}
+
+/// Reads a line from stdin with echo enabled (normal terminal input).
+/// The returned string does not include the trailing newline.
+/// Returns an error if the input is not valid UTF-8.
+pub fn read_line() -> Result<String, Error> {
+    platform::read_line()
 }
 
 // ── Unix ─────────────────────────────────────────────────────────────────────
@@ -32,7 +40,7 @@ mod platform {
         }
     }
 
-    pub(super) fn read_password() -> Result<Vec<u8>, super::Error> {
+    pub(super) fn read_password() -> Result<String, super::Error> {
         // Attempt to read the current terminal attributes.
         let mut saved: termios = unsafe { std::mem::zeroed() };
         let is_tty = unsafe { tcgetattr(STDIN_FILENO, &mut saved) } == 0;
@@ -55,10 +63,11 @@ mod platform {
             None
         };
 
-        read_line()
+        let buf = read_line_inner()?;
+        String::from_utf8(buf).map_err(|e| super::Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
     }
 
-    fn read_line() -> Result<Vec<u8>, super::Error> {
+    fn read_line_inner() -> Result<Vec<u8>, super::Error> {
         let mut buf = Vec::new();
         let stdin = std::io::stdin();
         for byte in stdin.lock().bytes() {
@@ -70,6 +79,11 @@ mod platform {
         }
         Ok(buf)
     }
+
+    pub(super) fn read_line() -> Result<String, super::Error> {
+        let buf = read_line_inner()?;
+        String::from_utf8(buf).map_err(|e| super::Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
+    }
 }
 
 // ── Fallback (non-Unix) ──────────────────────────────────────────────────────
@@ -78,7 +92,7 @@ mod platform {
 mod platform {
     use std::io::BufRead;
 
-    pub(super) fn read_password() -> Result<Vec<u8>, super::Error> {
+    pub(super) fn read_password() -> Result<String, super::Error> {
         let mut line = String::new();
         std::io::stdin().lock().read_line(&mut line)?;
         if line.ends_with('\n') {
@@ -87,7 +101,19 @@ mod platform {
                 line.pop();
             }
         }
-        Ok(line.into_bytes())
+        Ok(line)
+    }
+
+    pub(super) fn read_line() -> Result<String, super::Error> {
+        let mut line = String::new();
+        std::io::stdin().lock().read_line(&mut line)?;
+        if line.ends_with('\n') {
+            line.pop();
+            if line.ends_with('\r') {
+                line.pop();
+            }
+        }
+        Ok(line)
     }
 }
 
@@ -129,5 +155,45 @@ mod tests {
     fn password_bytes_no_newline() {
         let raw = b"secret".to_vec();
         assert_eq!(raw, b"secret");
+    }
+
+    /// Verify that read_line returns an error for non-UTF-8 input.
+    #[test]
+    fn read_line_non_utf8() {
+        let raw = b"\xff\xfe".to_vec();
+        match String::from_utf8(raw) {
+            Ok(_) => panic!("expected 'string from bytes' to be invalid"),
+            Err(_) => {} // expected
+        }
+    }
+
+    #[test]
+    fn read_line_strip_newline() {
+        let mut s = "hello\n".to_string();
+        if s.ends_with('\n') {
+            s.pop();
+            if s.ends_with('\r') {
+                s.pop();
+            }
+        }
+        assert_eq!(s, "hello");
+    }
+
+    #[test]
+    fn read_line_strip_crlf() {
+        let mut s = "hello\r\n".to_string();
+        if s.ends_with('\n') {
+            s.pop();
+            if s.ends_with('\r') {
+                s.pop();
+            }
+        }
+        assert_eq!(s, "hello");
+    }
+
+    #[test]
+    fn read_line_no_newline() {
+        let s = "hello".to_string();
+        assert_eq!(s, "hello");
     }
 }
