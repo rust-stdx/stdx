@@ -1,6 +1,6 @@
 use std::{env, fs, process};
 
-use crypto::{Aead, Xof, aes::Aes256Gcm, sha3::Shake256};
+use crypto::{Aead, Xof, aes::Aes256Gcm, chacha::ChaCha20Blake3, sha3::Shake256};
 use zeroize::{Zeroize, Zeroizing};
 
 const KEY_LENGTH: usize = 32;
@@ -8,7 +8,7 @@ const NONCE_SEED_LENGTH: usize = 32;
 
 const KDF_INFO_CHACHA20_BLAKE3_KEY: &str = "crypt ChaCha20-BLAKE3 key";
 const KDF_INFO_CHACHA20_BLAKE3_NONCE: &str = "crypt ChaCha20-BLAKE3 nonce";
-const CHACHA20_BLAKE3_NONCE_LENGTH: usize = 24;
+const CHACHA20_BLAKE3_NONCE_LENGTH: usize = 32;
 
 const KDF_INFO_AES_KEY: &str = "crypt AES-256-GCM key";
 const KDF_INFO_AES_NONCE: &str = "crypt AES-256-GCM nonce";
@@ -45,7 +45,7 @@ fn main() {
     };
 
     let fn_ptr: fn(&[u8], &[u8]) -> Result<Vec<u8>, String> = if encrypt_mode { encrypt } else { decrypt };
-    let result = process_file(&password, file_in, file_out, fn_ptr);
+    let result = process_file(password.as_bytes(), file_in, file_out, fn_ptr);
     password.zeroize();
 
     if let Err(e) = result {
@@ -100,8 +100,8 @@ fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
     aes_buf.extend_from_slice(tag.as_ref());
 
     // Encrypt outer layer with ChaCha20-BLAKE3
-    let cipher = chacha20_blake3::ChaCha20Blake3::new(*chacha20_key);
-    let outer_ciphertext = cipher.encrypt(&chacha20_nonce, &aes_buf, &[]);
+    let cipher = ChaCha20Blake3::new(&*chacha20_key);
+    let outer_ciphertext = cipher.encrypt(&aes_buf, &*chacha20_nonce, &[]);
 
     let mut result = Vec::with_capacity(NONCE_SEED_LENGTH + outer_ciphertext.len());
     result.extend_from_slice(&nonce_seed);
@@ -111,7 +111,7 @@ fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 fn decrypt(password: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-    if ciphertext.len() < (NONCE_SEED_LENGTH + chacha20_blake3::TAG_SIZE) {
+    if ciphertext.len() < (NONCE_SEED_LENGTH + ChaCha20Blake3::TAG_SIZE) {
         return Err("ciphertext is too short".to_string());
     }
 
@@ -128,10 +128,10 @@ fn decrypt(password: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     let chacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_CHACHA20_BLAKE3_KEY);
 
     // Decrypt outer layer with ChaCha20-BLAKE3
-    let cipher = chacha20_blake3::ChaCha20Blake3::new(*chacha20_key);
+    let cipher = ChaCha20Blake3::new(&*chacha20_key);
     let aes_ciphertext = cipher
-        .decrypt(&chacha20_nonce, ciphertext, &[])
-        .map_err(|e| format!("error decrypting data with ChaCha20-BLAKE3: {e:?}"))?;
+        .decrypt(ciphertext, &*chacha20_nonce, &[])
+        .map_err(|e| format!("error decrypting data with ChaCha20-BLAKE3: {e}"))?;
 
     // Decrypt inner layer with AES-256-GCM
     if aes_ciphertext.len() < Aes256Gcm::TAG_SIZE {
@@ -173,7 +173,7 @@ fn argon2_derive_key(password: &[u8], salt: &[u8]) -> Result<Zeroizing<[u8; KEY_
     Ok(key)
 }
 
-fn ask_for_password(confirm: bool) -> Result<Vec<u8>, String> {
+fn ask_for_password(confirm: bool) -> Result<String, String> {
     eprint!("Password: ");
     let password = term::read_password().map_err(|e| format!("error reading password: {e}"))?;
     eprintln!();
@@ -184,14 +184,10 @@ fn ask_for_password(confirm: bool) -> Result<Vec<u8>, String> {
 
     if confirm {
         eprint!("Confirm Password: ");
-        let mut confirmation =
-            term::read_password().map_err(|e| format!("error reading password confirmation: {e}"))?;
+        let confirmation = term::read_password().map_err(|e| format!("error reading password confirmation: {e}"))?;
         eprintln!();
 
-        let matches = password == confirmation;
-        confirmation.zeroize();
-
-        if !matches {
+        if password != confirmation {
             return Err("passwords don't match".to_string());
         }
     }

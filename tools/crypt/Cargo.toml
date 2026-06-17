@@ -11,6 +11,5 @@ path = "crypt.rs"
 crypto = { path = "../../crypto" }
 term = { path = "../../term" }
 argon2 = "0.5"
-chacha20-blake3 = { git = "https://github.com/skerkour/chacha20-blake3", branch = "main" }
 rand = { workspace = true }
 zeroize = { workspace = true }
