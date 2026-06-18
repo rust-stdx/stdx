@@ -89,6 +89,8 @@ See `Makefile` for the most common commands used during development.
 
 MIT ([LICENSE.txt](./LICENSE.txt))
 
+Any contribution intentionally submitted for inclusion in this project, shall be licensed as above, without any additional terms or conditions.
+
 
 ### Forks
 
