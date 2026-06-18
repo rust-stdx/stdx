@@ -246,8 +246,7 @@ const fn custom_default_secret_scalar(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
 // ---------------------------------------------------------------------------
 // Dispatch wrappers — select SIMD or scalar at compile / run time.
 // On aarch64  NEON is always available (compile-time dispatch).
-// On x86_64   AVX2 uses runtime detection when `std` is enabled,
-//             and falls back to compile-time `#[cfg(target_feature)]` in no_std.
+// On x86_64   Uses AVX2 when available (compile-time dispatch).
 // ---------------------------------------------------------------------------
 
 #[inline]
@@ -267,13 +266,6 @@ fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secre
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     {
-        unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
-        return;
-    }
-
-    // runtime dispatch when the "std" feature is enabled
-    #[cfg(all(feature = "std", any(target_arch = "x86", target_arch = "x86_64")))]
-    if std::arch::is_x86_feature_detected!("avx2") {
         unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
         return;
     }
@@ -319,15 +311,8 @@ fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
         return;
     }
 
-    // compile-time dispatch when AVX2 is a compile-time target feature
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     {
-        unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
-        return;
-    }
-
-    #[cfg(all(feature = "std", any(target_arch = "x86", target_arch = "x86_64")))]
-    if std::arch::is_x86_feature_detected!("avx2") {
         unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
         return;
     }

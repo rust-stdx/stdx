@@ -7,11 +7,6 @@ license = "MIT"
 [lib]
 path = "./xxhash.rs"
 
-[features]
-default = ["std"]
-std = []
-
-
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }
