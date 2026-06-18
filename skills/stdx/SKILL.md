@@ -183,11 +183,6 @@ use template::Template;
 let tmpl = Template::parse("Hello, {{name}}!")?;
 let result = tmpl.render(&[("name", "World")])?;
 
-// Fast float-to-string (itoa / ryu)
-use itoa;
-let mut buf = String::new();
-itoa::write(&mut buf, 42)?;
-
 // Substring search (memmem)
 use memmem::{Searcher, TwoWaySearcher};
 let searcher = TwoWaySearcher::new("needle");
