@@ -253,6 +253,12 @@ const fn custom_default_secret_scalar(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
 #[inline]
 #[allow(unreachable_code)]
 fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    {
+        crate::xxh3_wasm_simd128::accumulate_512(acc, input, input_off, secret, secret_off);
+        return;
+    }
+
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     {
         unsafe { crate::xxh3_neon::accumulate_512(acc, input, input_off, secret, secret_off) };
@@ -301,6 +307,12 @@ fn accumulate_loop(
 #[inline]
 #[allow(unreachable_code)]
 fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    {
+        crate::xxh3_wasm_simd128::scramble_acc(acc, secret, secret_off);
+        return;
+    }
+
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     {
         unsafe { crate::xxh3_neon::scramble_acc(acc, secret, secret_off) };
