@@ -10,6 +10,7 @@ const NEON_MAP_RFC4648_LOWER: [u8; 32] = *b"abcdefghijklmnopqrstuvwxyz234567";
 const NEON_MAP_RFC4648_HEX: [u8; 32] = *b"0123456789ABCDEFGHIJKLMNOPQRSTUV";
 const NEON_MAP_RFC4648_HEX_LOWER: [u8; 32] = *b"0123456789abcdefghijklmnopqrstuv";
 const NEON_MAP_CROCKFORD: [u8; 32] = *b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const NEON_MAP_Z32: [u8; 32] = *b"ybndrfg8ejkmcpqxot1uwisza345h769";
 
 // =============================================================================
 // Encode
@@ -23,6 +24,7 @@ pub unsafe fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) ->
         Alphabet::Rfc4648Hex | Alphabet::Rfc4648HexNoPadding => &NEON_MAP_RFC4648_HEX,
         Alphabet::Rfc4648HexLower | Alphabet::Rfc4648HexLowerNoPadding => &NEON_MAP_RFC4648_HEX_LOWER,
         Alphabet::Crockford => &NEON_MAP_CROCKFORD,
+        Alphabet::Z32 => &NEON_MAP_Z32,
     };
 
     let tbl0 = vld1q_u8(tbl_bytes.as_ptr());
@@ -159,7 +161,7 @@ unsafe fn simd_vtbl_16(indices: uint8x16_t, tbl0: uint8x16_t, tbl1: uint8x16_t) 
 #[target_feature(enable = "neon")]
 pub unsafe fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -> Result<(), DecodeError> {
     match alphabet {
-        Alphabet::Crockford => decode_scalar(output, encoded_data, alphabet),
+        Alphabet::Crockford | Alphabet::Z32 => decode_scalar(output, encoded_data, alphabet),
         _ => decode_simd(output, encoded_data, alphabet),
     }
 }

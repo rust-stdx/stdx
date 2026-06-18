@@ -4,7 +4,7 @@
 //! Fast base32 encoding and decoding with SIMD acceleration, constant-time
 //! operations, and `const fn` support.
 //!
-//! Nine alphabet variants are available via [`Alphabet`]:
+//! Ten alphabet variants are available via [`Alphabet`]:
 //!
 //! | Variant               | Characters              | Padding | Description                |
 //! |-----------------------|-------------------------|---------|----------------------------|
@@ -17,6 +17,7 @@
 //! | `Rfc4648HexLower`     | `0-9 a-v`               | `=`     | RFC 4648 extended hex lower|
 //! | `Rfc4648HexLowerNoPadding`| `0-9 a-v`           | none    | RFC 4648 extended hex lower no pad|
 //! | `Crockford`           | `0-9 A-H J-K M-N P-Z`   | none    | Crockford (no I L O U)     |
+//! | `Z32`                 | `ybndrfg8ejkmcpqxot1uwisza345h769` | none | Z-base-32 (zooko) |
 //!
 //! # Feature flags
 //!
@@ -49,6 +50,9 @@
 //!
 //! let url = base32::encode(b"hello", base32::Alphabet::Crockford);
 //! assert_eq!(url, "D1JPRV3F");
+//!
+//! let z32 = base32::encode(b"hello", base32::Alphabet::Z32);
+//! assert_eq!(z32, "pb1sa5dx");
 //! ```
 
 #[cfg(any(feature = "alloc", test))]
@@ -65,6 +69,25 @@ mod base32_avx2;
 
 const PAD: u8 = b'=';
 
+const Z32_DECODE_TABLE: [u8; 256] = [
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x12, 0x20, 0x19, 0x1a, 0x1b, 0x1e, 0x1d, 0x07,
+    0x1f, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x18, 0x01, 0x0c, 0x03, 0x08, 0x05, 0x06, 0x1c, 0x15, 0x09, 0x0a, 0x20, 0x0b, 0x02, 0x10, 0x0d, 0x0e,
+    0x04, 0x16, 0x11, 0x13, 0x20, 0x14, 0x0f, 0x00, 0x17, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+];
+
+const Z32_ENCODE_TABLE: [u8; 32] = *b"ybndrfg8ejkmcpqxot1uwisza345h769";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Alphabet {
     Crockford,
@@ -76,6 +99,7 @@ pub enum Alphabet {
     Rfc4648HexNoPadding,
     Rfc4648HexLower,
     Rfc4648HexLowerNoPadding,
+    Z32,
 }
 
 impl Alphabet {
@@ -91,6 +115,7 @@ impl Alphabet {
             Alphabet::Rfc4648HexNoPadding => false,
             Alphabet::Rfc4648HexLower => true,
             Alphabet::Rfc4648HexLowerNoPadding => false,
+            Alphabet::Z32 => false,
         }
     }
 }
@@ -470,6 +495,7 @@ const fn quintet_to_char(v: u8, alphabet: Alphabet) -> u8 {
             let not_lower = not_in_range(v, 10, 31);
             (v + b'0') & !not_digit | (v.wrapping_sub(10).wrapping_add(b'a')) & !not_lower
         }
+        Alphabet::Z32 => Z32_ENCODE_TABLE[v as usize],
     }
 }
 
@@ -851,6 +877,7 @@ const fn char_to_quintet(c: u8, alphabet: Alphabet) -> u8 {
             let invalid = not_digit & not_lower;
             value | (invalid & 0x20)
         }
+        Alphabet::Z32 => Z32_DECODE_TABLE[c as usize],
     }
 }
 
@@ -906,6 +933,21 @@ mod tests {
         (b"foob", Alphabet::Rfc4648Hex, "CPNMUOG=", "RFC4648 hex: 'foob'"),
         (b"fooba", Alphabet::Rfc4648Hex, "CPNMUOJ1", "RFC4648 hex: 'fooba'"),
         (b"foobar", Alphabet::Rfc4648Hex, "CPNMUOJ1E8======", "RFC4648 hex: 'foobar'"),
+        // Z32
+        (b"", Alphabet::Z32, "", "Z32: empty"),
+        (b"\x00", Alphabet::Z32, "yy", "Z32: 0x00"),
+        (b"\xff", Alphabet::Z32, "9h", "Z32: 0xFF"),
+        (b"\xab", Alphabet::Z32, "ic", "Z32: 0xAB"),
+        (b"fo", Alphabet::Z32, "c3zo", "Z32: fo"),
+        (b"foo", Alphabet::Z32, "c3zs6", "Z32: foo"),
+        (b"foob", Alphabet::Z32, "c3zs6ao", "Z32: foob"),
+        (b"fooba", Alphabet::Z32, "c3zs6aub", "Z32: fooba"),
+        (b"foobar", Alphabet::Z32, "c3zs6aubqe", "Z32: foobar"),
+        (b"hello", Alphabet::Z32, "pb1sa5dx", "Z32: hello"),
+        (b"h", Alphabet::Z32, "py", "Z32: h"),
+        (b"he", Alphabet::Z32, "pb1o", "Z32: he"),
+        (b"hel", Alphabet::Z32, "pb1sa", "Z32: hel"),
+        (b"hell", Alphabet::Z32, "pb1sa5y", "Z32: hell"),
     ];
 
     // (encoded_str, alphabet, expected_bytes, description)
@@ -924,6 +966,21 @@ mod tests {
         (b"nbswy3dp", Alphabet::Rfc4648Lower, b"hello", "RFC4648 lower: 'hello'"),
         (b"D1IMOR3F", Alphabet::Rfc4648Hex, b"hello", "RFC4648 hex: 'hello'"),
         (b"D1JPRV3F", Alphabet::Crockford, b"hello", "Crockford: 'hello'"),
+        // Z32
+        (b"", Alphabet::Z32, b"", "Z32: empty"),
+        (b"yy", Alphabet::Z32, b"\x00", "Z32: 0x00"),
+        (b"9h", Alphabet::Z32, b"\xff", "Z32: 0xFF"),
+        (b"ic", Alphabet::Z32, b"\xab", "Z32: 0xAB"),
+        (b"c3zo", Alphabet::Z32, b"fo", "Z32: fo"),
+        (b"c3zs6", Alphabet::Z32, b"foo", "Z32: foo"),
+        (b"c3zs6ao", Alphabet::Z32, b"foob", "Z32: foob"),
+        (b"c3zs6aub", Alphabet::Z32, b"fooba", "Z32: fooba"),
+        (b"c3zs6aubqe", Alphabet::Z32, b"foobar", "Z32: foobar"),
+        (b"pb1sa5dx", Alphabet::Z32, b"hello", "Z32: hello"),
+        (b"py", Alphabet::Z32, b"h", "Z32: h"),
+        (b"pb1o", Alphabet::Z32, b"he", "Z32: he"),
+        (b"pb1sa", Alphabet::Z32, b"hel", "Z32: hel"),
+        (b"pb1sa5y", Alphabet::Z32, b"hell", "Z32: hell"),
     ];
 
     // (encoded_str, alphabet, expected_error, description)
@@ -954,6 +1011,7 @@ mod tests {
             DecodeError::InvalidInput,
             "Crockford invalid chars",
         ),
+        (b"!!!!", Alphabet::Z32, DecodeError::InvalidInput, "Z32 invalid chars"),
     ];
 
     // (data_length, padding, expected_result, description)
@@ -1004,6 +1062,7 @@ mod tests {
         Alphabet::Rfc4648Hex,
         Alphabet::Rfc4648HexLower,
         Alphabet::Crockford,
+        Alphabet::Z32,
     ];
 
     const ROUNDTRIP_SIZES: &[usize] = &[
@@ -1130,6 +1189,7 @@ mod tests {
                 Alphabet::Rfc4648Hex,
                 Alphabet::Rfc4648HexLower,
                 Alphabet::Crockford,
+                Alphabet::Z32,
             ] {
                 let padding = alphabet.is_padded();
                 let elen = encoded_length(1, padding).unwrap();
@@ -1209,6 +1269,14 @@ mod tests {
             input[pos] = b'!';
             assert_eq!(
                 decode_into_constant_time(&mut out, &input, Alphabet::Crockford),
+                Err(DecodeError::InvalidInput)
+            );
+        }
+        for pos in 0..8 {
+            let mut input = [b'y'; 8];
+            input[pos] = b'!';
+            assert_eq!(
+                decode_into_constant_time(&mut out, &input, Alphabet::Z32),
                 Err(DecodeError::InvalidInput)
             );
         }
@@ -1322,6 +1390,9 @@ mod tests {
 
         const RESULT_CROCKFORD: [u8; 8] = encode_array::<8>(b"hello", Alphabet::Crockford);
         assert_eq!(&RESULT_CROCKFORD, b"D1JPRV3F");
+
+        const RESULT_Z32: [u8; 8] = encode_array::<8>(b"hello", Alphabet::Z32);
+        assert_eq!(&RESULT_Z32, b"pb1sa5dx");
     }
 
     #[test]
@@ -1331,12 +1402,18 @@ mod tests {
 
         const RESULT_EMPTY: Result<[u8; 0], DecodeError> = decode_array::<0>(b"", Alphabet::Rfc4648);
         assert_eq!(RESULT_EMPTY.unwrap().len(), 0);
+
+        const RESULT_Z32: Result<[u8; 5], DecodeError> = decode_array::<5>(b"pb1sa5dx", Alphabet::Z32);
+        assert_eq!(RESULT_Z32.unwrap(), *b"hello");
     }
 
     #[test]
     fn test_const_decode_error() {
         const ERR_INVALID: Result<[u8; 5], DecodeError> = decode_array::<5>(b"D1JPRV!!", Alphabet::Crockford);
         assert_eq!(ERR_INVALID, Err(DecodeError::InvalidInput));
+
+        const ERR_Z32: Result<[u8; 5], DecodeError> = decode_array::<5>(b"pb1sa!!x", Alphabet::Z32);
+        assert_eq!(ERR_Z32, Err(DecodeError::InvalidInput));
     }
 
     #[test]
