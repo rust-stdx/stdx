@@ -27,6 +27,7 @@ members = [
     "embed/embed_impl",
     "errgroup",
     "embed/embed_utils",
+    "format_number",
     "form_urlencoded",
     "getopts",
     "hex",

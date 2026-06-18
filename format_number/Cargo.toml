@@ -1,0 +1,7 @@
+[package]
+name = "format_number"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "format_number.rs"
