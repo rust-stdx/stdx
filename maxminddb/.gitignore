@@ -1,6 +1,0 @@
-*.rlib
-*.so
-*.sw?
-Cargo.lock
-/*.mmdb
-target
