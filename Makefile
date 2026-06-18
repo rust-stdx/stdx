@@ -36,6 +36,11 @@ check_all: check
 	cargo check --target=aarch64-unknown-linux-gnu --all-features
 	cargo check --target=aarch64-unknown-linux-gnu --no-default-features
 
+	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1 --all-features
+	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1--no-default-features
+	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 --all-features
+	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 --no-default-features
+
 
 .PHONY: docs
 docs:

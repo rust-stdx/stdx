@@ -60,6 +60,9 @@ mod base64_neon;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod base64_avx2;
 
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+mod base64_wasm_simd128;
+
 const PAD: u8 = b'=';
 
 /// The base64 alphabet used for encoding and decoding.
@@ -243,6 +246,12 @@ pub fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) -> Result
     if data.len() >= 24 {
         check_encode_output_length(output.len(), data.len(), alphabet)?;
         return unsafe { base64_avx2::encode_into(output, data, alphabet) };
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    if data.len() >= 12 {
+        check_encode_output_length(output.len(), data.len(), alphabet)?;
+        return base64_wasm_simd128::encode_into(output, data, alphabet);
     }
 
     return encode_into_constant_time(output, data, alphabet);
@@ -552,6 +561,12 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -
     if content_len >= 32 {
         let content = &encoded_data[..content_len];
         return unsafe { base64_avx2::decode_into(output, content, alphabet) };
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    if content_len >= 16 {
+        let content = &encoded_data[..content_len];
+        return base64_wasm_simd128::decode_into(output, content, alphabet);
     }
 
     decode_into_constant_time(output, encoded_data, alphabet)
