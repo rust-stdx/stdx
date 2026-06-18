@@ -52,6 +52,9 @@ mod hex_neon;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod hex_avx2;
 
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+mod hex_wasm_simd128;
+
 const ALPHABET_LOWER: [u8; 16] = *b"0123456789abcdef";
 const ALPHABET_UPPER: [u8; 16] = *b"0123456789ABCDEF";
 
@@ -205,6 +208,12 @@ pub fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) -> Result
     if data.len() >= 32 {
         check_encode_output_length(data.len(), output.len())?;
         return unsafe { hex_avx2::encode_into(output, data, alphabet) };
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    if data.len() >= 16 {
+        check_encode_output_length(data.len(), output.len())?;
+        return hex_wasm_simd128::encode_into(output, data, alphabet);
     }
 
     return encode_into_constant_time(output, data, alphabet);
@@ -432,6 +441,12 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8]) -> Result<(), DecodeE
     if encoded_data.len() >= 32 {
         check_decode_input_and_output_length(encoded_data.len(), output.len())?;
         return unsafe { hex_avx2::decode_into(output, encoded_data) };
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    if encoded_data.len() >= 32 {
+        check_decode_input_and_output_length(encoded_data.len(), output.len())?;
+        return hex_wasm_simd128::decode_into(output, encoded_data);
     }
 
     decode_into_constant_time(output, encoded_data)
