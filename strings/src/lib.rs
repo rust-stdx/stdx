@@ -1,9 +1,8 @@
-use itoa::Integer;
+use format_number::Integer;
 use ryu::Float;
 
 pub fn itoa<I: Integer>(n: I) -> String {
-    let mut buffer = itoa::Buffer::new();
-    return buffer.format(n).to_string();
+    format_number::format_int(n).to_string()
 }
 
 pub fn ftoa<F: Float>(n: F) -> String {

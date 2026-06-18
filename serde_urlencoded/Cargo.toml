@@ -15,7 +15,7 @@ test = false
 
 [dependencies]
 form_urlencoded = { path = "../form_urlencoded" }
-itoa = { path = "../itoa" }
+format_number = { path = "../format_number" }
 ryu = { path = "../ryu" }
 
 serde = { workspace = true }

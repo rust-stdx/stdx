@@ -11,7 +11,7 @@
 //! assert_eq!(buf.format(-99i32), "-99");
 //!
 //! // One-shot convenience
-//! let buf = format_number::format(2024);
+//! let buf = format_number::format_int(2024);
 //! assert!(buf == "2024");
 //! ```
 
@@ -128,13 +128,12 @@ impl Eq for Buffer {}
 /// One-shot convenience: formats an integer into a new [`Buffer`] and returns it.
 ///
 /// ```rust
-/// let buf = format_number::format(42);
+/// let buf = format_number::format_int(42);
 /// assert!(buf == "42");
-/// println!("{}", buf);
 /// let s: &str = &buf;
 /// ```
 #[inline]
-pub fn format<I: Integer>(n: I) -> Buffer {
+pub fn format_int<I: Integer>(n: I) -> Buffer {
     let mut buf = Buffer::new();
     buf.format(n);
     buf
@@ -543,10 +542,10 @@ mod tests {
 
     #[test]
     fn oneshot() {
-        assert!(format(42u64) == "42");
-        assert!(format(-99i32) == "-99");
-        assert!(format(0u8) == "0");
-        assert!(format(255u8) == "255");
+        assert!(format_int(42u64) == "42");
+        assert!(format_int(-99i32) == "-99");
+        assert!(format_int(0u8) == "0");
+        assert!(format_int(255u8) == "255");
     }
 
     #[test]

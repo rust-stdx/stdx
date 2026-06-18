@@ -793,7 +793,7 @@ dependencies = [
 name = "csv"
 version = "0.1.0"
 dependencies = [
- "itoa 1.0.11",
+ "format_number",
  "memchr",
  "ryu",
  "serde",
@@ -2723,7 +2723,7 @@ name = "serde_urlencoded"
 version = "0.7.1"
 dependencies = [
  "form_urlencoded 1.2.2",
- "itoa 1.0.11",
+ "format_number",
  "ryu",
  "serde",
 ]
@@ -2732,8 +2732,8 @@ dependencies = [
 name = "serde_yaml"
 version = "0.9.34+deprecated"
 dependencies = [
+ "format_number",
  "indexmap",
- "itoa 1.0.11",
  "ryu",
  "serde",
  "unsafe_libyaml",
@@ -3031,7 +3031,7 @@ dependencies = [
 name = "strings"
 version = "0.1.0"
 dependencies = [
- "itoa 1.0.11",
+ "format_number",
  "ryu",
 ]
 

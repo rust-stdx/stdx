@@ -218,10 +218,9 @@ impl<S: Sink> ser::Serializer for PartSerializer<S> {
 impl<S: Sink> PartSerializer<S> {
     fn serialize_integer<I>(self, value: I) -> Result<S::Ok, Error>
     where
-        I: itoa::Integer,
+        I: format_number::Integer,
     {
-        let mut buf = itoa::Buffer::new();
-        let part = buf.format(value);
+        let part = &*format_number::format_int(value);
         ser::Serializer::serialize_str(self, part)
     }
 

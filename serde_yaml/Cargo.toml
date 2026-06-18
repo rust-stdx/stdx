@@ -12,7 +12,7 @@ rust-version = "1.85"
 
 [dependencies]
 indexmap = { workspace = true }
-itoa = { path = "../itoa" }
+format_number = { path = "../format_number" }
 ryu = { path = "../ryu" }
 serde = { workspace = true }
 unsafe_libyaml = { path = "../unsafe_libyaml" }

@@ -304,8 +304,8 @@ impl Number {
 impl Display for Number {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self.n {
-            N::PosInt(i) => formatter.write_str(itoa::Buffer::new().format(i)),
-            N::NegInt(i) => formatter.write_str(itoa::Buffer::new().format(i)),
+            N::PosInt(i) => formatter.write_str(&*format_number::format_int(i)),
+            N::NegInt(i) => formatter.write_str(&*format_number::format_int(i)),
             N::Float(f) if f.is_nan() => formatter.write_str(".nan"),
             N::Float(f) if f.is_infinite() => {
                 if f.is_sign_negative() {

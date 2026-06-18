@@ -10,10 +10,10 @@ path = "./csv.rs"
 [features]
 default = ["std"]
 std = ["serde?/std"]
-serde = ["dep:itoa", "dep:ryu", "dep:serde"]
+serde = ["dep:format_number", "dep:ryu", "dep:serde"]
 
 [dependencies]
-itoa = { path = "../itoa", optional = true }
+format_number = { path = "../format_number", optional = true }
 memchr = { workspace = true }
 ryu = { path = "../ryu", optional = true }
 serde = { workspace = true, default-features = false, features = ["derive", "alloc"], optional = true }

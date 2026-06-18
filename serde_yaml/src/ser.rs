@@ -202,7 +202,7 @@ where
     fn serialize_i8(self, v: i8) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -210,7 +210,7 @@ where
     fn serialize_i16(self, v: i16) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -218,7 +218,7 @@ where
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -226,7 +226,7 @@ where
     fn serialize_i64(self, v: i64) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -234,7 +234,7 @@ where
     fn serialize_i128(self, v: i128) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -242,7 +242,7 @@ where
     fn serialize_u8(self, v: u8) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -250,7 +250,7 @@ where
     fn serialize_u16(self, v: u16) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -258,7 +258,7 @@ where
     fn serialize_u32(self, v: u32) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -266,7 +266,7 @@ where
     fn serialize_u64(self, v: u64) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
@@ -274,7 +274,7 @@ where
     fn serialize_u128(self, v: u128) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: &*format_number::format_int(v),
             style: ScalarStyle::Plain,
         })
     }
