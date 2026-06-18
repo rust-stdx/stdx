@@ -160,9 +160,18 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         // at this point, we already know how many bytes of leftover there will be
         self.keystream_leftover_offset = ((in_out.len() + BLOCK_SIZE - 1) % BLOCK_SIZE) as u8;
 
-        // compile-time dispatch
+        // runtime detection of CPU features for x86 and x86_64 when the "std" feature is enabled
+        #[cfg(all(feature = "std", target_arch = "x86_64"))]
+        if in_out.len() >= 128 && is_x86_feature_detected!("avx512f") {
+            use super::chacha_avx512::chacha_avx512;
+            unsafe {
+                chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
+            }
+            return;
+        }
 
-        #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+        // compile-time dispatch
+        #[cfg(all(not(feature = "std"), target_arch = "x86_64", target_feature = "avx512f"))]
         if in_out.len() >= 128 {
             use super::chacha_avx512::chacha_avx512;
             unsafe {
@@ -192,31 +201,10 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         if in_out.len() >= 128 {
             use super::chacha_neon::chacha_neon;
-            // SAFETY: the cfg attribute above ensures that the required CPU feature(s) are available
             unsafe {
                 chacha_neon::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
             }
             return;
-        }
-
-        // runtime detection of CPU features for x86 and x86_64 when the "std" feature is enabled
-        #[cfg(all(feature = "std", target_arch = "x86_64"))]
-        {
-            if in_out.len() >= 128 && is_x86_feature_detected!("avx512f") {
-                use super::chacha_avx512::chacha_avx512;
-                unsafe {
-                    chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-                }
-                return;
-            }
-
-            if in_out.len() >= 128 && is_x86_feature_detected!("avx2") {
-                use super::chacha_avx2::chacha_avx2;
-                unsafe {
-                    chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-                }
-                return;
-            }
         }
 
         // fallback for when SIMD acceleration is not available
