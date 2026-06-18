@@ -1,6 +1,0 @@
-[package]
-name = "itoa"
-version = "1.0.11"
-edition = "2024"
-
-[dependencies]

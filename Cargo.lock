@@ -210,7 +210,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "itoa 1.0.18",
+ "itoa",
  "matchit",
  "memchr",
  "mime",
@@ -1081,7 +1081,8 @@ name = "format_number"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "itoa 1.0.11",
+ "itoa",
+ "rand 0.10.1",
 ]
 
 [[package]]
@@ -1376,7 +1377,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6970f50e31d6fc17d3fa27329444bfa74e196cf62e95052a3f6fee181dba6425"
 dependencies = [
  "bytes",
- "itoa 1.0.18",
+ "itoa",
 ]
 
 [[package]]
@@ -1442,7 +1443,7 @@ dependencies = [
  "http-body",
  "httparse",
  "httpdate 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "itoa 1.0.18",
+ "itoa",
  "pin-project-lite 0.2.17",
  "smallvec",
  "tokio",
@@ -1665,10 +1666,6 @@ checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
-
-[[package]]
-name = "itoa"
-version = "1.0.11"
 
 [[package]]
 name = "itoa"
@@ -2700,7 +2697,7 @@ version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
- "itoa 1.0.18",
+ "itoa",
  "memchr",
  "serde",
  "serde_core",
@@ -2713,7 +2710,7 @@ version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10a9ff822e371bb5403e391ecd83e182e0e77ba7f6fe0160b795797109d1b457"
 dependencies = [
- "itoa 1.0.18",
+ "itoa",
  "serde",
  "serde_core",
 ]
@@ -2971,7 +2968,7 @@ dependencies = [
  "hex 0.4.3",
  "hkdf",
  "hmac",
- "itoa 1.0.18",
+ "itoa",
  "log",
  "md-5",
  "memchr",

@@ -17,9 +17,13 @@
 
 use core::{ops, ptr, str};
 
-const MAX_LEN: usize = 40;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512ifma"))]
+#[path = "format_number_avx512.rs"]
+mod avx512_arch;
 
-const DEC_DIGITS_LUT: &[u8; 200] = b"\
+pub(crate) const MAX_LEN: usize = 40;
+
+pub(crate) const DEC_DIGITS_LUT: &[u8; 200] = b"\
     0001020304050607080910111213141516171819\
     2021222324252627282930313233343536373839\
     4041424344454647484950515253545556575859\
@@ -160,8 +164,36 @@ mod private {
 // Internal formatting helpers
 // ---------------------------------------------------------------------------
 
+/// Writes `n` as decimal ASCII digits into `buf` right-to-left starting at
+/// `pos - 1`, returning the new start position.
+///
+/// When `FOUR_DIGIT` is true, processes the number in chunks of 4 digits
+/// (two 2-digit LUT lookups) for `n >= 10000`. The remaining 1–3 digits are
+/// handled with one or two LUT lookups.
 #[inline]
 fn format_u64<const FOUR_DIGIT: bool>(mut n: u64, buf: &mut [u8; MAX_LEN], mut pos: usize) -> usize {
+    // Single-digit fast path: avoids all loop machinery for the smallest values.
+    if n < 10 {
+        pos -= 1;
+        unsafe {
+            *buf.as_mut_ptr().add(pos) = n as u8 + b'0';
+        }
+        return pos;
+    } else if n < 100 {
+        // Two-digit fast path: avoids the FOUR_DIGIT branch and trailing logic.
+        let d1 = n as usize * 2;
+        pos -= 2;
+        unsafe {
+            ptr::copy_nonoverlapping(DEC_DIGITS_LUT.as_ptr().add(d1), buf.as_mut_ptr().add(pos), 2);
+        }
+        return pos;
+    }
+
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx512ifma"))]
+    if n >= 100_000_000 {
+        return unsafe { avx512_arch::format_u64_avx512(n, buf, pos) };
+    }
+
     let buf_ptr = buf.as_mut_ptr();
     let lut_ptr = DEC_DIGITS_LUT.as_ptr();
 
@@ -205,46 +237,21 @@ fn format_u64<const FOUR_DIGIT: bool>(mut n: u64, buf: &mut [u8; MAX_LEN], mut p
     pos
 }
 
-/// Computes the upper 128 bits of a 128×128 multiplication.
-#[inline]
-fn u128_mulhi(x: u128, y: u128) -> u128 {
-    let x_lo = x as u64;
-    let x_hi = (x >> 64) as u64;
-    let y_lo = y as u64;
-    let y_hi = (y >> 64) as u64;
-
-    let carry = (x_lo as u128 * y_lo as u128) >> 64;
-    let m = x_lo as u128 * y_hi as u128 + carry;
-    let high1 = m >> 64;
-
-    let m_lo = m as u64;
-    let high2 = (x_hi as u128 * y_lo as u128 + m_lo as u128) >> 64;
-
-    x_hi as u128 * y_hi as u128 + high1 + high2
-}
-
-/// Divides `n` by `10^19` and returns `(quotient, remainder)`.
+/// Writes the decimal representation of `n` into `buf` right-to-left
+/// starting at `pos - 1`, returning the new start position.
 ///
-/// Uses the Granlund–Montgomery algorithm for fast division by a constant.
-#[inline]
-fn udivmod_1e19(n: u128) -> (u128, u64) {
-    const D: u64 = 10_000_000_000_000_000_000;
-
-    let quot = if n < 1 << 83 {
-        ((n >> 19) as u64 / (D >> 19)) as u128
-    } else {
-        u128_mulhi(n, 156927543384667019095894735580191660403) >> 62
-    };
-
-    let rem = (n - quot * D as u128) as u64;
-    debug_assert_eq!(quot, n / D as u128);
-    debug_assert_eq!(rem as u128, n % D as u128);
-
-    (quot, rem)
-}
-
+/// Splits `n` into up to three 19-digit chunks (low, mid, high) using
+/// `udivmod_1e19`. Each chunk is formatted by `format_u64` with
+/// zero-padding applied between chunks. The high chunk is at most 1 digit
+/// (since `u128::MAX < 10^39`).
 #[inline]
 fn format_u128(n: u128, buf: &mut [u8; MAX_LEN], mut pos: usize) -> usize {
+    // Fast path: values that fit in u64 skip the 128‑bit division chain
+    // entirely.
+    if n <= u64::MAX as u128 {
+        return format_u64::<true>(n as u64, buf, pos);
+    }
+
     let buf_ptr = buf.as_mut_ptr();
 
     let (n, lo) = udivmod_1e19(n);
@@ -274,6 +281,48 @@ fn format_u128(n: u128, buf: &mut [u8; MAX_LEN], mut pos: usize) -> usize {
     }
 
     pos
+}
+
+/// Divides `n` by `10^19` and returns `(quotient, remainder)`.
+///
+/// Uses the Granlund–Montgomery algorithm for fast division by a constant.
+/// For values smaller than 2^83 a cheaper shift-based path is taken.
+/// The remainder always fits in a `u64`.
+#[inline]
+fn udivmod_1e19(n: u128) -> (u128, u64) {
+    const D: u64 = 10_000_000_000_000_000_000;
+
+    let quot = if n < 1 << 83 {
+        ((n >> 19) as u64 / (D >> 19)) as u128
+    } else {
+        u128_mulhi(n, 156927543384667019095894735580191660403) >> 62
+    };
+
+    let rem = (n - quot * D as u128) as u64;
+    debug_assert_eq!(quot, n / D as u128);
+    debug_assert_eq!(rem as u128, n % D as u128);
+
+    (quot, rem)
+}
+
+/// Returns the upper 128 bits of `x * y` for use in Granlund–Montgomery
+/// division by a constant. Decomposes each operand into 64-bit halves so
+/// the intermediate product never exceeds 256 bits.
+#[inline]
+fn u128_mulhi(x: u128, y: u128) -> u128 {
+    let x_lo = x as u64;
+    let x_hi = (x >> 64) as u64;
+    let y_lo = y as u64;
+    let y_hi = (y >> 64) as u64;
+
+    let carry = (x_lo as u128 * y_lo as u128) >> 64;
+    let m = x_lo as u128 * y_hi as u128 + carry;
+    let high1 = m >> 64;
+
+    let m_lo = m as u64;
+    let high2 = (x_hi as u128 * y_lo as u128 + m_lo as u128) >> 64;
+
+    x_hi as u128 * y_hi as u128 + high1 + high2
 }
 
 // ---------------------------------------------------------------------------

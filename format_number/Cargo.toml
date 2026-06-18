@@ -5,3 +5,12 @@ edition = "2024"
 
 [lib]
 path = "format_number.rs"
+
+[dev-dependencies]
+criterion = { workspace = true }
+itoa = { workspace = true }
+rand = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false
