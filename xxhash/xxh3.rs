@@ -36,7 +36,31 @@ const DEFAULT_SECRET: [u8; 192] = [
     0x40, 0x7e,
 ];
 
-const INITIAL_ACC: [u64; ACC_NB] = [
+/// 64-byte aligned 8 × u64 accumulator used by all XXH3 paths.
+///
+/// Alignment matches AVX-512's zmm register size requirement (64 bytes).
+/// On other targets the alignment is free and has no downside.
+#[repr(align(64))]
+#[derive(Clone, Copy)]
+pub(crate) struct Acc(pub(crate) [u64; ACC_NB]);
+
+impl core::ops::Deref for Acc {
+    type Target = [u64; ACC_NB];
+
+    #[inline]
+    fn deref(&self) -> &[u64; ACC_NB] {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for Acc {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut [u64; ACC_NB] {
+        &mut self.0
+    }
+}
+
+const INITIAL_ACC: Acc = Acc([
     PRIME32_3,
     PRIME64_1,
     PRIME64_2,
@@ -45,7 +69,7 @@ const INITIAL_ACC: [u64; ACC_NB] = [
     0x85EBCA77,         // PRIME32_2
     PRIME64_5,
     PRIME32_1,
-];
+]);
 
 // ---------------------------------------------------------------------------
 // Low-level helpers
@@ -123,15 +147,15 @@ const fn mix16b(input: &[u8], input_offset: usize, secret: &[u8], secret_offset:
 }
 
 #[inline]
-const fn mix_two_accs(acc: &[u64; ACC_NB], offset: usize, secret: &[u8], sec_off: usize) -> u64 {
+const fn mix_two_accs(acc: &Acc, offset: usize, secret: &[u8], sec_off: usize) -> u64 {
     mul128_fold64(
-        acc[offset] ^ read_64le(secret, sec_off),
-        acc[offset + 1] ^ read_64le(secret, sec_off + 8),
+        acc.0[offset] ^ read_64le(secret, sec_off),
+        acc.0[offset + 1] ^ read_64le(secret, sec_off + 8),
     )
 }
 
 #[inline]
-const fn merge_accs(acc: &[u64; ACC_NB], secret: &[u8], start_offset: usize, mut result: u64) -> u64 {
+const fn merge_accs(acc: &Acc, secret: &[u8], start_offset: usize, mut result: u64) -> u64 {
     let mut i = 0;
     while i < 4 {
         result = result.wrapping_add(mix_two_accs(acc, i * 2, secret, start_offset + i * 16));
@@ -145,26 +169,20 @@ const fn merge_accs(acc: &[u64; ACC_NB], secret: &[u8], start_offset: usize, mut
 // ---------------------------------------------------------------------------
 
 #[inline]
-const fn accumulate_512_scalar(
-    acc: &mut [u64; ACC_NB],
-    input: &[u8],
-    input_off: usize,
-    secret: &[u8],
-    secret_off: usize,
-) {
+const fn accumulate_512_scalar(acc: &mut Acc, input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
     let mut i = 0;
     while i < ACC_NB {
         let data_val = read_64le(input, input_off + i * 8);
         let data_key = data_val ^ read_64le(secret, secret_off + i * 8);
-        acc[i ^ 1] = acc[i ^ 1].wrapping_add(data_val);
-        acc[i] = acc[i].wrapping_add(mult32_to64((data_key & 0xFFFFFFFF) as u32, (data_key >> 32) as u32));
+        acc.0[i ^ 1] = acc.0[i ^ 1].wrapping_add(data_val);
+        acc.0[i] = acc.0[i].wrapping_add(mult32_to64((data_key & 0xFFFFFFFF) as u32, (data_key >> 32) as u32));
         i += 1;
     }
 }
 
 #[inline]
 const fn accumulate_loop_scalar(
-    acc: &mut [u64; ACC_NB],
+    acc: &mut Acc,
     input: &[u8],
     input_off: usize,
     secret: &[u8],
@@ -185,19 +203,19 @@ const fn accumulate_loop_scalar(
 }
 
 #[inline]
-const fn scramble_acc_scalar(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
+const fn scramble_acc_scalar(acc: &mut Acc, secret: &[u8], secret_off: usize) {
     let mut i = 0;
     while i < ACC_NB {
         let key = read_64le(secret, secret_off + i * 8);
-        let mut val = xorshift64(acc[i], 47);
+        let mut val = xorshift64(acc.0[i], 47);
         val ^= key;
-        acc[i] = val.wrapping_mul(PRIME32_1);
+        acc.0[i] = val.wrapping_mul(PRIME32_1);
         i += 1;
     }
 }
 
 #[inline]
-const fn hash_long_internal_loop(acc: &mut [u64; ACC_NB], input: &[u8], secret: &[u8]) {
+const fn hash_long_internal_loop(acc: &mut Acc, input: &[u8], secret: &[u8]) {
     let nb_stripes = STRIPES_PER_BLOCK;
     let block_len = STRIPE_LEN * nb_stripes;
     let nb_blocks = (input.len() - 1) / block_len;
@@ -246,12 +264,12 @@ const fn custom_default_secret_scalar(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
 // ---------------------------------------------------------------------------
 // Dispatch wrappers — select SIMD or scalar at compile / run time.
 // On aarch64  NEON is always available (compile-time dispatch).
-// On x86_64   Uses AVX2 when available (compile-time dispatch).
+// On x86_64   Uses AVX512 when available, otherwise AVX2 (compile-time dispatch).
 // ---------------------------------------------------------------------------
 
 #[inline]
 #[allow(unreachable_code)]
-fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
+fn accumulate_512(acc: &mut Acc, input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     {
         crate::xxh3_wasm_simd128::accumulate_512(acc, input, input_off, secret, secret_off);
@@ -261,6 +279,12 @@ fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secre
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     {
         unsafe { crate::xxh3_neon::accumulate_512(acc, input, input_off, secret, secret_off) };
+        return;
+    }
+
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx512f"))]
+    {
+        unsafe { crate::xxh3_avx512::accumulate_512(acc, input, input_off, secret, secret_off) };
         return;
     }
 
@@ -275,14 +299,7 @@ fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secre
 
 #[inline]
 #[allow(unreachable_code)]
-fn accumulate_loop(
-    acc: &mut [u64; ACC_NB],
-    input: &[u8],
-    input_off: usize,
-    secret: &[u8],
-    secret_off: usize,
-    nb_stripes: usize,
-) {
+fn accumulate_loop(acc: &mut Acc, input: &[u8], input_off: usize, secret: &[u8], secret_off: usize, nb_stripes: usize) {
     let mut idx = 0;
     while idx < nb_stripes {
         accumulate_512(
@@ -298,7 +315,7 @@ fn accumulate_loop(
 
 #[inline]
 #[allow(unreachable_code)]
-fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
+fn scramble_acc(acc: &mut Acc, secret: &[u8], secret_off: usize) {
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     {
         crate::xxh3_wasm_simd128::scramble_acc(acc, secret, secret_off);
@@ -308,6 +325,12 @@ fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     {
         unsafe { crate::xxh3_neon::scramble_acc(acc, secret, secret_off) };
+        return;
+    }
+
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx512f"))]
+    {
+        unsafe { crate::xxh3_avx512::scramble_acc(acc, secret, secret_off) };
         return;
     }
 
@@ -685,7 +708,7 @@ const fn xxh3_128_one_shot(input: &[u8], seed: u64, secret: &[u8]) -> u128 {
 
 #[derive(Clone)]
 struct LongState {
-    acc: [u64; ACC_NB],
+    acc: Acc,
     secret: [u8; DEFAULT_SECRET_SIZE],
     buf: [u8; STRIPE_LEN],
     buf_len: u8,

@@ -82,6 +82,10 @@ mod xxh3_neon;
 #[path = "xxh3_avx2.rs"]
 mod xxh3_avx2;
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[path = "xxh3_avx512.rs"]
+mod xxh3_avx512;
+
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 #[path = "xxh3_wasm_simd128.rs"]
 mod xxh3_wasm_simd128;
