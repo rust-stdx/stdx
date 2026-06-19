@@ -15,25 +15,33 @@ pub(crate) unsafe fn format_u64_avx512(n: u64, buf: &mut [u8; MAX_LEN], pos: usi
 
     if ndigits <= 16 {
         // 9..=16 digits: 16-digit kernel + masked store.
-        let digits = to_string_16digits(n);
-        let out_pos = pos - ndigits;
+        // Store the 16-byte SIMD result at pos-16 so the masked bytes
+        // land at buf[pos-ndigits .. pos-1], never past buf[MAX_LEN-1].
+        let digits = unsafe { to_string_16digits(n) };
+        let simd_base = pos - 16;
         let mask = (0xFFFFu16 << (16 - ndigits)) as __mmask16;
-        _mm_mask_storeu_epi8(buf.as_mut_ptr().add(out_pos) as *mut i8, mask, digits);
-        out_pos
+        unsafe {
+            _mm_mask_storeu_epi8(buf.as_mut_ptr().add(simd_base) as *mut i8, mask, digits);
+        }
+        pos - ndigits
     } else {
         // 17..=20 digits: split last 4 digits via /10000, format the
         // remaining high part with the 16-digit kernel, then write the
         // 4-digit suffix.
+        // Store the SIMD result at pos-20 so the masked bytes end at
+        // pos-5, leaving buf[pos-4 .. pos-1] for the suffix.
         let r = n % 10000;
         let q = n / 10000;
         let nq = ndigits - 4;
 
-        let digits = to_string_16digits(q);
-        let out_pos = pos - ndigits;
+        let digits = unsafe { to_string_16digits(q) };
+        let simd_base = pos - 20;
         let mask = (0xFFFFu16 << (16 - nq)) as __mmask16;
-        _mm_mask_storeu_epi8(buf.as_mut_ptr().add(out_pos) as *mut i8, mask, digits);
-        write_four_digits(buf.as_mut_ptr().add(out_pos + nq), r);
-        out_pos
+        unsafe {
+            _mm_mask_storeu_epi8(buf.as_mut_ptr().add(simd_base) as *mut i8, mask, digits);
+            write_four_digits(buf.as_mut_ptr().add(pos - 4), r);
+        }
+        pos - ndigits
     }
 }
 
@@ -122,30 +130,10 @@ unsafe fn write_four_digits(buf: *mut u8, value: u64) {
     let v = value as usize;
     let d1 = (v / 100) * 2;
     let d2 = (v % 100) * 2;
-    ptr::copy_nonoverlapping(DEC_DIGITS_LUT.as_ptr().add(d1), buf, 2);
-    ptr::copy_nonoverlapping(DEC_DIGITS_LUT.as_ptr().add(d2), buf.add(2), 2);
-}
-
-// Core kernel: extracts all 8 decimal digits of n < 10^8.
-// Each 64-bit lane of the result contains one ASCII digit byte.
-#[inline]
-#[target_feature(enable = "avx512f,avx512ifma")]
-unsafe fn to_string_8digits(n: u64) -> __m512i {
-    let vn = _mm512_set1_epi64(n as i64);
-    let c = _mm512_setr_epi64(
-        (TWOTO52 / 100_000_000) as i64,
-        (TWOTO52 / 10_000_000) as i64,
-        (TWOTO52 / 1_000_000) as i64,
-        (TWOTO52 / 100_000) as i64,
-        (TWOTO52 / 10_000) as i64,
-        (TWOTO52 / 1_000) as i64,
-        (TWOTO52 / 100) as i64,
-        (TWOTO52 / 10) as i64,
-    );
-    let vten = _mm512_set1_epi64(10);
-    let vzero = _mm512_set1_epi64(b'0' as i64);
-    let low = _mm512_madd52lo_epu64(c, vn, c);
-    _mm512_madd52hi_epu64(vzero, vten, low)
+    unsafe {
+        ptr::copy_nonoverlapping(DEC_DIGITS_LUT.as_ptr().add(d1), buf, 2);
+        ptr::copy_nonoverlapping(DEC_DIGITS_LUT.as_ptr().add(d2), buf.add(2), 2);
+    }
 }
 
 // 16-digit kernel: extracts all 16 digits of n < 10^16.

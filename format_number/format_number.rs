@@ -1,6 +1,6 @@
 #![no_std]
 
-//! Fast integer-to-string conversion with a stack-allocated buffer.
+//! Fast integer-to-string conversion with a stack-allocated buffer and `#![no_std]` support.
 //!
 //! # Example
 //!
@@ -17,7 +17,14 @@
 
 use core::{ops, ptr, str};
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx512ifma"))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "avx512f",
+    target_feature = "avx512vl",
+    target_feature = "avx512ifma",
+    target_feature = "avx512bw",
+    target_feature = "avx512vbmi",
+))]
 #[path = "format_number_avx512.rs"]
 mod avx512_arch;
 
@@ -42,6 +49,7 @@ pub(crate) const DEC_DIGITS_LUT: &[u8; 200] = b"\
 /// let s: &str = buf.format(1234);
 /// assert_eq!(s, "1234");
 /// ```
+#[derive(Copy, Clone)]
 pub struct Buffer {
     buf: [u8; MAX_LEN],
     start: u8,
@@ -84,16 +92,6 @@ impl Buffer {
     pub fn as_str(&self) -> &str {
         let s = &self.buf[self.start as usize..];
         unsafe { str::from_utf8_unchecked(s) }
-    }
-}
-
-impl Clone for Buffer {
-    #[inline]
-    fn clone(&self) -> Self {
-        Buffer {
-            buf: self.buf,
-            start: self.start,
-        }
     }
 }
 
@@ -171,7 +169,7 @@ mod private {
 /// (two 2-digit LUT lookups) for `n >= 10000`. The remaining 1–3 digits are
 /// handled with one or two LUT lookups.
 #[inline]
-fn format_u64<const FOUR_DIGIT: bool>(mut n: u64, buf: &mut [u8; MAX_LEN], mut pos: usize) -> usize {
+fn format_u64<const FOUR_DIGIT: bool>(n: u64, buf: &mut [u8; MAX_LEN], mut pos: usize) -> usize {
     // Single-digit fast path: avoids all loop machinery for the smallest values.
     if n < 10 {
         pos -= 1;
@@ -189,11 +187,23 @@ fn format_u64<const FOUR_DIGIT: bool>(mut n: u64, buf: &mut [u8; MAX_LEN], mut p
         return pos;
     }
 
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx512ifma"))]
+    #[cfg(all(
+        target_arch = "x86_64",
+        target_feature = "avx512f",
+        target_feature = "avx512vl",
+        target_feature = "avx512ifma",
+        target_feature = "avx512bw",
+        target_feature = "avx512vbmi",
+    ))]
     if n >= 100_000_000 {
         return unsafe { avx512_arch::format_u64_avx512(n, buf, pos) };
     }
 
+    return format_u64_scalar::<FOUR_DIGIT>(n, buf, pos);
+}
+
+#[inline]
+fn format_u64_scalar<const FOUR_DIGIT: bool>(mut n: u64, buf: &mut [u8; MAX_LEN], mut pos: usize) -> usize {
     let buf_ptr = buf.as_mut_ptr();
     let lut_ptr = DEC_DIGITS_LUT.as_ptr();
 
@@ -590,6 +600,28 @@ mod tests {
     }
 
     #[test]
+    fn u128_large_values() {
+        let mut buf = Buffer::new();
+
+        // Values >= 2^83 exercise the Granlund-Montgomery u128_mulhi path.
+        assert_eq!(buf.format(1u128 << 83), "9671406556917033397649408");
+        assert_eq!(buf.format((1u128 << 83) + 1), "9671406556917033397649409");
+        assert_eq!(buf.format((1u128 << 83) - 1), "9671406556917033397649407");
+        assert_eq!(buf.format(1u128 << 84), "19342813113834066795298816");
+
+        // 10^25 and neighbours (well above 2^83, well below u128::MAX).
+        let e25 = 10_000_000_000_000_000_000_000_000u128;
+        assert_eq!(buf.format(e25), "10000000000000000000000000");
+        assert_eq!(buf.format(e25 - 1), "9999999999999999999999999");
+        assert_eq!(buf.format(e25 + 1), "10000000000000000000000001");
+
+        // 10^30
+        let e30: u128 = 1_000_000_000_000_000_000_000_000_000_000;
+        assert_eq!(buf.format(e30), "1000000000000000000000000000000");
+        assert_eq!(buf.format(e30 - 1), "999999999999999999999999999999");
+    }
+
+    #[test]
     fn oneshot() {
         assert!(format_int(42u64) == "42");
         assert!(format_int(-99i32) == "-99");
@@ -653,5 +685,97 @@ mod tests {
         assert_eq!(buf.format(123u64), "123");
         assert_eq!(buf.format(1234u64), "1234");
         assert_eq!(buf.format(12345u64), "12345");
+    }
+}
+
+#[cfg(all(
+    test,
+    target_arch = "x86_64",
+    target_feature = "avx512f",
+    target_feature = "avx512vl",
+    target_feature = "avx512ifma",
+    target_feature = "avx512bw",
+    target_feature = "avx512vbmi",
+))]
+mod avx512_tests {
+    use super::*;
+
+    fn format_avx512(n: u64) -> String {
+        let mut buf = [0u8; MAX_LEN];
+        let pos = unsafe { avx512_arch::format_u64_avx512(n, &mut buf, MAX_LEN) };
+        let s = &buf[pos..MAX_LEN];
+        std::str::from_utf8(s).unwrap().to_owned()
+    }
+
+    fn format_scalar(n: u64) -> String {
+        let mut buf = [0u8; MAX_LEN];
+        let pos = format_u64_scalar::<true>(n, &mut buf, MAX_LEN);
+        let s = &buf[pos..MAX_LEN];
+        std::str::from_utf8(s).unwrap().to_owned()
+    }
+
+    #[test]
+    fn boundaries() {
+        // Every digit-count transition from 9 through 20 digits.
+        let cases = [
+            100_000_000,
+            999_999_999,
+            1_000_000_000,
+            9_999_999_999,
+            10_000_000_000,
+            99_999_999_999,
+            100_000_000_000,
+            999_999_999_999,
+            1_000_000_000_000,
+            9_999_999_999_999,
+            10_000_000_000_000,
+            99_999_999_999_999,
+            100_000_000_000_000,
+            999_999_999_999_999,
+            1_000_000_000_000_000,
+            9_999_999_999_999_999,
+            10_000_000_000_000_000,
+            99_999_999_999_999_999,
+            100_000_000_000_000_000,
+            999_999_999_999_999_999,
+            1_000_000_000_000_000_000,
+            9_999_999_999_999_999_999,
+            10_000_000_000_000_000_000,
+            u64::MAX,
+        ];
+        for &n in &cases {
+            let avx = format_avx512(n);
+            let scalar = format_scalar(n);
+            assert_eq!(avx, scalar, "mismatch at n={}", n);
+        }
+    }
+
+    #[test]
+    fn powers_and_neighbors() {
+        // Powers of ten and their ±1 neighbours from 10^8 to 10^19.
+        let mut base = 100_000_000u64;
+        for _ in 8..=19 {
+            for &delta in &[0u64, 1, 2, 10, base - 1, base - 2] {
+                let n = base.saturating_sub(delta);
+                if n >= 100_000_000 {
+                    assert_eq!(format_avx512(n), format_scalar(n), "mismatch at n={}", n);
+                }
+            }
+            if let Some(next) = base.checked_mul(10) {
+                base = next;
+            } else {
+                break;
+            }
+        }
+    }
+
+    #[test]
+    fn random() {
+        use rand::{Rng, SeedableRng, rngs::SmallRng};
+        let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
+        for _ in 0..10_000 {
+            let n = rng.gen_range(100_000_000u64..=u64::MAX);
+            assert_eq!(format_avx512(n), format_scalar(n), "mismatch at n={}", n);
+        }
     }
 }
