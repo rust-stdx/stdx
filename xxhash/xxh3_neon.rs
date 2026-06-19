@@ -3,13 +3,19 @@
 
 use core::arch::aarch64::*;
 
-use crate::xxh3::{Acc, PRIME32_1};
+use crate::xxh3::{ACC_NB, PRIME32_1};
 
 #[allow(clippy::similar_names)]
 #[target_feature(enable = "neon")]
-pub unsafe fn accumulate_512(acc: &mut Acc, input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
+pub unsafe fn accumulate_512(
+    acc: &mut [u64; ACC_NB],
+    input: &[u8],
+    input_off: usize,
+    secret: &[u8],
+    secret_off: usize,
+) {
     unsafe {
-        let acc_ptr = acc.0.as_mut_ptr();
+        let acc_ptr = acc.as_mut_ptr();
         let input_ptr = input.as_ptr().add(input_off);
         let secret_ptr = secret.as_ptr().add(secret_off);
 
@@ -33,11 +39,11 @@ pub unsafe fn accumulate_512(acc: &mut Acc, input: &[u8], input_off: usize, secr
 
 #[allow(clippy::similar_names)]
 #[target_feature(enable = "neon")]
-pub unsafe fn scramble_acc(acc: &mut Acc, secret: &[u8], secret_off: usize) {
+pub unsafe fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
     unsafe {
         let k_prime_lo = vdup_n_u32(PRIME32_1 as u32);
         let k_prime_hi = vreinterpretq_u32_u64(vdupq_n_u64(PRIME32_1 << 32));
-        let acc_ptr = acc.0.as_mut_ptr();
+        let acc_ptr = acc.as_mut_ptr();
         let secret_ptr = secret.as_ptr().add(secret_off);
 
         let mut i = 0;
