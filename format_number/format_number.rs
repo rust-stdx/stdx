@@ -698,20 +698,22 @@ mod tests {
     target_feature = "avx512vbmi",
 ))]
 mod avx512_tests {
+    use std::string::String;
+
     use super::*;
 
     fn format_avx512(n: u64) -> String {
         let mut buf = [0u8; MAX_LEN];
         let pos = unsafe { avx512_arch::format_u64_avx512(n, &mut buf, MAX_LEN) };
         let s = &buf[pos..MAX_LEN];
-        std::str::from_utf8(s).unwrap().to_owned()
+        core::str::from_utf8(s).unwrap().to_owned()
     }
 
     fn format_scalar(n: u64) -> String {
         let mut buf = [0u8; MAX_LEN];
         let pos = format_u64_scalar::<true>(n, &mut buf, MAX_LEN);
         let s = &buf[pos..MAX_LEN];
-        std::str::from_utf8(s).unwrap().to_owned()
+        core::str::from_utf8(s).unwrap().to_owned()
     }
 
     #[test]
@@ -771,10 +773,10 @@ mod avx512_tests {
 
     #[test]
     fn random() {
-        use rand::{Rng, SeedableRng, rngs::SmallRng};
+        use rand::{RngExt, SeedableRng, rngs::SmallRng};
         let mut rng = SmallRng::seed_from_u64(0xdeadbeef);
         for _ in 0..10_000 {
-            let n = rng.gen_range(100_000_000u64..=u64::MAX);
+            let n = rng.random_range(100_000_000u64..=u64::MAX);
             assert_eq!(format_avx512(n), format_scalar(n), "mismatch at n={}", n);
         }
     }
