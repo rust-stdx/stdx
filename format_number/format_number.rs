@@ -698,7 +698,8 @@ mod tests {
     target_feature = "avx512vbmi",
 ))]
 mod avx512_tests {
-    use std::string::String;
+    extern crate alloc;
+    use alloc::{borrow::ToOwned, string::String};
 
     use super::*;
 
