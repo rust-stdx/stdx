@@ -2,6 +2,7 @@ use std::hint::black_box;
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::{
+    blake3::Blake3,
     hmac::Hmac,
     poly1305::Poly1305,
     sha2::{Sha256, Sha512},
@@ -54,6 +55,13 @@ fn bench_macs(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("Poly1305"), &data, |b, data| {
             b.iter(|| {
                 let out = Poly1305::mac(&KEY, data);
+                black_box(out);
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("BLAKE3-keyed"), &data, |b, data| {
+            b.iter(|| {
+                let out = Blake3::keyed_hash(black_box(&KEY), black_box(data.as_slice()));
                 black_box(out);
             });
         });
