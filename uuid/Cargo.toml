@@ -19,4 +19,8 @@ serde = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true, features = ["postgres"] }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false
