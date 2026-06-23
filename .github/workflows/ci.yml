@@ -17,8 +17,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
-      - run: rustup update stable
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y binutils gcc
+      - run: rustup update stable
       - run: make check
 
 
@@ -31,13 +31,10 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            packages: "-p hex -p base64 -p base32 -p crypto"
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
-            packages: "-p hex -p base64 -p base32 -p crypto"
           - target: wasm32-wasip1
             os: ubuntu-latest
-            packages: "-p hex -p base64 -p base32 -p uuid -p xxhash -p constant_time_eq -p format_number -p percent_encoding -p httpdate -p tld -p ryu"
     runs-on: ${{ matrix.os }}
     env:
       RUSTFLAGS: ${{ matrix.target != 'wasm32-wasip1' && '-C linker=gcc' || '' }}
@@ -45,8 +42,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
+      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y binutils gcc
       - run: rustup update stable
       - if: matrix.target == 'wasm32-wasip1'
         run: rustup target add wasm32-wasip1
-      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y binutils gcc
       - run: cargo test --target ${{ matrix.target }} -p hex -p base64 -p base32 -p crypto
