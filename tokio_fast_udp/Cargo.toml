@@ -1,0 +1,16 @@
+[package]
+name = "tokio_fast_udp"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Fast cross-platform UDP I/O for tokio with batch sends/recvs, GSO/GRO segmentation offload, and ECN"
+
+[lib]
+path = "./tokio_fast_udp.rs"
+
+[dependencies]
+tokio = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+nix = { workspace = true, features = ["net", "uio"] }

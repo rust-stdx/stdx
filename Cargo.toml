@@ -60,6 +60,7 @@ members = [
     "thiserror",
     "thiserror/impl",
     "tld",
+    "tokio_fast_udp",
     "tools/crypt",
     "tools/duplicates",
     "tools/energy_bench",

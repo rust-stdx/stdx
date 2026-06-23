@@ -3243,6 +3243,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio_fast_udp"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "nix",
+ "tokio",
+]
+
+[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
