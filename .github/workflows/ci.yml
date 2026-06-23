@@ -49,4 +49,4 @@ jobs:
       - if: matrix.target == 'wasm32-wasip1'
         run: rustup target add wasm32-wasip1
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y binutils gcc
-      - run: cargo test -p hex -p base64 -p base32 -p crypto
+      - run: cargo test --target ${{ matrix.target }} -p hex -p base64 -p base32 -p crypto
