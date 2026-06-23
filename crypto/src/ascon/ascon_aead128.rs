@@ -12,6 +12,26 @@ use crate::{Aead, AeadError, Bytes, Hash};
 /// - Initialization/finalization rounds: 12
 /// - Data processing rounds: 8
 ///
+/// # Example
+///
+/// ```ignore
+/// use crypto::{Aead, ascon::AsconAead128};
+///
+/// let key = [0x42u8; 16];
+/// let nonce = [0xABu8; 16];
+/// let aad = b"example metadata";
+/// let plaintext = b"hello, world!";
+///
+/// let cipher = AsconAead128::new(&key);
+///
+/// let mut ct = plaintext.to_vec();
+/// let tag = cipher.encrypt_in_place(&mut ct, &nonce, aad);
+///
+/// let mut pt = ct.clone();
+/// cipher.decrypt_in_place(&mut pt, &nonce, aad, tag.as_ref()).unwrap();
+/// assert_eq!(&pt, plaintext);
+/// ```
+///
 /// # Usage limits (NIST SP 800-232 §4.3)
 ///
 /// - Max data per key: 2^54 bytes
