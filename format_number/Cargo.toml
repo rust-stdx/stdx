@@ -7,9 +7,11 @@ edition = "2024"
 path = "format_number.rs"
 
 [dev-dependencies]
-criterion = { workspace = true }
 itoa = { workspace = true }
 rand = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 
 [[bench]]
 name = "bench"

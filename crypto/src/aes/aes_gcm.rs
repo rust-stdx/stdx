@@ -22,7 +22,10 @@ use crate::{Aead, AeadError, Hash, StreamCipher};
 ///
 /// The raw 32-byte key is retained so the software fallback can recompute
 /// the expanded key on the rare occasion the hardware path is unavailable.
+#[cfg(target_pointer_width = "64")]
 pub(crate) const MAX_GCM_LEN: usize = (u32::MAX as usize - 1) * 16;
+#[cfg(not(target_pointer_width = "64"))]
+pub(crate) const MAX_GCM_LEN: usize = usize::MAX;
 
 pub struct Aes256Gcm {
     pub(crate) key: [u8; 32],

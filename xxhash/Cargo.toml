@@ -8,8 +8,10 @@ license = "MIT"
 path = "./xxhash.rs"
 
 [dev-dependencies]
-criterion = { workspace = true }
 rand = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 
 [[bench]]
 name = "hash"

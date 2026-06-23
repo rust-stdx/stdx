@@ -24,10 +24,12 @@ zeroize = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-criterion = { workspace = true }
 hex = { path = "../hex" }
 serde_json = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 
 [[bench]]
 name = "aead"

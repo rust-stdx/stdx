@@ -16,9 +16,11 @@ serde = ["dep:serde"]
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
-criterion = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 
 [[bench]]
 name = "bench"

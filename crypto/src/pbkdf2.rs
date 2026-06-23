@@ -31,10 +31,12 @@ use crate::{Hasher, MAX_HASH_BLOCK_SIZE, hmac::Hmac};
 pub fn derive<H: Hasher, const N: usize>(password: &[u8], salt: &[u8], iterations: u32) -> [u8; N] {
     assert!(iterations != 0, "PBKDF2 iterations must be >= 1");
     const {
-        assert!(
-            N <= (u32::MAX as usize) * H::OUTPUT_SIZE,
-            "PBKDF2 output length exceeds RFC 2898 limit",
-        );
+        let max_len: usize = if cfg!(target_pointer_width = "64") {
+            (u32::MAX as usize) * H::OUTPUT_SIZE
+        } else {
+            usize::MAX
+        };
+        assert!(N <= max_len, "PBKDF2 output length exceeds RFC 2898 limit",);
     }
 
     let hlen = H::OUTPUT_SIZE;
