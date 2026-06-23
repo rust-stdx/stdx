@@ -9,6 +9,8 @@
 //!   datagrams in one syscall.
 //! - **ECN** (Explicit Congestion Notification): send and receive IP-level
 //!   congestion marks.
+//! - **SO_REUSEPORT** (Linux): bind multiple sockets to the same address:port
+//!   for kernel-level load balancing across processes/threads.
 //!
 //! On platforms without these optimizations (macOS, Windows, etc.) a
 //! portable `sendmsg`/`recvmsg` fallback is used so the same application code
@@ -17,12 +19,12 @@
 //! # Quick start
 //!
 //! ```no_run
-//! use tokio_fast_udp::{FastUdpSocketBuilder, ReceiveItem, SendItem};
+//! use tokio_fast_udp::{FastUdpSocket, ReceiveItem, SendItem};
 //!
 //! #[tokio::main]
 //! async fn main() -> std::io::Result<()> {
-//!     let socket = FastUdpSocketBuilder::bind("127.0.0.1:9000".parse().unwrap())
-//!         .build()?;
+//!     let socket = FastUdpSocket::build("127.0.0.1:9000".parse().unwrap())
+//!         .bind()?;
 //!
 //!     let dst = "127.0.0.1:9001".parse().unwrap();
 //!     let items = [SendItem::new(dst, b"hello")];

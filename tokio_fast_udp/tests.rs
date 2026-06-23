@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::{Ecn, FastUdpSocketBuilder, ReceiveItem, SendItem};
+use crate::{Ecn, FastUdpSocket, ReceiveItem, SendItem};
 
 fn loop_addr(port: u16) -> SocketAddr {
     SocketAddr::from(([127, 0, 0, 1], port))
@@ -8,10 +8,10 @@ fn loop_addr(port: u16) -> SocketAddr {
 
 #[tokio::test]
 async fn test_send_receive_single() {
-    let receiver = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
 
-    let sender = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     let msg = b"hello world";
     sender.send(SendItem::new(raddr, msg)).await.unwrap();
@@ -27,9 +27,9 @@ async fn test_send_receive_single() {
 
 #[tokio::test]
 async fn test_send_many_receive_many() {
-    let receiver = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
-    let sender = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     let messages: Vec<&[u8]> = vec![b"one", b"two", b"three", b"four"];
     let items: Vec<SendItem> = messages.iter().map(|m| SendItem::new(raddr, *m)).collect();
@@ -52,7 +52,7 @@ async fn test_send_many_receive_many() {
 
 #[tokio::test]
 async fn test_empty_batch() {
-    let socket = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let socket = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let n = socket.send_many(&[]).await.unwrap();
     assert_eq!(n, 0);
 
@@ -62,44 +62,41 @@ async fn test_empty_batch() {
 
 #[tokio::test]
 async fn test_capabilities() {
-    let socket = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let socket = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let caps = socket.capabilities();
     assert!(caps.max_batch > 0);
 }
 
 #[tokio::test]
 async fn test_disable_gso() {
-    let socket = FastUdpSocketBuilder::bind(loop_addr(0)).disable_gso().build().unwrap();
+    let socket = FastUdpSocket::build(loop_addr(0)).gso(false).bind().unwrap();
     assert!(!socket.capabilities().gso);
 }
 
 #[tokio::test]
 async fn test_disable_gro() {
-    let socket = FastUdpSocketBuilder::bind(loop_addr(0)).disable_gro().build().unwrap();
+    let socket = FastUdpSocket::build(loop_addr(0)).gro(false).bind().unwrap();
     assert!(!socket.capabilities().gro);
 }
 
 #[tokio::test]
 async fn test_disable_ecn() {
-    let socket = FastUdpSocketBuilder::bind(loop_addr(0)).disable_ecn().build().unwrap();
+    let socket = FastUdpSocket::build(loop_addr(0)).ecn(false).bind().unwrap();
     assert!(!socket.capabilities().ecn);
 }
 
 #[tokio::test]
 async fn test_disable_sendmmsg() {
-    let socket = FastUdpSocketBuilder::bind(loop_addr(0))
-        .disable_sendmmsg()
-        .build()
-        .unwrap();
+    let socket = FastUdpSocket::build(loop_addr(0)).sendmmsg(false).bind().unwrap();
     assert!(!socket.capabilities().sendmmsg);
 }
 
 #[cfg(target_os = "linux")]
 #[tokio::test]
 async fn test_sendmmsg_batch() {
-    let receiver = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
-    let sender = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     if !sender.capabilities().sendmmsg {
         eprintln!("sendmmsg not supported on this kernel — skipping");
@@ -128,9 +125,9 @@ async fn test_sendmmsg_batch() {
 #[cfg(target_os = "linux")]
 #[tokio::test]
 async fn test_gso_send() {
-    let receiver = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
-    let sender = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     if !sender.capabilities().gso {
         eprintln!("GSO not supported on this kernel — skipping");
@@ -162,9 +159,9 @@ async fn test_gso_send() {
 
 #[tokio::test]
 async fn test_ecn_send_receive() {
-    let receiver = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
-    let sender = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     if !sender.capabilities().ecn {
         eprintln!("ECN not supported on this platform — skipping");
@@ -187,9 +184,9 @@ async fn test_ecn_send_receive() {
 
 #[tokio::test]
 async fn test_large_payload() {
-    let receiver = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
-    let sender = FastUdpSocketBuilder::bind(loop_addr(0)).build().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     let msg = vec![0x42u8; 1400];
     sender.send(SendItem::new(raddr, &msg)).await.unwrap();

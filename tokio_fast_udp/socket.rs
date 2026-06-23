@@ -32,6 +32,20 @@ mod unix_socket {
     }
 
     impl FastUdpSocket {
+        pub fn build(addr: SocketAddr) -> FastUdpSocketBuilder {
+            FastUdpSocketBuilder {
+                addr,
+                disable_gso: false,
+                disable_gro: false,
+                disable_sendmmsg: false,
+                disable_ecn: false,
+                max_batch: 64,
+                enable_reuse_port: false,
+            }
+        }
+    }
+
+    impl FastUdpSocket {
         pub async fn send(&self, item: SendItem<'_>) -> io::Result<()> {
             let items = [item];
             self.send_many(&items).await?;
@@ -88,37 +102,32 @@ mod unix_socket {
         disable_sendmmsg: bool,
         disable_ecn: bool,
         max_batch: usize,
+        enable_reuse_port: bool,
     }
 
     impl FastUdpSocketBuilder {
-        pub fn bind(addr: SocketAddr) -> Self {
-            FastUdpSocketBuilder {
-                addr,
-                disable_gso: false,
-                disable_gro: false,
-                disable_sendmmsg: false,
-                disable_ecn: false,
-                max_batch: 64,
-            }
-        }
-
-        pub fn disable_gso(mut self) -> Self {
-            self.disable_gso = true;
+        pub fn gso(mut self, enable: bool) -> Self {
+            self.disable_gso = !enable;
             self
         }
 
-        pub fn disable_gro(mut self) -> Self {
-            self.disable_gro = true;
+        pub fn gro(mut self, enable: bool) -> Self {
+            self.disable_gro = !enable;
             self
         }
 
-        pub fn disable_sendmmsg(mut self) -> Self {
-            self.disable_sendmmsg = true;
+        pub fn sendmmsg(mut self, enable: bool) -> Self {
+            self.disable_sendmmsg = !enable;
             self
         }
 
-        pub fn disable_ecn(mut self) -> Self {
-            self.disable_ecn = true;
+        pub fn ecn(mut self, enable: bool) -> Self {
+            self.disable_ecn = !enable;
+            self
+        }
+
+        pub fn reuse_port(mut self, enable: bool) -> Self {
+            self.enable_reuse_port = enable;
             self
         }
 
@@ -127,15 +136,19 @@ mod unix_socket {
             self
         }
 
-        pub fn build(self) -> io::Result<FastUdpSocket> {
-            let std_socket = std::net::UdpSocket::bind(self.addr)?;
-            std_socket.set_nonblocking(true)?;
-
+        pub fn bind(self) -> io::Result<FastUdpSocket> {
             let is_ipv6 = self.addr.is_ipv6();
 
-            use std::os::fd::{FromRawFd, IntoRawFd, OwnedFd};
-            let raw_fd = std_socket.into_raw_fd();
-            let fd: OwnedFd = unsafe { OwnedFd::from_raw_fd(raw_fd) };
+            let fd: OwnedFd = if self.enable_reuse_port {
+                create_socket_with_reuse_port(self.addr)?
+            } else {
+                let std_socket = std::net::UdpSocket::bind(self.addr)?;
+                std_socket.set_nonblocking(true)?;
+
+                use std::os::fd::{FromRawFd, IntoRawFd};
+                let raw_fd = std_socket.into_raw_fd();
+                unsafe { OwnedFd::from_raw_fd(raw_fd) }
+            };
 
             let config = BuildConfig {
                 disable_gso: self.disable_gso,
@@ -161,6 +174,32 @@ mod unix_socket {
 
     fn nix_err(e: nix::errno::Errno) -> io::Error {
         e.into()
+    }
+
+    fn create_socket_with_reuse_port(addr: SocketAddr) -> io::Result<OwnedFd> {
+        use nix::sys::socket::{AddressFamily, SockFlag, SockType, bind, setsockopt, socket, sockopt::ReusePort};
+
+        let is_ipv6 = addr.is_ipv6();
+        let domain = if is_ipv6 {
+            AddressFamily::Inet6
+        } else {
+            AddressFamily::Inet
+        };
+
+        let fd = socket(
+            domain,
+            SockType::Datagram,
+            SockFlag::SOCK_NONBLOCK | SockFlag::SOCK_CLOEXEC,
+            None,
+        )
+        .map_err(nix_err)?;
+
+        setsockopt(&fd, ReusePort, &true).map_err(nix_err)?;
+
+        let sock_addr = SockaddrStorage::from(addr);
+        bind(fd.as_raw_fd(), &sock_addr).map_err(nix_err)?;
+
+        Ok(fd)
     }
 
     fn ecn_to_tos(ecn: Ecn) -> u8 {
@@ -849,13 +888,19 @@ mod windows_socket_inner {
         }
     }
 
+    impl FastUdpSocket {
+        pub fn build(addr: SocketAddr) -> FastUdpSocketBuilder {
+            FastUdpSocketBuilder::new(addr)
+        }
+    }
+
     pub struct FastUdpSocketBuilder {
         addr: SocketAddr,
         max_batch: usize,
     }
 
     impl FastUdpSocketBuilder {
-        pub fn bind(addr: SocketAddr) -> Self {
+        pub fn new(addr: SocketAddr) -> Self {
             FastUdpSocketBuilder {
                 addr,
                 max_batch: 64,
@@ -883,7 +928,11 @@ mod windows_socket_inner {
             self
         }
 
-        pub fn build(self) -> io::Result<FastUdpSocket> {
+        pub fn enable_reuse_port(self) -> Self {
+            self
+        }
+
+        pub fn bind(self) -> io::Result<FastUdpSocket> {
             let std_socket = std::net::UdpSocket::bind(self.addr)?;
             let socket = UdpSocket::from_std(std_socket);
 
