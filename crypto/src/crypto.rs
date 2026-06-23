@@ -15,6 +15,7 @@ use alloc::vec::Vec;
 pub mod aes;
 #[cfg(feature = "alloc")]
 pub mod argon2;
+pub mod ascon;
 pub mod blake2;
 pub mod blake3;
 pub mod chacha;
