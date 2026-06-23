@@ -806,6 +806,7 @@ mod tests {
         assert_eq!(decode_into(&mut out, b"0000"), Err(DecodeError::InvalidOutputLength));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn encode_into_panics_on_too_small() {
         use std::panic::{AssertUnwindSafe, catch_unwind};
