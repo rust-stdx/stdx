@@ -120,6 +120,7 @@ fn aes256_gcm_node_encrypt_rust_decrypt_roundtrip() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn aes256_gcm_bidirectional_large_payload() {
     let key = [0xde; 32];
@@ -142,6 +143,7 @@ fn aes256_gcm_bidirectional_large_payload() {
     assert_eq!(buf2, plaintext);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn aes256_gcm_bidirectional_empty_plaintext_with_aad() {
     let key = [0x55; 32];
@@ -164,6 +166,7 @@ fn aes256_gcm_bidirectional_empty_plaintext_with_aad() {
     assert_eq!(buf2, plaintext);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn aes256_gcm_bidirectional_various_sizes() {
     let key = [0x77; 32];
