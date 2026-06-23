@@ -59,6 +59,7 @@ fn node_decrypt(key: &[u8; 32], nonce: &[u8; 12], aad: &[u8], ciphertext: &[u8],
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn aes256_gcm_rust_encrypt_node_decrypt_roundtrip() {
     let test_cases: Vec<([u8; 32], [u8; 12], Vec<u8>, Vec<u8>)> = vec![
@@ -88,6 +89,7 @@ fn aes256_gcm_rust_encrypt_node_decrypt_roundtrip() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn aes256_gcm_node_encrypt_rust_decrypt_roundtrip() {
     let test_cases: Vec<([u8; 32], [u8; 12], Vec<u8>, Vec<u8>)> = vec![
