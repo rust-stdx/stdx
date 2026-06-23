@@ -5,8 +5,8 @@ use constant_time_eq::constant_time_eq;
 /// Comparing `Bytes` is a constant-time operation.
 #[derive(Copy, Clone)]
 pub(crate) struct Bytes<const N: usize> {
-    bytes: [u8; N],
-    length: u16,
+    pub(crate) bytes: [u8; N],
+    pub(crate) length: u16,
 }
 
 impl<const N: usize> Bytes<N> {

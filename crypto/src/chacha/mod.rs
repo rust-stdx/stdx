@@ -97,6 +97,9 @@ pub use chacha::{ChaCha, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XCh
 mod chacha20_blake3;
 pub use chacha20_blake3::ChaCha20Blake3;
 
+mod chacha12_blake3;
+pub use chacha12_blake3::ChaCha12Blake3;
+
 /// ChaCha20-Poly1305 AEAD construction (RFC 8439) and XChaCha20-Poly1305.
 mod chacha20_poly1305;
 pub use chacha20_poly1305::{ChaCha20Poly1305, XChaCha20Poly1305};
