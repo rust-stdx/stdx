@@ -20,7 +20,6 @@ jobs:
         with:
           submodules: recursive
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
-      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       - run: rustup update stable
       - run: cargo bench -p crypto
       - run: cargo bench -p xxhash
@@ -32,7 +31,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
-      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       # curl and xz-utils are needed to install wasmtime
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld curl xz-utils
       - run: rustup update stable
