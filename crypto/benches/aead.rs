@@ -59,21 +59,21 @@ fn bench_encrypt(c: &mut Criterion) {
             );
         });
 
-        group.bench_function(BenchmarkId::from_parameter("ChaCha20-BLAKE3-encrypt"), |b| {
-            b.iter_batched(
-                || vec![0xA5_u8; size],
-                |mut data| {
-                    let _tag = chacha_blake3.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
-
         group.bench_function(BenchmarkId::from_parameter("ChaCha12-BLAKE3-encrypt"), |b| {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
                     let _tag = chacha12_blake3.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("ChaCha20-BLAKE3-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = chacha_blake3.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
                 },
                 criterion::BatchSize::SmallInput,
             );

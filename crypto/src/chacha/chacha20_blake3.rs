@@ -20,8 +20,7 @@ use crate::{Aead, AeadError, Hash, Hasher, StreamCipher, Xof, blake3::Blake3, ch
 ///
 /// [`encrypt_in_place`](Aead::encrypt_in_place) and
 /// [`decrypt_in_place`](Aead::decrypt_in_place) **panic** if the nonce is
-/// not exactly 32 bytes. [`decrypt_in_place`](Aead::decrypt_in_place)
-/// returns [`AeadError::InvalidCiphertext`] when the tag does not match.
+/// not exactly 32 bytes.
 ///
 /// # Example
 ///

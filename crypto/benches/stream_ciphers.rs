@@ -1,5 +1,9 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use crypto::{StreamCipher, aes::Aes256Ctr, chacha::ChaCha20Djb};
+use crypto::{
+    StreamCipher,
+    aes::Aes256Ctr,
+    chacha::{ChaCha8Djb, ChaCha12Djb, ChaCha20Djb},
+};
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
 
@@ -19,6 +23,32 @@ fn bench_stream_ciphers(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let cipher = Aes256Ctr::new(&KEY);
+                    (cipher, vec![0xA5_u8; size])
+                },
+                |(mut cipher, mut data)| {
+                    cipher.xor_keystream(std::hint::black_box(&mut data));
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("ChaCha8"), |b| {
+            b.iter_batched(
+                || {
+                    let cipher = ChaCha8Djb::new(&KEY, &NONCE_8);
+                    (cipher, vec![0xA5_u8; size])
+                },
+                |(mut cipher, mut data)| {
+                    cipher.xor_keystream(std::hint::black_box(&mut data));
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("ChaCha12"), |b| {
+            b.iter_batched(
+                || {
+                    let cipher = ChaCha12Djb::new(&KEY, &NONCE_8);
                     (cipher, vec![0xA5_u8; size])
                 },
                 |(mut cipher, mut data)| {
