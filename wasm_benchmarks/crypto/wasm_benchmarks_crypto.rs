@@ -1,7 +1,9 @@
 // wasm32 crypto benchmark suite (hash, mac, stream cipher, AEAD).
 //
 // Compile (with simd): RUSTFLAGS="-C target-feature=+simd128" cargo build --target=wasm32-wasip1 -p wasm_benchmarks_crypto --release
-// Run:              node tools/wasm_runner/wasm_runner.ts target/wasm32-wasip1/release/wasm_benchmarks_crypto.wasm
+// Run: node tools/wasm_runner/wasm_runner.ts target/wasm32-wasip1/release/wasm_benchmarks_crypto.wasm
+//
+// Or: RUSTFLAGS="-C target-feature=+simd128" cargo run --target=wasm32-wasip1 -p wasm_benchmarks_crypto
 
 use std::{
     hint::black_box,

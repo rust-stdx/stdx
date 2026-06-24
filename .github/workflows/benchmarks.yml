@@ -28,6 +28,4 @@ jobs:
       - run: cargo bench --package crypto
       - run: cargo bench --package xxhash
       - run: cargo bench --package format_number
-      - run: |
-          RUSTFLAGS="-C target-feature=+simd128" cargo build --target=wasm32-wasip1 -p wasm_benchmarks_crypto --release
-          node ./tools/wasm_runner/wasm_runner.ts target/wasm32-wasip1/release/wasm_benchmarks_crypto.wasm
+      - run: RUSTFLAGS="-C target-feature=+simd128" cargo run --target=wasm32-wasip1 -p wasm_benchmarks_crypto
