@@ -4,9 +4,9 @@ import { argv, exit } from 'node:process';
 
 // usage: ./wasm_runner.ts my_wasm_module.wasm
 
-function wastimeAvailable() {
+function wasmtimeAvailable() {
   try {
-    execFileSync('which', ['wastime'], { stdio: 'ignore' });
+    execFileSync('which', ['wasmtime'], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -15,7 +15,7 @@ function wastimeAvailable() {
 
 async function runWithWastime(wasmPath: string) {
   return new Promise(() => {
-    const child = spawn('wastime', ['run', wasmPath, ...argv.slice(3)], {
+    const child = spawn('wasmtime', ['run', wasmPath, ...argv.slice(3)], {
       stdio: 'inherit',
     });
     child.on('exit', (code: number) => exit(code ?? 0));
@@ -47,7 +47,7 @@ async function runWithNode(wasmPath: string) {
 
 const wasmPath = argv[2];
 
-if (wastimeAvailable()) {
+if (wasmtimeAvailable()) {
   console.log('WASM runtime: Wasmtime');
   await runWithWastime(wasmPath);
 } else {

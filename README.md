@@ -28,6 +28,14 @@ Contrary to what the name may suggest, most packages also support `no_std` envir
 Other than crates in the `work_in_progress` folder, the `main` branch is considered stable. Minor breaking changes may happen from time to time, but we will do our best to reduce disruptions.
 
 
+### Supported platforms
+
+Best efforts are made to support all the platforms where Rust can run.
+
+`x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` and `wasm32-wasip1` are currently tested and benchmarked.
+
+Please open an issue if you encounter a problem on a specific platform.
+
 
 ## Documentation
 
