@@ -2,7 +2,8 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { argv, exit } from 'node:process';
 
-// usage: ./wasm_runner.ts my_wasm_module.wasm
+// A wrapper script to run WASM modules on either Wasmtime or Node.js
+// usage: ./tools/wasm_runner.ts my_wasm_module.wasm
 
 function wasmtimeAvailable() {
   try {
