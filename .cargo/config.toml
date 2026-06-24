@@ -1,5 +1,5 @@
 [target.wasm32-wasip1]
-runner = ".cargo/wasi-runner.sh"
+runner = ".cargo/cargo_wasm_runner.sh"
 
 # Using lld as the linker greatly improve compilation times
 [target.x86_64-unknown-linux-gnu]

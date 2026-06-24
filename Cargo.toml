@@ -64,6 +64,7 @@ members = [
     "tools/crypt",
     "tools/duplicates",
     "tools/energy_bench",
+    "tools/wasm_benchmarks_crypto",
     "unsafe_libyaml",
     "uuid",
     "work_in_progress/pg",

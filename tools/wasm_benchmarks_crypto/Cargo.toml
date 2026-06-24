@@ -1,0 +1,11 @@
+[package]
+name = "wasm_benchmarks_crypto"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "wasm_benchmarks_crypto"
+path = "wasm_benchmarks_crypto.rs"
+
+[dependencies]
+crypto = { path = "../../crypto" }

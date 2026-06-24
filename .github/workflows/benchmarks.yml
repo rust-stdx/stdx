@@ -2,52 +2,32 @@ name: Benchmarks
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 jobs:
-  crypto_benchmark:
+  benchmarks:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
     env:
-      RUSTFLAGS: "-C linker=gcc"
+      RUSTFLAGS: "-C target-cpu=native"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
+      # curl & xz-utils are needed to install wasmtime
+      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld curl xz-utils
       - run: rustup update stable
-      - run: RUSTFLAGS="-C target-cpu=native" cargo bench --package crypto
-
-
-  checksum_benchmark:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.os }}
-    env:
-      RUSTFLAGS: "-C linker=gcc"
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          submodules: recursive
-      - run: rustup update stable
-      - run: RUSTFLAGS="-C target-cpu=native" cargo bench --package xxhash
-
-  format_numbers:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.os }}
-    env:
-      RUSTFLAGS: "-C linker=gcc"
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          submodules: recursive
-      - run: rustup update stable
-      - run: RUSTFLAGS="-C target-cpu=native" cargo bench --package format_number
+      - run: rustup target add wasm32-wasip1
+      # installs wasmtime in ~/.wasmtime/bin
+      - run: curl https://wasmtime.dev/install.sh -sSf | bash
+      - run: cargo bench --package crypto
+      - run: cargo bench --package xxhash
+      - run: cargo bench --package format_number
+      - run: |
+          RUSTFLAGS="-C target-feature=+simd128" cargo build --target=wasm32-wasip1 -p wasm_benchmarks_crypto --release
+          node ./tools/wasm_runner/wasm_runner.ts target/wasm32-wasip1/release/wasm_benchmarks_crypto.wasm
