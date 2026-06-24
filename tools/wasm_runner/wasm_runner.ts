@@ -51,6 +51,6 @@ if (wastimeAvailable()) {
   console.log('WASM runtime: Wasmtime');
   await runWithWastime(wasmPath);
 } else {
-  console.log('WASM runtime: Node.js');
+  console.log(`WASM runtime: Node.js ${process.version}`);
   await runWithNode(wasmPath);
 }
