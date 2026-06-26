@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                           M. Duke
+﻿Internet Engineering Task Force (IETF)                           M. Duke
 Request for Comments: 9369                                    Google LLC
 Category: Standards Track                                       May 2023
 ISSN: 2070-1721

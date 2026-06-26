@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, format};
 
 use crypto::{
     Aead as CryptoAead, Hasher, hkdf,
@@ -186,8 +186,7 @@ impl CryptoProvider for DefaultCryptoProvider {
     }
 
     fn secure_random(&self, buf: &mut [u8]) {
-        use rand::Rng;
-        rand::rng().fill_bytes(buf);
+        crypto::random_fill(buf);
     }
 
     fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {

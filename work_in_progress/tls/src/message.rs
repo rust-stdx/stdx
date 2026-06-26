@@ -1017,3 +1017,14 @@ pub fn check_supported_versions(ext: Option<&Extension>) -> bool {
     }
     false
 }
+
+/// Extract the negotiated TLS version from a `supported_versions` extension.
+/// Handles both ServerHello (version only) and ClientHello (length + list) formats.
+pub fn parse_supported_versions(ext: Option<&Extension>) -> Option<u16> {
+    let data = ext?.data.as_ref();
+    if data.len() < 2 {
+        return None;
+    }
+    // The version is always the last 2 bytes in both formats
+    Some(u16::from_be_bytes([data[data.len() - 2], data[data.len() - 1]]))
+}

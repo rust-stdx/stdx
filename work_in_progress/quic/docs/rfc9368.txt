@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                       D. Schinazi
+﻿Internet Engineering Task Force (IETF)                       D. Schinazi
 Request for Comments: 9368                                    Google LLC
 Updates: 8999                                                E. Rescorla
 Category: Standards Track                                        Mozilla

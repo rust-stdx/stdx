@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                        M. Thomson
+﻿Internet Engineering Task Force (IETF)                        M. Thomson
 Request for Comments: 8999                                       Mozilla
 Category: Standards Track                                       May 2021
 ISSN: 2070-1721

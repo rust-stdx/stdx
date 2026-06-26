@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                      M. Kühlewind
+﻿Internet Engineering Task Force (IETF)                      M. Kühlewind
 Request for Comments: 9308                                      Ericsson
 Category: Informational                                      B. Trammell
 ISSN: 2070-1721                                  Google Switzerland GmbH

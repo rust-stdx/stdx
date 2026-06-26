@@ -1,4 +1,64 @@
+use alloc::format;
 use core::fmt;
+
+/// I/O error kind — mirrors common `std::io::ErrorKind` values without std.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IoErrorKind {
+    ConnectionReset,
+    ConnectionAborted,
+    NotConnected,
+    TimedOut,
+    Interrupted,
+    UnexpectedEof,
+    WriteZero,
+    Other,
+}
+
+/// A no_std-friendly I/O error.
+#[derive(Debug, Clone)]
+pub struct IoError {
+    pub kind: IoErrorKind,
+    pub description: &'static str,
+}
+
+impl IoError {
+    pub const fn new(kind: IoErrorKind, description: &'static str) -> Self {
+        Self {
+            kind,
+            description,
+        }
+    }
+
+    pub fn kind(&self) -> IoErrorKind {
+        self.kind
+    }
+}
+
+impl fmt::Display for IoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            self.description,
+            match self.kind {
+                IoErrorKind::ConnectionReset => "connection reset",
+                IoErrorKind::ConnectionAborted => "connection aborted",
+                IoErrorKind::NotConnected => "not connected",
+                IoErrorKind::TimedOut => "timed out",
+                IoErrorKind::Interrupted => "interrupted",
+                IoErrorKind::UnexpectedEof => "unexpected eof",
+                IoErrorKind::WriteZero => "write zero",
+                IoErrorKind::Other => "other error",
+            }
+        )
+    }
+}
+
+impl From<IoError> for alloc::string::String {
+    fn from(e: IoError) -> Self {
+        format!("{e}")
+    }
+}
 
 /// Errors returned by the TLS library.
 #[derive(Debug)]
@@ -31,8 +91,7 @@ pub enum Error {
     InternalError(alloc::string::String),
 
     /// An I/O error.
-    #[cfg(feature = "std")]
-    Io(std::io::Error),
+    Io(IoError),
 
     /// The connection was closed by the peer.
     ConnectionClosed,
@@ -58,7 +117,6 @@ impl fmt::Display for Error {
             Self::NoKeyExchangeGroupInCommon => write!(f, "no key exchange group in common"),
             Self::DecodeError(msg) => write!(f, "decode error: {msg}"),
             Self::InternalError(msg) => write!(f, "internal error: {msg}"),
-            #[cfg(feature = "std")]
             Self::Io(e) => write!(f, "io error: {e}"),
             Self::ConnectionClosed => write!(f, "connection closed"),
             Self::CryptoError(msg) => write!(f, "crypto error: {msg}"),
@@ -69,16 +127,10 @@ impl fmt::Display for Error {
 impl core::error::Error for Error {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
-            #[cfg(feature = "std")]
             Self::Io(e) => Some(e),
             _ => None,
         }
     }
 }
 
-#[cfg(feature = "std")]
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e)
-    }
-}
+impl core::error::Error for IoError {}

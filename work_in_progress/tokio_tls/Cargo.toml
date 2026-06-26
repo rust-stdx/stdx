@@ -1,0 +1,15 @@
+[package]
+name = "tokio_tls"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "tokio_tls.rs"
+
+[dependencies]
+bytes = { workspace = true }
+tls = { path = "../tls", default-features = false }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tls = { path = "../tls" }

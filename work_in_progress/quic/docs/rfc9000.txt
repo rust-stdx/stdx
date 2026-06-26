@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                   J. Iyengar, Ed.
+﻿Internet Engineering Task Force (IETF)                   J. Iyengar, Ed.
 Request for Comments: 9000                                        Fastly
 Category: Standards Track                                M. Thomson, Ed.
 ISSN: 2070-1721                                                  Mozilla

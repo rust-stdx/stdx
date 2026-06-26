@@ -12,30 +12,8 @@
 //!    For sync use cases a trivial executor like
 //!    [`futures::executor::block_on`] suffices.
 //!
-//! 2. **IO adapter** — wraps a connection over
-//!    [`AsyncRead`][futures_util::io::AsyncRead] +
-//!    [`AsyncWrite`][futures_util::io::AsyncWrite] (via `futures-util`).
-//!
-//! # Quick start (default provider)
-//!
-//! ```ignore
-//! use tls::{ClientConfig, ClientConnection, ServerConfig, ServerConnection};
-//! use tls::config::{CertificateProvider, ProvidedCertificate, CertificateValidator};
-//! use tls::crypto_default_provider::DefaultCryptoProvider;
-//!
-//! let provider = DefaultCryptoProvider::new();
-//!
-//! // Client
-//! let mut client = ClientConnection::new(
-//!     ClientConfig::new(provider, vec![], my_validator),
-//!     Some("example.com".into()),
-//! )?;
-//!
-//! // Server
-//! let mut server = ServerConnection::new(
-//!     ServerConfig::new(provider, vec![], my_cert_provider),
-//! );
-//! ```
+//! 2. **IO adapter** — wraps a connection over a pair of [`AsyncRead`] +
+//!    [`AsyncWrite`] traits that work in both `std` and `no_std` environments.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -49,7 +27,6 @@ mod record;
 pub mod crypto_default_provider;
 #[cfg(feature = "webpki-validator")]
 pub mod default_validator;
-#[cfg(feature = "std")]
 pub mod io;
 
 pub mod config;
@@ -68,5 +45,6 @@ pub use connection::{ClientConnection, ServerConnection};
 pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};
 #[cfg(feature = "webpki-validator")]
 pub use default_validator::WebPkiValidator;
-pub use error::Error;
+pub use error::{Error, IoError, IoErrorKind};
+pub use io::{AsyncRead, AsyncWrite, ClientAsyncIo, ServerAsyncIo};
 pub use key_schedule::{KeySchedule, TlsKeys};

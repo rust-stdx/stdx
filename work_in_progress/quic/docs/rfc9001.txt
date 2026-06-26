@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                   M. Thomson, Ed.
+﻿Internet Engineering Task Force (IETF)                   M. Thomson, Ed.
 Request for Comments: 9001                                       Mozilla
 Category: Standards Track                                 S. Turner, Ed.
 ISSN: 2070-1721                                                    sn3rd

@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                          T. Pauly
+﻿Internet Engineering Task Force (IETF)                          T. Pauly
 Request for Comments: 9221                                    E. Kinnear
 Category: Standards Track                                     Apple Inc.
 ISSN: 2070-1721                                              D. Schinazi

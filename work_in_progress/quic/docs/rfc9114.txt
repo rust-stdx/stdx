@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                    M. Bishop, Ed.
+﻿Internet Engineering Task Force (IETF)                    M. Bishop, Ed.
 Request for Comments: 9114                                        Akamai
 Category: Standards Track                                      June 2022
 ISSN: 2070-1721

@@ -1,8 +1,4 @@
-﻿
-
-
-
-Internet Engineering Task Force (IETF)                        C. Huitema
+﻿Internet Engineering Task Force (IETF)                        C. Huitema
 Request for Comments: 9250                          Private Octopus Inc.
 Category: Standards Track                                   S. Dickinson
 ISSN: 2070-1721                                               Sinodun IT

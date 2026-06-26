@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use alloc::{sync::Arc, vec};
 
 use heapless::Vec;
 

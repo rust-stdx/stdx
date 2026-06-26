@@ -67,6 +67,7 @@ struct HandshakeState {
     write_queue: VecDeque<Bytes>,
     app_data_queue: VecDeque<Bytes>,
     handshake_done: bool,
+    negotiated_version: u16,
 }
 
 impl HandshakeState {
@@ -91,6 +92,7 @@ impl HandshakeState {
             write_queue: VecDeque::new(),
             app_data_queue: VecDeque::new(),
             handshake_done: false,
+            negotiated_version: 0,
         }
     }
 }
@@ -168,6 +170,11 @@ impl ClientConnection {
     /// Is the handshake complete?
     pub fn handshake_done(&self) -> bool {
         self.hs.handshake_done
+    }
+
+    /// The negotiated TLS protocol version (e.g. `0x0304` for TLS 1.3).
+    pub fn negotiated_version(&self) -> u16 {
+        self.hs.negotiated_version
     }
 
     /// Create a new client connection.
@@ -263,6 +270,17 @@ impl ClientConnection {
         Ok(())
     }
 
+    /// Process application data records synchronously (post-handshake only).
+    ///
+    /// Call after [`inject`] to decrypt pending encrypted records.
+    /// Returns `true` if any application data was decrypted.
+    pub fn process_app_data(&mut self) -> Result<bool, Error> {
+        if !matches!(self.state, ClientState::Done) {
+            return Err(Error::InternalError("handshake not complete".into()));
+        }
+        self.process_application_data()
+    }
+
     fn try_read_record(&mut self) -> Result<Option<(ContentType, Bytes)>, Error> {
         if self.hs.handshake_payload.len() >= 4 {
             let msg_len = u32::from_be_bytes([
@@ -320,6 +338,10 @@ impl ClientConnection {
         let sh = ServerHello::decode(&payload)?;
         self.hs.transcript.extend_from_slice(&sh.raw);
         self.hs.cipher_suite = Some(sh.cipher_suite);
+
+        // Extract negotiated version from supported_versions extension
+        self.hs.negotiated_version =
+            parse_supported_versions(find_extension(&sh.extensions, ExtensionType::SupportedVersions)).unwrap_or(0);
 
         if !self
             .config
@@ -669,6 +691,11 @@ impl ServerConnection {
         self.hs.handshake_done
     }
 
+    /// The negotiated TLS protocol version (e.g. `0x0304` for TLS 1.3).
+    pub fn negotiated_version(&self) -> u16 {
+        self.hs.negotiated_version
+    }
+
     /// Create a new server connection, ready to receive a ClientHello.
     pub fn new(config: ServerConfig) -> Self {
         Self {
@@ -695,6 +722,17 @@ impl ServerConnection {
             }
         }
         Ok(())
+    }
+
+    /// Process application data records synchronously (post-handshake only).
+    ///
+    /// Call after [`inject`] to decrypt pending encrypted records.
+    /// Returns `true` if any application data was decrypted.
+    pub fn process_app_data(&mut self) -> Result<bool, Error> {
+        if !matches!(self.state, ServerState::Done) {
+            return Err(Error::InternalError("handshake not complete".into()));
+        }
+        self.process_application_data()
     }
 
     fn try_read_record(&mut self) -> Result<Option<(ContentType, Bytes)>, Error> {
@@ -738,6 +776,7 @@ impl ServerConnection {
         if !check_supported_versions(sv_ext) {
             return Err(Error::HandshakeFailed("TLS 1.3 not offered".into()));
         }
+        self.hs.negotiated_version = parse_supported_versions(sv_ext).unwrap_or(0x0304);
 
         let provider = &self.config.provider;
 
