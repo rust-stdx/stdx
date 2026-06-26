@@ -93,7 +93,7 @@ impl PublicKey {
     }
 
     pub fn encapsulate(&self) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
-        let eseed: [u8; 64] = rand::random();
+        let eseed: [u8; 64] = crate::random::random_bytes();
         self.encapsulate_derand(&eseed)
     }
 
@@ -121,7 +121,7 @@ impl PublicKey {
 ///
 /// See [`SecretKey`] for a usage example.
 pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let seed: [u8; SECRET_KEY_SIZE] = rand::random();
+    let seed: [u8; SECRET_KEY_SIZE] = crate::random::random_bytes();
     generate_keypair_derand(&seed)
 }
 

@@ -60,7 +60,7 @@ impl SecretKey768 {
     }
 
     pub fn generate() -> (Self, PublicKey768) {
-        let coins: [u8; 64] = rand::random();
+        let coins: [u8; 64] = crate::random::random_bytes();
         Self::generate_derand(&coins)
     }
 
@@ -117,7 +117,7 @@ impl PublicKey768 {
     }
 
     pub fn encapsulate(&self) -> ([u8; CIPHERTEXT_SIZE_768], [u8; SHARED_SECRET_SIZE]) {
-        let coins: [u8; 32] = rand::random();
+        let coins: [u8; 32] = crate::random::random_bytes();
         self.encapsulate_derand(&coins)
     }
 

@@ -774,7 +774,7 @@ fn compute_t1_hat(t1: &[[u16; N]; K]) -> [NttPoly; K] {
 }
 
 pub fn ml_dsa_65_generate_keypair() -> ([u8; ML_DSA_65_SEED_SIZE], [u8; ML_DSA_65_PUBLIC_KEY_SIZE]) {
-    let seed: [u8; ML_DSA_65_SEED_SIZE] = rand::random();
+    let seed: [u8; ML_DSA_65_SEED_SIZE] = crate::random::random_bytes();
     ml_dsa_65_keypair_derand(&seed)
 }
 
@@ -832,7 +832,7 @@ pub fn ml_dsa_65_sign(
     message: &[u8],
     ctx: &[u8],
 ) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
-    let rnd: [u8; 32] = rand::random();
+    let rnd: [u8; 32] = crate::random::random_bytes();
     ml_dsa_65_sign_derand(seed, message, ctx, &rnd)
 }
 

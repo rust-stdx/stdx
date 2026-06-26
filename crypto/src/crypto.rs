@@ -12,6 +12,10 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+mod bytes;
+#[cfg(feature = "random")]
+mod random;
+
 pub mod aes;
 #[cfg(feature = "alloc")]
 pub mod argon2;
@@ -29,14 +33,14 @@ pub mod sha2;
 pub mod sha3;
 pub mod xwing;
 
-mod bytes;
-
 #[cfg(feature = "alloc")]
 pub mod encoding;
 pub mod p256;
 pub mod pbkdf2;
 pub(crate) use bytes::Bytes;
 pub use bytes::Hash;
+#[cfg(feature = "random")]
+pub use random::{random_bytes, random_fill};
 
 const MAX_HASH_BLOCK_SIZE: usize = 128;
 
