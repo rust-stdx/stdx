@@ -69,14 +69,17 @@ members = [
     "wasm_benchmarks/crypto",
     "work_in_progress/pg",
     "work_in_progress/pg_derive",
+    "work_in_progress/tls",
     "xxhash",
 ]
 
 [workspace.dependencies]
+async-trait = "0.1"
 blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "93a431c78a52d7ccf0f366f106467f5070e6075e" } # 1.8.5
-bytes = "1"
+bytes = { version = "1", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "oldtime", "serde", "std", ] }
 futures-util = "0.3"
+heapless = "0.9"
 hyper = { version = "1", features = ["full"] }
 indexmap = { version = "2" }
 libc = "0.2"

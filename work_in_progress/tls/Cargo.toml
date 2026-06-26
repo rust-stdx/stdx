@@ -1,0 +1,38 @@
+[package]
+name = "tls"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/tls.rs"
+
+[features]
+default = ["crypto-default-provider", "webpki-validator", "std"]
+crypto-default-provider = ["dep:crypto", "dep:rand"]
+std = ["dep:futures-util"]
+webpki-validator = ["dep:rustls-pki-types", "dep:rustls-webpki", "dep:webpki-roots", "dep:x509-cert"]
+quic = []
+zeroize = ["dep:zeroize"]
+
+[dependencies]
+async-trait = { workspace = true }
+bytes = { workspace = true }
+constant_time_eq = { path = "../../constant_time_eq" }
+crypto = { path = "../../crypto", optional = true }
+futures-util = { workspace = true, features = ["io"], optional = true }
+heapless = { workspace = true }
+rand = { workspace = true, optional = true }
+rustls-pki-types = { version = "1", optional = true }
+rustls-webpki = { version = "0.102", default-features = false, features = ["ring"], optional = true }
+webpki-roots = { version = "0.26", optional = true }
+x509-cert = { version = "0.2", default-features = false, optional = true }
+zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyerr = { path = "../../anyerr" }
+heapless = "0.8"
+hex ={ path = "../../hex" }
+rcgen = "0.13"
+rustls = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["net", "rt", "io-util", "macros"] }
+tokio-util = { version = "0.7", features = ["compat"] }
