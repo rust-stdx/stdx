@@ -10,7 +10,7 @@ use core::{
     ops::{Add, Div, Mul, Neg, Rem, Sub},
 };
 
-pub const MAX_LIMBS: usize = 64;
+pub const MAX_LIMBS: usize = 128;
 
 const fn max_limbs<const BITS: usize, const LIMBS: usize>() -> [u64; LIMBS] {
     let mut limbs = [u64::MAX; LIMBS];
@@ -251,6 +251,18 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         acc == 0
     }
 
+    /// Position of the highest set bit, plus one. Returns 0 for zero.
+    pub fn bit_len(&self) -> usize {
+        let mut i = LIMBS;
+        while i > 0 {
+            i -= 1;
+            if self.limbs[i] != 0 {
+                return i * 64 + 64 - self.limbs[i].leading_zeros() as usize;
+            }
+        }
+        0
+    }
+
     #[inline]
     pub fn is_odd(&self) -> bool {
         (self.limbs[0] & 1) == 1
@@ -403,6 +415,23 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     pub fn mul_mod(&self, rhs: &Self, modulus: &Self) -> Self {
         let product = self.mul_wide_internal(rhs);
         Self::reduce_wide_internal(&product, modulus)
+    }
+
+    /// Modular exponentiation: `self^exp mod modulus` using square-and-multiply,
+    /// scanning only up to the exponent's bit length.
+    pub fn modpow(&self, exp: &Self, modulus: &Self) -> Self {
+        let mut base = self.mul_mod(&Self::ONE, modulus);
+        let mut result = Self::ONE;
+        let bits = exp.bit_len();
+        let mut i = 0;
+        while i < bits {
+            if exp.bit(i) {
+                result = result.mul_mod(&base, modulus);
+            }
+            base = base.mul_mod(&base, modulus);
+            i += 1;
+        }
+        result
     }
 
     /// Barrett reduction of a 2*LIMBS-wide product modulo `modulus`.

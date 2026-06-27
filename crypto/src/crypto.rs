@@ -37,6 +37,7 @@ pub mod xwing;
 pub mod encoding;
 pub mod p256;
 pub mod pbkdf2;
+pub mod rsa;
 pub(crate) use bytes::Bytes;
 pub use bytes::Hash;
 #[cfg(feature = "random")]
