@@ -85,6 +85,9 @@ impl core::fmt::Display for AeadError {
     }
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for AeadError {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EllipticCurveError {
     InvalidKey,

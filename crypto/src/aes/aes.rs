@@ -50,12 +50,12 @@ const SBOX_INV: [u8; 256] = [
 ];
 
 /// Round constants for AES key expansion (RCON[1..10]).
-const RCON: [u8; 11] = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
+pub(crate) const RCON: [u8; 11] = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
 // ── AES-256 key schedule ───────────────────────────────────────────────────────
 
 /// AES-256 expanded key: 15 round keys × 16 bytes = 240 bytes.
-pub(crate) type RoundKeys = [[u8; 16]; 15];
+pub type RoundKeys = [[u8; 16]; 15];
 
 #[inline(always)]
 fn rot_word(w: [u8; 4]) -> [u8; 4] {
@@ -73,7 +73,7 @@ fn sub_word(w: [u8; 4]) -> [u8; 4] {
 }
 
 /// Expand a 256-bit key into 15 AES round keys (FIPS 197 §5.2, Nk=8, Nr=14).
-pub(crate) fn key_expand(key: &[u8; 32]) -> RoundKeys {
+pub fn key_expand(key: &[u8; 32]) -> RoundKeys {
     // W[0..60] – 60 words of 4 bytes each
     let mut w = [[0u8; 4]; 60];
 
@@ -121,7 +121,7 @@ const fn xtime(a: u8) -> u8 {
 // Each Teᵢ[x] = S[x] multiplied by a column of the MixColumns matrix
 // (rotated left by i positions). A u32 holds row 0..row 3 in LE byte order.
 
-const TE0: [u32; 256] = {
+pub(crate) const TE0: [u32; 256] = {
     let mut t = [0u32; 256];
     let mut i = 0usize;
     while i < 256 {
@@ -135,7 +135,7 @@ const TE0: [u32; 256] = {
     t
 };
 
-const TE1: [u32; 256] = {
+pub(crate) const TE1: [u32; 256] = {
     let mut t = [0u32; 256];
     let mut i = 0usize;
     while i < 256 {
@@ -149,7 +149,7 @@ const TE1: [u32; 256] = {
     t
 };
 
-const TE2: [u32; 256] = {
+pub(crate) const TE2: [u32; 256] = {
     let mut t = [0u32; 256];
     let mut i = 0usize;
     while i < 256 {
@@ -163,7 +163,7 @@ const TE2: [u32; 256] = {
     t
 };
 
-const TE3: [u32; 256] = {
+pub(crate) const TE3: [u32; 256] = {
     let mut t = [0u32; 256];
     let mut i = 0usize;
     while i < 256 {
@@ -259,7 +259,7 @@ const TD3: [u32; 256] = {
 ///
 /// Combines SubBytes, ShiftRows, and MixColumns into four 32-bit table lookups
 /// per column, matching the approach used by Go and OpenSSL for software AES.
-pub(crate) fn encrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
+pub fn encrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
     let mut s = *block;
 
     // Round 0: AddRoundKey

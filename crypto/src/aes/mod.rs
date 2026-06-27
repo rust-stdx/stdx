@@ -1,4 +1,5 @@
 mod aes;
+mod aes_128_gcm;
 mod aes_ctr;
 mod aes_gcm;
 mod ghash;
@@ -23,5 +24,7 @@ mod ghash_amd64;
 #[cfg(target_arch = "aarch64")]
 mod ghash_arm64;
 
+pub use aes::{RoundKeys, encrypt_block, key_expand};
+pub use aes_128_gcm::{Aes128Gcm, encrypt_block_aes128, key_expand_128};
 pub use aes_ctr::Aes256Ctr;
 pub use aes_gcm::Aes256Gcm;
