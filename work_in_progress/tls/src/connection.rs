@@ -14,7 +14,9 @@ use bytes::{Bytes, BytesMut};
 use crate::{
     Error,
     config::{ClientConfig, ClientHello, ReceivedCertificate, ServerConfig},
-    crypto::{CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SHARED_SECRET},
+    crypto::{
+        CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SHARED_SECRET, SignatureScheme,
+    },
     key_schedule::{KeySchedule, TlsKeys},
     message::*,
     record::{ContentType, RecordState},
@@ -69,6 +71,7 @@ struct HandshakeState {
     handshake_done: bool,
     negotiated_version: u16,
     close_received: bool,
+    signature_scheme: Option<SignatureScheme>,
     #[cfg(feature = "quic")]
     quic_write_queue: VecDeque<Bytes>,
     #[cfg(feature = "quic")]
@@ -101,6 +104,7 @@ impl HandshakeState {
             handshake_done: false,
             negotiated_version: 0,
             close_received: false,
+            signature_scheme: None,
             #[cfg(feature = "quic")]
             quic_write_queue: VecDeque::new(),
             #[cfg(feature = "quic")]
@@ -196,6 +200,12 @@ impl ClientConnection {
         self.hs.negotiated_version
     }
 
+    /// The signature scheme used by the server's CertificateVerify message,
+    /// if the handshake has progressed far enough.
+    pub fn signature_scheme(&self) -> Option<SignatureScheme> {
+        self.hs.signature_scheme
+    }
+
     /// Create a new client connection.
     ///
     /// `server_name` is the SNI hostname to send; `None` disables SNI.
@@ -212,14 +222,11 @@ impl ClientConnection {
         let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::new();
         let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> = Vec::new();
 
-        // Generate key pairs for all groups; send only the preferred
-        // (first) group in key_share.
+        // Generate key pairs for all groups; send all in key_share.
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
-            if group == kx_group {
-                key_share_entries.push((group, pk));
-            }
+            key_share_entries.push((group, pk));
             kx_pairs.push(kp);
         }
 
@@ -231,6 +238,7 @@ impl ClientConnection {
 
         let mut exts = vec![
             ext_supported_versions(),
+            ext_psk_key_exchange_modes(),
             ext_supported_groups(&supported_groups),
             ext_key_share_client(&key_share_refs),
             ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
@@ -301,9 +309,7 @@ impl ClientConnection {
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
-            if group == kx_group {
-                key_share_entries.push((group, pk));
-            }
+            key_share_entries.push((group, pk));
             kx_pairs.push(kp);
         }
 
@@ -315,6 +321,7 @@ impl ClientConnection {
 
         let mut exts = vec![
             ext_supported_versions(),
+            ext_psk_key_exchange_modes(),
             ext_supported_groups(supported_groups),
             ext_key_share_client(&key_share_refs),
             ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
@@ -535,6 +542,7 @@ impl ClientConnection {
 
         let mut exts = vec![
             ext_supported_versions(),
+            ext_psk_key_exchange_modes(),
             ext_supported_groups(supported_groups),
             ext_key_share_client(&key_share_refs),
             ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
@@ -644,12 +652,14 @@ impl ClientConnection {
                 _ => {
                     return Err(Error::UnexpectedMessage {
                         expected: "CertificateVerify",
-                        got: "other",
+                        got: "non-handshake",
                     });
                 }
             }
         };
         let cv = CertificateVerify::decode(&payload)?;
+        self.hs.signature_scheme = Some(cv.scheme);
+        let transcript_len_before = self.hs.transcript.len();
         self.hs.transcript.extend_from_slice(&cv.raw);
 
         let chain = self
@@ -690,16 +700,11 @@ impl ClientConnection {
             } => {
                 #[cfg(feature = "webpki-validator")]
                 {
-                    use x509_cert::{Certificate as X509Cert, der::Decode};
-                    let cert =
-                        X509Cert::from_der(&chain[0]).map_err(|e| Error::DecodeError(format!("X.509 parse: {e}")))?;
-                    let spki = cert
-                        .tbs_certificate
-                        .subject_public_key_info
-                        .subject_public_key
-                        .as_bytes()
-                        .ok_or_else(|| Error::DecodeError("empty SPKI in X.509 cert".into()))?;
-                    Cow::Owned(spki.to_vec())
+                    let spki_der = x509::extract_spki_from_cert(&chain[0])
+                        .map_err(|e| Error::DecodeError(format!("X.509 parse: {e}")))?;
+                    let key_bytes = x509::extract_key_from_spki(spki_der)
+                        .map_err(|e| Error::DecodeError(format!("X.509 key: {e}")))?;
+                    Cow::Owned(key_bytes.to_vec())
                 }
                 #[cfg(not(feature = "webpki-validator"))]
                 return Err(Error::InternalError(
@@ -713,10 +718,9 @@ impl ClientConnection {
 
         let suite = self.hs.cipher_suite.unwrap();
         let crypto_provider = &self.config.crypto;
-        let transcript_hash =
-            crypto_provider.hash(suite, &self.hs.transcript[..self.hs.transcript.len() - cv.raw.len()]);
+        let transcript_hash = crypto_provider.hash(suite, &self.hs.transcript[..transcript_len_before]);
 
-        let mut signed_data = Vec::with_capacity(64 + 34 + 1 + 48);
+        let mut signed_data = Vec::with_capacity(64 + 33 + 1 + 48);
         signed_data.extend_from_slice(&[0x20; 64]);
         signed_data.extend_from_slice(b"TLS 1.3, server CertificateVerify");
         signed_data.push(0);

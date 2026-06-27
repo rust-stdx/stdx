@@ -140,11 +140,17 @@ pub fn extract_spki_from_cert<'a>(cert_der: &'a [u8]) -> Result<&'a [u8], Error>
         skip_tlv(inner, &mut offset)?;
     }
 
-    skip_tag(inner, &mut offset, 0x02)?;
-    skip_tag(inner, &mut offset, 0x30)?;
-    skip_tag(inner, &mut offset, 0x30)?;
-    skip_tag(inner, &mut offset, 0x30)?;
-    skip_tag(inner, &mut offset, 0x30)?;
+    skip_tag(inner, &mut offset, 0x02)?; // serialNumber
+    skip_tag(inner, &mut offset, 0x30)?; // signature
+    skip_tag(inner, &mut offset, 0x30)?; // issuer
+    skip_tag(inner, &mut offset, 0x30)?; // validity
+    skip_tag(inner, &mut offset, 0x30)?; // subject
+
+    // Skip optional context-specific fields: [1] issuerUniqueID,
+    // [2] subjectUniqueID, [3] extensions
+    while offset < inner.len() && (inner[offset] & 0xa0) == 0xa0 {
+        skip_tlv(inner, &mut offset)?;
+    }
 
     if offset >= inner.len() || inner[offset] != 0x30 {
         return Err(Error::InvalidCertificate);

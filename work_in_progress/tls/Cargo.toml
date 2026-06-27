@@ -10,7 +10,7 @@ path = "src/tls.rs"
 default = ["crypto-default-provider", "webpki-validator", "std"]
 crypto-default-provider = ["dep:crypto", "crypto/random"]
 std = ["crypto/std"]
-webpki-validator = ["dep:rustls-pki-types", "dep:rustls-webpki", "dep:webpki-roots", "dep:x509-cert"]
+webpki-validator = ["dep:rustls-pki-types", "dep:rustls-webpki", "dep:webpki-roots", "dep:x509"]
 quic = []
 zeroize = ["dep:zeroize"]
 
@@ -21,15 +21,15 @@ constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto", optional = true, default-features = false }
 heapless = { workspace = true }
 rustls-pki-types = { version = "1", optional = true }
-rustls-webpki = { version = "0.102", default-features = false, features = ["ring"], optional = true }
-webpki-roots = { version = "0.26", optional = true }
-x509-cert = { version = "0.2", default-features = false, optional = true }
+rustls-webpki = { version = "0.103", default-features = false, features = ["alloc", "ring"], optional = true }
+webpki-roots = { version = "1", optional = true }
+x509 = { path = "../x509", optional = true }
 zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyerr = { path = "../../anyerr" }
 heapless = { workspace = true }
-hex ={ path = "../../hex" }
+hex = { path = "../../hex" }
 rcgen = "0.13"
 rustls = { workspace = true, features = ["std"] }
 tokio = { workspace = true, features = ["net", "rt", "io-util", "macros"] }

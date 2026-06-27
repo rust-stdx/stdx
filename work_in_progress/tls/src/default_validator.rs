@@ -78,7 +78,7 @@ impl CertificateValidator for WebPkiValidator {
                     .map(|d| rustls_pki_types::CertificateDer::from(d.as_slice()))
                     .collect();
 
-                let time = webpki::types::UnixTime::since_unix_epoch(system_time_now());
+                let time = rustls_pki_types::UnixTime::since_unix_epoch(system_time_now());
 
                 let server_name_dns = rustls_pki_types::ServerName::try_from(server_name)
                     .map_err(|e| Error::CertificateValidationFailed(format!("invalid server name: {e}")))?;

@@ -1,6 +1,6 @@
-//! Example: connect to kerkour.com via QUIC.
+//! Example: connect to a server via QUIC.
 //!
-//! Run: `cargo run --example connect -p quic`
+//! Run: `cargo run --example connect -p quic -- example.com`
 
 use std::net::{SocketAddr, ToSocketAddrs};
 
@@ -24,12 +24,14 @@ impl Transport for UdpTransport {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "google.com:443"
+    let server_name = std::env::args().nth(1).unwrap_or("example.com".to_string());
+
+    let addr = format!("{server_name}:443")
         .to_socket_addrs()?
         .filter(|a| a.is_ipv4())
         .next()
-        .ok_or("no IPv4 address for google.com")?;
-    println!("Connecting to google.com at {addr}...");
+        .ok_or(format!("no IPv4 address for {server_name}"))?;
+    println!("Connecting to {server_name} at {addr}...");
 
     let socket = TokioUdpSocket::bind("0.0.0.0:0").await?;
     let transport = UdpTransport(socket);
@@ -38,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.alpn_protocols = vec![bytes::Bytes::from_static(b"h3")];
 
     let mut conn = quic::Connection::new(transport, config);
-    match conn.connect(addr, "kerkour.com").await {
+    match conn.connect(addr, &server_name).await {
         Ok(()) => println!("QUIC handshake successful!"),
         Err(e) => eprintln!("Connection failed: {e}"),
     }

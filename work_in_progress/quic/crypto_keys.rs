@@ -5,7 +5,7 @@
 
 use crypto::{
     Aead, AeadError, StreamCipher,
-    aes::{Aes128Gcm, Aes256Gcm, RoundKeys, encrypt_block, encrypt_block_aes128, key_expand, key_expand_128},
+    aes::{Aes128Gcm, Aes256Gcm, encrypt_block, encrypt_block_aes128, key_expand, key_expand_128},
     chacha::{ChaCha, ChaCha20Poly1305},
     hmac::Hmac,
     sha2::Sha256,

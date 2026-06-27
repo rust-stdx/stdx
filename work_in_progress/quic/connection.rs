@@ -537,7 +537,7 @@ impl<T: Transport> Connection<T> {
                             &self.dcid,
                             &self.scid,
                             true,
-                            true,
+                            false,
                             ss,
                             &[Frame::Crypto {
                                 offset: 0,
@@ -585,7 +585,7 @@ impl<T: Transport> Connection<T> {
                                 &self.dcid,
                                 &self.scid,
                                 true,
-                                true,
+                                false,
                                 ss,
                                 &[Frame::Crypto {
                                     offset: 0,
@@ -595,7 +595,6 @@ impl<T: Transport> Connection<T> {
                             .await?;
                         } else {
                             // HRR case: re-ClientHello at Initial encryption level
-                            self.init_send.pn += 1;
                             let send = prepare_initial_packet(&d, &self.init_send, &self.dcid, &self.scid);
                             self.transport.send_to(self.remote, &send).await?;
                         }
@@ -745,7 +744,7 @@ fn prepare_initial_packet(
     );
     let pad_needed = 1180usize.saturating_sub(payload.len());
     if pad_needed > 0 {
-        frame::pad_to(1200, payload.len(), &mut payload);
+        frame::pad_to(1180, payload.len(), &mut payload);
     }
 
     let mut header = Vec::new();

@@ -10,7 +10,7 @@ pub const MAX_AEAD_TAG_SIZE: usize = 32;
 pub const MAX_KX_PUBLIC_KEY: usize = 1216;
 pub const MAX_SHARED_SECRET: usize = 64;
 pub const MAX_PUBLIC_KEY_BYTES: usize = 65;
-pub const MAX_SIGNATURE_SIZE: usize = 128;
+pub const MAX_SIGNATURE_SIZE: usize = 256;
 pub const MAX_SESSION_ID: usize = 32;
 pub const MAX_CERT_TYPES: usize = 4;
 
@@ -346,6 +346,20 @@ pub enum SignatureScheme {
     Ed25519,
     /// ECDSA with NIST P-256 and SHA-256
     EcdsaP256Sha256,
+    /// ECDSA with NIST P-384 and SHA-384
+    EcdsaP384Sha384,
+    /// RSA PKCS#1 v1.5 with SHA-256
+    RsaPkcs1Sha256,
+    /// RSA PKCS#1 v1.5 with SHA-384
+    RsaPkcs1Sha384,
+    /// RSA PKCS#1 v1.5 with SHA-512
+    RsaPkcs1Sha512,
+    /// RSA-PSS with SHA-256 (RFC 8017)
+    RsaPssRsaSha256,
+    /// RSA-PSS with SHA-384 (RFC 8017)
+    RsaPssRsaSha384,
+    /// RSA-PSS with SHA-512 (RFC 8017)
+    RsaPssRsaSha512,
 }
 
 impl SignatureScheme {
@@ -354,6 +368,13 @@ impl SignatureScheme {
         match self {
             Self::Ed25519 => [0x08, 0x07],
             Self::EcdsaP256Sha256 => [0x04, 0x03],
+            Self::EcdsaP384Sha384 => [0x05, 0x03],
+            Self::RsaPkcs1Sha256 => [0x04, 0x01],
+            Self::RsaPkcs1Sha384 => [0x05, 0x01],
+            Self::RsaPkcs1Sha512 => [0x06, 0x01],
+            Self::RsaPssRsaSha256 => [0x08, 0x04],
+            Self::RsaPssRsaSha384 => [0x08, 0x05],
+            Self::RsaPssRsaSha512 => [0x08, 0x06],
         }
     }
 
@@ -362,6 +383,13 @@ impl SignatureScheme {
         match bytes {
             [0x08, 0x07] => Some(Self::Ed25519),
             [0x04, 0x03] => Some(Self::EcdsaP256Sha256),
+            [0x05, 0x03] => Some(Self::EcdsaP384Sha384),
+            [0x04, 0x01] => Some(Self::RsaPkcs1Sha256),
+            [0x05, 0x01] => Some(Self::RsaPkcs1Sha384),
+            [0x06, 0x01] => Some(Self::RsaPkcs1Sha512),
+            [0x08, 0x04] => Some(Self::RsaPssRsaSha256),
+            [0x08, 0x05] => Some(Self::RsaPssRsaSha384),
+            [0x08, 0x06] => Some(Self::RsaPssRsaSha512),
             _ => None,
         }
     }
@@ -371,6 +399,13 @@ impl SignatureScheme {
         match self {
             Self::Ed25519 => 32,
             Self::EcdsaP256Sha256 => 32,
+            Self::EcdsaP384Sha384 => 48,
+            Self::RsaPkcs1Sha256 => 256, // typical RSA PKCS#8
+            Self::RsaPkcs1Sha384 => 256,
+            Self::RsaPkcs1Sha512 => 256,
+            Self::RsaPssRsaSha256 => 256,
+            Self::RsaPssRsaSha384 => 256,
+            Self::RsaPssRsaSha512 => 256,
         }
     }
 
@@ -379,6 +414,13 @@ impl SignatureScheme {
         match self {
             Self::Ed25519 => 32,
             Self::EcdsaP256Sha256 => 65,
+            Self::EcdsaP384Sha384 => 97,
+            Self::RsaPkcs1Sha256 => 294, // typical RSA 2048-bit
+            Self::RsaPkcs1Sha384 => 294,
+            Self::RsaPkcs1Sha512 => 294,
+            Self::RsaPssRsaSha256 => 294,
+            Self::RsaPssRsaSha384 => 294,
+            Self::RsaPssRsaSha512 => 294,
         }
     }
 
@@ -387,6 +429,13 @@ impl SignatureScheme {
         match self {
             Self::Ed25519 => 64,
             Self::EcdsaP256Sha256 => 64,
+            Self::EcdsaP384Sha384 => 96,
+            Self::RsaPkcs1Sha256 => 256, // RSA 2048-bit
+            Self::RsaPkcs1Sha384 => 256,
+            Self::RsaPkcs1Sha512 => 256,
+            Self::RsaPssRsaSha256 => 256,
+            Self::RsaPssRsaSha384 => 256,
+            Self::RsaPssRsaSha512 => 256,
         }
     }
 }

@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  TLS version:     {}", tls.tls_version());
     println!("  Cipher suite:    {:?}", tls.cipher_suite().unwrap());
     println!("  Key exchange:    {:?}", tls.kx_group().unwrap());
+    println!("  Signature scheme: {:?}", tls.signature_scheme().unwrap());
     println!("  SNI:             {:?}", tls.server_name());
     println!();
 

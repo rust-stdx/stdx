@@ -33,6 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("  Cipher suite:    {:?}", tls.conn().cipher_suite().unwrap());
     println!("  Key exchange:    {:?}", tls.conn().kx_group());
+    println!("  Signature scheme: {:?}", tls.conn().signature_scheme().unwrap());
     println!("  SNI:             {:?}", tls.conn().server_name());
     println!();
 

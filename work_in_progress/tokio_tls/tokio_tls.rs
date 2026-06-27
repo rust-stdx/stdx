@@ -241,6 +241,13 @@ impl TlsState {
             TlsState::Server(c) => c.negotiated_version(),
         }
     }
+
+    fn signature_scheme(&self) -> Option<tls::SignatureScheme> {
+        match self {
+            TlsState::Client(c) => c.signature_scheme(),
+            _ => None,
+        }
+    }
 }
 
 // ── TlsStream ───────────────────────────────────────────────────────────────
@@ -287,6 +294,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> TlsStream<S> {
     pub fn tls_version(&self) -> String {
         let v = self.negotiated_version();
         format!("TLS 1.{}/0x{:04x}", (v & 0xff).saturating_sub(1), v)
+    }
+
+    /// The signature scheme used by the server's CertificateVerify message,
+    /// if available.
+    pub fn signature_scheme(&self) -> Option<tls::SignatureScheme> {
+        self.state.signature_scheme()
     }
 
     fn poll_flush_pending(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
