@@ -2278,6 +2278,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "quic"
+version = "0.1.0"
+dependencies = [
+ "anyerr",
+ "async-trait",
+ "bytes",
+ "constant_time_eq 0.3.0",
+ "crypto",
+ "hex 0.1.0",
+ "thiserror 1.0.61",
+ "tls",
+ "tokio",
+]
+
+[[package]]
 name = "quick-xml"
 version = "0.38.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4179,6 +4194,10 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+
+[[package]]
+name = "x509"
+version = "0.1.0"
 
 [[package]]
 name = "x509-cert"

@@ -1,0 +1,25 @@
+[package]
+name = "quic"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "quic.rs"
+
+[features]
+default = ["std"]
+std = ["crypto/std"]
+
+[dependencies]
+async-trait = { workspace = true }
+bytes = { workspace = true }
+constant_time_eq = { path = "../../constant_time_eq" }
+crypto = { path = "../../crypto" }
+hex = { path = "../../hex" }
+thiserror = { path = "../../thiserror" }
+tls = { path = "../tls", default-features = false, features = ["crypto-default-provider", "webpki-validator", "quic", "std"] }
+tokio = { workspace = true }
+
+[dev-dependencies]
+anyerr = { path = "../../anyerr" }
+tokio = { workspace = true, features = ["net", "rt", "io-util", "macros"] }

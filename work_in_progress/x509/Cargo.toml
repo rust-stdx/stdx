@@ -1,0 +1,12 @@
+[package]
+name = "x509"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "x509.rs"
+
+[features]
+default = ["std"]
+std = ["alloc"]
+alloc = []

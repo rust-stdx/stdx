@@ -11,13 +11,7 @@ use tokio_tls::TokioStreamAdapter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server_name = std::env::args().nth(1).unwrap_or_else(|| {
-        eprintln!("Usage: connect <hostname>");
-        eprintln!();
-        eprintln!("Connects to the given host on port 443 via TLS 1.3 and prints");
-        eprintln!("connection information along with the HTTP response headers.");
-        std::process::exit(1);
-    });
+    let server_name = std::env::args().nth(1).unwrap_or("example.com".to_string());
 
     println!("Connecting to {server_name}:443 ...");
     let stream = TcpStream::connect((&*server_name, 443)).await?;

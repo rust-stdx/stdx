@@ -74,6 +74,9 @@ impl<S: AsyncRead + AsyncWrite> ClientAsyncIo<S> {
             if let Some(data) = self.conn.read_app_data() {
                 return Ok(data);
             }
+            if self.conn.close_notified() {
+                return Err(Error::ConnectionClosed);
+            }
             let mut buf = [0u8; 16384];
             let n = self.stream.read(&mut buf).await.map_err(|e| Error::Io(e))?;
             if n == 0 {

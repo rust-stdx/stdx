@@ -68,6 +68,13 @@ struct HandshakeState {
     app_data_queue: VecDeque<Bytes>,
     handshake_done: bool,
     negotiated_version: u16,
+    close_received: bool,
+    #[cfg(feature = "quic")]
+    quic_write_queue: VecDeque<Bytes>,
+    #[cfg(feature = "quic")]
+    is_quic: bool,
+    #[cfg(feature = "quic")]
+    quic_transport_params: Option<Bytes>,
 }
 
 impl HandshakeState {
@@ -93,6 +100,13 @@ impl HandshakeState {
             app_data_queue: VecDeque::new(),
             handshake_done: false,
             negotiated_version: 0,
+            close_received: false,
+            #[cfg(feature = "quic")]
+            quic_write_queue: VecDeque::new(),
+            #[cfg(feature = "quic")]
+            is_quic: false,
+            #[cfg(feature = "quic")]
+            quic_transport_params: None,
         }
     }
 }
@@ -172,6 +186,11 @@ impl ClientConnection {
         self.hs.handshake_done
     }
 
+    /// Has the peer sent a close_notify alert?
+    pub fn close_notified(&self) -> bool {
+        self.hs.close_received
+    }
+
     /// The negotiated TLS protocol version (e.g. `0x0304` for TLS 1.3).
     pub fn negotiated_version(&self) -> u16 {
         self.hs.negotiated_version
@@ -247,6 +266,108 @@ impl ClientConnection {
             hs,
             server_name,
         })
+    }
+
+    /// Create a new QUIC-mode client connection.
+    ///
+    /// The initial ClientHello includes the QUIC transport parameters extension.
+    /// Raw handshake messages are returned via [`write_handshake`] (no TLS
+    /// record wrapping). Input is fed via [`inject_handshake`].
+    #[cfg(feature = "quic")]
+    pub fn new_quic_with_preferred_group(
+        config: ClientConfig,
+        server_name: Option<String>,
+        transport_params: &[u8],
+        alpn: &[Bytes],
+        preferred_group: Option<KeyExchangeGroup>,
+    ) -> Result<Self, Error> {
+        let mut hs = HandshakeState::new();
+        let crypto_provider = &config.crypto;
+
+        let supported_groups = crypto_provider.supported_key_exchange_groups();
+        let kx_group = if let Some(pref) = preferred_group {
+            if supported_groups.contains(&pref) {
+                pref
+            } else {
+                *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?
+            }
+        } else {
+            *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?
+        };
+
+        let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::new();
+        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> = Vec::new();
+
+        for &group in supported_groups {
+            let kp = crypto_provider.create_kx_pair(group)?;
+            let pk = kp.public_key_bytes();
+            if group == kx_group {
+                key_share_entries.push((group, pk));
+            }
+            kx_pairs.push(kp);
+        }
+
+        hs.kx_group = kx_group;
+        hs.kx_pairs = kx_pairs;
+
+        let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
+            key_share_entries.iter().map(|(g, pk)| (*g, pk.as_slice())).collect();
+
+        let mut exts = vec![
+            ext_supported_versions(),
+            ext_supported_groups(supported_groups),
+            ext_key_share_client(&key_share_refs),
+            ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
+        ];
+        if let Some(ref name) = server_name {
+            exts.push(ext_server_name(name));
+        }
+        exts.push(ext_alpn(alpn));
+        exts.push(ext_quic_transport_parameters(transport_params));
+        hs.is_quic = true;
+        hs.quic_transport_params = Some(Bytes::copy_from_slice(transport_params));
+        if config.cert_types != [CertType::X509] || config.cert_types.len() != 1 {
+            exts.push(ext_server_cert_type_client(&config.cert_types));
+        }
+        let cipher_suites: Vec<_> = crypto_provider.supported_cipher_suites().to_vec();
+
+        let mut random = [0u8; 32];
+        crypto_provider.secure_random(&mut random);
+
+        let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
+        hs.transcript.extend_from_slice(&ch);
+
+        hs.quic_write_queue.push_back(Bytes::from(ch));
+
+        Ok(Self {
+            config,
+            state: ClientState::SentClientHello,
+            hs,
+            server_name,
+        })
+    }
+
+    /// Take the next raw handshake message to send (QUIC mode only).
+    #[cfg(feature = "quic")]
+    pub fn write_handshake(&mut self) -> Option<Bytes> {
+        self.hs.quic_write_queue.pop_front()
+    }
+
+    /// Inject raw handshake bytes (QUIC mode only).
+    #[cfg(feature = "quic")]
+    pub fn inject_handshake(&mut self, data: &[u8]) {
+        self.hs.handshake_payload.extend_from_slice(data);
+    }
+
+    /// Return the QUIC traffic secrets after the handshake completes.
+    #[cfg(feature = "quic")]
+    pub fn quic_secrets(&self) -> Option<crate::quic::QuicSecrets> {
+        let ks = self.hs.key_schedule.as_ref()?;
+        let suite = self.hs.cipher_suite?;
+        let sh_hash = self.hs.server_hello_hash.as_slice();
+        let sfin_hash_bytes = self.config.crypto.hash(suite, &self.hs.transcript);
+        let sfin_hash = sfin_hash_bytes.as_slice();
+        Some(crate::quic::extract_quic_secrets(ks, sh_hash, sfin_hash))
     }
 
     /// Advance the state machine. Call after [`inject`]ing data.
@@ -355,6 +476,12 @@ impl ClientConnection {
 
         let ks_ext = find_extension(&sh.extensions, ExtensionType::KeyShare)
             .ok_or_else(|| Error::HandshakeFailed("no key_share in ServerHello".into()))?;
+
+        #[cfg(feature = "quic")]
+        if self.hs.is_quic && ks_ext.data.len() == 2 {
+            return self.handle_quic_hrr(&sh, ks_ext);
+        }
+
         let (group, peer_pk) = parse_key_share_server(ks_ext)?;
         self.hs.peer_public_key = Some(peer_pk.clone());
 
@@ -372,6 +499,63 @@ impl ClientConnection {
         self.hs.key_schedule = Some(ks);
 
         self.state = ClientState::WaitEncryptedExtensions;
+        Ok(true)
+    }
+
+    #[cfg(feature = "quic")]
+    fn handle_quic_hrr(&mut self, sh: &ServerHello, ks_ext: &Extension) -> Result<bool, Error> {
+        let hrr_group = KeyExchangeGroup::from_wire([ks_ext.data[0], ks_ext.data[1]])
+            .ok_or_else(|| Error::DecodeError("unknown KX group in HRR".into()))?;
+
+        let crypto_provider = &self.config.crypto;
+        let supported_groups = crypto_provider.supported_key_exchange_groups();
+
+        if !supported_groups.contains(&hrr_group) {
+            return Err(Error::HandshakeFailed(format!(
+                "HRR requested group {hrr_group:?} which is not supported"
+            )));
+        }
+
+        self.hs.kx_group = hrr_group;
+        self.hs.kx_pairs.clear();
+
+        let mut key_share_entries: alloc::vec::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
+            alloc::vec::Vec::new();
+        for &group in supported_groups {
+            let kp = crypto_provider.create_kx_pair(group)?;
+            let pk = kp.public_key_bytes();
+            if group == hrr_group {
+                key_share_entries.push((group, pk));
+            }
+            self.hs.kx_pairs.push(kp);
+        }
+
+        let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
+            key_share_entries.iter().map(|(g, pk)| (*g, pk.as_slice())).collect();
+
+        let mut exts = vec![
+            ext_supported_versions(),
+            ext_supported_groups(supported_groups),
+            ext_key_share_client(&key_share_refs),
+            ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
+        ];
+        if let Some(ref name) = self.server_name {
+            exts.push(ext_server_name(name));
+        }
+        exts.push(ext_alpn(&self.config.alpn_protocols));
+        if let Some(ref tp) = self.hs.quic_transport_params {
+            exts.push(ext_quic_transport_parameters(tp));
+        }
+        let cipher_suites: Vec<_> = crypto_provider.supported_cipher_suites().to_vec();
+
+        let mut random = [0u8; 32];
+        crypto_provider.secure_random(&mut random);
+
+        let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
+        self.hs.transcript.extend_from_slice(&ch);
+
+        self.hs.quic_write_queue.push_back(Bytes::from(ch));
+
         Ok(true)
     }
 
@@ -586,29 +770,65 @@ impl ClientConnection {
         let our_verify_data_expected = crypto_provider.hmac(suite, &keys.client_finished_key, &our_fin_hash);
         let fin_msg = encode_finished(&our_verify_data_expected);
 
-        let c_hs_traffic = ks.client_handshake_traffic_secret(&self.hs.server_hello_hash);
-        let c_hs_key = crypto_provider.hkdf_expand_label(suite, &c_hs_traffic, b"tls13 key", &[], suite.key_size());
-        let c_hs_iv: [u8; 12] = crypto_provider
-            .hkdf_expand_label(suite, &c_hs_traffic, b"tls13 iv", &[], 12)
-            .as_slice()
-            .try_into()
-            .unwrap();
-        self.hs
-            .write_record
-            .set_write_keys(crypto_provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
+        #[cfg(feature = "quic")]
+        if self.hs.is_quic {
+            self.hs.quic_write_queue.push_back(Bytes::from(fin_msg));
+        } else {
+            let c_hs_traffic = ks.client_handshake_traffic_secret(&self.hs.server_hello_hash);
+            let c_hs_key = crypto_provider.hkdf_expand_label(suite, &c_hs_traffic, b"tls13 key", &[], suite.key_size());
+            let c_hs_iv: [u8; 12] = crypto_provider
+                .hkdf_expand_label(suite, &c_hs_traffic, b"tls13 iv", &[], 12)
+                .as_slice()
+                .try_into()
+                .unwrap();
+            self.hs
+                .write_record
+                .set_write_keys(crypto_provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
 
-        let encrypted_fin = self.hs.write_record.encrypt_record(ContentType::Handshake, &fin_msg)?;
-        self.hs.write_queue.push_back(encrypted_fin);
+            let encrypted_fin = self.hs.write_record.encrypt_record(ContentType::Handshake, &fin_msg)?;
+            self.hs.write_queue.push_back(encrypted_fin);
+        }
 
-        self.hs.read_record.set_read_keys(
-            crypto_provider.create_aead(suite, &keys.server_application_key)?,
-            keys.server_application_iv,
-        );
+        #[cfg(not(feature = "quic"))]
+        {
+            let c_hs_traffic = ks.client_handshake_traffic_secret(&self.hs.server_hello_hash);
+            let c_hs_key = crypto_provider.hkdf_expand_label(suite, &c_hs_traffic, b"tls13 key", &[], suite.key_size());
+            let c_hs_iv: [u8; 12] = crypto_provider
+                .hkdf_expand_label(suite, &c_hs_traffic, b"tls13 iv", &[], 12)
+                .as_slice()
+                .try_into()
+                .unwrap();
+            self.hs
+                .write_record
+                .set_write_keys(crypto_provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
 
-        self.hs.write_record.set_write_keys(
-            crypto_provider.create_aead(suite, &keys.client_application_key)?,
-            keys.client_application_iv,
-        );
+            let encrypted_fin = self.hs.write_record.encrypt_record(ContentType::Handshake, &fin_msg)?;
+            self.hs.write_queue.push_back(encrypted_fin);
+        }
+
+        #[cfg(feature = "quic")]
+        if !self.hs.is_quic {
+            self.hs.read_record.set_read_keys(
+                crypto_provider.create_aead(suite, &keys.server_application_key)?,
+                keys.server_application_iv,
+            );
+            self.hs.write_record.set_write_keys(
+                crypto_provider.create_aead(suite, &keys.client_application_key)?,
+                keys.client_application_iv,
+            );
+        }
+
+        #[cfg(not(feature = "quic"))]
+        {
+            self.hs.read_record.set_read_keys(
+                crypto_provider.create_aead(suite, &keys.server_application_key)?,
+                keys.server_application_iv,
+            );
+            self.hs.write_record.set_write_keys(
+                crypto_provider.create_aead(suite, &keys.client_application_key)?,
+                keys.client_application_iv,
+            );
+        }
 
         self.hs.keys = Some(keys);
         self.hs.handshake_done = true;
@@ -623,6 +843,10 @@ impl ClientConnection {
                 Some((ContentType::ApplicationData, payload)) => {
                     self.hs.app_data_queue.push_back(payload);
                     processed_any = true;
+                }
+                Some((ContentType::Alert, payload)) if payload.len() >= 2 && payload[0] == 1 && payload[1] == 0 => {
+                    self.hs.close_received = true;
+                    return Err(Error::ConnectionClosed);
                 }
                 Some((ContentType::Alert, _)) => return Err(Error::ConnectionClosed),
                 Some(_) => continue,
@@ -689,6 +913,11 @@ impl ServerConnection {
     /// Is the handshake complete?
     pub fn handshake_done(&self) -> bool {
         self.hs.handshake_done
+    }
+
+    /// Has the peer sent a close_notify alert?
+    pub fn close_notified(&self) -> bool {
+        self.hs.close_received
     }
 
     /// The negotiated TLS protocol version (e.g. `0x0304` for TLS 1.3).
@@ -1018,6 +1247,10 @@ impl ServerConnection {
                 Some((ContentType::ApplicationData, payload)) => {
                     self.hs.app_data_queue.push_back(payload);
                     processed_any = true;
+                }
+                Some((ContentType::Alert, payload)) if payload.len() >= 2 && payload[0] == 1 && payload[1] == 0 => {
+                    self.hs.close_received = true;
+                    return Err(Error::ConnectionClosed);
                 }
                 Some((ContentType::Alert, _)) => return Err(Error::ConnectionClosed),
                 Some(_) => continue,
