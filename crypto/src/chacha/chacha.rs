@@ -982,32 +982,6 @@ Expected: {}",
         buf
     }
 
-    fn make_djb_test(key: &[u8; 32], nonce: &[u8; 8], plaintext: &[u8], split_sizes: &[usize]) {
-        let expected = encrypt_one_shot_djb(key, nonce, plaintext);
-        let mut buf = plaintext.to_vec();
-        let mut cipher = ChaCha20Djb::new(key, nonce);
-        let mut offset = 0;
-        for &size in split_sizes {
-            let end = core::cmp::min(offset + size, buf.len());
-            cipher.xor_keystream(&mut buf[offset..end]);
-            offset = end;
-        }
-        assert_eq!(buf, expected, "DJB leftover test failed for splits {split_sizes:?}");
-    }
-
-    fn make_ietf_test(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8], split_sizes: &[usize]) {
-        let expected = encrypt_one_shot_ietf(key, nonce, plaintext);
-        let mut buf = plaintext.to_vec();
-        let mut cipher = ChaCha20Ietf::new(key, nonce);
-        let mut offset = 0;
-        for &size in split_sizes {
-            let end = core::cmp::min(offset + size, buf.len());
-            cipher.xor_keystream(&mut buf[offset..end]);
-            offset = end;
-        }
-        assert_eq!(buf, expected, "IETF leftover test failed for splits {split_sizes:?}");
-    }
-
     fn test_key_32() -> [u8; 32] {
         let mut k = [0u8; 32];
         for i in 0..32 {

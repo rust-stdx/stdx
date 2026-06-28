@@ -22,14 +22,15 @@ impl ChaCha20Poly1305 {
     }
 
     /// Generates the one-time Poly1305 key using ChaCha20 with counter=0.
-    fn poly1305_key_gen(&self, nonce: &[u8; 12]) -> [u8; 32] {
+    #[inline]
+    fn poly1305_key_gen(&self, nonce: &[u8; 12]) -> ([u8; 32], ChaCha<20, true>) {
         let mut cipher = ChaCha::<20, true>::new(&self.key, nonce);
         cipher.set_counter(0);
         let mut block = [0u8; 64];
         cipher.xor_keystream(&mut block);
         let mut key = [0u8; 32];
         key.copy_from_slice(&block[..32]);
-        return key;
+        return (key, cipher);
     }
 }
 
@@ -39,15 +40,14 @@ impl Aead for ChaCha20Poly1305 {
 
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         let nonce: &[u8; 12] = nonce.try_into().expect("nonce must be 12 bytes");
-        let otk = self.poly1305_key_gen(nonce);
+        let (poly1305_key, mut cipher) = self.poly1305_key_gen(nonce);
 
-        let mut cipher = ChaCha::<20, true>::new(&self.key, nonce);
         cipher.set_counter(1);
         cipher.xor_keystream(in_out);
 
-        let mut mac = Poly1305::new(&otk);
-        update_padded(&mut mac, aad);
-        update_padded(&mut mac, in_out);
+        let mut mac = Poly1305::new(&poly1305_key);
+        update_poly1305_padded(&mut mac, aad);
+        update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let tag_bytes = mac.finalize();
@@ -62,11 +62,11 @@ impl Aead for ChaCha20Poly1305 {
             return Err(AeadError::InvalidCiphertext);
         }
         let nonce: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
-        let otk = self.poly1305_key_gen(nonce);
+        let (poly1305_key, mut cipher) = self.poly1305_key_gen(nonce);
 
-        let mut mac = Poly1305::new(&otk);
-        update_padded(&mut mac, aad);
-        update_padded(&mut mac, in_out);
+        let mut mac = Poly1305::new(&poly1305_key);
+        update_poly1305_padded(&mut mac, aad);
+        update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let computed = mac.finalize();
@@ -75,7 +75,6 @@ impl Aead for ChaCha20Poly1305 {
             return Err(AeadError::InvalidCiphertext);
         }
 
-        let mut cipher = ChaCha::<20, true>::new(&self.key, nonce);
         cipher.set_counter(1);
         cipher.xor_keystream(in_out);
 
@@ -133,8 +132,8 @@ impl Aead for XChaCha20Poly1305 {
         cipher.xor_keystream(in_out);
 
         let mut mac = Poly1305::new(&otk);
-        update_padded(&mut mac, aad);
-        update_padded(&mut mac, in_out);
+        update_poly1305_padded(&mut mac, aad);
+        update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let tag_bytes = mac.finalize();
@@ -159,8 +158,8 @@ impl Aead for XChaCha20Poly1305 {
         otk.copy_from_slice(&block[..32]);
 
         let mut mac = Poly1305::new(&otk);
-        update_padded(&mut mac, aad);
-        update_padded(&mut mac, in_out);
+        update_poly1305_padded(&mut mac, aad);
+        update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let computed = mac.finalize();
@@ -178,7 +177,8 @@ impl Aead for XChaCha20Poly1305 {
     }
 }
 
-fn update_padded(mac: &mut Poly1305, data: &[u8]) {
+#[inline]
+pub(crate) fn update_poly1305_padded(mac: &mut Poly1305, data: &[u8]) {
     mac.update(data);
     let rem = data.len() % 16;
     if rem != 0 {
@@ -224,7 +224,7 @@ mod test {
             let nonce: [u8; 12] = hex::decode(test.nonce_hex).unwrap().try_into().unwrap();
 
             let ae = ChaCha20Poly1305::new(&key);
-            let otk = ae.poly1305_key_gen(&nonce);
+            let (otk, _) = ae.poly1305_key_gen(&nonce);
             let expected_otk = hex::decode(test.expected_otk_hex).unwrap();
 
             assert_eq!(otk.as_slice(), expected_otk.as_slice(), "key gen test [{i}] failed");

@@ -104,6 +104,9 @@ pub use chacha12_blake3::ChaCha12Blake3;
 mod chacha20_poly1305;
 pub use chacha20_poly1305::{ChaCha20Poly1305, XChaCha20Poly1305};
 
+mod chacha8_poly1305;
+pub use chacha8_poly1305::ChaCha8Poly1305;
+
 /// HChaCha20 hash function.
 mod hchacha20;
 pub use hchacha20::hchacha20;
