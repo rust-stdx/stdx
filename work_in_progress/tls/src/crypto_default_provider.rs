@@ -4,7 +4,7 @@ use crypto::{
     Aead as CryptoAead, Hasher, hkdf,
     hmac::Hmac,
     mlkem::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SecretKey768},
-    sha2::{Sha256, Sha384, Sha512},
+    sha2::Sha256,
 };
 use heapless::Vec;
 
@@ -19,36 +19,27 @@ use crate::{
 /// The default [`CryptoProvider`], backed by the `crypto` crate.
 ///
 /// Supports:
-/// - Cipher suites: `TLS_CHACHA20_POLY1305_SHA256`, `TLS_AES_256_GCM_SHA384`
+/// - Cipher suites: `TLS_CHACHA20_POLY1305_SHA256`, `TLS_AES_128_GCM_SHA256`
 /// - Key exchange: X25519, X25519MLKEM768 (post-quantum hybrid)
-/// - Signatures: Ed25519, ECDSA P-256 SHA-256
-///
-/// Note: `TLS_AES_128_GCM_SHA256` is defined in [`CipherSuite`] but is **not**
-/// supported by this provider.
+/// - Signatures: Ed25519, ECDSA P-256 SHA-256, RSA-PSS with SHA-256
 #[derive(Debug, Clone)]
 pub struct DefaultCryptoProvider {
-    cipher_suites: Vec<CipherSuite, 4>,
-    kx_groups: Vec<KeyExchangeGroup, 4>,
-    sig_schemes: Vec<SignatureScheme, 16>,
+    cipher_suites: [CipherSuite; 2],
+    key_exchange_groups: [KeyExchangeGroup; 2],
+    signature_schemes: [SignatureScheme; 4],
 }
 
 impl DefaultCryptoProvider {
     pub fn new() -> Self {
-        let mut cipher_suites = Vec::new();
-        cipher_suites.push(CipherSuite::TlsChaCha20Poly1305Sha256).unwrap();
-        cipher_suites.push(CipherSuite::TlsAes128GcmSha256).unwrap();
-        cipher_suites.push(CipherSuite::TlsAes256GcmSha384).unwrap();
-        let mut kx_groups = Vec::new();
-        kx_groups.push(KeyExchangeGroup::X25519MlKem768).unwrap();
-        kx_groups.push(KeyExchangeGroup::X25519).unwrap();
-        let mut sig_schemes = Vec::new();
-        sig_schemes.push(SignatureScheme::Ed25519).unwrap();
-        sig_schemes.push(SignatureScheme::EcdsaP256Sha256).unwrap();
-        sig_schemes.push(SignatureScheme::RsaPssRsaSha256).unwrap();
         Self {
-            cipher_suites,
-            kx_groups,
-            sig_schemes,
+            cipher_suites: [CipherSuite::TlsAes128GcmSha256, CipherSuite::TlsChaCha20Poly1305Sha256],
+            key_exchange_groups: [KeyExchangeGroup::X25519MlKem768, KeyExchangeGroup::X25519],
+            signature_schemes: [
+                SignatureScheme::Ed25519,
+                SignatureScheme::EcdsaP256Sha256,
+                SignatureScheme::RsaPssRsaSha256,
+                SignatureScheme::RsaPkcs1Sha256,
+            ],
         }
     }
 }
@@ -65,11 +56,11 @@ impl CryptoProvider for DefaultCryptoProvider {
     }
 
     fn supported_key_exchange_groups(&self) -> &[KeyExchangeGroup] {
-        &self.kx_groups
+        &self.key_exchange_groups
     }
 
     fn supported_signature_schemes(&self) -> &[SignatureScheme] {
-        &self.sig_schemes
+        &self.signature_schemes
     }
 
     fn create_aead(&self, suite: CipherSuite, key: &[u8]) -> Result<Box<dyn Aead>, Error> {
@@ -80,18 +71,13 @@ impl CryptoProvider for DefaultCryptoProvider {
                     .map_err(|_| Error::InvalidKey("AES-128-GCM expects a 16-byte key".into()))?;
                 Ok(Box::new(Aes128GcmAead::new(&key)))
             }
-            CipherSuite::TlsAes256GcmSha384 => {
-                let key: [u8; 32] = key
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("AES-256-GCM expects a 32-byte key".into()))?;
-                Ok(Box::new(Aes256GcmAead::new(&key)))
-            }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
                 let key: [u8; 32] = key
                     .try_into()
                     .map_err(|_| Error::InvalidKey("ChaCha20-Poly1305 expects a 32-byte key".into()))?;
                 Ok(Box::new(ChaCha20Poly1305Aead::new(&key)))
             }
+            ciphersuite @ _ => Err(Error::CryptoError(format!("Ciphersuite {ciphersuite:?} not supported"))),
         }
     }
 
@@ -143,9 +129,6 @@ impl CryptoProvider for DefaultCryptoProvider {
                     pk_bytes,
                 }))
             }
-            SignatureScheme::RsaPssRsaSha256 | SignatureScheme::RsaPssRsaSha384 | SignatureScheme::RsaPssRsaSha512 => {
-                Err(Error::CryptoError("RSA signing not yet implemented".into()))
-            }
             scheme @ _ => Err(Error::CryptoError(format!("Signature scheme {scheme:?} not supported"))),
         }
     }
@@ -177,20 +160,15 @@ impl CryptoProvider for DefaultCryptoProvider {
                 pk.verify(data, &sig_raw)
                     .map_err(|_| Error::CertificateValidationFailed("P-256 signature verification failed".into()))
             }
+            SignatureScheme::RsaPkcs1Sha256 => {
+                let digest = Sha256::hash(data);
+                crypto::rsa::verify_pkcs1_sha256(public_key, signature, digest.as_ref())
+                    .map_err(|e| Error::CryptoError(format!("RSA-PKCS1-SHA256 verification: {e}")))
+            }
             SignatureScheme::RsaPssRsaSha256 => {
                 let digest = Sha256::hash(data);
                 crypto::rsa::verify_pss_sha256(public_key, signature, digest.as_ref())
                     .map_err(|e| Error::CryptoError(format!("RSA-PSS-SHA256 verification: {e}")))
-            }
-            SignatureScheme::RsaPssRsaSha384 => {
-                let digest = Sha384::hash(data);
-                crypto::rsa::verify_pss_sha384(public_key, signature, digest.as_ref())
-                    .map_err(|e| Error::CryptoError(format!("RSA-PSS-SHA384 verification: {e}")))
-            }
-            SignatureScheme::RsaPssRsaSha512 => {
-                let digest = Sha512::hash(data);
-                crypto::rsa::verify_pss_sha512(public_key, signature, digest.as_ref())
-                    .map_err(|e| Error::CryptoError(format!("RSA-PSS-SHA512 verification: {e}")))
             }
             scheme @ _ => Err(Error::CryptoError(format!("Signature scheme {scheme:?} not supported"))),
         }
@@ -199,15 +177,13 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
         let mut out = Vec::new();
         match suite {
-            CipherSuite::TlsAes256GcmSha384 => {
-                out.extend_from_slice(Sha384::hash(data).as_ref()).unwrap();
-            }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
                 out.extend_from_slice(Sha256::hash(data).as_ref()).unwrap();
             }
             CipherSuite::TlsAes128GcmSha256 => {
                 out.extend_from_slice(Sha256::hash(data).as_ref()).unwrap();
             }
+            ciphersuite @ _ => unreachable!("Ciphersuite {ciphersuite:?} not supported"),
         }
         out
     }
@@ -219,15 +195,13 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
         let mut out = Vec::new();
         match suite {
-            CipherSuite::TlsAes256GcmSha384 => {
-                out.extend_from_slice(Hmac::<Sha384>::mac(key, data).as_ref()).unwrap();
-            }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
                 out.extend_from_slice(Hmac::<Sha256>::mac(key, data).as_ref()).unwrap();
             }
             CipherSuite::TlsAes128GcmSha256 => {
                 out.extend_from_slice(Hmac::<Sha256>::mac(key, data).as_ref()).unwrap();
             }
+            ciphersuite @ _ => unreachable!("Ciphersuite {ciphersuite:?} not supported"),
         }
         out
     }
@@ -235,10 +209,6 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
         let mut out = Vec::new();
         match suite {
-            CipherSuite::TlsAes256GcmSha384 => {
-                out.extend_from_slice(hkdf::extract::<Sha384>(Some(salt), ikm).as_ref())
-                    .unwrap();
-            }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
                 out.extend_from_slice(hkdf::extract::<Sha256>(Some(salt), ikm).as_ref())
                     .unwrap();
@@ -247,6 +217,7 @@ impl CryptoProvider for DefaultCryptoProvider {
                 out.extend_from_slice(hkdf::extract::<Sha256>(Some(salt), ikm).as_ref())
                     .unwrap();
             }
+            ciphersuite @ _ => unreachable!("Ciphersuite {ciphersuite:?} not supported"),
         }
         out
     }
@@ -276,9 +247,9 @@ impl CryptoProvider for DefaultCryptoProvider {
             out
         }
         match suite {
-            CipherSuite::TlsAes256GcmSha384 => expand_inner::<Sha384>(prk, info, length),
             CipherSuite::TlsChaCha20Poly1305Sha256 => expand_inner::<Sha256>(prk, info, length),
             CipherSuite::TlsAes128GcmSha256 => expand_inner::<Sha256>(prk, info, length),
+            ciphersuite @ _ => unreachable!("Ciphersuite {ciphersuite:?} not supported"),
         }
     }
 
@@ -345,48 +316,48 @@ impl Aead for Aes128GcmAead {
     }
 }
 
-struct Aes256GcmAead(crypto::aes::Aes256Gcm);
+// struct Aes256GcmAead(crypto::aes::Aes256Gcm);
 
-impl Aes256GcmAead {
-    fn new(key: &[u8; 32]) -> Self {
-        Self(crypto::aes::Aes256Gcm::new(key))
-    }
-}
+// impl Aes256GcmAead {
+//     fn new(key: &[u8; 32]) -> Self {
+//         Self(crypto::aes::Aes256Gcm::new(key))
+//     }
+// }
 
-impl Aead for Aes256GcmAead {
-    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> heapless::Vec<u8, MAX_AEAD_TAG_SIZE> {
-        let tag = self.0.encrypt_in_place(buf, nonce, aad);
-        tag.as_ref().try_into().unwrap()
-    }
+// impl Aead for Aes256GcmAead {
+//     fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> heapless::Vec<u8, MAX_AEAD_TAG_SIZE> {
+//         let tag = self.0.encrypt_in_place(buf, nonce, aad);
+//         tag.as_ref().try_into().unwrap()
+//     }
 
-    fn decrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<usize, Error> {
-        let tag_size = self.tag_size();
-        if buf.len() < tag_size {
-            return Err(Error::DecryptFailed);
-        }
-        let (ciphertext, tag) = buf.split_at_mut(buf.len() - tag_size);
-        let plaintext_len = ciphertext.len();
-        self.0
-            .decrypt_in_place(ciphertext, nonce, aad, tag)
-            .map_err(|_| Error::DecryptFailed)?;
-        Ok(plaintext_len)
-    }
+//     fn decrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<usize, Error> {
+//         let tag_size = self.tag_size();
+//         if buf.len() < tag_size {
+//             return Err(Error::DecryptFailed);
+//         }
+//         let (ciphertext, tag) = buf.split_at_mut(buf.len() - tag_size);
+//         let plaintext_len = ciphertext.len();
+//         self.0
+//             .decrypt_in_place(ciphertext, nonce, aad, tag)
+//             .map_err(|_| Error::DecryptFailed)?;
+//         Ok(plaintext_len)
+//     }
 
-    #[inline]
-    fn key_size(&self) -> usize {
-        32
-    }
+//     #[inline]
+//     fn key_size(&self) -> usize {
+//         32
+//     }
 
-    #[inline]
-    fn nonce_size(&self) -> usize {
-        12
-    }
+//     #[inline]
+//     fn nonce_size(&self) -> usize {
+//         12
+//     }
 
-    #[inline]
-    fn tag_size(&self) -> usize {
-        16
-    }
-}
+//     #[inline]
+//     fn tag_size(&self) -> usize {
+//         16
+//     }
+// }
 
 struct ChaCha20Poly1305Aead(crypto::chacha::ChaCha20Poly1305);
 
@@ -690,6 +661,7 @@ fn normalize_scalar(bytes: &[u8]) -> [u8; 32] {
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
+#[cfg(test)]
 mod tests {
     use super::*;
 

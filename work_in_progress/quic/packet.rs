@@ -104,17 +104,25 @@ pub fn parse_long_header(buf: &[u8]) -> Result<LongHeader, Error> {
         None
     };
 
-    // Payload length varint
-    let (payload_len, consumed) =
-        varint::decode(&buf[off..]).map_err(|_| Error::PacketDecode("bad payload len".into()))?;
-    off += consumed;
-
-    // Packet number field starts here (length is protected, assume 4 bytes for sampling)
-    let pn_offset = off;
-    if buf.len() < pn_offset + 4 {
-        return Err(Error::PacketDecode("packet too short for protected packet number".into()));
-    }
-    let pn_raw = buf[pn_offset..pn_offset + 4].to_vec();
+    // Retry packets have no length field; the rest is Retry Token + 16-byte integrity tag.
+    let (payload_len, pn_offset, pn_raw) = if ty == LongPacketType::Retry {
+        let remaining = buf.len().saturating_sub(off);
+        // For Retry, pn_offset marks the start of the Retry Token.
+        // There is no packet number; pn_raw is empty.
+        (remaining as u64, off, Vec::new())
+    } else {
+        // Payload length varint
+        let (payload_len, consumed) =
+            varint::decode(&buf[off..]).map_err(|_| Error::PacketDecode("bad payload len".into()))?;
+        off += consumed;
+        // Packet number field starts here (length is protected, assume 4 bytes for sampling)
+        let pn_offset = off;
+        if buf.len() < pn_offset + 4 {
+            return Err(Error::PacketDecode("packet too short for protected packet number".into()));
+        }
+        let pn_raw = buf[pn_offset..pn_offset + 4].to_vec();
+        (payload_len, pn_offset, pn_raw)
+    };
 
     Ok(LongHeader {
         ty,

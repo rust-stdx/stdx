@@ -9,11 +9,9 @@
 //!    or runtime dependency. Configured via [`ClientConfig`] / [`ServerConfig`].
 //!    The state machine is async because certificate provisioning, validation,
 //!    and fingerprinting may require I/O (database fetch, OCSP check, etc.).
-//!    For sync use cases a trivial executor like
-//!    [`futures::executor::block_on`] suffices.
 //!
-//! 2. **IO adapter** — wraps a connection over a pair of [`AsyncRead`] +
-//!    [`AsyncWrite`] traits that work in both `std` and `no_std` environments.
+//! 2. **IO adapters** — [`io_std`] and [`io_tokio`] provide blocking and async
+//!    I/O wrappers respectively, each gated behind their own feature flag.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -27,12 +25,16 @@ mod record;
 pub mod crypto_default_provider;
 #[cfg(feature = "webpki-validator")]
 pub mod default_validator;
-pub mod io;
 
 pub mod config;
 pub mod connection;
 pub mod crypto;
 pub mod key_schedule;
+
+#[cfg(feature = "std")]
+pub mod io_std;
+#[cfg(feature = "tokio")]
+pub mod io_tokio;
 
 #[cfg(feature = "quic")]
 pub mod quic;
@@ -46,5 +48,4 @@ pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};
 #[cfg(feature = "webpki-validator")]
 pub use default_validator::WebPkiValidator;
 pub use error::{Error, IoError, IoErrorKind};
-pub use io::{AsyncRead, AsyncWrite, ClientAsyncIo, ServerAsyncIo};
 pub use key_schedule::{KeySchedule, TlsKeys};

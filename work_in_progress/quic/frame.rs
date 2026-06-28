@@ -10,6 +10,7 @@ pub enum Frame {
     Ack {
         largest_acknowledged: u64,
         ack_delay: u64,
+        first_ack_range: u64,
         ack_ranges: Vec<(u64, u64)>, // (gap, length)
     },
     ResetStream {
@@ -95,6 +96,7 @@ pub fn encode(frame: &Frame, buf: &mut Vec<u8>) {
         Frame::Ack {
             largest_acknowledged,
             ack_delay,
+            first_ack_range,
             ack_ranges,
         } => {
             let ecn = false; // ECN not supported in milestone 1
@@ -103,6 +105,7 @@ pub fn encode(frame: &Frame, buf: &mut Vec<u8>) {
             varint::encode(*largest_acknowledged, buf);
             varint::encode(*ack_delay, buf);
             varint::encode(ack_ranges.len() as u64, buf);
+            varint::encode(*first_ack_range, buf);
             for (gap, length) in ack_ranges {
                 varint::encode(*gap, buf);
                 varint::encode(*length, buf);
@@ -241,6 +244,9 @@ pub fn decode_one(data: &[u8]) -> Result<(Frame, usize), Error> {
             let (range_count, c) =
                 varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("ack range cnt".into()))?;
             off += c;
+            let (first_range, c) =
+                varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("ack first range".into()))?;
+            off += c;
             let mut ranges = Vec::with_capacity(range_count as usize);
             for _ in 0..range_count {
                 let (gap, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("ack gap".into()))?;
@@ -253,6 +259,7 @@ pub fn decode_one(data: &[u8]) -> Result<(Frame, usize), Error> {
                 Frame::Ack {
                     largest_acknowledged: largest,
                     ack_delay: delay,
+                    first_ack_range: first_range,
                     ack_ranges: ranges,
                 },
                 off,
@@ -349,27 +356,6 @@ pub fn decode_one(data: &[u8]) -> Result<(Frame, usize), Error> {
         0x1c => {
             let (ec, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close code".into()))?;
             off += c;
-            let (rl, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close reason len".into()))?;
-            off += c;
-            let reason = if rl as usize <= data.len() - off {
-                let r = data[off..off + rl as usize].to_vec();
-                off += rl as usize;
-                r
-            } else {
-                Vec::new()
-            };
-            Ok((
-                Frame::ConnectionClose {
-                    error_code: ec,
-                    frame_type: None,
-                    reason_phrase: reason,
-                },
-                off,
-            ))
-        }
-        0x1d => {
-            let (ec, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close code".into()))?;
-            off += c;
             let (ft, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close frame type".into()))?;
             off += c;
             let (rl, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close reason len".into()))?;
@@ -385,6 +371,27 @@ pub fn decode_one(data: &[u8]) -> Result<(Frame, usize), Error> {
                 Frame::ConnectionClose {
                     error_code: ec,
                     frame_type: Some(ft),
+                    reason_phrase: reason,
+                },
+                off,
+            ))
+        }
+        0x1d => {
+            let (ec, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close code".into()))?;
+            off += c;
+            let (rl, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close reason len".into()))?;
+            off += c;
+            let reason = if rl as usize <= data.len() - off {
+                let r = data[off..off + rl as usize].to_vec();
+                off += rl as usize;
+                r
+            } else {
+                Vec::new()
+            };
+            Ok((
+                Frame::ConnectionClose {
+                    error_code: ec,
+                    frame_type: None,
                     reason_phrase: reason,
                 },
                 off,

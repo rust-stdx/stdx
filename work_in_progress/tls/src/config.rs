@@ -22,7 +22,7 @@ pub struct ClientHello<'a> {
     /// Cipher suites offered by the client.
     pub cipher_suites: &'a [CipherSuite],
     /// Key exchange negotiated (from the client's `key_share` extension).
-    pub kx_group: KeyExchangeGroup,
+    pub key_exchange_group: KeyExchangeGroup,
     /// Signature schemes offered by the client (from `signature_algorithms` extension).
     pub sig_schemes: &'a [SignatureScheme],
     /// The raw ClientHello bytes, for fingerprinting (e.g. JA4).

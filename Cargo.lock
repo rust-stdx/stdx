@@ -3291,7 +3291,6 @@ dependencies = [
  "rustls-pki-types",
  "rustls-webpki",
  "tokio",
- "tokio_tls",
  "webpki-roots",
  "x509",
  "zeroize",
@@ -3365,15 +3364,6 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "nix",
- "tokio",
-]
-
-[[package]]
-name = "tokio_tls"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "tls",
  "tokio",
 ]
 

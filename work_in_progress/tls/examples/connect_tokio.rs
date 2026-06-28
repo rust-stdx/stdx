@@ -1,23 +1,16 @@
-//! Connect to a TLS server and display connection info.
+//! Connect to a TLS server using the `tls` crate's tokio integration.
 //!
 //! Usage:
-//!   cargo run --example connect -- example.com
+//!   cargo run --example connect_tokio --features tokio -- example.com
 
 use std::sync::Arc;
 
-use tls::{ClientConfig, WebPkiValidator, crypto_default_provider::DefaultCryptoProvider};
+use tls::{ClientConfig, WebPkiValidator, crypto_default_provider::DefaultCryptoProvider, io_tokio::TlsConnector};
 use tokio::net::TcpStream;
-use tokio_tls::TlsConnector;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server_name = std::env::args().nth(1).unwrap_or_else(|| {
-        eprintln!("Usage: connect <hostname>");
-        eprintln!();
-        eprintln!("Connects to the given host on port 443 via TLS 1.3 and prints");
-        eprintln!("connection information along with the HTTP response headers.");
-        std::process::exit(1);
-    });
+    let server_name = std::env::args().nth(1).unwrap_or("example.com".to_string());
 
     println!("Connecting to {server_name}:443 ...");
     let stream = TcpStream::connect((&*server_name, 443)).await?;
@@ -34,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Server:          {server_name}");
     println!("  TLS version:     {}", tls.tls_version());
     println!("  Cipher suite:    {:?}", tls.cipher_suite().unwrap());
-    println!("  Key exchange:    {:?}", tls.kx_group().unwrap());
+    println!("  Key exchange:    {:?}", tls.key_exchange_group().unwrap());
     println!("  Signature scheme: {:?}", tls.signature_scheme().unwrap());
     println!("  SNI:             {:?}", tls.server_name());
     println!();

@@ -19,6 +19,14 @@ use crate::{
     varint,
 };
 
+/// QUIC v1 Retry integrity key (RFC 9001 §5.8).
+const RETRY_INTEGRITY_KEY_V1: [u8; 16] = [
+    0xbe, 0x0c, 0x69, 0x0b, 0x9f, 0x66, 0x57, 0x5a, 0x1d, 0x76, 0x6b, 0x54, 0xe3, 0x68, 0xc8, 0x4e,
+];
+
+/// QUIC v1 Retry integrity nonce (RFC 9001 §5.8).
+const RETRY_INTEGRITY_NONCE_V1: [u8; 12] = [0x46, 0x15, 0x99, 0xd3, 0x5d, 0x63, 0x2b, 0xf2, 0x23, 0x98, 0x25, 0xbb];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EncryptionLevel {
     Initial,
@@ -47,6 +55,10 @@ pub struct Connection<T: Transport> {
     state: ConnState,
     dcid: ConnectionId,
     scid: ConnectionId,
+    /// Original DCID chosen by the client, stored for Retry integrity tag verification.
+    original_dcid: Option<ConnectionId>,
+    /// Token received in a Retry packet, included in subsequent Initial packets.
+    retry_token: Option<Vec<u8>>,
     init_send: LevelSendState,
     init_recv: DirectionKeys,
     hs_send: Option<LevelSendState>,
@@ -74,6 +86,8 @@ impl<T: Transport> Connection<T> {
             state: ConnState::Connecting,
             dcid,
             scid: ConnectionId::random(8),
+            original_dcid: None,
+            retry_token: None,
             init_send: LevelSendState {
                 keys: ck,
                 pn: 0,
@@ -97,6 +111,7 @@ impl<T: Transport> Connection<T> {
         self.server_name = server_name.to_owned();
         let dcid = ConnectionId::random(8);
         self.dcid = dcid.clone();
+        self.original_dcid = Some(dcid.clone());
         let (ck, sk) = crypto_keys::derive_initial_keys(dcid.as_bytes());
         self.init_send = LevelSendState {
             keys: ck,
@@ -256,9 +271,9 @@ impl<T: Transport> Connection<T> {
                 while !data.is_empty() {
                     let consumed = if data[0] >> 7 == 1 {
                         self.process_long(data).await?
-                    } else if self.app_recv.is_none() {
-                        // Short header during handshake: remaining data is
-                        // zero-padding in the UDP datagram, not a real QUIC packet.
+                    } else if self.app_recv.is_none() || data.iter().all(|&b| b == 0) {
+                        // Short header during handshake, or trailing zero-padding:
+                        // remaining data is not a real QUIC packet.
                         break;
                     } else {
                         self.process_short(data).await?
@@ -291,9 +306,86 @@ impl<T: Transport> Connection<T> {
             LongPacketType::Handshake => {
                 self.process_handshake(&header, pkt).await?;
             }
+            LongPacketType::Retry => {
+                return self.process_retry(&header, data).await;
+            }
             _ => return Err(Error::ProtocolViolation("unexpected long packet type".into())),
         }
         Ok(pkt_end)
+    }
+
+    /// Process a Retry packet (RFC 9000 §17.2.5).
+    ///
+    /// Updates the DCID and re-sends the ClientHello in a new Initial packet.
+    async fn process_retry(&mut self, h: &packet::LongHeader, data: &[u8]) -> Result<usize, Error> {
+        // For Retry packets, h.pn_offset marks the start of the Retry Token.
+        // There is no packet number; the rest is token + 16-byte integrity tag.
+        if data.len() < h.pn_offset + 16 {
+            return Err(Error::PacketDecode("Retry packet too short for integrity tag".into()));
+        }
+
+        let tag_start = data.len() - 16;
+        let pseudo_packet = &data[..tag_start];
+
+        // RFC 9001 §5.8: The Retry Integrity Tag is computed as:
+        //   AEAD(key, iv, pseudo_packet, original_dcid)[0..16]
+        let original_dcid = self
+            .original_dcid
+            .as_ref()
+            .ok_or(Error::InvalidState("no original DCID for Retry verification".into()))?;
+
+        let mut aad = pseudo_packet.to_vec();
+        aad.extend_from_slice(original_dcid.as_bytes());
+
+        let expected_tag = {
+            use crypto::Aead;
+            let cipher = crypto::aes::Aes128Gcm::new(&RETRY_INTEGRITY_KEY_V1);
+            let tag_arr = cipher.encrypt_in_place(&mut Vec::new(), &RETRY_INTEGRITY_NONCE_V1, &aad);
+            let mut t = [0u8; 16];
+            t.copy_from_slice(tag_arr.as_ref());
+            t
+        };
+
+        let actual_tag = &data[tag_start..];
+        if !constant_time_eq::constant_time_eq(&expected_tag, actual_tag) {
+            return Err(Error::Crypto(crypto::AeadError::InvalidCiphertext));
+        }
+
+        // Update DCID to the SCID provided in the Retry
+        let new_dcid = h.scid.clone();
+        self.dcid = new_dcid.clone();
+
+        // Extract Retry Token (between SCID and Integrity Tag)
+        if tag_start > h.pn_offset {
+            self.retry_token = Some(data[h.pn_offset..tag_start].to_vec());
+        }
+
+        // Re-derive initial keys from the new DCID
+        let (ck, sk) = crypto_keys::derive_initial_keys(new_dcid.as_bytes());
+        self.init_send.keys = ck;
+        self.init_recv = sk;
+        self.init_send.pn = 0;
+        self.pn_recv[0] = 0;
+
+        // Re-send ClientHello in a new Initial packet with the Retry token
+        let ch = self
+            .tls
+            .as_mut()
+            .ok_or(Error::InvalidState("no TLS state for Retry re-send".into()))?
+            .write_handshake()
+            .ok_or(Error::InvalidState("no CH to re-send after Retry".into()))?;
+
+        let send = prepare_initial_packet_with_token(
+            &ch,
+            &self.init_send,
+            &self.dcid,
+            &self.scid,
+            self.retry_token.as_deref(),
+        );
+        self.init_send.pn += 1;
+        self.transport.send_to(self.remote, &send).await?;
+
+        Ok(data.len())
     }
 
     async fn process_initial(&mut self, h: &packet::LongHeader, pkt: &[u8]) -> Result<(), Error> {
@@ -342,6 +434,7 @@ impl<T: Transport> Connection<T> {
             &[Frame::Ack {
                 largest_acknowledged: pn,
                 ack_delay: 0,
+                first_ack_range: 0,
                 ack_ranges: Vec::new(),
             }],
         )
@@ -394,6 +487,7 @@ impl<T: Transport> Connection<T> {
                 &[Frame::Ack {
                     largest_acknowledged: pn,
                     ack_delay: 0,
+                    first_ack_range: 0,
                     ack_ranges: Vec::new(),
                 }],
             )
@@ -408,7 +502,9 @@ impl<T: Transport> Connection<T> {
             .app_recv
             .as_ref()
             .ok_or(Error::InvalidState("no 1RTT recv keys".into()))?;
-        let dcid_len = self.dcid.len();
+        // The server sends our SCID as the DCID in short headers,
+        // not the server's SCID (which we updated self.dcid to).
+        let dcid_len = self.scid.len();
         if data.len() < 1 + dcid_len + 4 {
             return Err(Error::PacketDecode("short packet too short".into()));
         }
@@ -597,6 +693,7 @@ impl<T: Transport> Connection<T> {
                             // HRR case: re-ClientHello at Initial encryption level
                             let send = prepare_initial_packet(&d, &self.init_send, &self.dcid, &self.scid);
                             self.transport.send_to(self.remote, &send).await?;
+                            self.init_send.pn += 1;
                         }
                     }
                 }
@@ -730,6 +827,17 @@ fn prepare_initial_packet(
     dcid: &ConnectionId,
     scid: &ConnectionId,
 ) -> Vec<u8> {
+    prepare_initial_packet_with_token(crypto_data, ss, dcid, scid, None)
+}
+
+/// Build and encrypt an Initial packet with an optional Retry token.
+fn prepare_initial_packet_with_token(
+    crypto_data: &[u8],
+    ss: &LevelSendState,
+    dcid: &ConnectionId,
+    scid: &ConnectionId,
+    token: Option<&[u8]>,
+) -> Vec<u8> {
     let pn = ss.pn;
     let pn_len = crypto_keys::pn_encoding_len(ss.pn, 0);
 
@@ -755,7 +863,12 @@ fn prepare_initial_packet(
     header.extend_from_slice(dcid.as_bytes());
     header.push(scid.len() as u8);
     header.extend_from_slice(scid.as_bytes());
-    header.push(0); // empty token length
+    if let Some(tok) = token {
+        varint::encode(tok.len() as u64, &mut header);
+        header.extend_from_slice(tok);
+    } else {
+        header.push(0); // empty token length
+    }
     let pkt_len = pn_len + payload.len() + 16;
     varint::encode(pkt_len as u64, &mut header);
     let pn_start = header.len();

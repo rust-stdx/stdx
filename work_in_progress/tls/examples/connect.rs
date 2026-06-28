@@ -1,54 +1,46 @@
-//! Connect to a TLS server using the low-level `tls` primitives.
+//! Connect to a TLS server using the `tls` crate's blocking std integration.
 //!
 //! Usage:
 //!   cargo run --example connect -- example.com
 
-use std::sync::Arc;
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+    sync::Arc,
+};
 
-use tls::{ClientConfig, WebPkiValidator, crypto_default_provider::DefaultCryptoProvider, io::ClientAsyncIo};
-use tokio::net::TcpStream;
-use tokio_tls::TokioStreamAdapter;
+use tls::{ClientConfig, WebPkiValidator, crypto_default_provider::DefaultCryptoProvider, io_std::TlsConnector};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_name = std::env::args().nth(1).unwrap_or("example.com".to_string());
 
     println!("Connecting to {server_name}:443 ...");
-    let stream = TcpStream::connect((&*server_name, 443)).await?;
+    let stream = TcpStream::connect((&*server_name, 443))?;
     println!("TCP connected.\n");
 
     let provider = Arc::new(DefaultCryptoProvider::new());
     let validator = Arc::new(WebPkiValidator::with_default_roots());
     let config = ClientConfig::new(provider, vec![], validator);
 
-    let client = tls::ClientConnection::new(config, Some(server_name.clone()))?;
-    let mut tls = ClientAsyncIo::new(client, TokioStreamAdapter(stream)).await?;
-    tls.handshake().await?;
+    let connector = TlsConnector::new(config);
+    let mut tls = connector.connect(&server_name, stream)?;
 
     println!("═══ TLS Connection Established ═══");
     println!("  Server:          {server_name}");
-    println!(
-        "  TLS version:     TLS 1.{}",
-        (tls.conn().negotiated_version() & 0xff).saturating_sub(1)
-    );
-    println!("  Cipher suite:    {:?}", tls.conn().cipher_suite().unwrap());
-    println!("  Key exchange:    {:?}", tls.conn().kx_group());
-    println!("  Signature scheme: {:?}", tls.conn().signature_scheme().unwrap());
-    println!("  SNI:             {:?}", tls.conn().server_name());
+    println!("  TLS version:     {}", tls.tls_version());
+    println!("  Cipher suite:    {:?}", tls.cipher_suite().unwrap());
+    println!("  Key exchange:    {:?}", tls.key_exchange_group().unwrap());
+    println!("  Signature scheme: {:?}", tls.signature_scheme().unwrap());
+    println!("  SNI:             {:?}", tls.server_name());
     println!();
 
     let request = format!("GET / HTTP/1.1\r\nHost: {server_name}\r\nConnection: close\r\n\r\n");
-    tls.write(request.as_bytes()).await?;
+    tls.write_all(request.as_bytes())?;
+    tls.flush()?;
     println!("Sent HTTP request.\n");
 
     let mut response = Vec::new();
-    loop {
-        match tls.read().await {
-            Ok(data) => response.extend_from_slice(&data),
-            Err(tls::Error::ConnectionClosed) => break,
-            Err(e) => return Err(e.into()),
-        }
-    }
+    tls.read_to_end(&mut response)?;
     println!("Received {} bytes.\n", response.len());
 
     let resp_str = String::from_utf8_lossy(&response);
@@ -56,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("═══ HTTP Response (headers) ═══");
     println!("{}", &resp_str[..headers_end.min(2048)]);
 
-    tls.close().await?;
+    // close via drop
     println!("\nConnection closed.");
 
     Ok(())

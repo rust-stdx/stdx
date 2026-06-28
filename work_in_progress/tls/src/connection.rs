@@ -51,7 +51,7 @@ fn extract_key_from_spki<'a>(spki_der: &'a [u8]) -> Result<&'a [u8], Error> {
 /// Common handshake state shared by client and server.
 struct HandshakeState {
     cipher_suite: Option<CipherSuite>,
-    kx_group: KeyExchangeGroup,
+    key_exchange_group: KeyExchangeGroup,
     kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>>,
     peer_public_key: Option<heapless::Vec<u8, MAX_KX_PUBLIC_KEY>>,
     shared_secret: Option<heapless::Vec<u8, MAX_SHARED_SECRET>>,
@@ -84,7 +84,7 @@ impl HandshakeState {
     fn new() -> Self {
         Self {
             cipher_suite: None,
-            kx_group: KeyExchangeGroup::X25519,
+            key_exchange_group: KeyExchangeGroup::X25519,
             kx_pairs: Vec::new(),
             peer_public_key: None,
             shared_secret: None,
@@ -148,8 +148,8 @@ impl ClientConnection {
     }
 
     /// Return the key exchange group in use.
-    pub fn kx_group(&self) -> KeyExchangeGroup {
-        self.hs.kx_group
+    pub fn key_exchange_group(&self) -> KeyExchangeGroup {
+        self.hs.key_exchange_group
     }
 
     /// Return the server name (SNI) used for this connection.
@@ -217,7 +217,7 @@ impl ClientConnection {
         let crypto_provider = &config.crypto;
 
         let supported_groups = crypto_provider.supported_key_exchange_groups();
-        let kx_group = *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?;
+        let key_exchange_group = *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?;
 
         let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::new();
         let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> = Vec::new();
@@ -230,7 +230,7 @@ impl ClientConnection {
             kx_pairs.push(kp);
         }
 
-        hs.kx_group = kx_group;
+        hs.key_exchange_group = key_exchange_group;
         hs.kx_pairs = kx_pairs;
 
         let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
@@ -293,7 +293,7 @@ impl ClientConnection {
         let crypto_provider = &config.crypto;
 
         let supported_groups = crypto_provider.supported_key_exchange_groups();
-        let kx_group = if let Some(pref) = preferred_group {
+        let key_exchange_group = if let Some(pref) = preferred_group {
             if supported_groups.contains(&pref) {
                 pref
             } else {
@@ -309,11 +309,13 @@ impl ClientConnection {
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
-            key_share_entries.push((group, pk));
+            if group == key_exchange_group {
+                key_share_entries.push((group, pk));
+            }
             kx_pairs.push(kp);
         }
 
-        hs.kx_group = kx_group;
+        hs.key_exchange_group = key_exchange_group;
         hs.kx_pairs = kx_pairs;
 
         let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
@@ -505,6 +507,16 @@ impl ClientConnection {
         ks.add_shared_secret(self.hs.shared_secret.as_ref().unwrap());
         self.hs.key_schedule = Some(ks);
 
+        // In QUIC mode, the Handshake-level keys must be derived from the
+        // transcript hash *immediately* after ServerHello processing, because
+        // the QUIC layer calls quic_secrets() before EncryptedExtensions
+        // arrives (it arrives in a separate Handshake CRYPTO frame).
+        #[cfg(feature = "quic")]
+        if self.hs.is_quic {
+            let transcript_hash = self.config.crypto.hash(sh.cipher_suite, &self.hs.transcript);
+            self.hs.server_hello_hash = transcript_hash;
+        }
+
         self.state = ClientState::WaitEncryptedExtensions;
         Ok(true)
     }
@@ -523,7 +535,7 @@ impl ClientConnection {
             )));
         }
 
-        self.hs.kx_group = hrr_group;
+        self.hs.key_exchange_group = hrr_group;
         self.hs.kx_pairs.clear();
 
         let mut key_share_entries: alloc::vec::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
@@ -1071,7 +1083,7 @@ impl ServerConnection {
             server_name: server_name_str.as_deref(),
             alpn_protocols: &alpn_protos,
             cipher_suites: &ch.cipher_suites,
-            kx_group: group,
+            key_exchange_group: group,
             sig_schemes: &sig_schemes,
             raw: &ch.raw,
         };
@@ -1262,5 +1274,99 @@ impl ServerConnection {
             }
         }
         Ok(processed_any)
+    }
+}
+
+// ── TlsState (unified dispatch for post-handshake I/O) ──────────────────
+
+/// Internal dispatch between client and server connections for I/O wrappers.
+pub(crate) enum TlsState {
+    Client(ClientConnection),
+    Server(ServerConnection),
+}
+
+impl TlsState {
+    pub(crate) fn inject(&mut self, data: &[u8]) {
+        match self {
+            TlsState::Client(c) => c.inject(data),
+            TlsState::Server(c) => c.inject(data),
+        }
+    }
+
+    pub(crate) fn process_app_data(&mut self) -> Result<bool, Error> {
+        match self {
+            TlsState::Client(c) => c.process_app_data(),
+            TlsState::Server(c) => c.process_app_data(),
+        }
+    }
+
+    pub(crate) fn read_app_data(&mut self) -> Option<Bytes> {
+        match self {
+            TlsState::Client(c) => c.read_app_data(),
+            TlsState::Server(c) => c.read_app_data(),
+        }
+    }
+
+    pub(crate) fn send(&mut self, data: &[u8]) -> Result<Bytes, Error> {
+        match self {
+            TlsState::Client(c) => c.send(data),
+            TlsState::Server(c) => c.send(data),
+        }
+    }
+
+    pub(crate) fn close(&mut self) -> Result<Bytes, Error> {
+        match self {
+            TlsState::Client(c) => c.close(),
+            TlsState::Server(c) => c.close(),
+        }
+    }
+
+    pub(crate) fn close_notified(&self) -> bool {
+        match self {
+            TlsState::Client(c) => c.close_notified(),
+            TlsState::Server(c) => c.close_notified(),
+        }
+    }
+
+    pub(crate) fn cipher_suite(&self) -> Option<CipherSuite> {
+        match self {
+            TlsState::Client(c) => c.cipher_suite(),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn key_exchange_group(&self) -> Option<KeyExchangeGroup> {
+        match self {
+            TlsState::Client(c) => Some(c.key_exchange_group()),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn alpn_protocol(&self) -> Option<&Bytes> {
+        match self {
+            TlsState::Client(c) => c.alpn_protocol(),
+            TlsState::Server(c) => c.alpn_protocol(),
+        }
+    }
+
+    pub(crate) fn server_name(&self) -> Option<&str> {
+        match self {
+            TlsState::Client(c) => c.server_name(),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn negotiated_version(&self) -> u16 {
+        match self {
+            TlsState::Client(c) => c.negotiated_version(),
+            TlsState::Server(c) => c.negotiated_version(),
+        }
+    }
+
+    pub(crate) fn signature_scheme(&self) -> Option<SignatureScheme> {
+        match self {
+            TlsState::Client(c) => c.signature_scheme(),
+            _ => None,
+        }
     }
 }
