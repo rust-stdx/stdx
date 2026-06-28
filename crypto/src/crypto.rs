@@ -36,6 +36,7 @@ pub mod xwing;
 #[cfg(feature = "alloc")]
 pub mod encoding;
 pub mod p256;
+pub mod p384;
 pub mod pbkdf2;
 pub mod rsa;
 pub(crate) use bytes::Bytes;
