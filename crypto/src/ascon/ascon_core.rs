@@ -61,19 +61,43 @@ impl State {
     pub(crate) fn xor_partial_rate(&mut self, bytes: &[u8]) {
         debug_assert!(bytes.len() <= 16 && !bytes.is_empty());
         if bytes.len() >= 8 {
-            let lo = bytes.len() - 8;
-            let mut tmp = [0u8; 8];
-            tmp[..lo].copy_from_slice(&bytes[8..]);
-            self.0[1] ^= u64::from_le_bytes(tmp);
-
-            let mut tmp = [0u8; 8];
-            tmp.copy_from_slice(&bytes[..8]);
-            self.0[0] ^= u64::from_le_bytes(tmp);
+            if bytes.len() > 8 {
+                let mut tmp = [0u8; 8];
+                let hi = bytes.len() - 8;
+                tmp[..hi].copy_from_slice(&bytes[8..]);
+                self.0[1] ^= u64::from_le_bytes(tmp);
+            }
+            self.0[0] ^= u64::from_le_bytes(bytes[..8].try_into().unwrap());
         } else {
             let mut tmp = [0u8; 8];
             tmp[..bytes.len()].copy_from_slice(bytes);
             self.0[0] ^= u64::from_le_bytes(tmp);
         }
+    }
+
+    #[inline]
+    pub(crate) fn encrypt_in_place_block(&mut self, in_out: &mut [u8; 16]) {
+        let pt0 = u64::from_le_bytes(in_out[0..8].try_into().unwrap());
+        let pt1 = u64::from_le_bytes(in_out[8..16].try_into().unwrap());
+        self.0[0] ^= pt0;
+        self.0[1] ^= pt1;
+        in_out[0..8].copy_from_slice(&self.0[0].to_le_bytes());
+        in_out[8..16].copy_from_slice(&self.0[1].to_le_bytes());
+    }
+
+    #[inline]
+    pub(crate) fn decrypt_in_place_block(&mut self, in_out: &mut [u8; 16]) {
+        let ct0 = u64::from_le_bytes(in_out[0..8].try_into().unwrap());
+        let ct1 = u64::from_le_bytes(in_out[8..16].try_into().unwrap());
+        in_out[0..8].copy_from_slice(&(self.0[0] ^ ct0).to_le_bytes());
+        in_out[8..16].copy_from_slice(&(self.0[1] ^ ct1).to_le_bytes());
+        self.0[0] = ct0;
+        self.0[1] = ct1;
+    }
+
+    #[inline]
+    pub(crate) fn squeeze_rate_u64(&self) -> u64 {
+        self.0[0]
     }
 
     #[inline]
@@ -211,12 +235,12 @@ impl State {
         debug_assert!(bytes.len() <= 16 && !bytes.is_empty());
         let n = bytes.len();
         if n >= 8 {
-            let mut tmp = [0u8; 4];
-            tmp.copy_from_slice(&bytes[..4]);
-            self.0[0] ^= u32::from_le_bytes(tmp);
-            tmp.copy_from_slice(&bytes[4..8]);
-            self.0[1] ^= u32::from_le_bytes(tmp);
             if n > 8 {
+                let mut tmp = [0u8; 4];
+                tmp.copy_from_slice(&bytes[..4]);
+                self.0[0] ^= u32::from_le_bytes(tmp);
+                tmp.copy_from_slice(&bytes[4..8]);
+                self.0[1] ^= u32::from_le_bytes(tmp);
                 let rem = n - 8;
                 let mut tmp = [0u8; 4];
                 if rem <= 4 {
@@ -227,6 +251,12 @@ impl State {
                     tmp[..rem - 4].copy_from_slice(&bytes[12..]);
                     self.0[3] ^= u32::from_le_bytes(tmp);
                 }
+            } else {
+                let mut tmp = [0u8; 4];
+                tmp.copy_from_slice(&bytes[..4]);
+                self.0[0] ^= u32::from_le_bytes(tmp);
+                tmp.copy_from_slice(&bytes[4..8]);
+                self.0[1] ^= u32::from_le_bytes(tmp);
             }
         } else if n <= 4 {
             let mut tmp = [0u8; 4];
@@ -238,6 +268,43 @@ impl State {
             tmp[..n - 4].copy_from_slice(&bytes[4..]);
             self.0[1] ^= u32::from_le_bytes(tmp);
         }
+    }
+
+    #[inline]
+    pub(crate) fn encrypt_in_place_block(&mut self, in_out: &mut [u8; 16]) {
+        let pt0_lo = u32::from_le_bytes(in_out[0..4].try_into().unwrap());
+        let pt0_hi = u32::from_le_bytes(in_out[4..8].try_into().unwrap());
+        let pt1_lo = u32::from_le_bytes(in_out[8..12].try_into().unwrap());
+        let pt1_hi = u32::from_le_bytes(in_out[12..16].try_into().unwrap());
+        self.0[0] ^= pt0_lo;
+        self.0[1] ^= pt0_hi;
+        self.0[2] ^= pt1_lo;
+        self.0[3] ^= pt1_hi;
+        in_out[0..4].copy_from_slice(&self.0[0].to_le_bytes());
+        in_out[4..8].copy_from_slice(&self.0[1].to_le_bytes());
+        in_out[8..12].copy_from_slice(&self.0[2].to_le_bytes());
+        in_out[12..16].copy_from_slice(&self.0[3].to_le_bytes());
+    }
+
+    #[inline]
+    pub(crate) fn decrypt_in_place_block(&mut self, in_out: &mut [u8; 16]) {
+        let ct0_lo = u32::from_le_bytes(in_out[0..4].try_into().unwrap());
+        let ct0_hi = u32::from_le_bytes(in_out[4..8].try_into().unwrap());
+        let ct1_lo = u32::from_le_bytes(in_out[8..12].try_into().unwrap());
+        let ct1_hi = u32::from_le_bytes(in_out[12..16].try_into().unwrap());
+        in_out[0..4].copy_from_slice(&(self.0[0] ^ ct0_lo).to_le_bytes());
+        in_out[4..8].copy_from_slice(&(self.0[1] ^ ct0_hi).to_le_bytes());
+        in_out[8..12].copy_from_slice(&(self.0[2] ^ ct1_lo).to_le_bytes());
+        in_out[12..16].copy_from_slice(&(self.0[3] ^ ct1_hi).to_le_bytes());
+        self.0[0] = ct0_lo;
+        self.0[1] = ct0_hi;
+        self.0[2] = ct1_lo;
+        self.0[3] = ct1_hi;
+    }
+
+    #[inline]
+    pub(crate) fn squeeze_rate_u64(&self) -> u64 {
+        (self.0[0] as u64) | ((self.0[1] as u64) << 32)
     }
 
     #[inline]

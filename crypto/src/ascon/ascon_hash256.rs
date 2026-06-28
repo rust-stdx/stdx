@@ -102,12 +102,15 @@ impl Hasher for AsconHash256 {
         self.pad_and_finalize();
 
         let mut hash = Bytes::<64>::with_length(32);
-        for i in 0..4 {
-            hash.as_mut()[i * 8..(i + 1) * 8].copy_from_slice(&self.state.squeeze_byte());
-            if i < 3 {
-                p12(&mut self.state);
-            }
-        }
+        let out = hash.as_mut();
+        // Unrolled: squeeze 4 blocks of 8 bytes each
+        out[0..8].copy_from_slice(&self.state.squeeze_rate_u64().to_le_bytes());
+        p12(&mut self.state);
+        out[8..16].copy_from_slice(&self.state.squeeze_rate_u64().to_le_bytes());
+        p12(&mut self.state);
+        out[16..24].copy_from_slice(&self.state.squeeze_rate_u64().to_le_bytes());
+        p12(&mut self.state);
+        out[24..32].copy_from_slice(&self.state.squeeze_rate_u64().to_le_bytes());
 
         Hash(hash)
     }

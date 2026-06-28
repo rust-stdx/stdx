@@ -110,6 +110,26 @@ impl core::fmt::Display for EllipticCurveError {
 impl std::error::Error for EllipticCurveError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RsaError {
+    InvalidKey,
+    InvalidSignature,
+    Unspecified,
+}
+
+impl core::fmt::Display for RsaError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RsaError::InvalidKey => write!(f, "key is not valid"),
+            RsaError::InvalidSignature => write!(f, "signature is not valid"),
+            RsaError::Unspecified => write!(f, "unknown error"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for RsaError {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HkdfError {
     PrkIsTooShort(usize),
     OutputIsTooLong,

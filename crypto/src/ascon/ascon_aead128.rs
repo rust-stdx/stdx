@@ -40,32 +40,30 @@ use crate::{Aead, AeadError, Bytes, Hash};
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct AsconAead128 {
     iv: u64,
+    k0: u64,
+    k1: u64,
     key: [u8; 16],
 }
 
 impl AsconAead128 {
     /// Creates a new Ascon-AEAD128 instance from a 16-byte key.
     pub fn new(key: &[u8; 16]) -> Self {
+        let k0 = u64::from_le_bytes(key[0..8].try_into().unwrap());
+        let k1 = u64::from_le_bytes(key[8..16].try_into().unwrap());
         AsconAead128 {
             iv: 0x0000_1000_808c_0001,
+            k0,
+            k1,
             key: *key,
         }
-    }
-
-    fn k0(&self) -> u64 {
-        u64::from_le_bytes(self.key[0..8].try_into().unwrap())
-    }
-
-    fn k1(&self) -> u64 {
-        u64::from_le_bytes(self.key[8..16].try_into().unwrap())
     }
 
     /// Initialize the state with key + nonce + IV.
     fn init_state(&self, nonce: &[u8; 16]) -> State {
         let mut state = State::init_aead(&self.key, nonce, self.iv);
         p12(&mut state);
-        state.xor_word(3, self.k0());
-        state.xor_word(4, self.k1());
+        state.xor_word(3, self.k0);
+        state.xor_word(4, self.k1);
         state
     }
 
@@ -80,20 +78,22 @@ impl AsconAead128 {
             p8(state);
         }
         let remainder = chunks.remainder();
-        let mut padded = [0u8; 16];
-        padded[..remainder.len()].copy_from_slice(remainder);
-        padded[remainder.len()] = 0x01;
-        state.xor_rate128_bytes(&padded);
+        if !remainder.is_empty() {
+            state.xor_partial_rate(remainder);
+        }
+        state.apply_aead_pad(remainder.len());
         p8(state);
     }
 
     /// Compute the authentication tag from the final state.
     fn compute_tag(&self, state: &State) -> [u8; 16] {
-        let mut tag = state.tag_bytes();
-        for i in 0..16 {
-            tag[i] ^= self.key[i];
-        }
-        tag
+        let tag = state.tag_bytes();
+        let t0 = u64::from_le_bytes(tag[0..8].try_into().unwrap()) ^ self.k0;
+        let t1 = u64::from_le_bytes(tag[8..16].try_into().unwrap()) ^ self.k1;
+        let mut result = [0u8; 16];
+        result[..8].copy_from_slice(&t0.to_le_bytes());
+        result[8..].copy_from_slice(&t1.to_le_bytes());
+        result
     }
 }
 
@@ -107,29 +107,23 @@ impl Aead for AsconAead128 {
         Self::process_ad(&mut state, aad);
         state.apply_domain_sep();
 
-        let full_blocks = in_out.len() / 16;
         let rem_len = in_out.len() % 16;
 
-        for i in 0..full_blocks {
-            let ofs = i * 16;
-            let mut pt = [0u8; 16];
-            pt.copy_from_slice(&in_out[ofs..ofs + 16]);
-            state.xor_rate128_bytes(&pt);
-            state.read_rate_bytes(&mut in_out[ofs..ofs + 16]);
+        let mut chunks = in_out.chunks_exact_mut(16);
+        for chunk in &mut chunks {
+            state.encrypt_in_place_block(chunk.try_into().unwrap());
             p8(&mut state);
         }
+        let remainder = chunks.into_remainder();
 
         if rem_len > 0 {
-            let ofs = full_blocks * 16;
-            let mut pt = [0u8; 16];
-            pt[..rem_len].copy_from_slice(&in_out[ofs..ofs + rem_len]);
-            state.xor_partial_rate(&pt[..rem_len]);
-            state.read_rate_bytes(&mut in_out[ofs..ofs + rem_len]);
+            state.xor_partial_rate(remainder);
+            state.read_rate_bytes(remainder);
         }
         state.apply_aead_pad(rem_len);
 
-        state.xor_word(2, self.k0());
-        state.xor_word(3, self.k1());
+        state.xor_word(2, self.k0);
+        state.xor_word(3, self.k1);
         p12(&mut state);
 
         let tag_bytes = self.compute_tag(&state);
@@ -148,32 +142,21 @@ impl Aead for AsconAead128 {
         Self::process_ad(&mut state, aad);
         state.apply_domain_sep();
 
-        let full_blocks = in_out.len() / 16;
         let rem_len = in_out.len() % 16;
 
-        for i in 0..full_blocks {
-            let ofs = i * 16;
-            let mut ct = [0u8; 16];
-            ct.copy_from_slice(&in_out[ofs..ofs + 16]);
-
-            let mut rate = [0u8; 16];
-            state.read_rate_bytes(&mut rate);
-            for j in 0..16 {
-                in_out[ofs + j] = rate[j] ^ ct[j];
-            }
-            state.write_rate_bytes(&ct);
+        let mut chunks = in_out.chunks_exact_mut(16);
+        for chunk in &mut chunks {
+            state.decrypt_in_place_block(chunk.try_into().unwrap());
             p8(&mut state);
         }
+        let remainder = chunks.into_remainder();
 
         if rem_len > 0 {
-            let ofs = full_blocks * 16;
             let mut ct = [0u8; 16];
-            ct[..rem_len].copy_from_slice(&in_out[ofs..ofs + rem_len]);
-
-            let mut rate = [0u8; 16];
-            state.read_rate_bytes(&mut rate);
+            ct[..rem_len].copy_from_slice(remainder);
+            state.read_rate_bytes(remainder);
             for j in 0..rem_len {
-                in_out[ofs + j] = rate[j] ^ ct[j];
+                remainder[j] ^= ct[j];
             }
             state.apply_aead_pad(rem_len);
             state.write_rate_bytes(&ct[..rem_len]);
@@ -181,8 +164,8 @@ impl Aead for AsconAead128 {
             state.apply_aead_pad(0);
         }
 
-        state.xor_word(2, self.k0());
-        state.xor_word(3, self.k1());
+        state.xor_word(2, self.k0);
+        state.xor_word(3, self.k1);
         p12(&mut state);
 
         let computed = self.compute_tag(&state);
