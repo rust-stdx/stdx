@@ -10,7 +10,7 @@ use core::{
     ops::{Add, Div, Mul, Neg, Rem, Sub},
 };
 
-pub const MAX_LIMBS: usize = 128;
+pub const MAX_LIMBS: usize = 256;
 
 const fn max_limbs<const BITS: usize, const LIMBS: usize>() -> [u64; LIMBS] {
     let mut limbs = [u64::MAX; LIMBS];
@@ -417,6 +417,154 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         Self::reduce_wide_internal(&product, modulus)
     }
 
+    /// Precompute mu for Barrett reduction, auto-detecting effective limb count.
+    pub fn compute_mu_for_barrett(&self) -> [u64; MAX_LIMBS] {
+        let eff_limbs = (self.bit_len() + 63) / 64;
+        self.compute_mu_for_barrett_eff(eff_limbs)
+    }
+
+    fn compute_mu_for_barrett_eff(&self, eff_limbs: usize) -> [u64; MAX_LIMBS] {
+        const {
+            assert!(LIMBS + 1 <= MAX_LIMBS);
+        }
+        assert!(eff_limbs >= 1 && eff_limbs <= LIMBS);
+
+        let total_bits = eff_limbs * 128;
+        let mut mu = [0u64; MAX_LIMBS];
+        let mut rem = Self::ZERO;
+
+        for bit_pos in (0..=total_bits).rev() {
+            let mut shifted_limbs = [0u64; LIMBS];
+            let mut carry = 0u64;
+            for i in 0..LIMBS {
+                let next = rem.limbs[i] >> 63;
+                shifted_limbs[i] = (rem.limbs[i] << 1) | carry;
+                carry = next;
+            }
+
+            let bit = if bit_pos == total_bits { 1u64 } else { 0u64 };
+            let mut with = shifted_limbs;
+            with[0] |= bit;
+
+            let shifted = Self {
+                limbs: with,
+            };
+            let (reduced, borrow) = shifted.sub_raw(self);
+            // Use the same overflow-aware selection as reduce_wide_internal:
+            // carry == 1 → true value >= 2^(LIMBS*64) >= divisor → always subtract.
+            rem = Self::ct_select(&reduced, &shifted, (carry | (borrow ^ 1)) != 0);
+            // When we subtracted, the quotient bit is 1.
+            if carry | (borrow ^ 1) != 0 {
+                let qi = bit_pos / 64;
+                let qbit = bit_pos % 64;
+                if qi < eff_limbs + 1 {
+                    mu[qi] |= 1 << qbit;
+                }
+            }
+        }
+
+        mu
+    }
+
+    /// Modular exponentiation using Barrett reduction.
+    pub fn modpow_barrett(&self, exp: &Self, modulus: &Self, mu: &[u64]) -> Self {
+        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        self.modpow_barrett_eff(exp, modulus, mu, eff_limbs)
+    }
+
+    /// Barrett modular exponentiation with explicit effective limb count.
+    pub fn modpow_barrett_eff(&self, exp: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        let mut base = self.mul_mod_barrett_eff(&Self::ONE, modulus, mu, eff_limbs);
+        let mut result = Self::ONE;
+        let bits = exp.bit_len();
+        let mut i = 0;
+        while i < bits {
+            if exp.bit(i) {
+                result = result.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
+            }
+            base = base.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
+            i += 1;
+        }
+        result
+    }
+
+    /// Modular multiplication using Barrett reduction.
+    pub fn mul_mod_barrett(&self, rhs: &Self, modulus: &Self, mu: &[u64]) -> Self {
+        let product = self.mul_wide_internal(rhs);
+        Self::reduce_wide_barrett(&product, modulus, mu)
+    }
+
+    /// Modular multiplication using Barrett reduction with explicit effective limb count.
+    pub fn mul_mod_barrett_eff(&self, rhs: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        let product = self.mul_wide_internal(rhs);
+        Self::reduce_wide_barrett_eff(&product, modulus, mu, eff_limbs)
+    }
+
+    /// Barrett reduction with explicit effective limb count.
+    pub fn reduce_wide_barrett_eff(product: &[u64; MAX_LIMBS], modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        assert!(mu.len() >= eff_limbs + 1);
+
+        let k = eff_limbs;
+        let k1 = k + 1;
+        let k_minus_1 = k.saturating_sub(1);
+
+        let mut q1 = [0u64; MAX_LIMBS];
+        q1[..k1].copy_from_slice(&product[k_minus_1..k_minus_1 + k1]);
+
+        let mut q2 = [0u64; MAX_LIMBS];
+        mul_limbs(&mut q2, &q1, k1, mu, k1);
+
+        let mut q3 = [0u64; MAX_LIMBS];
+        q3[..k1].copy_from_slice(&q2[k1..k1 + k1]);
+
+        let mut r1 = [0u64; MAX_LIMBS];
+        r1[..k1].copy_from_slice(&product[..k1]);
+
+        let mut q3m = [0u64; MAX_LIMBS];
+        mul_limbs(&mut q3m, &q3[..k1], k1, &modulus.limbs, k);
+        let mut r2 = [0u64; MAX_LIMBS];
+        r2[..k1].copy_from_slice(&q3m[..k1]);
+
+        let mut r = [0u64; MAX_LIMBS];
+        let mut borrow = 0u64;
+        let mut i = 0;
+        while i < k1 {
+            let (word, next_borrow) = sbb(r1[i], r2[i], borrow);
+            r[i] = word;
+            borrow = next_borrow;
+            i += 1;
+        }
+
+        // Conditional subtract modulus up to twice, using the full k+1-limb r.
+        // The Barrett remainder r = product - q3 * n can be up to 3n, requiring
+        // k+1 limbs.  Truncating to k limbs before subtracting would lose the
+        // top limb and give incorrect results.
+        for _ in 0..2 {
+            let mut r_try = r;
+            let mut borrow = 0u64;
+            let mut j = 0;
+            while j < k1 {
+                let mod_limb = if j < LIMBS { modulus.limbs[j] } else { 0u64 };
+                let (word, next_borrow) = sbb(r_try[j], mod_limb, borrow);
+                r_try[j] = word;
+                borrow = next_borrow;
+                j += 1;
+            }
+            let choose = borrow == 0;
+            let mut j = 0;
+            while j < k1 {
+                r[j] = ct_select_u64(r_try[j], r[j], choose);
+                j += 1;
+            }
+        }
+
+        let mut limbs = [0u64; LIMBS];
+        limbs[..k].copy_from_slice(&r[..k]);
+        Self {
+            limbs,
+        }
+    }
+
     /// Modular exponentiation: `self^exp mod modulus` using square-and-multiply,
     /// scanning only up to the exponent's bit length.
     pub fn modpow(&self, exp: &Self, modulus: &Self) -> Self {
@@ -436,13 +584,10 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
 
     /// Barrett reduction of a 2*LIMBS-wide product modulo `modulus`.
     ///
-    /// `mu` must equal `floor(2^(2*LIMBS*64) / modulus)` and have `LIMBS+1` limbs.
-    pub fn reduce_wide_barrett<const MU_LIMBS: usize>(
-        product: &[u64; MAX_LIMBS],
-        modulus: &Self,
-        mu: &[u64; MU_LIMBS],
-    ) -> Self {
-        assert!(MU_LIMBS == LIMBS + 1);
+    /// `mu` must equal `floor(2^(2*LIMBS*64) / modulus)` and have at least `LIMBS+1` entries.
+    /// Prefer `reduce_wide_barrett_eff` which auto-detects the effective limb count.
+    pub fn reduce_wide_barrett(product: &[u64; MAX_LIMBS], modulus: &Self, mu: &[u64]) -> Self {
+        assert!(mu.len() >= LIMBS + 1);
 
         let k = LIMBS;
         let k1 = k + 1;
@@ -475,26 +620,34 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             i += 1;
         }
 
+        // Conditional subtract modulus up to twice, using the full k+1-limb r.
+        // The Barrett remainder r = product - q3 * n can be up to 3n, requiring
+        // k+1 limbs.  Truncating to k limbs before subtracting would lose the
+        // top limb and give incorrect results.
+        for _ in 0..2 {
+            let mut r_try = r;
+            let mut borrow = 0u64;
+            let mut j = 0;
+            while j < k1 {
+                let mod_limb = if j < LIMBS { modulus.limbs[j] } else { 0u64 };
+                let (word, next_borrow) = sbb(r_try[j], mod_limb, borrow);
+                r_try[j] = word;
+                borrow = next_borrow;
+                j += 1;
+            }
+            let choose = borrow == 0;
+            let mut j = 0;
+            while j < k1 {
+                r[j] = ct_select_u64(r_try[j], r[j], choose);
+                j += 1;
+            }
+        }
+
         let mut limbs = [0u64; LIMBS];
         limbs.copy_from_slice(&r[..LIMBS]);
-        let mut result = Self {
+        Self {
             limbs,
-        };
-
-        let (d1, b1) = result.sub_raw(modulus);
-        result = Self::ct_select(&d1, &result, b1 == 0);
-        let (d2, b2) = result.sub_raw(modulus);
-        result = Self::ct_select(&d2, &result, b2 == 0);
-
-        result
-    }
-
-    /// Modular multiplication using Barrett reduction.
-    ///
-    /// `mu` must equal `floor(2^(2*LIMBS*64) / modulus)` and have `LIMBS+1` limbs.
-    pub fn mul_mod_barrett<const MU_LIMBS: usize>(&self, rhs: &Self, modulus: &Self, mu: &[u64; MU_LIMBS]) -> Self {
-        let product = self.mul_wide_internal(rhs);
-        Self::reduce_wide_barrett(&product, modulus, mu)
+        }
     }
 
     #[inline]
@@ -2326,5 +2479,153 @@ mod tests {
         let lhs = ab_sum.mul_mod(&c, &m);
         let rhs = a.mul_mod(&c, &m).add_mod(&b.mul_mod(&c, &m), &m);
         assert_eq!(lhs, rhs, "distributivity");
+    }
+
+    #[test]
+    fn mul_mod_barrett_agrees_with_mul_mod() {
+        // Already tested in ed25519; verify single multiplication works
+        type U256 = Uint<256, 4>;
+        let a = U256::from_u64(7);
+        let b = U256::from_u64(11);
+        let m = U256::from_limbs([
+            0xffff_ffff_ffff_ffff,
+            0x0000_0000_ffff_ffff,
+            0x0000_0000_0000_0000,
+            0xffff_ffff_0000_0001,
+        ]);
+        let mu = m.compute_mu_for_barrett();
+        let barrett = a.mul_mod_barrett(&b, &m, &mu);
+        let standard = a.mul_mod(&b, &m);
+        assert_eq!(barrett, standard);
+    }
+
+    #[test]
+    fn modpow_barrett_agrees_with_modpow() {
+        type U256 = Uint<256, 4>;
+        // Use P-256 prime so eff_limbs == LIMBS (4 == 4) → takes Barrett path
+        let m = U256::from_limbs([
+            0xffff_ffff_ffff_ffff,
+            0x0000_0000_ffff_ffff,
+            0x0000_0000_0000_0000,
+            0xffff_ffff_0000_0001,
+        ]);
+        let mu = m.compute_mu_for_barrett();
+
+        // 3^5 mod m
+        let base = U256::from_u64(3);
+        let exp = U256::from_u64(5);
+        let barrett = base.modpow_barrett(&exp, &m, &mu);
+        let standard = base.modpow(&exp, &m);
+        assert_eq!(barrett, standard, "3^5 mod P256");
+
+        // 2^10 mod m
+        let base = U256::from_u64(2);
+        let exp = U256::from_u64(10);
+        let barrett = base.modpow_barrett(&exp, &m, &mu);
+        let standard = base.modpow(&exp, &m);
+        assert_eq!(barrett, standard, "2^10 mod P256");
+
+        // 123 ^ 456 mod m
+        let base = U256::from_u64(123);
+        let exp = U256::from_u64(456);
+        let barrett = base.modpow_barrett(&exp, &m, &mu);
+        let standard = base.modpow(&exp, &m);
+        assert_eq!(barrett, standard, "123^456 mod P256");
+
+        // base == m (should give 0)
+        let base = m;
+        let exp = U256::from_u64(5);
+        let barrett = base.modpow_barrett(&exp, &m, &mu);
+        let standard = base.modpow(&exp, &m);
+        assert_eq!(barrett, U256::ZERO, "m^5 mod m should be 0");
+        assert_eq!(barrett, standard);
+
+        // exp == 0 (should give 1)
+        let base = U256::from_u64(123);
+        let exp = U256::from_u64(0);
+        let barrett = base.modpow_barrett(&exp, &m, &mu);
+        let standard = base.modpow(&exp, &m);
+        assert_eq!(barrett, standard, "123^0 mod P256");
+        assert_eq!(barrett, U256::ONE, "123^0 mod P256 should be 1");
+    }
+
+    #[test]
+    fn barrett_reduction_comprehensive() {
+        type U256 = Uint<256, 4>;
+        let m = U256::from_limbs([
+            0xffff_ffff_ffff_ffff,
+            0x0000_0000_ffff_ffff,
+            0x0000_0000_0000_0000,
+            0xffff_ffff_0000_0001,
+        ]);
+        let mu = m.compute_mu_for_barrett();
+
+        // mul_mod_barrett should match mul_mod for various inputs
+        for i in 0..100 {
+            let a = U256::from_limbs([
+                (i * 1234567 + 1) as u64,
+                (i * 7654321 + 2) as u64,
+                (i * 1357924 + 3) as u64,
+                (i * 2468013 + 4) as u64,
+            ]);
+            let b = U256::from_limbs([
+                (i * 9876543 + 5) as u64,
+                (i * 3456789 + 6) as u64,
+                (i * 567899 + 7) as u64,
+                (i * 1122334 + 8) as u64,
+            ]);
+            let expected = a.mul_mod(&b, &m);
+            let barrett = a.mul_mod_barrett(&b, &m, &mu);
+            assert_eq!(barrett, expected, "mul_mod_barrett vs mul_mod iteration {i}");
+        }
+
+        // Edge case: (m-1)^2 mod m should be 1
+        let (am1, _) = m.sub_word(1);
+        let barrett = am1.mul_mod_barrett(&am1, &m, &mu);
+        let expected = am1.mul_mod(&am1, &m);
+        assert_eq!(barrett, expected, "(m-1)^2 mod m");
+    }
+
+    #[test]
+    fn barrett_modpow_step_trace() {
+        type U256 = Uint<256, 4>;
+        let m = U256::from_limbs([
+            0xffff_ffff_ffff_ffff,
+            0x0000_0000_ffff_ffff,
+            0x0000_0000_0000_0000,
+            0xffff_ffff_0000_0001,
+        ]);
+        let mu = m.compute_mu_for_barrett();
+
+        // Trace through 123^4 step by step
+        let a = U256::from_u64(123);
+
+        // Step 1: base = 123 * 1 mod m = 123
+        let base1 = a.mul_mod_barrett(&U256::ONE, &m, &mu);
+        assert_eq!(base1, U256::from_u64(123), "step1: self*1 mod m");
+
+        // Step 2: result = 1, base = 123
+        // Iterate with exp=4 (100b), LSB first:
+        // i=0: bit=0 → result unchanged, base = 123*123 mod m
+        let a2 = base1.mul_mod_barrett(&base1, &m, &mu);
+        let a2_expected = a.mul_mod(&a, &m);
+        assert_eq!(a2, a2_expected, "123*123 mod m");
+
+        // i=1: bit=0 → result unchanged, base = a2*a2 mod m
+        let a4 = a2.mul_mod_barrett(&a2, &m, &mu);
+        let a4_expected = a2.mul_mod(&a2, &m);
+        assert_eq!(a4, a4_expected, "123^2*123^2 mod m");
+
+        // i=2: bit=1 → result = 1 * base = a4, base = a4*a4 mod m
+        let a8 = a4.mul_mod_barrett(&a4, &m, &mu);
+        let result_bit2 = a4.mul_mod_barrett(&U256::ONE, &m, &mu);
+        assert_eq!(result_bit2, a4, "result after bit 2");
+        let a8_expected = a4.mul_mod(&a4, &m);
+        assert_eq!(a8, a8_expected, "123^4*123^4 mod m");
+
+        // final result should be a4 (since 4=100b, only bit 2 set)
+        let final_barrett = a.modpow_barrett(&U256::from_u64(4), &m, &mu);
+        let final_expected = a.modpow(&U256::from_u64(4), &m);
+        assert_eq!(final_barrett, final_expected, "123^4 mod m via modpow_barrett");
     }
 }
