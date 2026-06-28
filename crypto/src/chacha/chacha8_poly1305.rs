@@ -12,6 +12,25 @@ use crate::{
 /// - Key: 256 bits (32 bytes)
 /// - Nonce: 96 bits (12 bytes)
 /// - Tag: 128 bits (16 bytes)
+///
+/// # Example
+///
+/// ```
+/// use crypto::{Aead, chacha::ChaCha8Poly1305};
+///
+/// let key = [0x55; 32];
+/// let nonce = [0xaa; 12];
+/// let aead = ChaCha8Poly1305::new(&key);
+///
+/// let aad = b"authenticated but not encrypted";
+/// let plaintext = b"hello, world!";
+/// let mut buf = plaintext.to_vec();
+///
+/// let tag = aead.encrypt_in_place(&mut buf, &nonce, aad);
+/// let result = aead.decrypt_in_place(&mut buf, &nonce, aad, tag.as_ref());
+/// assert!(result.is_ok());
+/// assert_eq!(&buf, plaintext);
+/// ```
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct ChaCha8Poly1305 {
     key: [u8; 32],
