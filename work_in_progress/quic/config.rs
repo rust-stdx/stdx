@@ -26,7 +26,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
-        let validator = Arc::new(tls::default_validator::WebPkiValidator::with_default_roots());
+        let validator = Arc::new(tls::default_validator::WebPkiValidator::with_default_roots(provider.clone()));
         let alpn = vec![Bytes::from_static(b"h3")];
         let tls_config = tls::ClientConfig::new(provider, alpn.clone(), validator);
         Self {

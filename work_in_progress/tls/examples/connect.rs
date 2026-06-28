@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("TCP connected.\n");
 
     let provider = Arc::new(DefaultCryptoProvider::new());
-    let validator = Arc::new(WebPkiValidator::with_default_roots());
+    let validator = Arc::new(WebPkiValidator::with_default_roots(provider.clone()));
     let config = ClientConfig::new(provider, vec![], validator);
 
     let connector = TlsConnector::new(config);
