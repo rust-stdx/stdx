@@ -17,7 +17,7 @@ constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto" }
 hex = { path = "../../hex" }
 thiserror = { path = "../../thiserror" }
-tls = { path = "../tls", default-features = false, features = ["crypto-default-provider", "webpki-validator", "quic", "std"] }
+tls = { path = "../tls", default-features = false, features = ["crypto-default-provider", "webpki-validator", "std"] }
 tokio = { workspace = true }
 
 [dev-dependencies]

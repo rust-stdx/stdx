@@ -5,9 +5,9 @@ use alloc::{format, vec::Vec};
 use async_trait::async_trait;
 
 #[cfg(feature = "webpki-validator")]
-use crate::Error;
-#[cfg(feature = "webpki-validator")]
 use crate::config::{CertificateValidator, ReceivedCertificate};
+#[cfg(feature = "webpki-validator")]
+use crate::{Error, error::CertificateValidationFailure};
 
 /// A [`CertificateValidator`] that uses `rustls-webpki` for X.509 chain
 /// validation against a set of root trust anchors.
@@ -62,16 +62,17 @@ impl CertificateValidator for WebPkiValidator {
                 chain, ..
             } => {
                 if chain.is_empty() {
-                    return Err(Error::CertificateValidationFailed("empty certificate chain".into()));
+                    return Err(Error::CertificateValidationFailed(CertificateValidationFailure::EmptyChain));
                 }
 
                 let server_name = server_name.ok_or_else(|| {
-                    Error::CertificateValidationFailed("server name (SNI) required for X.509 validation".into())
+                    Error::CertificateValidationFailed(CertificateValidationFailure::ServerNameRequired)
                 })?;
 
                 let cert_der = rustls_pki_types::CertificateDer::from(&chain[0][..]);
-                let ee = webpki::EndEntityCert::try_from(&cert_der)
-                    .map_err(|e| Error::CertificateValidationFailed(format!("failed to parse end-entity cert: {e}")))?;
+                let ee = webpki::EndEntityCert::try_from(&cert_der).map_err(|e| {
+                    Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("{e}")))
+                })?;
 
                 let intermediates: Vec<rustls_pki_types::CertificateDer<'_>> = chain[1..]
                     .iter()
@@ -80,11 +81,14 @@ impl CertificateValidator for WebPkiValidator {
 
                 let time = rustls_pki_types::UnixTime::since_unix_epoch(system_time_now());
 
-                let server_name_dns = rustls_pki_types::ServerName::try_from(server_name)
-                    .map_err(|e| Error::CertificateValidationFailed(format!("invalid server name: {e}")))?;
+                let server_name_dns = rustls_pki_types::ServerName::try_from(server_name).map_err(|e| {
+                    Error::CertificateValidationFailed(CertificateValidationFailure::InvalidServerName(format!("{e}")))
+                })?;
 
                 ee.verify_is_valid_for_subject_name(&server_name_dns).map_err(|e| {
-                    Error::CertificateValidationFailed(format!("subject name (SAN) validation failed: {e}"))
+                    Error::CertificateValidationFailed(CertificateValidationFailure::SubjectNameMismatch(format!(
+                        "{e}"
+                    )))
                 })?;
 
                 ee.verify_for_usage(
@@ -96,14 +100,16 @@ impl CertificateValidator for WebPkiValidator {
                     None,
                     None,
                 )
-                .map_err(|e| Error::CertificateValidationFailed(format!("chain validation failed: {e}")))?;
+                .map_err(|e| {
+                    Error::CertificateValidationFailed(CertificateValidationFailure::ChainValidation(format!("{e}")))
+                })?;
 
                 Ok(())
             }
             ReceivedCertificate::RawPublicKey {
                 ..
             } => Err(Error::CertificateValidationFailed(
-                "raw public key validation requires a custom CertificateValidator".into(),
+                CertificateValidationFailure::RawPublicKeyRequiresCustomValidator,
             )),
         }
     }

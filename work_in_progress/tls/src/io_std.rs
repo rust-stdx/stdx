@@ -182,7 +182,7 @@ impl<S: Read + Write> Read for TlsStream<S> {
                 return Ok(0);
             }
             self.state.inject(&self.read_buf[..n]);
-            match self.state.process_app_data() {
+            match block_on(self.state.process_app_data()) {
                 Ok(_) => {}
                 Err(Error::ConnectionClosed) => {}
                 Err(e) => return Err(into_io_err(e)),
@@ -219,7 +219,7 @@ impl TlsConnector {
 
     /// Connect to a TLS server and complete the handshake.
     pub fn connect<S: Read + Write>(&self, server_name: &str, mut stream: S) -> Result<TlsStream<S>, Error> {
-        let conn = ClientConnection::new(self.config.clone(), Some(server_name.into()))?;
+        let conn = block_on(ClientConnection::new(self.config.clone(), Some(server_name.into())))?;
         let state = client_handshake(conn, &mut stream)?;
         Ok(TlsStream {
             stream,

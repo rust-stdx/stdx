@@ -14,6 +14,7 @@ use crate::{
         Aead, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeKeyPair, MAX_AEAD_TAG_SIZE, MAX_HASH_OUTPUT,
         MAX_KX_PUBLIC_KEY, MAX_PUBLIC_KEY_BYTES, MAX_SHARED_SECRET, MAX_SIGNATURE_SIZE, SignatureScheme, Signer,
     },
+    error::{CertificateValidationFailure, CryptoFailure, InvalidKeyFailure},
 };
 
 /// The default [`CryptoProvider`], backed by the `crypto` crate.
@@ -66,18 +67,26 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn create_aead(&self, suite: CipherSuite, key: &[u8]) -> Result<Box<dyn Aead>, Error> {
         match suite {
             CipherSuite::TlsAes128GcmSha256 => {
-                let key: [u8; 16] = key
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("AES-128-GCM expects a 16-byte key".into()))?;
+                let key: [u8; 16] = key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "AES-128-GCM",
+                        expected: 16,
+                    })
+                })?;
                 Ok(Box::new(Aes128GcmAead::new(&key)))
             }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
-                let key: [u8; 32] = key
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("ChaCha20-Poly1305 expects a 32-byte key".into()))?;
+                let key: [u8; 32] = key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "ChaCha20-Poly1305",
+                        expected: 32,
+                    })
+                })?;
                 Ok(Box::new(ChaCha20Poly1305Aead::new(&key)))
             }
-            ciphersuite @ _ => Err(Error::CryptoError(format!("Ciphersuite {ciphersuite:?} not supported"))),
+            ciphersuite @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedCipherSuite(format!(
+                "{ciphersuite:?}"
+            )))),
         }
     }
 
@@ -107,9 +116,12 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn create_signer(&self, scheme: SignatureScheme, secret_key: &[u8]) -> Result<Box<dyn Signer>, Error> {
         match scheme {
             SignatureScheme::Ed25519 => {
-                let seed: [u8; 32] = secret_key
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("Ed25519 expects a 32-byte secret key".into()))?;
+                let seed: [u8; 32] = secret_key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "Ed25519",
+                        expected: 32,
+                    })
+                })?;
                 let sk = crypto::curve25519::ed25519::SecretKey::from_bytes(&seed);
                 let pk = sk.public_key();
                 Ok(Box::new(Ed25519Signer {
@@ -118,18 +130,24 @@ impl CryptoProvider for DefaultCryptoProvider {
                 }))
             }
             SignatureScheme::EcdsaP256Sha256 => {
-                let key_bytes: [u8; 32] = secret_key
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("P-256 expects a 32-byte secret key".into()))?;
-                let pk = crypto::p256::PrivateKey::from_bytes(&key_bytes)
-                    .map_err(|_| Error::InvalidKey("invalid P-256 private key".into()))?;
+                let key_bytes: [u8; 32] = secret_key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "P-256",
+                        expected: 32,
+                    })
+                })?;
+                let pk = crypto::p256::PrivateKey::from_bytes(&key_bytes).map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::ParseError("invalid P-256 private key".into()))
+                })?;
                 let pk_bytes = pk.public_key().to_bytes();
                 Ok(Box::new(P256Signer {
                     pk,
                     pk_bytes,
                 }))
             }
-            scheme @ _ => Err(Error::CryptoError(format!("Signature scheme {scheme:?} not supported"))),
+            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(format!(
+                "{scheme:?}"
+            )))),
         }
     }
 
@@ -142,35 +160,46 @@ impl CryptoProvider for DefaultCryptoProvider {
     ) -> Result<(), Error> {
         match scheme {
             SignatureScheme::Ed25519 => {
-                let pk_bytes: [u8; 32] = public_key
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("Ed25519 expects a 32-byte public key".into()))?;
-                let pk = crypto::curve25519::ed25519::PublicKey::from_bytes(&pk_bytes)
-                    .map_err(|_| Error::InvalidKey("invalid Ed25519 public key".into()))?;
-                let sig: [u8; 64] = signature
-                    .try_into()
-                    .map_err(|_| Error::InvalidKey("Ed25519 signature must be 64 bytes".into()))?;
-                pk.verify(data, &sig)
-                    .map_err(|_| Error::CertificateValidationFailed("signature verification failed".into()))
+                let pk_bytes: [u8; 32] = public_key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "Ed25519 public key",
+                        expected: 32,
+                    })
+                })?;
+                let pk = crypto::curve25519::ed25519::PublicKey::from_bytes(&pk_bytes).map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::ParseError("invalid Ed25519 public key".into()))
+                })?;
+                let sig: [u8; 64] = signature.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "Ed25519 signature",
+                        expected: 64,
+                    })
+                })?;
+                pk.verify(data, &sig).map_err(|_| {
+                    Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
+                })
             }
             SignatureScheme::EcdsaP256Sha256 => {
                 let pk = crypto::p256::PublicKey::from_bytes(public_key)
-                    .map_err(|_| Error::InvalidKey("invalid P-256 public key".into()))?;
+                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError("invalid P-256 public key".into())))?;
                 let sig_raw = der_to_raw_p256_signature(signature)?;
-                pk.verify(data, &sig_raw)
-                    .map_err(|_| Error::CertificateValidationFailed("P-256 signature verification failed".into()))
+                pk.verify(data, &sig_raw).map_err(|_| {
+                    Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
+                })
             }
             SignatureScheme::RsaPkcs1Sha256 => {
                 let digest = Sha256::hash(data);
                 crypto::rsa::verify_pkcs1_sha256(public_key, signature, digest.as_ref())
-                    .map_err(|e| Error::CryptoError(format!("RSA-PKCS1-SHA256 verification: {e}")))
+                    .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PKCS1-SHA256: {e}"))))
             }
             SignatureScheme::RsaPssRsaSha256 => {
                 let digest = Sha256::hash(data);
                 crypto::rsa::verify_pss_sha256(public_key, signature, digest.as_ref())
-                    .map_err(|e| Error::CryptoError(format!("RSA-PSS-SHA256 verification: {e}")))
+                    .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}"))))
             }
-            scheme @ _ => Err(Error::CryptoError(format!("Signature scheme {scheme:?} not supported"))),
+            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(format!(
+                "{scheme:?}"
+            )))),
         }
     }
 
@@ -419,9 +448,12 @@ impl KeyExchangeKeyPair for X25519KxKeyPair {
     }
 
     fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, MAX_SHARED_SECRET>, Error> {
-        let peer_bytes: [u8; 32] = peer_public_key
-            .try_into()
-            .map_err(|_| Error::InvalidKey("X25519 public key must be 32 bytes".into()))?;
+        let peer_bytes: [u8; 32] = peer_public_key.try_into().map_err(|_| {
+            Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                algorithm: "X25519",
+                expected: 32,
+            })
+        })?;
         let peer = crypto::curve25519::x25519::PublicKey::from_bytes(&peer_bytes);
         let arr = self.0.ecdh(&peer);
         let mut out = Vec::new();
@@ -464,11 +496,11 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
     fn set_peer_public_key(&mut self, peer_public_key: &[u8]) -> Result<(), Error> {
         let total_size = PUBLIC_KEY_SIZE_768 + 32;
         if peer_public_key.len() != total_size {
-            return Err(Error::InvalidKey(format!(
+            return Err(Error::InvalidKey(InvalidKeyFailure::Other(format!(
                 "X25519MLKEM768 peer (client) key must be {} bytes, got {}",
                 total_size,
                 peer_public_key.len()
-            )));
+            ))));
         }
 
         let peer_mlkem_pk = PublicKey768::from_bytes(peer_public_key[..PUBLIC_KEY_SIZE_768].try_into().unwrap());
@@ -494,11 +526,11 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
         } else {
             let total_size = CIPHERTEXT_SIZE_768 + 32;
             if peer_public_key.len() != total_size {
-                return Err(Error::InvalidKey(format!(
+                return Err(Error::InvalidKey(InvalidKeyFailure::Other(format!(
                     "X25519MLKEM768 peer (server) key must be {} bytes, got {}",
                     total_size,
                     peer_public_key.len()
-                )));
+                ))));
             }
             let peer_x25519_pk = crypto::curve25519::x25519::PublicKey::from_bytes(
                 peer_public_key[CIPHERTEXT_SIZE_768..].try_into().unwrap(),
@@ -509,16 +541,20 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
         let mlkem_ss = if let Some(ss) = self.mlkem_shared_secret {
             ss
         } else {
-            let ct: [u8; CIPHERTEXT_SIZE_768] = peer_public_key[..CIPHERTEXT_SIZE_768]
-                .try_into()
-                .map_err(|_| Error::InvalidKey("X25519MLKEM768 peer key: ML-KEM ciphertext too short".into()))?;
+            let ct: [u8; CIPHERTEXT_SIZE_768] = peer_public_key[..CIPHERTEXT_SIZE_768].try_into().map_err(|_| {
+                Error::InvalidKey(InvalidKeyFailure::ParseError(
+                    "X25519MLKEM768 peer key: ML-KEM ciphertext too short".into(),
+                ))
+            })?;
             self.mlkem_secret
                 .as_ref()
                 .ok_or_else(|| {
-                    Error::InvalidKey("X25519MLKEM768: no ML-KEM secret key available for decapsulation".into())
+                    Error::InvalidKey(InvalidKeyFailure::Other(
+                        "X25519MLKEM768: no ML-KEM secret key available for decapsulation".into(),
+                    ))
                 })?
                 .decapsulate(&ct)
-                .map_err(|e| Error::InvalidKey(format!("ML-KEM decapsulation failed: {e}")))?
+                .map_err(|e| Error::InvalidKey(InvalidKeyFailure::Other(format!("ML-KEM decapsulation failed: {e}"))))?
         };
 
         let mut shared = Vec::new();
@@ -574,7 +610,7 @@ impl Signer for P256Signer {
         let raw = self
             .pk
             .sign(data)
-            .map_err(|_| Error::CryptoError("P-256 signing failed".into()))?;
+            .map_err(|_| Error::CryptoError(CryptoFailure::SigningFailed))?;
         Ok(raw_p256_to_der(&raw))
     }
 }
@@ -613,37 +649,37 @@ fn trim_leading_zeros(bytes: &[u8]) -> Vec<u8, 128> {
 
 fn der_to_raw_p256_signature(der: &[u8]) -> Result<[u8; 64], Error> {
     if der.len() < 8 {
-        return Err(Error::InvalidKey("DER signature too short".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("too short".into())));
     }
     if der[0] != 0x30 {
-        return Err(Error::InvalidKey("DER signature: expected SEQUENCE".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected SEQUENCE".into())));
     }
     let mut pos = 2;
     if der.len() < pos + 2 {
-        return Err(Error::InvalidKey("DER sig truncated".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("truncated".into())));
     }
     if der[pos] != 0x02 {
-        return Err(Error::InvalidKey("DER sig: expected INTEGER r".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected INTEGER r".into())));
     }
     pos += 1;
     let r_len = der[pos] as usize;
     pos += 1;
     if der.len() < pos + r_len {
-        return Err(Error::InvalidKey("DER sig: r truncated".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("r truncated".into())));
     }
     let r = normalize_scalar(&der[pos..pos + r_len]);
     pos += r_len;
     if der.len() < pos + 2 {
-        return Err(Error::InvalidKey("DER sig: s header truncated".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("s header truncated".into())));
     }
     if der[pos] != 0x02 {
-        return Err(Error::InvalidKey("DER sig: expected INTEGER s".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected INTEGER s".into())));
     }
     pos += 1;
     let s_len = der[pos] as usize;
     pos += 1;
     if der.len() < pos + s_len {
-        return Err(Error::InvalidKey("DER sig: s truncated".into()));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("s truncated".into())));
     }
     let s = normalize_scalar(&der[pos..pos + s_len]);
     let mut sig = [0u8; 64];

@@ -2,7 +2,24 @@ use alloc::{boxed::Box, format, vec::Vec};
 
 use bytes::Bytes;
 
-use crate::{Error, crypto::Aead};
+use crate::{Error, crypto::Aead, error::HandshakeFailure};
+
+/// Maximum TLS fragment plaintext length (2^14 bytes). RFC 8446 §5.1.
+pub const MAX_FRAGMENT_SIZE: usize = 16384;
+/// Maximum TLS record payload (fragment + AEAD tag + inner content type byte).
+/// 16384 + 1 (content type) + 256 (padding) + 16 (tag) = 16657.
+pub const MAX_RECORD_PAYLOAD: usize = MAX_FRAGMENT_SIZE + 256 + 1 + 16;
+
+/// Overwrite `iv` with zeros on drop (key-material cleanup).
+#[cfg(feature = "zeroize")]
+fn zeroize_iv(iv: &mut [u8; 12]) {
+    use zeroize::Zeroize;
+    iv.zeroize();
+}
+
+/// Without the `zeroize` feature, IVs are freed without explicit zeroization.
+#[cfg(not(feature = "zeroize"))]
+fn zeroize_iv(_iv: &mut [u8; 12]) {}
 
 /// TLS record content types (RFC 8446 §5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +53,13 @@ pub struct RecordState {
     read_key: Option<Box<dyn Aead>>,
 }
 
+impl Drop for RecordState {
+    fn drop(&mut self) {
+        zeroize_iv(&mut self.write_iv);
+        zeroize_iv(&mut self.read_iv);
+    }
+}
+
 impl RecordState {
     pub fn new() -> Self {
         Self {
@@ -67,6 +91,9 @@ impl RecordState {
     ///
     /// Returns the complete TLS record bytes ready to send.
     pub fn encrypt_record(&mut self, content_type: ContentType, payload: &[u8]) -> Result<Bytes, Error> {
+        if payload.len() > MAX_FRAGMENT_SIZE {
+            return Err(Error::RecordOverflow);
+        }
         let key = self
             .key
             .as_ref()
@@ -115,6 +142,9 @@ impl RecordState {
         let content_type = ContentType::from_u8(data[0]);
         let _legacy = u16::from_be_bytes([data[1], data[2]]);
         let length = u16::from_be_bytes([data[3], data[4]]) as usize;
+        if length > MAX_RECORD_PAYLOAD {
+            return Err(Error::RecordOverflow);
+        }
         if data.len() < 5 + length {
             return Ok(None); // need more data
         }
@@ -133,7 +163,10 @@ impl RecordState {
                     if level == 1 && desc == 0 {
                         return Err(Error::ConnectionClosed);
                     }
-                    Err(Error::HandshakeFailed(format!("alert: level={level} desc={desc}")))
+                    Err(Error::HandshakeFailed(HandshakeFailure::PeerAlert {
+                        level,
+                        description: desc,
+                    }))
                 } else {
                     Err(Error::ConnectionClosed)
                 }

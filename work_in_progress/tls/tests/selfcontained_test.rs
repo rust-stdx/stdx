@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tls::{
-    CertType, ClientConfig, ClientConnection, Error, ServerConfig, ServerConnection,
+    CertType, ClientConfig, ClientConnection, Error, HandshakeFailure, ServerConfig, ServerConnection,
     config::{CertificateProvider, ClientHello, ProvidedCertificate},
     crypto::{CryptoProvider, MAX_PUBLIC_KEY_BYTES},
     crypto_default_provider::DefaultCryptoProvider,
@@ -21,7 +21,7 @@ impl CertificateProvider for DummyCertProvider {
         let scheme = *client_hello
             .sig_schemes
             .first()
-            .ok_or(Error::HandshakeFailed("no sig schemes".into()))?;
+            .ok_or(Error::HandshakeFailed(HandshakeFailure::Other("no sig schemes".into())))?;
         let provider = DefaultCryptoProvider::new();
         provider.secure_random(&mut seed);
         let sk = crypto::curve25519::ed25519::SecretKey::from_bytes(&seed);
@@ -76,7 +76,9 @@ async fn selfcontained_app_data() {
 
     let client_cfg = ClientConfig::new(provider.clone(), vec![], Arc::new(AcceptAllValidator))
         .with_cert_types(vec![CertType::X509, CertType::RawPublicKey]);
-    let mut client = ClientConnection::new(client_cfg, Some("localhost".into())).unwrap();
+    let mut client = ClientConnection::new(client_cfg, Some("localhost".into()))
+        .await
+        .unwrap();
 
     let mut ch_bytes = Vec::new();
     while let Some(data) = client.write_tls() {
@@ -142,7 +144,9 @@ async fn selfcontained_app_data_pq() {
 
     let client_cfg = ClientConfig::new(provider.clone(), vec![], Arc::new(AcceptAllValidator))
         .with_cert_types(vec![CertType::X509, CertType::RawPublicKey]);
-    let mut client = ClientConnection::new(client_cfg, Some("localhost".into())).unwrap();
+    let mut client = ClientConnection::new(client_cfg, Some("localhost".into()))
+        .await
+        .unwrap();
 
     let mut ch_bytes = Vec::new();
     while let Some(data) = client.write_tls() {

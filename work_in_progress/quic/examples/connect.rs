@@ -24,7 +24,7 @@ impl Transport for UdpTransport {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server_name = std::env::args().nth(1).unwrap_or("example.com".to_string());
+    let server_name = std::env::args().nth(1).unwrap_or("cloudflare-quic.com".to_string());
 
     let addr = format!("{server_name}:443")
         .to_socket_addrs()?

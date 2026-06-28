@@ -36,16 +36,18 @@ pub mod io_std;
 #[cfg(feature = "tokio")]
 pub mod io_tokio;
 
-#[cfg(feature = "quic")]
 pub mod quic;
 
 pub use config::{
-    CertificateProvider, CertificateValidator, ClientConfig, ClientHello, NoFingerprinter, ReceivedCertificate,
-    ServerConfig, TlsFingerprinter,
+    CertificateProvider, CertificateValidator, ClientCertificate, ClientConfig, ClientHello, ClientSessionCache,
+    InMemorySessionTicketStore, NoFingerprinter, ReceivedCertificate, ServerConfig, SessionTicketStore,
+    TlsFingerprinter,
 };
 pub use connection::{ClientConnection, ServerConnection};
 pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};
 #[cfg(feature = "webpki-validator")]
 pub use default_validator::WebPkiValidator;
-pub use error::{Error, IoError, IoErrorKind};
+pub use error::{
+    CertificateValidationFailure, CryptoFailure, Error, HandshakeFailure, InvalidKeyFailure, IoError, IoErrorKind,
+};
 pub use key_schedule::{KeySchedule, TlsKeys};

@@ -1,7 +1,8 @@
 use std::{
+    future::Future,
     io,
     pin::Pin,
-    task::{Context, Poll, ready},
+    task::{Context, Poll, RawWaker, RawWakerVTable, Waker, ready},
 };
 
 use bytes::Bytes;
@@ -50,6 +51,21 @@ fn into_io_err(e: Error) -> io::Error {
     match e {
         Error::Io(ioe) => io::Error::new(io_kind_to_tokio(ioe.kind()), ioe.to_string()),
         other => io::Error::new(io::ErrorKind::Other, other.to_string()),
+    }
+}
+
+// ── Minimal block_on (for use inside poll-based trait impls) ─────────────
+
+fn block_on<F: Future>(f: F) -> F::Output {
+    let mut fut = Box::pin(f);
+    static VTABLE: RawWakerVTable = RawWakerVTable::new(|p| RawWaker::new(p, &VTABLE), |_| {}, |_| {}, |_| {});
+    let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) };
+    let mut cx = Context::from_waker(&waker);
+    loop {
+        match fut.as_mut().poll(&mut cx) {
+            Poll::Ready(v) => return v,
+            Poll::Pending => std::hint::spin_loop(),
+        }
     }
 }
 
@@ -210,7 +226,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRead for TlsStream<S> {
             }
 
             self.state.inject(&tmp[..n]);
-            match self.state.process_app_data() {
+            match block_on(self.state.process_app_data()) {
                 Ok(_) => {}
                 Err(Error::ConnectionClosed) => {}
                 Err(e) => return Poll::Ready(Err(into_io_err(e))),
@@ -285,7 +301,7 @@ impl TlsConnector {
         server_name: &str,
         mut stream: S,
     ) -> Result<TlsStream<S>, Error> {
-        let conn = ClientConnection::new(self.config.clone(), Some(server_name.into()))?;
+        let conn = ClientConnection::new(self.config.clone(), Some(server_name.into())).await?;
         let state = client_handshake(conn, &mut stream).await?;
         Ok(TlsStream {
             stream,

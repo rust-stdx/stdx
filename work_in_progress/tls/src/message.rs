@@ -19,10 +19,14 @@ pub enum HandshakeType {
     ClientHello = 1,
     ServerHello = 2,
     NewSessionTicket = 4,
+    EndOfEarlyData = 5,
     EncryptedExtensions = 8,
     Certificate = 11,
+    CertificateRequest = 13,
     CertificateVerify = 15,
     Finished = 20,
+    KeyUpdate = 24,
+    MessageHash = 254,
 }
 
 impl HandshakeType {
@@ -31,10 +35,14 @@ impl HandshakeType {
             1 => Some(Self::ClientHello),
             2 => Some(Self::ServerHello),
             4 => Some(Self::NewSessionTicket),
+            5 => Some(Self::EndOfEarlyData),
             8 => Some(Self::EncryptedExtensions),
             11 => Some(Self::Certificate),
+            13 => Some(Self::CertificateRequest),
             15 => Some(Self::CertificateVerify),
             20 => Some(Self::Finished),
+            24 => Some(Self::KeyUpdate),
+            254 => Some(Self::MessageHash),
             _ => None,
         }
     }
@@ -44,10 +52,14 @@ impl HandshakeType {
             Self::ClientHello => "ClientHello",
             Self::ServerHello => "ServerHello",
             Self::NewSessionTicket => "NewSessionTicket",
+            Self::EndOfEarlyData => "EndOfEarlyData",
             Self::EncryptedExtensions => "EncryptedExtensions",
             Self::Certificate => "Certificate",
+            Self::CertificateRequest => "CertificateRequest",
             Self::CertificateVerify => "CertificateVerify",
             Self::Finished => "Finished",
+            Self::KeyUpdate => "KeyUpdate",
+            Self::MessageHash => "MessageHash",
         }
     }
 }
@@ -117,6 +129,7 @@ pub enum ExtensionType {
     SupportedGroups = 10,
     SignatureAlgorithms = 13,
     ApplicationLayerProtocolNegotiation = 16,
+    EarlyData = 42,
     SupportedVersions = 43,
     PreSharedKey = 41,
     PskKeyExchangeModes = 45,
@@ -133,6 +146,7 @@ impl ExtensionType {
             13 => Some(Self::SignatureAlgorithms),
             16 => Some(Self::ApplicationLayerProtocolNegotiation),
             41 => Some(Self::PreSharedKey),
+            42 => Some(Self::EarlyData),
             43 => Some(Self::SupportedVersions),
             45 => Some(Self::PskKeyExchangeModes),
             50 => Some(Self::ServerCertificateType),
@@ -552,6 +566,22 @@ impl Certificate {
     }
 }
 
+// ── CertificateRequest ─────────────────────────────────────────────────────
+
+/// Encode a `CertificateRequest` message (RFC 8446 §4.3.2).
+///
+/// The `context` should be empty for server-initiated requests, and
+/// `sig_schemes` is the list of acceptable signature schemes (the
+/// `signature_algorithms` extension is required).
+pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme]) -> Bytes {
+    let mut exts = vec![ext_signature_algorithms(sig_schemes)];
+    let ext_bytes = encode_extensions(&exts);
+    let mut body = BytesMut::new();
+    put_u8_slice(&mut body, context);
+    body.extend_from_slice(&ext_bytes);
+    encode_handshake(HandshakeType::CertificateRequest, &body)
+}
+
 // ── CertificateVerify ─────────────────────────────────────────────────────
 
 pub fn encode_certificate_verify(scheme: SignatureScheme, signature: &[u8]) -> Bytes {
@@ -628,6 +658,33 @@ impl Finished {
             raw: Bytes::copy_from_slice(data),
         })
     }
+}
+
+// ── KeyUpdate ──────────────────────────────────────────────────────────────
+
+/// Encode a `KeyUpdate` post-handshake message (RFC 8446 §4.6.3).
+///
+/// `request_update` is `0` for `update_not_requested` and `1` for
+/// `update_requested`.
+pub fn encode_key_update(request_update: u8) -> Bytes {
+    encode_handshake(HandshakeType::KeyUpdate, &[request_update])
+}
+
+/// Decode a `KeyUpdate` post-handshake message.
+///
+/// Returns `request_update`: `0` = update_not_requested, `1` = update_requested.
+pub fn decode_key_update(data: &[u8]) -> Result<u8, Error> {
+    let (msg_type, body) = decode_handshake_header(data)?;
+    if msg_type != HandshakeType::KeyUpdate {
+        return Err(Error::UnexpectedMessage {
+            expected: "KeyUpdate",
+            got: msg_type.name(),
+        });
+    }
+    if body.len() != 1 || body[0] > 1 {
+        return Err(Error::DecodeError("KeyUpdate: invalid request_update".into()));
+    }
+    Ok(body[0])
 }
 
 // ── NewSessionTicket ──────────────────────────────────────────────────────
@@ -760,6 +817,18 @@ pub fn ext_key_share_server(public_key: &[u8], group: KeyExchangeGroup) -> Exten
     Extension {
         ext_type: ExtensionType::KeyShare,
         data: entry.freeze(),
+    }
+}
+
+/// Build a `key_share` extension for a HelloRetryRequest.
+///
+/// In HRR the `key_share` extension carries only a 2-byte `NamedGroup`
+/// (the group the server wants the client to retry with), with no public key
+/// (RFC 8446 §4.1.4).
+pub fn ext_key_share_hrr(group: KeyExchangeGroup) -> Extension {
+    Extension {
+        ext_type: ExtensionType::KeyShare,
+        data: Bytes::copy_from_slice(&group.to_wire()),
     }
 }
 
@@ -980,8 +1049,37 @@ pub fn ext_psk_key_exchange_modes() -> Extension {
     }
 }
 
+/// Build an `early_data` extension for ClientHello (RFC 8446 §4.2.10).
+///
+/// Indicates the client wishes to send 0-RTT data. The extension carries
+/// no data in ClientHello.
+pub fn ext_early_data_client() -> Extension {
+    Extension {
+        ext_type: ExtensionType::EarlyData,
+        data: Bytes::new(),
+    }
+}
+
+/// Build an `early_data` extension for EncryptedExtensions (server acceptance).
+pub fn ext_early_data_encrypted_extensions() -> Extension {
+    Extension {
+        ext_type: ExtensionType::EarlyData,
+        data: Bytes::new(),
+    }
+}
+
+/// Build the `pre_shared_key` extension for a ServerHello.
+///
+/// `selected_identity` is the 0-based index of the PSK identity that
+/// the server selected from the client's offer (RFC 8446 §4.2.11).
+pub fn ext_pre_shared_key_server(selected_identity: u16) -> Extension {
+    Extension {
+        ext_type: ExtensionType::PreSharedKey,
+        data: Bytes::copy_from_slice(&selected_identity.to_be_bytes()),
+    }
+}
+
 /// Build a QUIC transport parameters extension.
-#[cfg(feature = "quic")]
 pub fn ext_quic_transport_parameters(params: &[u8]) -> Extension {
     Extension {
         ext_type: ExtensionType::QuicTransportParameters,
@@ -1027,4 +1125,44 @@ pub fn parse_supported_versions(ext: Option<&Extension>) -> Option<u16> {
     }
     // The version is always the last 2 bytes in both formats
     Some(u16::from_be_bytes([data[data.len() - 2], data[data.len() - 1]]))
+}
+
+/// Magic `random` value that distinguishes a HelloRetryRequest from a normal
+/// ServerHello (RFC 8446 §4.1.4).
+pub const HRR_RANDOM: [u8; 32] = [
+    0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11, 0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91, 0xC2, 0xA2, 0x11,
+    0x16, 0x7A, 0xBB, 0x8C, 0x5E, 0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C,
+];
+
+/// Encode a `MessageHash` handshake message (RFC 8446 §4.4.1).
+///
+/// Used during HelloRetryRequest to replace the original ClientHello in the
+/// transcript with a hash of it.
+pub fn encode_message_hash(hash: &[u8]) -> Bytes {
+    encode_handshake(HandshakeType::MessageHash, hash)
+}
+
+// ── GREASE (RFC 8701) ─────────────────────────────────────────────────────
+
+/// Generate a GREASE value for cipher suites (2 bytes) using a seed byte.
+///
+/// GREASE values are of the form `0x?A?A` where `?` is a random nibble in
+/// 0..16. The seed should come from a CSPRNG.
+pub fn grease_cipher_suite(seed_byte: u8) -> [u8; 2] {
+    let nibble = (seed_byte & 0x0f) as u16;
+    let v = nibble << 12 | 0x0A << 8 | nibble << 4 | 0x0A;
+    v.to_be_bytes()
+}
+
+/// Generate a GREASE extension type (2 bytes) using a seed byte.
+pub fn grease_extension_type(seed_byte: u8) -> u16 {
+    let nibble = (seed_byte & 0x0f) as u16;
+    (nibble << 12 | 0x0A << 8 | nibble << 4 | 0x0A) | 0x8000 // highest bit set for GREASE extension
+}
+
+/// Generate a GREASE supported group (2 bytes) using a seed byte.
+pub fn grease_supported_group(seed_byte: u8) -> [u8; 2] {
+    let nibble = (seed_byte & 0x0f) as u16;
+    let v = nibble << 12 | 0x0A << 8 | nibble << 4 | 0x0A;
+    v.to_be_bytes()
 }

@@ -17,6 +17,7 @@ use crate::{
     crypto::{
         CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SHARED_SECRET, SignatureScheme,
     },
+    error::{CertificateValidationFailure, HandshakeFailure},
     key_schedule::{KeySchedule, TlsKeys},
     message::*,
     record::{ContentType, RecordState},
@@ -72,12 +73,32 @@ struct HandshakeState {
     negotiated_version: u16,
     close_received: bool,
     signature_scheme: Option<SignatureScheme>,
-    #[cfg(feature = "quic")]
     quic_write_queue: VecDeque<Bytes>,
-    #[cfg(feature = "quic")]
     is_quic: bool,
-    #[cfg(feature = "quic")]
     quic_transport_params: Option<Bytes>,
+
+    // Current application traffic secrets (for KeyUpdate).
+    client_app_traffic_secret: heapless::Vec<u8, MAX_HASH_OUTPUT>,
+    server_app_traffic_secret: heapless::Vec<u8, MAX_HASH_OUTPUT>,
+    pending_key_update_response: bool,
+    psk: Option<heapless::Vec<u8, MAX_HASH_OUTPUT>>,
+    certificate_request_received: bool,
+}
+
+#[cfg(feature = "zeroize")]
+fn zeroize_heapless_vec_conn<const N: usize>(v: &mut heapless::Vec<u8, N>) {
+    use zeroize::Zeroize;
+    v.as_mut_slice().zeroize();
+}
+
+#[cfg(feature = "zeroize")]
+impl Drop for HandshakeState {
+    fn drop(&mut self) {
+        if let Some(ref mut ss) = self.shared_secret {
+            zeroize_heapless_vec_conn(ss);
+        }
+        zeroize_heapless_vec_conn(&mut self.server_hello_hash);
+    }
 }
 
 impl HandshakeState {
@@ -105,12 +126,14 @@ impl HandshakeState {
             negotiated_version: 0,
             close_received: false,
             signature_scheme: None,
-            #[cfg(feature = "quic")]
             quic_write_queue: VecDeque::new(),
-            #[cfg(feature = "quic")]
             is_quic: false,
-            #[cfg(feature = "quic")]
             quic_transport_params: None,
+            client_app_traffic_secret: heapless::Vec::new(),
+            server_app_traffic_secret: heapless::Vec::new(),
+            pending_key_update_response: false,
+            psk: None,
+            certificate_request_received: false,
         }
     }
 }
@@ -170,6 +193,23 @@ impl ClientConnection {
         self.hs.write_record.encrypt_alert(1, 0)
     }
 
+    /// Initiate a post-handshake key update (RFC 8446 §4.6.3).
+    pub fn initiate_key_update(&mut self, request_update: bool) -> Result<Bytes, Error> {
+        if !matches!(self.state, ClientState::Done) {
+            return Err(Error::InternalError("handshake not complete".into()));
+        }
+        let ks = self.hs.key_schedule.as_ref().unwrap();
+        let (new_secret, new_key, new_iv) = ks.key_update_traffic(&self.hs.client_app_traffic_secret);
+        self.hs.client_app_traffic_secret = new_secret;
+        let aead = self
+            .config
+            .crypto
+            .create_aead(self.hs.cipher_suite.unwrap(), &new_key)?;
+        self.hs.write_record.set_write_keys(aead, new_iv);
+        let ku = encode_key_update(request_update as u8);
+        self.hs.write_record.encrypt_record(ContentType::Handshake, &ku)
+    }
+
     /// Feed received bytes into the internal buffer.
     pub fn inject(&mut self, input: &[u8]) {
         self.hs.read_buf.extend_from_slice(input);
@@ -212,7 +252,7 @@ impl ClientConnection {
     ///
     /// The initial ClientHello bytes are queued internally and can be drained
     /// via [`write_tls`].
-    pub fn new(config: ClientConfig, server_name: Option<String>) -> Result<Self, Error> {
+    pub async fn new(config: ClientConfig, server_name: Option<String>) -> Result<Self, Error> {
         let mut hs = HandshakeState::new();
         let crypto_provider = &config.crypto;
 
@@ -254,8 +294,40 @@ impl ClientConnection {
         }
         let cipher_suites: Vec<_> = crypto_provider.supported_cipher_suites().to_vec();
 
+        // PSK resumption
+        let mut psk_for_key_schedule: Option<heapless::Vec<u8, MAX_HASH_OUTPUT>> = None;
         let mut random = [0u8; 32];
-        crypto_provider.secure_random(&mut random);
+        if let Some(ref cache) = config.session_cache {
+            if let Some(ref name) = server_name {
+                if let Some((ticket, psk)) = cache.get(name).await {
+                    let suite = cipher_suites[0];
+                    let zeros = alloc::vec![0u8; suite.hash_size()];
+                    let early_secret = crypto_provider.hkdf_extract(suite, &zeros, &psk);
+                    let binder_key = crypto_provider.hkdf_expand_label(
+                        suite,
+                        &early_secret,
+                        b"tls13 res binder",
+                        &[],
+                        suite.hash_size(),
+                    );
+                    let zero_binder = alloc::vec![0u8; suite.hash_size()];
+                    let partial_psk_ext = ext_pre_shared_key(&[(ticket.clone(), 0)], &[zero_binder]);
+                    let partial_exts: Vec<_> = exts.iter().cloned().chain(alloc::vec![partial_psk_ext]).collect();
+                    crypto_provider.secure_random(&mut random);
+                    let partial_ch = encode_client_hello(&random, &[], &cipher_suites, &partial_exts);
+                    let ch_hash = crypto_provider.hash(suite, &partial_ch);
+                    let binder = crypto_provider.hmac(suite, &binder_key, &ch_hash);
+                    let final_psk_ext = ext_pre_shared_key(&[(ticket, 0)], &[binder.to_vec()]);
+                    exts.push(final_psk_ext);
+                    let mut psk_vec = heapless::Vec::new();
+                    let _ = psk_vec.extend_from_slice(&psk);
+                    psk_for_key_schedule = Some(psk_vec);
+                }
+            }
+        }
+        if psk_for_key_schedule.is_none() {
+            crypto_provider.secure_random(&mut random);
+        }
 
         let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
         hs.transcript.extend_from_slice(&ch);
@@ -267,6 +339,7 @@ impl ClientConnection {
         record.extend_from_slice(&ch);
 
         hs.write_queue.push_back(Bytes::from(record));
+        hs.psk = psk_for_key_schedule;
 
         Ok(Self {
             config,
@@ -281,7 +354,6 @@ impl ClientConnection {
     /// The initial ClientHello includes the QUIC transport parameters extension.
     /// Raw handshake messages are returned via [`write_handshake`] (no TLS
     /// record wrapping). Input is fed via [`inject_handshake`].
-    #[cfg(feature = "quic")]
     pub fn new_quic_with_preferred_group(
         config: ClientConfig,
         server_name: Option<String>,
@@ -357,19 +429,16 @@ impl ClientConnection {
     }
 
     /// Take the next raw handshake message to send (QUIC mode only).
-    #[cfg(feature = "quic")]
     pub fn write_handshake(&mut self) -> Option<Bytes> {
         self.hs.quic_write_queue.pop_front()
     }
 
     /// Inject raw handshake bytes (QUIC mode only).
-    #[cfg(feature = "quic")]
     pub fn inject_handshake(&mut self, data: &[u8]) {
         self.hs.handshake_payload.extend_from_slice(data);
     }
 
     /// Return the QUIC traffic secrets after the handshake completes.
-    #[cfg(feature = "quic")]
     pub fn quic_secrets(&self) -> Option<crate::quic::QuicSecrets> {
         let ks = self.hs.key_schedule.as_ref()?;
         let suite = self.hs.cipher_suite?;
@@ -388,9 +457,11 @@ impl ClientConnection {
                 ClientState::WaitCertificate => self.process_certificate().await?,
                 ClientState::WaitCertificateVerify => self.process_certificate_verify().await?,
                 ClientState::WaitFinished => self.process_finished().await?,
-                ClientState::Done => self.process_application_data()?,
+                ClientState::Done => self.process_application_data().await?,
                 ClientState::Failed => {
-                    return Err(Error::HandshakeFailed("connection in failed state".into()));
+                    return Err(Error::HandshakeFailed(HandshakeFailure::Other(
+                        "connection in failed state".into(),
+                    )));
                 }
             };
             if !made_progress || self.state == ClientState::Done {
@@ -404,11 +475,11 @@ impl ClientConnection {
     ///
     /// Call after [`inject`] to decrypt pending encrypted records.
     /// Returns `true` if any application data was decrypted.
-    pub fn process_app_data(&mut self) -> Result<bool, Error> {
+    pub async fn process_app_data(&mut self) -> Result<bool, Error> {
         if !matches!(self.state, ClientState::Done) {
             return Err(Error::InternalError("handshake not complete".into()));
         }
-        self.process_application_data()
+        self.process_application_data().await
     }
 
     fn try_read_record(&mut self) -> Result<Option<(ContentType, Bytes)>, Error> {
@@ -484,9 +555,8 @@ impl ClientConnection {
         }
 
         let ks_ext = find_extension(&sh.extensions, ExtensionType::KeyShare)
-            .ok_or_else(|| Error::HandshakeFailed("no key_share in ServerHello".into()))?;
+            .ok_or_else(|| Error::HandshakeFailed(HandshakeFailure::Other("no key_share in ServerHello".into())))?;
 
-        #[cfg(feature = "quic")]
         if self.hs.is_quic && ks_ext.data.len() == 2 {
             return self.handle_quic_hrr(&sh, ks_ext);
         }
@@ -503,7 +573,7 @@ impl ClientConnection {
         self.hs.shared_secret = Some(kx.shared_secret(&peer_pk)?);
 
         let suite = sh.cipher_suite;
-        let mut ks = KeySchedule::new(suite, Arc::clone(&self.config.crypto), None);
+        let mut ks = KeySchedule::new(suite, Arc::clone(&self.config.crypto), self.hs.psk.as_deref());
         ks.add_shared_secret(self.hs.shared_secret.as_ref().unwrap());
         self.hs.key_schedule = Some(ks);
 
@@ -511,7 +581,6 @@ impl ClientConnection {
         // transcript hash *immediately* after ServerHello processing, because
         // the QUIC layer calls quic_secrets() before EncryptedExtensions
         // arrives (it arrives in a separate Handshake CRYPTO frame).
-        #[cfg(feature = "quic")]
         if self.hs.is_quic {
             let transcript_hash = self.config.crypto.hash(sh.cipher_suite, &self.hs.transcript);
             self.hs.server_hello_hash = transcript_hash;
@@ -521,7 +590,6 @@ impl ClientConnection {
         Ok(true)
     }
 
-    #[cfg(feature = "quic")]
     fn handle_quic_hrr(&mut self, sh: &ServerHello, ks_ext: &Extension) -> Result<bool, Error> {
         let hrr_group = KeyExchangeGroup::from_wire([ks_ext.data[0], ks_ext.data[1]])
             .ok_or_else(|| Error::DecodeError("unknown KX group in HRR".into()))?;
@@ -530,9 +598,9 @@ impl ClientConnection {
         let supported_groups = crypto_provider.supported_key_exchange_groups();
 
         if !supported_groups.contains(&hrr_group) {
-            return Err(Error::HandshakeFailed(format!(
+            return Err(Error::HandshakeFailed(HandshakeFailure::Other(format!(
                 "HRR requested group {hrr_group:?} which is not supported"
-            )));
+            ))));
         }
 
         self.hs.key_exchange_group = hrr_group;
@@ -637,7 +705,14 @@ impl ClientConnection {
         let payload = loop {
             match self.try_read_record()? {
                 Some((ContentType::ChangeCipherSpec, _)) => continue,
-                Some((ContentType::Handshake, payload)) => break payload,
+                Some((ContentType::Handshake, payload)) => {
+                    if payload.len() >= 4 && payload[0] == HandshakeType::CertificateRequest as u8 {
+                        self.hs.transcript.extend_from_slice(&payload);
+                        self.hs.certificate_request_received = true;
+                        continue;
+                    }
+                    break payload;
+                }
                 None => return Ok(false),
                 _ => {
                     return Err(Error::UnexpectedMessage {
@@ -704,7 +779,7 @@ impl ClientConnection {
             .cert_validator
             .validate(&received, self.server_name.as_deref())
             .await
-            .map_err(|e| Error::CertificateValidationFailed(e.to_string()))?;
+            .map_err(|e| Error::CertificateValidationFailed(CertificateValidationFailure::Other(e.to_string())))?;
 
         let pk: Cow<'_, [u8]> = match &received {
             ReceivedCertificate::X509 {
@@ -770,23 +845,20 @@ impl ClientConnection {
 
         let transcript_hash_after_sfin = crypto_provider.hash(suite, &self.hs.transcript);
 
-        let keys = ks.derive_keys(
-            &self.hs.server_hello_hash,
-            &transcript_hash_after_sfin,
-            &transcript_hash_after_sfin,
-        );
+        let keys = ks.derive_traffic_keys(&self.hs.server_hello_hash, &transcript_hash_after_sfin);
 
         let sfk = &keys.server_finished_key;
         let expected = crypto_provider.hmac(suite, sfk, &transcript_hash_before_fin);
         if !constant_time_eq::constant_time_eq(&expected, &fin.verify_data) {
-            return Err(crate::Error::HandshakeFailed("finished verification failed".into()));
+            return Err(crate::Error::HandshakeFailed(HandshakeFailure::Other(
+                "finished verification failed".into(),
+            )));
         }
 
         let our_fin_hash = crypto_provider.hash(suite, &self.hs.transcript);
         let our_verify_data_expected = crypto_provider.hmac(suite, &keys.client_finished_key, &our_fin_hash);
         let fin_msg = encode_finished(&our_verify_data_expected);
 
-        #[cfg(feature = "quic")]
         if self.hs.is_quic {
             self.hs.quic_write_queue.push_back(Bytes::from(fin_msg));
         } else {
@@ -805,24 +877,6 @@ impl ClientConnection {
             self.hs.write_queue.push_back(encrypted_fin);
         }
 
-        #[cfg(not(feature = "quic"))]
-        {
-            let c_hs_traffic = ks.client_handshake_traffic_secret(&self.hs.server_hello_hash);
-            let c_hs_key = crypto_provider.hkdf_expand_label(suite, &c_hs_traffic, b"tls13 key", &[], suite.key_size());
-            let c_hs_iv: [u8; 12] = crypto_provider
-                .hkdf_expand_label(suite, &c_hs_traffic, b"tls13 iv", &[], 12)
-                .as_slice()
-                .try_into()
-                .unwrap();
-            self.hs
-                .write_record
-                .set_write_keys(crypto_provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
-
-            let encrypted_fin = self.hs.write_record.encrypt_record(ContentType::Handshake, &fin_msg)?;
-            self.hs.write_queue.push_back(encrypted_fin);
-        }
-
-        #[cfg(feature = "quic")]
         if !self.hs.is_quic {
             self.hs.read_record.set_read_keys(
                 crypto_provider.create_aead(suite, &keys.server_application_key)?,
@@ -834,7 +888,6 @@ impl ClientConnection {
             );
         }
 
-        #[cfg(not(feature = "quic"))]
         {
             self.hs.read_record.set_read_keys(
                 crypto_provider.create_aead(suite, &keys.server_application_key)?,
@@ -846,13 +899,19 @@ impl ClientConnection {
             );
         }
 
+        self.hs.client_app_traffic_secret = keys.client_application_traffic_secret.clone();
+        self.hs.server_app_traffic_secret = keys.server_application_traffic_secret.clone();
+
+        self.hs.client_app_traffic_secret = keys.client_application_traffic_secret.clone();
+        self.hs.server_app_traffic_secret = keys.server_application_traffic_secret.clone();
+
         self.hs.keys = Some(keys);
         self.hs.handshake_done = true;
         self.state = ClientState::Done;
         Ok(true)
     }
 
-    fn process_application_data(&mut self) -> Result<bool, Error> {
+    async fn process_application_data(&mut self) -> Result<bool, Error> {
         let mut processed_any = false;
         loop {
             match self.try_read_record()? {
@@ -865,11 +924,71 @@ impl ClientConnection {
                     return Err(Error::ConnectionClosed);
                 }
                 Some((ContentType::Alert, _)) => return Err(Error::ConnectionClosed),
+                Some((ContentType::Handshake, payload)) => {
+                    let (ht, _body) = decode_handshake_header(&payload)?;
+                    if ht == HandshakeType::KeyUpdate {
+                        self.handle_key_update_client(&payload)?;
+                        processed_any = true;
+                    } else if ht == HandshakeType::NewSessionTicket {
+                        self.handle_new_session_ticket(&payload).await?;
+                        processed_any = true;
+                    }
+                    continue;
+                }
                 Some(_) => continue,
                 None => break,
             }
         }
         Ok(processed_any)
+    }
+
+    fn handle_key_update_client(&mut self, payload: &[u8]) -> Result<(), Error> {
+        let request_update = decode_key_update(payload)?;
+        let suite = self.hs.cipher_suite.unwrap();
+        let ks = self.hs.key_schedule.as_ref().unwrap();
+        let crypto_provider = &self.config.crypto;
+        let (new_secret, new_key, new_iv) = ks.key_update_traffic(&self.hs.server_app_traffic_secret);
+        self.hs.server_app_traffic_secret = new_secret;
+        let aead = crypto_provider.create_aead(suite, &new_key)?;
+        self.hs.read_record.set_read_keys(aead, new_iv);
+        if request_update == 1 && !self.hs.pending_key_update_response {
+            self.hs.pending_key_update_response = true;
+            let (new_ws, new_wk, new_wiv) = ks.key_update_traffic(&self.hs.client_app_traffic_secret);
+            self.hs.client_app_traffic_secret = new_ws;
+            let waead = crypto_provider.create_aead(suite, &new_wk)?;
+            self.hs.write_record.set_write_keys(waead, new_wiv);
+            let ku = encode_key_update(0);
+            let encrypted = self.hs.write_record.encrypt_record(ContentType::Handshake, &ku)?;
+            self.hs.write_queue.push_back(encrypted);
+        }
+        Ok(())
+    }
+
+    async fn handle_new_session_ticket(&mut self, payload: &[u8]) -> Result<(), Error> {
+        let nst = NewSessionTicket::decode(payload)?;
+        let suite = self.hs.cipher_suite.unwrap();
+        let crypto_provider = &self.config.crypto;
+        let res_master = self
+            .hs
+            .keys
+            .as_ref()
+            .map(|k| k.resumption_master_secret.clone())
+            .ok_or_else(|| Error::InternalError("no keys for NST".into()))?;
+        if res_master.is_empty() {
+            return Ok(());
+        }
+        let psk = crypto_provider.hkdf_expand_label(
+            suite,
+            &res_master,
+            b"tls13 resumption",
+            &nst.ticket_nonce,
+            suite.hash_size(),
+        );
+        if let Some(ref cache) = self.config.session_cache {
+            let server_name = self.server_name.clone().unwrap_or_default();
+            cache.put(&server_name, nst.ticket, psk.to_vec()).await;
+        }
+        Ok(())
     }
 }
 
@@ -878,6 +997,8 @@ impl ClientConnection {
 #[derive(Debug, PartialEq)]
 enum ServerState {
     WaitClientHello,
+    WaitClientCertificate,
+    WaitClientCertificateVerify,
     WaitClientFinished,
     Done,
     Failed,
@@ -909,6 +1030,23 @@ impl ServerConnection {
     /// Return the selected ALPN protocol, if any.
     pub fn alpn_protocol(&self) -> Option<&Bytes> {
         self.hs.alpn_selected.as_ref()
+    }
+
+    /// Initiate a post-handshake key update (RFC 8446 §4.6.3).
+    pub fn initiate_key_update(&mut self, request_update: bool) -> Result<Bytes, Error> {
+        if !matches!(self.state, ServerState::Done) {
+            return Err(Error::InternalError("handshake not complete".into()));
+        }
+        let ks = self.hs.key_schedule.as_ref().unwrap();
+        let (new_secret, new_key, new_iv) = ks.key_update_traffic(&self.hs.server_app_traffic_secret);
+        self.hs.server_app_traffic_secret = new_secret;
+        let aead = self
+            .config
+            .provider
+            .create_aead(self.hs.cipher_suite.unwrap(), &new_key)?;
+        self.hs.write_record.set_write_keys(aead, new_iv);
+        let ku = encode_key_update(request_update as u8);
+        self.hs.write_record.encrypt_record(ContentType::Handshake, &ku)
     }
 
     /// Feed received bytes into the internal buffer.
@@ -956,10 +1094,14 @@ impl ServerConnection {
         loop {
             let made_progress = match self.state {
                 ServerState::WaitClientHello => self.process_client_hello().await?,
-                ServerState::WaitClientFinished => self.process_client_finished()?,
-                ServerState::Done => self.process_application_data()?,
+                ServerState::WaitClientCertificate => self.process_client_certificate()?,
+                ServerState::WaitClientCertificateVerify => self.process_client_certificate_verify()?,
+                ServerState::WaitClientFinished => self.process_client_finished().await?,
+                ServerState::Done => self.process_application_data().await?,
                 ServerState::Failed => {
-                    return Err(Error::HandshakeFailed("connection in failed state".into()));
+                    return Err(Error::HandshakeFailed(HandshakeFailure::Other(
+                        "connection in failed state".into(),
+                    )));
                 }
             };
             if !made_progress || self.state == ServerState::Done {
@@ -973,11 +1115,11 @@ impl ServerConnection {
     ///
     /// Call after [`inject`] to decrypt pending encrypted records.
     /// Returns `true` if any application data was decrypted.
-    pub fn process_app_data(&mut self) -> Result<bool, Error> {
+    pub async fn process_app_data(&mut self) -> Result<bool, Error> {
         if !matches!(self.state, ServerState::Done) {
             return Err(Error::InternalError("handshake not complete".into()));
         }
-        self.process_application_data()
+        self.process_application_data().await
     }
 
     fn try_read_record(&mut self) -> Result<Option<(ContentType, Bytes)>, Error> {
@@ -1002,6 +1144,32 @@ impl ServerConnection {
         }
     }
 
+    /// Try to resolve a PSK from the client's pre_shared_key extension.
+    async fn try_resolve_psk(&self, ch: &ClientHelloMsg) -> Option<Vec<u8>> {
+        let psk_ext = find_extension(&ch.extensions, ExtensionType::PreSharedKey)?;
+        let data = psk_ext.data.as_ref();
+        if data.len() < 2 {
+            return None;
+        }
+        let identity_list_len = u16::from_be_bytes([data[0], data[1]]) as usize;
+        if data.len() < 2 + identity_list_len {
+            return None;
+        }
+        let identities = &data[2..2 + identity_list_len];
+        let mut offset = 0;
+        if identities.len() < 2 {
+            return None;
+        }
+        let id_len = u16::from_be_bytes([identities[0], identities[1]]) as usize;
+        offset += 2;
+        if identities.len() < offset + id_len + 4 {
+            return None;
+        }
+        let ticket = &identities[offset..offset + id_len];
+        let store = self.config.session_tickets.as_ref()?;
+        store.get_psk(ticket).await
+    }
+
     async fn process_client_hello(&mut self) -> Result<bool, Error> {
         let payload = match self.try_read_record()? {
             Some((ContentType::Handshake, payload)) => payload,
@@ -1019,7 +1187,7 @@ impl ServerConnection {
 
         let sv_ext = find_extension(&ch.extensions, ExtensionType::SupportedVersions);
         if !check_supported_versions(sv_ext) {
-            return Err(Error::HandshakeFailed("TLS 1.3 not offered".into()));
+            return Err(Error::HandshakeFailed(HandshakeFailure::Other("TLS 1.3 not offered".into())));
         }
         self.hs.negotiated_version = parse_supported_versions(sv_ext).unwrap_or(0x0304);
 
@@ -1035,7 +1203,7 @@ impl ServerConnection {
         self.hs.cipher_suite = Some(suite);
 
         let ks_ext = find_extension(&ch.extensions, ExtensionType::KeyShare)
-            .ok_or_else(|| Error::HandshakeFailed("no key_share in ClientHello".into()))?;
+            .ok_or_else(|| Error::HandshakeFailed(HandshakeFailure::Other("no key_share in ClientHello".into())))?;
         let (group, peer_pk) = parse_key_share(ks_ext)?;
         self.hs.peer_public_key = Some(peer_pk.clone());
 
@@ -1046,7 +1214,8 @@ impl ServerConnection {
         self.hs.shared_secret = Some(shared);
         self.hs.kx_pairs.push(kx_pair);
 
-        let mut ks = KeySchedule::new(suite, Arc::clone(provider), None);
+        let psk_resolved = self.try_resolve_psk(&ch).await;
+        let mut ks = KeySchedule::new(suite, Arc::clone(provider), psk_resolved.as_deref());
         ks.add_shared_secret(self.hs.shared_secret.as_ref().unwrap());
         self.hs.key_schedule = Some(ks);
 
@@ -1091,10 +1260,10 @@ impl ServerConnection {
         let cert = self.config.cert_provider.provide(&client_hello).await?;
 
         if !sig_schemes.contains(&cert.scheme) {
-            return Err(Error::HandshakeFailed(format!(
+            return Err(Error::HandshakeFailed(HandshakeFailure::Other(format!(
                 "CertificateProvider selected scheme {:?} which was not offered by client",
                 cert.scheme
-            )));
+            ))));
         }
 
         let selected_cert_type = if client_cert_types.contains(&CertType::RawPublicKey) {
@@ -1107,6 +1276,9 @@ impl ServerConnection {
         provider.secure_random(&mut random);
 
         let mut sh_exts = vec![ext_supported_versions_server(), ext_key_share_server(&kx_pub, group)];
+        if psk_resolved.is_some() {
+            sh_exts.push(ext_pre_shared_key_server(0));
+        }
         let alpn_sel = client_hello
             .alpn_protocols
             .iter()
@@ -1164,7 +1336,16 @@ impl ServerConnection {
             .write_queue
             .push_back(self.hs.write_record.encrypt_record(ContentType::Handshake, &ee)?);
 
-        // 3) Certificate
+        // 3) CertificateRequest (optional — mutual TLS)
+        if self.config.require_client_auth {
+            let cert_req = encode_certificate_request(&[], &sig_schemes);
+            self.hs.transcript.extend_from_slice(&cert_req);
+            self.hs
+                .write_queue
+                .push_back(self.hs.write_record.encrypt_record(ContentType::Handshake, &cert_req)?);
+        }
+
+        // 4) Certificate
         let (public_key, signer) = (&cert.payload.public_key, &cert.payload.signer);
         let cert_msg = encode_certificate_raw_public_key(&[], public_key, &[]);
         self.hs.transcript.extend_from_slice(&cert_msg);
@@ -1172,7 +1353,7 @@ impl ServerConnection {
             .write_queue
             .push_back(self.hs.write_record.encrypt_record(ContentType::Handshake, &cert_msg)?);
 
-        // 4) CertificateVerify
+        // 5) CertificateVerify
         let cv_transcript_hash = provider.hash(suite, &self.hs.transcript);
         let mut signed_data = Vec::with_capacity(64 + 34 + 1 + 48);
         signed_data.extend_from_slice(&[0x20; 64]);
@@ -1187,7 +1368,7 @@ impl ServerConnection {
             .write_queue
             .push_back(self.hs.write_record.encrypt_record(ContentType::Handshake, &cv_msg)?);
 
-        // 5) Server Finished
+        // 6) Server Finished
         let s_hs_traffic_for_fin = ks_ref.server_handshake_traffic_secret(&self.hs.server_hello_hash);
         let s_fin_key =
             provider.hkdf_expand_label(suite, &s_hs_traffic_for_fin, b"tls13 finished", &[], suite.hash_size());
@@ -1203,18 +1384,81 @@ impl ServerConnection {
 
         let post_sfin_hash = provider.hash(suite, &self.hs.transcript);
 
-        let keys = ks_ref.derive_keys(&self.hs.server_hello_hash, &post_sfin_hash, &post_sfin_hash);
+        let keys = ks_ref.derive_traffic_keys(&self.hs.server_hello_hash, &post_sfin_hash);
 
         self.hs
             .read_record
             .set_read_keys(provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
 
+        self.hs.client_app_traffic_secret = keys.client_application_traffic_secret.clone();
+        self.hs.server_app_traffic_secret = keys.server_application_traffic_secret.clone();
+
         self.hs.keys = Some(keys);
+        self.state = if self.config.require_client_auth {
+            ServerState::WaitClientCertificate
+        } else {
+            ServerState::WaitClientFinished
+        };
+        Ok(true)
+    }
+
+    fn process_client_certificate(&mut self) -> Result<bool, Error> {
+        let payload = match self.try_read_record()? {
+            Some((ContentType::Handshake, payload)) => payload,
+            None => return Ok(false),
+            _ => {
+                return Err(Error::UnexpectedMessage {
+                    expected: "Certificate",
+                    got: "other",
+                });
+            }
+        };
+        let cert = Certificate::decode(&payload)?;
+        self.hs.transcript.extend_from_slice(&cert.raw);
+        self.hs.cert_chain = Some(cert.entries.into_iter().map(|e| e.cert_data).collect());
+        self.state = ServerState::WaitClientCertificateVerify;
+        Ok(true)
+    }
+
+    fn process_client_certificate_verify(&mut self) -> Result<bool, Error> {
+        let payload = match self.try_read_record()? {
+            Some((ContentType::Handshake, payload)) => payload,
+            None => return Ok(false),
+            _ => {
+                return Err(Error::UnexpectedMessage {
+                    expected: "CertificateVerify",
+                    got: "other",
+                });
+            }
+        };
+        let cv = CertificateVerify::decode(&payload)?;
+        let chain = self
+            .hs
+            .cert_chain
+            .take()
+            .ok_or_else(|| Error::InternalError("no client cert chain".into()))?;
+        if chain.is_empty() {
+            return Err(Error::DecodeError("empty client certificate chain".into()));
+        }
+        let spki_der =
+            x509::extract_spki_from_cert(&chain[0]).map_err(|e| Error::DecodeError(format!("X.509 parse: {e}")))?;
+        let pk = x509::extract_key_from_spki(spki_der).map_err(|e| Error::DecodeError(format!("X.509 key: {e}")))?;
+        let transcript_len_before = self.hs.transcript.len();
+        self.hs.transcript.extend_from_slice(&cv.raw);
+        let suite = self.hs.cipher_suite.unwrap();
+        let provider = &self.config.provider;
+        let transcript_hash = provider.hash(suite, &self.hs.transcript[..transcript_len_before]);
+        let mut signed_data = Vec::with_capacity(64 + 34 + 1 + 48);
+        signed_data.extend_from_slice(&[0x20; 64]);
+        signed_data.extend_from_slice(b"TLS 1.3, client CertificateVerify");
+        signed_data.push(0);
+        signed_data.extend_from_slice(&transcript_hash);
+        provider.verify_signature(cv.scheme, pk, &signed_data, &cv.signature)?;
         self.state = ServerState::WaitClientFinished;
         Ok(true)
     }
 
-    fn process_client_finished(&mut self) -> Result<bool, Error> {
+    async fn process_client_finished(&mut self) -> Result<bool, Error> {
         let payload = match self.try_read_record()? {
             Some((_ct @ ContentType::Handshake, payload)) => payload,
             None => return Ok(false),
@@ -1251,12 +1495,49 @@ impl ServerConnection {
             keys.server_application_iv,
         );
 
+        // Derive the resumption_master_secret now that the client's Finished is in the transcript.
+        let client_fin_hash = provider.hash(suite, &self.hs.transcript);
+        let res_master = ks.derive_resumption_secret(&client_fin_hash);
+        let res_master_clone = res_master.clone();
+        self.hs.keys.as_mut().unwrap().resumption_master_secret = res_master;
+
+        // Send a NewSessionTicket if a ticket store is configured.
+        if let Some(ref store) = self.config.session_tickets {
+            let ticket_lifetime = 86400u32;
+            let mut ticket_age_add = [0u8; 4];
+            provider.secure_random(&mut ticket_age_add);
+            let mut ticket_nonce = [0u8; 8];
+            provider.secure_random(&mut ticket_nonce);
+            let mut ticket = [0u8; 32];
+            provider.secure_random(&mut ticket);
+            let psk = provider.hkdf_expand_label(
+                suite,
+                &res_master_clone,
+                b"tls13 resumption",
+                &ticket_nonce,
+                suite.hash_size(),
+            );
+            store
+                .put_ticket("", ticket.to_vec(), psk.to_vec(), ticket_lifetime)
+                .await;
+            let nst = encode_new_session_ticket(
+                ticket_lifetime,
+                u32::from_be_bytes(ticket_age_add),
+                &ticket_nonce,
+                &ticket,
+                &[],
+            );
+            self.hs
+                .write_queue
+                .push_back(self.hs.write_record.encrypt_record(ContentType::Handshake, &nst)?);
+        }
+
         self.hs.handshake_done = true;
         self.state = ServerState::Done;
         Ok(true)
     }
 
-    fn process_application_data(&mut self) -> Result<bool, Error> {
+    async fn process_application_data(&mut self) -> Result<bool, Error> {
         let mut processed_any = false;
         loop {
             match self.try_read_record()? {
@@ -1269,11 +1550,41 @@ impl ServerConnection {
                     return Err(Error::ConnectionClosed);
                 }
                 Some((ContentType::Alert, _)) => return Err(Error::ConnectionClosed),
+                Some((ContentType::Handshake, payload)) => {
+                    let (ht, _body) = decode_handshake_header(&payload)?;
+                    if ht == HandshakeType::KeyUpdate {
+                        self.handle_key_update_server(&payload)?;
+                        processed_any = true;
+                    }
+                    continue;
+                }
                 Some(_) => continue,
                 None => break,
             }
         }
         Ok(processed_any)
+    }
+
+    fn handle_key_update_server(&mut self, payload: &[u8]) -> Result<(), Error> {
+        let request_update = decode_key_update(payload)?;
+        let suite = self.hs.cipher_suite.unwrap();
+        let ks = self.hs.key_schedule.as_ref().unwrap();
+        let provider = &self.config.provider;
+        let (new_secret, new_key, new_iv) = ks.key_update_traffic(&self.hs.client_app_traffic_secret);
+        self.hs.client_app_traffic_secret = new_secret;
+        let aead = provider.create_aead(suite, &new_key)?;
+        self.hs.read_record.set_read_keys(aead, new_iv);
+        if request_update == 1 && !self.hs.pending_key_update_response {
+            self.hs.pending_key_update_response = true;
+            let (new_ws, new_wk, new_wiv) = ks.key_update_traffic(&self.hs.server_app_traffic_secret);
+            self.hs.server_app_traffic_secret = new_ws;
+            let waead = provider.create_aead(suite, &new_wk)?;
+            self.hs.write_record.set_write_keys(waead, new_wiv);
+            let ku = encode_key_update(0);
+            let encrypted = self.hs.write_record.encrypt_record(ContentType::Handshake, &ku)?;
+            self.hs.write_queue.push_back(encrypted);
+        }
+        Ok(())
     }
 }
 
@@ -1293,10 +1604,10 @@ impl TlsState {
         }
     }
 
-    pub(crate) fn process_app_data(&mut self) -> Result<bool, Error> {
+    pub(crate) async fn process_app_data(&mut self) -> Result<bool, Error> {
         match self {
-            TlsState::Client(c) => c.process_app_data(),
-            TlsState::Server(c) => c.process_app_data(),
+            TlsState::Client(c) => c.process_app_data().await,
+            TlsState::Server(c) => c.process_app_data().await,
         }
     }
 

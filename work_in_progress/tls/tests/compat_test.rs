@@ -73,7 +73,9 @@ async fn handshake_and_app_data_compat_test() {
 
     let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port)).await.unwrap();
 
-    let mut client = tls::ClientConnection::new(config, Some("localhost".to_string())).unwrap();
+    let mut client = tls::ClientConnection::new(config, Some("localhost".to_string()))
+        .await
+        .unwrap();
     while let Some(data) = client.write_tls() {
         stream.write_all(&data).await.unwrap();
     }
@@ -178,7 +180,9 @@ async fn x25519mlkem768_clienthello_accepted_by_rustls() {
     let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
     let validator = Arc::new(AcceptAllValidator);
     let config = tls::config::ClientConfig::new(provider, vec![], validator);
-    let mut client = tls::ClientConnection::new(config, Some("localhost".to_string())).unwrap();
+    let mut client = tls::ClientConnection::new(config, Some("localhost".to_string()))
+        .await
+        .unwrap();
     let mut ch_bytes = Vec::new();
     while let Some(data) = client.write_tls() {
         ch_bytes.extend_from_slice(&data);

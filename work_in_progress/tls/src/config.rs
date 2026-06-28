@@ -152,6 +152,20 @@ pub struct ClientConfig {
     pub cert_types: Vec<CertType>,
     /// Validates the server's certificate / raw public key.
     pub cert_validator: Arc<dyn CertificateValidator>,
+    /// Optional provider for a client certificate when the server requests
+    /// one (mutual TLS).
+    pub client_cert: Option<Arc<ClientCertificate>>,
+    /// Optional session cache for PSK resumption.
+    pub session_cache: Option<Arc<dyn ClientSessionCache>>,
+}
+
+/// A client certificate and its signer, used when the server sends a
+/// `CertificateRequest` (mutual TLS / client authentication).
+pub struct ClientCertificate {
+    /// The certificate chain (X.509 DER, end-entity first).
+    pub cert_chain: Vec<Vec<u8>>,
+    /// Signer for the CertificateVerify message.
+    pub signer: Box<dyn crate::crypto::Signer>,
 }
 
 impl ClientConfig {
@@ -165,6 +179,8 @@ impl ClientConfig {
             alpn_protocols,
             cert_types: vec![CertType::X509],
             cert_validator,
+            client_cert: None,
+            session_cache: None,
         }
     }
 
@@ -172,6 +188,12 @@ impl ClientConfig {
     /// extension). If only `[CertType::X509]` the extension is not sent.
     pub fn with_cert_types(mut self, cert_types: Vec<CertType>) -> Self {
         self.cert_types = cert_types;
+        self
+    }
+
+    /// Set the client certificate to present when the server requests one.
+    pub fn with_client_cert(mut self, cert: Arc<ClientCertificate>) -> Self {
+        self.client_cert = Some(cert);
         self
     }
 }
@@ -193,6 +215,8 @@ pub struct ServerConfig {
     pub require_client_auth: bool,
     /// Optional fingerprinter for the raw ClientHello (e.g. JA4).
     pub fingerprinter: Option<Arc<dyn TlsFingerprinter>>,
+    /// Optional session ticket store for PSK resumption.
+    pub session_tickets: Option<Arc<dyn SessionTicketStore>>,
 }
 
 impl ServerConfig {
@@ -207,6 +231,85 @@ impl ServerConfig {
             cert_provider,
             require_client_auth: false,
             fingerprinter: None,
+            session_tickets: None,
         }
     }
+}
+
+/// A session ticket store for TLS 1.3 PSK resumption.
+///
+/// The server stores a mapping from opaque ticket bytes to the PSK (derived
+/// from the resumption_master_secret). On a subsequent connection the client
+/// presents the ticket, the server looks up the PSK, and the handshake
+/// proceeds with a PSK-based early secret.
+#[async_trait]
+pub trait SessionTicketStore: Send + Sync {
+    /// Store a ticket and its associated PSK.
+    async fn put_ticket(&self, server_name: &str, ticket: Vec<u8>, psk: Vec<u8>, lifetime_s: u32);
+    /// Look up a PSK by ticket, if it exists.
+    async fn get_psk(&self, ticket: &[u8]) -> Option<Vec<u8>>;
+    /// Remove a ticket (e.g. after failed resumption).
+    async fn remove_ticket(&self, ticket: &[u8]);
+}
+
+/// A simple in-memory session ticket store backed by a `HashMap`.
+///
+/// Tickets expire after the configured lifetime. This is suitable for
+/// single-process servers but NOT for multi-process or distributed
+/// deployments.
+pub struct InMemorySessionTicketStore {
+    tickets: std::sync::Mutex<alloc::collections::BTreeMap<Vec<u8>, (Vec<u8>, u64)>>,
+    ticket_lifetime: u32,
+}
+
+impl InMemorySessionTicketStore {
+    pub fn new(ticket_lifetime: u32) -> Self {
+        Self {
+            tickets: std::sync::Mutex::new(alloc::collections::BTreeMap::new()),
+            ticket_lifetime,
+        }
+    }
+}
+
+#[async_trait]
+impl SessionTicketStore for InMemorySessionTicketStore {
+    async fn put_ticket(&self, _server_name: &str, ticket: Vec<u8>, psk: Vec<u8>, _lifetime_s: u32) {
+        let expiry = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .saturating_add(self.ticket_lifetime as u64);
+        self.tickets.lock().unwrap().insert(ticket, (psk, expiry));
+    }
+
+    async fn get_psk(&self, ticket: &[u8]) -> Option<Vec<u8>> {
+        let map = self.tickets.lock().unwrap();
+        let (psk, expiry) = map.get(ticket)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if now > *expiry {
+            return None;
+        }
+        Some(psk.clone())
+    }
+
+    async fn remove_ticket(&self, ticket: &[u8]) {
+        self.tickets.lock().unwrap().remove(ticket);
+    }
+}
+
+/// A client-side session cache for PSK resumption.
+///
+/// Stores the ticket and PSK received from a server so that a subsequent
+/// connection can resume the session with a PSK-based ClientHello.
+#[async_trait]
+pub trait ClientSessionCache: Send + Sync {
+    /// Store a ticket and PSK for a given server.
+    async fn put(&self, server_name: &str, ticket: Vec<u8>, psk: Vec<u8>);
+    /// Retrieve the (ticket, PSK) for a given server, if available.
+    async fn get(&self, server_name: &str) -> Option<(Vec<u8>, Vec<u8>)>;
+    /// Remove a cached entry (e.g. after failed resumption).
+    async fn remove(&self, server_name: &str);
 }

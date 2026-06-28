@@ -11,9 +11,8 @@ default = ["crypto-default-provider", "webpki-validator", "std"]
 crypto-default-provider = ["dep:crypto", "crypto/random"]
 std = ["crypto/std"]
 tokio = ["dep:tokio", "std"]
-webpki-validator = ["dep:rustls-pki-types", "dep:rustls-webpki", "dep:webpki-roots", "dep:x509"]
-quic = []
-zeroize = ["dep:zeroize"]
+webpki-validator = ["dep:rustls-pki-types", "dep:rustls-webpki", "dep:webpki-roots"]
+zeroize = ["dep:zeroize", "crypto?/zeroize"]
 
 [dependencies]
 async-trait = "0.1"
@@ -25,7 +24,7 @@ rustls-pki-types = { version = "1", optional = true }
 rustls-webpki = { version = "0.103", default-features = false, features = ["alloc", "ring"], optional = true }
 tokio = { workspace = true, optional = true }
 webpki-roots = { version = "1", optional = true }
-x509 = { path = "../x509", optional = true }
+x509 = { path = "../x509" }
 zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
