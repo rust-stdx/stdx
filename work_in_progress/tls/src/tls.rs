@@ -43,7 +43,7 @@ pub use config::{
     InMemorySessionTicketStore, NoFingerprinter, ReceivedCertificate, ServerConfig, SessionTicketStore,
     TlsFingerprinter,
 };
-pub use connection::{ClientConnection, ServerConnection};
+pub use connection::{ClientConnection, QuicHandshake, QuicHandshakeEvent, ServerConnection};
 pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};
 #[cfg(feature = "webpki-validator")]
 pub use default_validator::WebPkiValidator;

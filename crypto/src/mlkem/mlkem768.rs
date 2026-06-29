@@ -39,6 +39,7 @@ pub struct PublicKey768 {
 ///
 /// See [`SecretKey768`] for a usage example.
 #[inline]
+#[cfg(feature = "random")]
 pub fn generate_keypair_768() -> (SecretKey768, PublicKey768) {
     SecretKey768::generate()
 }
@@ -59,6 +60,7 @@ impl SecretKey768 {
         self.bytes
     }
 
+    #[cfg(feature = "random")]
     pub fn generate() -> (Self, PublicKey768) {
         let coins: [u8; 64] = crate::random::random_bytes();
         Self::generate_derand(&coins)
@@ -116,6 +118,7 @@ impl PublicKey768 {
         self.bytes
     }
 
+    #[cfg(feature = "random")]
     pub fn encapsulate(&self) -> ([u8; CIPHERTEXT_SIZE_768], [u8; SHARED_SECRET_SIZE]) {
         let coins: [u8; 32] = crate::random::random_bytes();
         self.encapsulate_derand(&coins)

@@ -21,30 +21,27 @@
 //! | [`tls`] | TLS 1.3 handshake adapter for QUIC |
 //! | [`connection`] | Main `Connection` struct |
 
+pub mod ack;
+pub mod cid;
+pub mod cmd_queue;
 pub mod config;
+pub mod congestion;
 pub mod connection;
 pub mod crypto_keys;
 pub mod error;
 pub mod frame;
+pub mod loss;
 pub mod packet;
+pub mod server;
+pub mod stream;
 pub mod transport;
 pub mod transport_params;
 pub mod varint;
 
-#[cfg(feature = "std")]
-pub mod ack;
-#[cfg(feature = "std")]
-pub mod cid;
-#[cfg(feature = "std")]
-pub mod congestion;
-#[cfg(feature = "std")]
-pub mod loss;
-#[cfg(feature = "std")]
-pub mod stream;
-#[cfg(feature = "std")]
 pub mod tls_adapter;
 
 pub use config::Config;
 pub use connection::Connection;
 pub use error::Error;
+pub use stream::{ReceiveStream, SendStream};
 pub use transport::Transport;

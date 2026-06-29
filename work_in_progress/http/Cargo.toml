@@ -1,0 +1,16 @@
+[package]
+name = "http"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "http.rs"
+
+[dependencies]
+bytes = { workspace = true }
+hex = { path = "../../hex", default-features = false }
+quic = { path = "../quic" }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt", "io-util", "macros"] }

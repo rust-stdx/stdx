@@ -2,7 +2,8 @@
 //!
 //! Run: `cargo run --example connect -p quic -- example.com`
 
-use std::net::{SocketAddr, ToSocketAddrs};
+use core::net::SocketAddr;
+use std::{net::ToSocketAddrs, time::Duration};
 
 use quic::{Config, Transport};
 use tokio::net::UdpSocket as TokioUdpSocket;
@@ -14,8 +15,14 @@ impl Transport for UdpTransport {
     async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> std::io::Result<usize> {
         self.0.send_to(data, dest).await
     }
-    async fn recv_from(&self, buf: &mut [u8]) -> std::io::Result<(usize, SocketAddr)> {
-        self.0.recv_from(buf).await
+    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> std::io::Result<(usize, SocketAddr)> {
+        if let Some(dur) = deadline {
+            tokio::time::timeout(dur, self.0.recv_from(buf))
+                .await
+                .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "receive_from timed out"))?
+        } else {
+            self.0.recv_from(buf).await
+        }
     }
     fn local_addr(&self) -> std::io::Result<SocketAddr> {
         self.0.local_addr()
@@ -42,7 +49,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = quic::Connection::new(transport, config);
     match conn.connect(addr, &server_name).await {
         Ok(()) => println!("QUIC handshake successful!"),
-        Err(e) => eprintln!("Connection failed: {e}"),
+        Err(e) => {
+            eprintln!("Connection failed: {e}");
+            return Ok(());
+        }
     }
 
     Ok(())

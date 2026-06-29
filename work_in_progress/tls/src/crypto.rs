@@ -78,6 +78,15 @@ pub trait CryptoProvider: Send + Sync + 'static {
         context: &[u8],
         length: usize,
     ) -> Vec<u8, MAX_HASH_OUTPUT>;
+
+    /// Compute the QUIC header protection mask (RFC 9001 §5.4).
+    ///
+    /// Given the header protection key and a 16-byte `sample` from the
+    /// encrypted packet payload, returns a 16-byte mask to XOR with the
+    /// first byte and packet number.
+    ///
+    /// Panics if the cipher suite is not supported.
+    fn header_protection_mask(&self, suite: CipherSuite, hp_key: &[u8], sample: &[u8; 16]) -> Result<[u8; 16], Error>;
 }
 
 impl<T: CryptoProvider> CryptoProvider for alloc::sync::Arc<T> {
@@ -144,6 +153,10 @@ impl<T: CryptoProvider> CryptoProvider for alloc::sync::Arc<T> {
         length: usize,
     ) -> Vec<u8, MAX_HASH_OUTPUT> {
         (**self).hkdf_expand_label(suite, secret, label, context, length)
+    }
+
+    fn header_protection_mask(&self, suite: CipherSuite, hp_key: &[u8], sample: &[u8; 16]) -> Result<[u8; 16], Error> {
+        (**self).header_protection_mask(suite, hp_key, sample)
     }
 }
 

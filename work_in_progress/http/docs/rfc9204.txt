@@ -1,4 +1,4 @@
-﻿Internet Engineering Task Force (IETF)                         C. Krasic
+Internet Engineering Task Force (IETF)                         C. Krasic
 Request for Comments: 9204
 Category: Standards Track                                      M. Bishop
 ISSN: 2070-1721                                      Akamai Technologies

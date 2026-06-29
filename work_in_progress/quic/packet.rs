@@ -9,6 +9,12 @@ use crate::{cid::ConnectionId, error::Error, varint};
 /// QUIC version 1.
 pub const QUIC_VERSION_V1: u32 = 0x00000001;
 
+/// QUIC version 2 (RFC 9368).
+pub const QUIC_VERSION_V2: u32 = 0x6b3343cf;
+
+/// All supported QUIC versions in preference order (newest first).
+pub const SUPPORTED_VERSIONS: &[u32] = &[QUIC_VERSION_V2, QUIC_VERSION_V1];
+
 /// Packet types for long headers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]

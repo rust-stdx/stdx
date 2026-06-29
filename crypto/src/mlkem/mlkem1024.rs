@@ -39,6 +39,7 @@ pub struct PublicKey1024 {
 ///
 /// See [`SecretKey1024`] for a usage example.
 #[inline]
+#[cfg(feature = "random")]
 pub fn generate_keypair_1024() -> (SecretKey1024, PublicKey1024) {
     SecretKey1024::generate()
 }
@@ -54,6 +55,7 @@ impl SecretKey1024 {
         self.bytes
     }
 
+    #[cfg(feature = "random")]
     pub fn generate() -> (Self, PublicKey1024) {
         let coins: [u8; 64] = crate::random::random_bytes();
         Self::generate_derand(&coins)
@@ -111,6 +113,7 @@ impl PublicKey1024 {
         self.bytes
     }
 
+    #[cfg(feature = "random")]
     pub fn encapsulate(&self) -> ([u8; CIPHERTEXT_SIZE_1024], [u8; SHARED_SECRET_SIZE]) {
         let coins: [u8; 32] = crate::random::random_bytes();
         self.encapsulate_derand(&coins)

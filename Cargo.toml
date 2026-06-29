@@ -67,6 +67,7 @@ members = [
     "unsafe_libyaml",
     "uuid",
     "wasm_benchmarks/crypto",
+    "work_in_progress/http",
     "work_in_progress/pg",
     "work_in_progress/pg_derive",
     "work_in_progress/quic",

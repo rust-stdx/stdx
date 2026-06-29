@@ -1,4 +1,5 @@
-use std::{io, net::SocketAddr};
+use core::net::SocketAddr;
+use std::{io, time::Duration};
 
 use async_trait::async_trait;
 
@@ -18,7 +19,11 @@ pub trait Transport: Send + Sync + 'static {
     async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> io::Result<usize>;
 
     /// Read a datagram into `buf`.  Returns `(bytes_read, source_addr)`.
-    async fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)>;
+    ///
+    /// If `deadline` is `Some`, the implementation must return
+    /// `Err(io::ErrorKind::TimedOut)` when the deadline is exceeded
+    /// instead of blocking indefinitely.
+    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> io::Result<(usize, SocketAddr)>;
 
     /// Local socket address.
     fn local_addr(&self) -> io::Result<SocketAddr>;

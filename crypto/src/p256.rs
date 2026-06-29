@@ -50,6 +50,7 @@ pub struct PrivateKey {
 }
 
 impl PrivateKey {
+    #[cfg(feature = "random")]
     pub fn generate() -> Result<PrivateKey, EllipticCurveError> {
         let key: [u8; PRIVATE_KEY_SIZE] = crate::random::random_bytes();
         Self::from_bytes(&key)

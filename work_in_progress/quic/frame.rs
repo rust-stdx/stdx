@@ -356,6 +356,27 @@ pub fn decode_one(data: &[u8]) -> Result<(Frame, usize), Error> {
         0x1c => {
             let (ec, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close code".into()))?;
             off += c;
+            let (rl, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close reason len".into()))?;
+            off += c;
+            let reason = if rl as usize <= data.len() - off {
+                let r = data[off..off + rl as usize].to_vec();
+                off += rl as usize;
+                r
+            } else {
+                Vec::new()
+            };
+            Ok((
+                Frame::ConnectionClose {
+                    error_code: ec,
+                    frame_type: None,
+                    reason_phrase: reason,
+                },
+                off,
+            ))
+        }
+        0x1d => {
+            let (ec, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close code".into()))?;
+            off += c;
             let (ft, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close frame type".into()))?;
             off += c;
             let (rl, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close reason len".into()))?;
@@ -371,27 +392,6 @@ pub fn decode_one(data: &[u8]) -> Result<(Frame, usize), Error> {
                 Frame::ConnectionClose {
                     error_code: ec,
                     frame_type: Some(ft),
-                    reason_phrase: reason,
-                },
-                off,
-            ))
-        }
-        0x1d => {
-            let (ec, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close code".into()))?;
-            off += c;
-            let (rl, c) = varint::decode(&data[off..]).map_err(|_| Error::FrameDecode("close reason len".into()))?;
-            off += c;
-            let reason = if rl as usize <= data.len() - off {
-                let r = data[off..off + rl as usize].to_vec();
-                off += rl as usize;
-                r
-            } else {
-                Vec::new()
-            };
-            Ok((
-                Frame::ConnectionClose {
-                    error_code: ec,
-                    frame_type: None,
                     reason_phrase: reason,
                 },
                 off,

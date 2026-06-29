@@ -1,41 +1,65 @@
 //! QUIC-specific cryptographic operations (RFC 9001).
 //!
-//! Provides HKDF-Expand-Label, Initial/Handshake/1-RTT key derivation,
-//! header protection, and AEAD-based packet protection.
+//! This module delegates all key derivation and packet protection to the
+//! `tls::quic` module, which uses the pluggable [`tls::CryptoProvider`]
+//! trait. The `DirectionKeys` type is retained as a lightweight handle that
+//! wraps a [`tls::quic::QuicPacketProtection`].
+//!
+//! # Legacy re-exports
+//!
+//! The following symbols are re-exported from `tls::quic` so existing QUIC
+//! code can migrate incrementally:
+//!
+//! * [`pn_encoding_len`]
+//! * [`encode_pn`]
+//! * [`decode_pn`]
+//! * [`derive_initial_keys`]
+//! * [`derive_level_keys`]
+//! * [`derive_next_keys`]
 
-use crypto::{
-    Aead, AeadError, StreamCipher,
-    aes::{Aes128Gcm, Aes256Gcm, encrypt_block, encrypt_block_aes128, key_expand, key_expand_128},
-    chacha::{ChaCha, ChaCha20Poly1305},
-    hmac::Hmac,
-    sha2::Sha256,
-};
-use tls::CipherSuite;
+use std::sync::Arc;
+
+use tls::{CipherSuite, quic::QuicPacketProtection};
 
 use crate::error::Error;
 
-/// Fixed initial salt from RFC 9001 §5.2.
-const INITIAL_SALT: [u8; 20] = [
-    0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8, 0x0c, 0xad, 0xcc, 0xbb, 0x7f,
-    0x0a,
-];
+// ── DirectionKeys ────────────────────────────────────────────────────────
 
 /// Keys for one encryption direction (client or server) at one level.
-#[derive(Clone)]
+///
+/// Wraps [`QuicPacketProtection`] so that callers that only need the
+/// cipher suite or raw key material can still access it, while the AEAD
+/// and header protection operations go through the TLS crypto provider.
 pub struct DirectionKeys {
+    /// Raw AEAD key bytes.
     pub key: Vec<u8>,
+    /// 12-byte IV for packet protection.
     pub iv: [u8; 12],
+    /// Header protection key bytes.
     pub hp_key: Vec<u8>,
+    /// Cipher suite in use.
     pub cipher_suite: CipherSuite,
+    /// The full packet protection object (owns the AEAD, provides
+    /// encrypt/decrypt/header-protection methods).
+    pub protection: QuicPacketProtection,
 }
 
 impl DirectionKeys {
-    fn new(key: Vec<u8>, iv: [u8; 12], hp_key: Vec<u8>, cipher_suite: CipherSuite) -> Self {
+    /// Build `DirectionKeys` from a [`QuicPacketProtection`] plus the raw key
+    /// bytes (needed for callers that inspect the raw key).
+    pub fn from_parts(
+        key: Vec<u8>,
+        iv: [u8; 12],
+        hp_key: Vec<u8>,
+        cipher_suite: CipherSuite,
+        protection: QuicPacketProtection,
+    ) -> Self {
         Self {
             key,
             iv,
             hp_key,
             cipher_suite,
+            protection,
         }
     }
 }
@@ -46,87 +70,48 @@ pub struct LevelKeys {
     pub remote: DirectionKeys,
 }
 
-// ── HKDF-Expand-Label (RFC 9001 §5.1) ──────────────────────────────────────
+// ── Key derivation (delegates to tls::quic) ───────────────────────────────
 
-/// RFC 9001 §5.1: HKDF-Expand-Label(Secret, Label, Ctx, Length)
-pub fn hkdf_expand_label(secret: &[u8], label: &[u8], ctx: &[u8], length: usize) -> Vec<u8> {
-    let label_total = 6 + label.len(); // "tls13 " (6 bytes) + actual_label
-    let mut hkdf_label = Vec::with_capacity(2 + 1 + label_total + 1 + ctx.len());
-    hkdf_label.extend_from_slice(&(length as u16).to_be_bytes());
-    hkdf_label.push(label_total as u8);
-    hkdf_label.extend_from_slice(b"tls13 ");
-    hkdf_label.extend_from_slice(label);
-    hkdf_label.push(ctx.len() as u8);
-    hkdf_label.extend_from_slice(ctx);
-
-    let hash_len = 32; // SHA-256 output
-    let n = (length + hash_len - 1) / hash_len;
-    let mut output = Vec::with_capacity(n * hash_len);
-    let mut prev: Vec<u8> = Vec::new();
-
-    for i in 1..=n {
-        let mut mac = Hmac::<Sha256>::new(secret);
-        if !prev.is_empty() {
-            mac.update(&prev);
-        }
-        let mut info = hkdf_label.clone();
-        info.push(i as u8);
-        mac.update(&info);
-        let block = mac.finalize();
-        output.extend_from_slice(block.as_ref());
-        prev = block.as_ref().to_vec();
-    }
-    output.truncate(length);
-    output
-}
-
-// ── Initial key derivation (RFC 9001 §5.2) ─────────────────────────────────
-
-/// Derive the Initial encryption keys from the Destination Connection ID.
+/// Derive the Initial encryption keys from the Destination Connection ID (v1).
 pub fn derive_initial_keys(dcid: &[u8]) -> (DirectionKeys, DirectionKeys) {
-    let initial_secret = crypto::hkdf::extract::<Sha256>(Some(&INITIAL_SALT), dcid);
-    let client_secret = hkdf_expand_label(initial_secret.as_ref(), b"client in", b"", 32);
-    let server_secret = hkdf_expand_label(initial_secret.as_ref(), b"server in", b"", 32);
-    let client_keys = derive_quic_keys_from_secret(&client_secret, 16, CipherSuite::TlsAes128GcmSha256);
-    let server_keys = derive_quic_keys_from_secret(&server_secret, 16, CipherSuite::TlsAes128GcmSha256);
-    (client_keys, server_keys)
+    derive_initial_keys_for_version(dcid, 0x00000001)
 }
 
-fn derive_quic_keys_from_secret(secret: &[u8], key_len: usize, cipher_suite: CipherSuite) -> DirectionKeys {
-    let key = hkdf_expand_label(secret, b"quic key", b"", key_len);
-    let iv_bytes = hkdf_expand_label(secret, b"quic iv", b"", 12);
-    let hp_key = hkdf_expand_label(secret, b"quic hp", b"", key_len);
-    let mut iv = [0u8; 12];
-    iv.copy_from_slice(&iv_bytes);
-    DirectionKeys::new(key, iv, hp_key, cipher_suite)
+/// Derive the Initial encryption keys for the given QUIC version.
+pub fn derive_initial_keys_for_version(dcid: &[u8], version: u32) -> (DirectionKeys, DirectionKeys) {
+    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+    let (ck, sk) = tls::quic::derive_initial_keys(provider, dcid, version).expect("Initial key derivation failed");
+    (dir_keys_from_prot(ck), dir_keys_from_prot(sk))
 }
 
 /// Derive Handshake or 1-RTT keys from a TLS traffic secret.
 pub fn derive_level_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> DirectionKeys {
-    derive_quic_keys_from_secret(traffic_secret, cipher_suite.key_size(), cipher_suite)
+    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+    let prot =
+        tls::quic::derive_level_keys(provider, cipher_suite, traffic_secret).expect("level key derivation failed");
+    dir_keys_from_prot(prot)
 }
 
-// ── Header Protection (RFC 9001 §5.4) ──────────────────────────────────────
-
-/// Apply (or remove) header protection. XOR is its own inverse.
-fn apply_header_mask(
-    hp_key: &[u8],
-    cipher_suite: CipherSuite,
-    long_header: bool,
-    first_byte: &mut u8,
-    pn_bytes: &mut [u8],
-    sample: &[u8],
-) {
-    let mask = compute_header_protection_mask(hp_key, cipher_suite, sample);
-    if long_header {
-        *first_byte ^= mask[0] & 0x0f;
-    } else {
-        *first_byte ^= mask[0] & 0x1f;
-    }
-    for (i, b) in pn_bytes.iter_mut().enumerate() {
-        *b ^= mask[1 + i];
-    }
+/// Derive the next set of 1-RTT keys for a key update (RFC 9001 §6).
+///
+/// Returns `(new_traffic_secret, new_protection_keys)`.
+/// The caller must replace the current traffic secret with the new one
+/// so that subsequent key updates chain correctly.
+pub fn derive_next_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> Result<(Vec<u8>, DirectionKeys), Error> {
+    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+    let (new_secret, prot) = tls::quic::derive_next_keys(provider, cipher_suite, traffic_secret)
+        .map_err(|_| Error::Crypto(crypto::AeadError::InvalidCiphertext))?;
+    let new_secret = new_secret.into_iter().collect::<Vec<u8>>();
+    Ok((new_secret, dir_keys_from_prot(prot)))
 }
+
+/// Derive 0-RTT keys from a 0-RTT traffic secret (RFC 9001 §6.1).
+pub fn derive_0rtt_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> DirectionKeys {
+    // 0-RTT keys are derived the same way as level keys from the 0-RTT secret.
+    derive_level_keys(traffic_secret, cipher_suite)
+}
+
+// ── Header protection (delegates to QuicPacketProtection) ─────────────────
 
 pub fn apply_header_protection(
     keys: &DirectionKeys,
@@ -135,7 +120,17 @@ pub fn apply_header_protection(
     pn_bytes: &mut [u8],
     sample: &[u8],
 ) {
-    apply_header_mask(&keys.hp_key, keys.cipher_suite, long_header, first_byte, pn_bytes, sample)
+    let mut s = [0u8; 16];
+    s.copy_from_slice(sample);
+    if long_header {
+        keys.protection
+            .apply_header_protection_long(first_byte, pn_bytes, &s)
+            .expect("header protection failed");
+    } else {
+        keys.protection
+            .apply_header_protection_short(first_byte, pn_bytes, &s)
+            .expect("header protection failed");
+    }
 }
 
 pub fn remove_header_protection(
@@ -145,177 +140,66 @@ pub fn remove_header_protection(
     pn_bytes: &mut [u8],
     sample: &[u8],
 ) {
-    apply_header_mask(&keys.hp_key, keys.cipher_suite, long_header, first_byte, pn_bytes, sample)
+    apply_header_protection(keys, long_header, first_byte, pn_bytes, sample);
 }
 
-fn compute_header_protection_mask(hp_key: &[u8], cipher_suite: CipherSuite, sample: &[u8]) -> [u8; 16] {
-    match cipher_suite {
-        CipherSuite::TlsAes128GcmSha256 => {
-            let key: &[u8; 16] = hp_key.try_into().expect("16-byte HP key");
-            let mut block = [0u8; 16];
-            block.copy_from_slice(&sample[..16]);
-            let rk = key_expand_128(key);
-            encrypt_block_aes128(&rk, &block)
-        }
-        CipherSuite::TlsAes256GcmSha384 => {
-            let key: &[u8; 32] = hp_key.try_into().expect("32-byte HP key");
-            let mut block = [0u8; 16];
-            block.copy_from_slice(&sample[..16]);
-            let rk = key_expand(key);
-            encrypt_block(&rk, &block)
-        }
-        CipherSuite::TlsChaCha20Poly1305Sha256 => {
-            let key: &[u8; 32] = hp_key.try_into().expect("32-byte HP key");
-            let mut nonce = [0u8; 12];
-            nonce.copy_from_slice(&sample[4..16]);
-            let ctr = u32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]);
-            let mut cipher = ChaCha::<20, true>::new(key, &nonce);
-            cipher.set_counter(ctr as u32);
-            let mut out = [0u8; 64];
-            cipher.xor_keystream(&mut out);
-            let mut mask = [0u8; 16];
-            mask.copy_from_slice(&out[..16]);
-            mask
-        }
-    }
-}
-
-// ── Packet Protection (RFC 9001 §5.3) ──────────────────────────────────────
+// ── Packet protection (delegates to QuicPacketProtection) ────────────────
 
 /// Encrypt a QUIC packet payload.
-/// `payload` contains the plaintext; on return it holds ciphertext + 16-byte tag.
 pub fn encrypt_payload(
     keys: &DirectionKeys,
     packet_number: u64,
     header: &[u8],
     payload: &mut Vec<u8>,
 ) -> Result<(), Error> {
-    let nonce = compute_nonce(&keys.iv, packet_number);
-    match keys.cipher_suite {
-        CipherSuite::TlsAes128GcmSha256 => {
-            let k: &[u8; 16] = keys.key.as_slice().try_into().unwrap();
-            let cipher = Aes128Gcm::new(k);
-            let tag = cipher.encrypt_in_place(payload, &nonce, header);
-            payload.extend_from_slice(tag.as_ref());
-        }
-        CipherSuite::TlsAes256GcmSha384 => {
-            let k: &[u8; 32] = keys.key.as_slice().try_into().unwrap();
-            let cipher = Aes256Gcm::new(k);
-            let tag = cipher.encrypt_in_place(payload, &nonce, header);
-            payload.extend_from_slice(tag.as_ref());
-        }
-        CipherSuite::TlsChaCha20Poly1305Sha256 => {
-            let k: &[u8; 32] = keys.key.as_slice().try_into().unwrap();
-            let cipher = ChaCha20Poly1305::new(k);
-            let tag = cipher.encrypt_in_place(payload, &nonce, header);
-            payload.extend_from_slice(tag.as_ref());
-        }
-    }
-    Ok(())
+    keys.protection
+        .encrypt(packet_number, header, payload)
+        .map_err(|e| Error::Crypto(crypto::AeadError::InvalidCiphertext))
 }
 
 /// Decrypt a QUIC packet payload.
-/// `payload` contains ciphertext + 16-byte tag; on return it holds plaintext.
 pub fn decrypt_payload(
     keys: &DirectionKeys,
     packet_number: u64,
     header: &[u8],
     payload: &mut Vec<u8>,
 ) -> Result<(), Error> {
-    if payload.len() < 16 {
-        return Err(Error::Crypto(AeadError::InvalidCiphertext));
-    }
-    let tag = payload.split_off(payload.len() - 16);
-    let nonce = compute_nonce(&keys.iv, packet_number);
-    match keys.cipher_suite {
-        CipherSuite::TlsAes128GcmSha256 => {
-            let k: &[u8; 16] = keys.key.as_slice().try_into().unwrap();
-            let cipher = Aes128Gcm::new(k);
-            cipher
-                .decrypt_in_place(payload, &nonce, header, &tag)
-                .map_err(|_| Error::Crypto(AeadError::InvalidCiphertext))
-        }
-        CipherSuite::TlsAes256GcmSha384 => {
-            let k: &[u8; 32] = keys.key.as_slice().try_into().unwrap();
-            let cipher = Aes256Gcm::new(k);
-            cipher
-                .decrypt_in_place(payload, &nonce, header, &tag)
-                .map_err(|_| Error::Crypto(AeadError::InvalidCiphertext))
-        }
-        CipherSuite::TlsChaCha20Poly1305Sha256 => {
-            let k: &[u8; 32] = keys.key.as_slice().try_into().unwrap();
-            let cipher = ChaCha20Poly1305::new(k);
-            cipher
-                .decrypt_in_place(payload, &nonce, header, &tag)
-                .map_err(|_| Error::Crypto(AeadError::InvalidCiphertext))
-        }
-    }
+    keys.protection
+        .decrypt(packet_number, header, payload)
+        .map_err(|_| Error::Crypto(crypto::AeadError::InvalidCiphertext))
 }
 
-fn compute_nonce(iv: &[u8; 12], packet_number: u64) -> [u8; 12] {
-    let mut nonce = *iv;
-    let pn_bytes = packet_number.to_be_bytes();
-    for i in 0..8 {
-        nonce[4 + i] ^= pn_bytes[i];
-    }
-    nonce
-}
-
-// ── Packet number encoding / decoding ─────────────────────────────────────
+// ── Packet number encoding / decoding (re-export from tls::quic) ──────────
 
 pub fn pn_encoding_len(pn: u64, largest_acked: u64) -> usize {
-    let diff = pn.wrapping_sub(largest_acked);
-    if diff < 0x80 {
-        1
-    } else if diff < 0x8000 {
-        2
-    } else if diff < 0x800000 {
-        3
-    } else {
-        4
-    }
+    tls::quic::pn_encoding_len(pn, largest_acked)
 }
 
 pub fn encode_pn(pn: u64, len: usize, buf: &mut Vec<u8>) {
-    match len {
-        1 => buf.push(pn as u8),
-        2 => buf.extend_from_slice(&(pn as u16).to_be_bytes()),
-        3 => {
-            let b = pn.to_be_bytes();
-            buf.extend_from_slice(&b[5..]);
-        }
-        4 => buf.extend_from_slice(&(pn as u32).to_be_bytes()),
-        _ => panic!("invalid PN encoding length"),
-    }
+    tls::quic::encode_pn(pn, len, buf)
 }
 
 pub fn decode_pn(truncated: &[u8], largest_received: u64) -> u64 {
-    let truncated_val = match truncated.len() {
-        1 => truncated[0] as u64,
-        2 => u16::from_be_bytes([truncated[0], truncated[1]]) as u64,
-        3 => u32::from_be_bytes([0, truncated[0], truncated[1], truncated[2]]) as u64,
-        4 => u32::from_be_bytes([truncated[0], truncated[1], truncated[2], truncated[3]]) as u64,
-        _ => panic!("invalid truncated PN length"),
-    };
-    // First received packet: return truncated value directly
-    if largest_received == 0 {
-        return truncated_val;
-    }
-    let bits = truncated.len() * 8;
-    let window = 1u64 << bits;
-    let half_window = window >> 1;
-    let pn_mask = window - 1;
-    let expected_pn = largest_received + 1;
-    let mut decoded = (expected_pn & !pn_mask) | truncated_val;
-    // RFC 9000 Appendix A.3: avoid wrapping-underflow when expected_pn < half_window.
-    if expected_pn >= half_window && decoded <= expected_pn - half_window {
-        decoded = decoded.wrapping_add(window);
-    } else if decoded > expected_pn + half_window && decoded > window {
-        decoded = decoded.wrapping_sub(window);
-    }
-    decoded
+    tls::quic::decode_pn(truncated, largest_received)
 }
 
+// ── Internal helpers ─────────────────────────────────────────────────────
+
+fn dir_keys_from_prot(prot: QuicPacketProtection) -> DirectionKeys {
+    let suite = prot.cipher_suite();
+    let key = prot.key_bytes().to_vec();
+    let iv = *prot.iv_bytes();
+    let hp_key = prot.hp_key_bytes().to_vec();
+    DirectionKeys {
+        key,
+        iv,
+        hp_key,
+        cipher_suite: suite,
+        protection: prot,
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,12 +223,11 @@ mod tests {
         assert_eq!(hex::encode(&client.iv), "fa044b2f42a3fd3b46fb255c");
         assert_eq!(hex::encode(&client.hp_key), "9f50449e04a0e810283a1e9933adedd2");
 
-        // RFC A.2 sample ciphertext used for header protection
+        // Verify header protection mask.
         let sample = hex::decode("d1b1c98dd7689fb8ec11d242b123dc9b").unwrap();
-        let mut sample_arr = [0u8; 16];
-        sample_arr.copy_from_slice(&sample);
-        let mask = compute_header_protection_mask(&client.hp_key, client.cipher_suite, &sample_arr);
-        // Expected mask from RFC: 437b9aec36 (first 5 bytes used)
+        let mut s = [0u8; 16];
+        s.copy_from_slice(&sample);
+        let mask = client.protection.header_protection_mask(&s).unwrap();
         assert_eq!(mask[0], 0x43, "mask[0]");
         assert_eq!(mask[1], 0x7b, "mask[1]");
         assert_eq!(mask[2], 0x9a, "mask[2]");

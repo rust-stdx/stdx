@@ -54,6 +54,7 @@ pub struct SecretKey {
 }
 
 impl SecretKey {
+    #[cfg(feature = "random")]
     pub fn generate() -> SecretKey {
         let bytes: [u8; KEY_SIZE] = crate::random::random_bytes();
         SecretKey::from_bytes(&bytes)

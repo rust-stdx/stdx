@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, format};
 
 use crypto::{
-    Aead as CryptoAead, Hasher, hkdf,
+    Aead as CryptoAead, Hasher, StreamCipher, hkdf,
     hmac::Hmac,
     mlkem::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SecretKey768},
     sha2::Sha256,
@@ -322,6 +322,52 @@ impl CryptoProvider for DefaultCryptoProvider {
         hkdf_label.push(context.len() as u8).unwrap();
         hkdf_label.extend_from_slice(context).unwrap();
         self.hkdf_expand(suite, secret, &hkdf_label, length)
+    }
+
+    fn header_protection_mask(&self, suite: CipherSuite, hp_key: &[u8], sample: &[u8; 16]) -> Result<[u8; 16], Error> {
+        match suite {
+            CipherSuite::TlsAes128GcmSha256 => {
+                use crypto::aes::{encrypt_block_aes128, key_expand_128};
+                let key: &[u8; 16] = hp_key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "AES-128 HP key",
+                        expected: 16,
+                    })
+                })?;
+                let rk = key_expand_128(key);
+                Ok(encrypt_block_aes128(&rk, sample))
+            }
+            CipherSuite::TlsAes256GcmSha384 => {
+                use crypto::aes::{encrypt_block, key_expand};
+                let key: &[u8; 32] = hp_key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "AES-256 HP key",
+                        expected: 32,
+                    })
+                })?;
+                let rk = key_expand(key);
+                Ok(encrypt_block(&rk, sample))
+            }
+            CipherSuite::TlsChaCha20Poly1305Sha256 => {
+                use crypto::chacha::ChaCha;
+                let key: &[u8; 32] = hp_key.try_into().map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::WrongLength {
+                        algorithm: "ChaCha20 HP key",
+                        expected: 32,
+                    })
+                })?;
+                let mut nonce = [0u8; 12];
+                nonce.copy_from_slice(&sample[4..16]);
+                let ctr = u32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]);
+                let mut cipher = ChaCha::<20, true>::new(key, &nonce);
+                cipher.set_counter(ctr as u32);
+                let mut out = [0u8; 64];
+                cipher.xor_keystream(&mut out);
+                let mut mask = [0u8; 16];
+                mask.copy_from_slice(&out[..16]);
+                Ok(mask)
+            }
+        }
     }
 }
 
