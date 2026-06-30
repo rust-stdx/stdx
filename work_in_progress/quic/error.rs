@@ -3,14 +3,12 @@ use core::fmt;
 
 /// I/O error type returned by the [`Transport`](crate::Transport) trait.
 ///
-/// Distinguishes non-fatal (`WouldBlock`, `TimedOut`) from fatal errors
+/// Distinguishes non-fatal (`WouldBlock`) from fatal errors
 /// so the QUIC state machine can drive non-blocking I/O correctly.
 #[derive(Debug)]
 pub enum IoError {
     /// Operation would block; try again.
     WouldBlock,
-    /// Deadline exceeded.
-    TimedOut,
     /// Connection reset by peer.
     ConnectionReset,
     /// Other I/O error.
@@ -21,7 +19,6 @@ impl fmt::Display for IoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IoError::WouldBlock => write!(f, "operation would block"),
-            IoError::TimedOut => write!(f, "timed out"),
             IoError::ConnectionReset => write!(f, "connection reset"),
             IoError::Other(msg) => write!(f, "I/O error: {msg}"),
         }
@@ -36,7 +33,6 @@ impl From<std::io::Error> for IoError {
     fn from(e: std::io::Error) -> Self {
         match e.kind() {
             std::io::ErrorKind::WouldBlock => IoError::WouldBlock,
-            std::io::ErrorKind::TimedOut => IoError::TimedOut,
             std::io::ErrorKind::ConnectionReset => IoError::ConnectionReset,
             _ => IoError::Other(e.to_string()),
         }

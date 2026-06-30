@@ -26,19 +26,8 @@ impl quic::Transport for UdpTransport {
         self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
 
-    async fn receive_from(
-        &self,
-        buf: &mut [u8],
-        deadline: Option<std::time::Duration>,
-    ) -> Result<(usize, std::net::SocketAddr), IoError> {
-        if let Some(dur) = deadline {
-            tokio::time::timeout(dur, self.socket.recv_from(buf))
-                .await
-                .map_err(|_| IoError::TimedOut)?
-                .map_err(IoError::from)
-        } else {
-            self.socket.recv_from(buf).await.map_err(IoError::from)
-        }
+    async fn receive_from(&self, buf: &mut [u8]) -> Result<(usize, std::net::SocketAddr), IoError> {
+        self.socket.recv_from(buf).await.map_err(IoError::from)
     }
 
     fn local_addr(&self) -> Result<std::net::SocketAddr, IoError> {
@@ -87,9 +76,7 @@ impl Http3Conn {
         ctl_buf.extend_from_slice(&frame::encode_frame(&frame::Frame::Settings(Vec::new())));
         ctl.send(&ctl_buf, false)
             .map_err(|e| Error::H3(format!("send control: {e:?}")))?;
-        conn.receive_one()
-            .await
-            .map_err(|e| Error::H3(format!("recv1: {e:?}")))?;
+        conn.poll().await.map_err(|e| Error::H3(format!("recv1: {e:?}")))?;
 
         // Open QPACK encoder stream
         let mut enc_stream = conn
@@ -103,9 +90,7 @@ impl Http3Conn {
         enc_stream
             .send(&enc_buf, false)
             .map_err(|e| Error::H3(format!("send qpack enc: {e:?}")))?;
-        conn.receive_one()
-            .await
-            .map_err(|e| Error::H3(format!("recv2: {e:?}")))?;
+        conn.poll().await.map_err(|e| Error::H3(format!("recv2: {e:?}")))?;
 
         // Open QPACK decoder stream
         let mut dec_stream = conn
@@ -118,9 +103,7 @@ impl Http3Conn {
         dec_stream
             .send(&dec_buf, false)
             .map_err(|e| Error::H3(format!("send qpack dec: {e:?}")))?;
-        conn.receive_one()
-            .await
-            .map_err(|e| Error::H3(format!("recv3: {e:?}")))?;
+        conn.poll().await.map_err(|e| Error::H3(format!("recv3: {e:?}")))?;
 
         // Read server SETTINGS from control stream
         let mut server = conn
@@ -164,7 +147,7 @@ impl Http3Conn {
     }
 
     pub async fn send_request(&mut self, req: Request) -> Result<Response, Error> {
-        let _ = self.conn.receive_one().await;
+        let _ = self.conn.poll().await;
 
         let (mut req_send, mut req_recv) = self
             .conn
@@ -212,7 +195,7 @@ impl Http3Conn {
             }
         }
 
-        let _ = self.conn.receive_one().await;
+        let _ = self.conn.poll().await;
 
         let mut buf = vec![0u8; 65536];
         let mut pending_buf = Vec::new();

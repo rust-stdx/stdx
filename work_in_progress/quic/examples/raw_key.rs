@@ -70,15 +70,8 @@ impl Transport for UdpTransport {
         self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
 
-    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> Result<(usize, SocketAddr), IoError> {
-        if let Some(dur) = deadline {
-            tokio::time::timeout(dur, self.socket.recv_from(buf))
-                .await
-                .map_err(|_| IoError::TimedOut)?
-                .map_err(IoError::from)
-        } else {
-            self.socket.recv_from(buf).await.map_err(IoError::from)
-        }
+    async fn receive_from(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr), IoError> {
+        self.socket.recv_from(buf).await.map_err(IoError::from)
     }
 
     fn local_addr(&self) -> Result<SocketAddr, IoError> {
@@ -189,7 +182,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_handle = tokio::spawn(async move {
         eprintln!("[server] Waiting for connection...");
         match server_conn.accept().await {
-            Ok(()) => eprintln!("[server] Handshake complete!"),
+            Ok(()) => {
+                eprintln!("[server] Handshake complete!");
+                match tokio::time::timeout(Duration::from_secs(5), server_conn.receive_datagram()).await {
+                    Ok(Ok(data)) => {
+                        let msg = String::from_utf8_lossy(&data);
+                        eprintln!("[server] Received datagram: {msg}");
+                    }
+                    Ok(Err(e)) => eprintln!("[server] Receive error: {e}"),
+                    Err(_) => eprintln!("[server] Timed out waiting for datagram"),
+                }
+            }
             Err(e) => eprintln!("[server] Accept failed: {e}"),
         }
     });
@@ -202,7 +205,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("[client] Connecting to server at {server_addr}...");
     match client_conn.connect(server_addr, "localhost").await {
-        Ok(()) => eprintln!("[client] QUIC handshake successful!"),
+        Ok(()) => {
+            eprintln!("[client] QUIC handshake successful!");
+            client_conn
+                .send_datagram(b"Hello, world")
+                .await
+                .expect("failed to send datagram");
+            eprintln!("[client] Sent datagram: Hello, world");
+        }
         Err(e) => {
             eprintln!("[client] Connection failed: {e}");
         }

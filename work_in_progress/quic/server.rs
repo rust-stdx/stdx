@@ -11,14 +11,9 @@
 //! // use streams/datagrams
 //! ```
 
-use alloc::{
-    collections::{BTreeMap, VecDeque},
-    vec,
-    vec::Vec,
-};
+use alloc::{collections::VecDeque, vec, vec::Vec};
 use core::{net::SocketAddr, time::Duration};
 
-use bytes::Bytes;
 use hashbrown::HashMap;
 use tls::QuicHandshakeEvent;
 
@@ -27,18 +22,17 @@ use crate::{
     cid::ConnectionId,
     cmd_queue::{CmdReceiver, CmdSender, cmd_queue},
     config::Config,
-    connection::{CryptoBuffer, LevelSendState, build_transport_params, enc_varint, frames_from, send_one_packet},
+    connection::{CryptoBuffer, LevelSendState, build_transport_params, frames_from, send_one_packet},
     crypto_keys::{self, DirectionKeys},
     error::{Error, IoError},
-    frame::{self, Frame},
+    frame::Frame,
     instant::Instant,
     loss::LossDetection,
     packet::{self, LongPacketType},
     stream::{ReceiveChunk, RecvFlowController, SendFlowController, Stream, StreamAllocator},
     tls_adapter::TlsAdapter,
     transport::Transport,
-    transport_params::{self, Param, ParamType},
-    varint,
+    transport_params::{self},
 };
 
 /// Server-side QUIC connection.
@@ -143,15 +137,13 @@ impl<T: Transport> ServerConnection<T> {
     /// provided at construction. Blocks until the handshake is complete or fails.
     ///
     /// This method handles all packet I/O internally — no manual
-    /// [`receive_one`](Self::receive_one) calls are needed during the handshake.
+    /// [`poll`](Self::poll) calls are needed during the handshake.
     pub async fn accept(&mut self) -> Result<(), Error> {
         // Receive first datagram from the client
         let mut buf = vec![0u8; self.config.recv_buf_size];
-        let (n, src) = self
-            .transport
-            .receive_from(&mut buf, Some(Duration::from_secs(10)))
+        let (n, src) = tokio::time::timeout(Duration::from_secs(10), self.transport.receive_from(&mut buf))
             .await
-            .map_err(|_| Error::ConnectionTimedOut)?;
+            .map_err(|_| Error::ConnectionTimedOut)??;
         let data = &buf[..n];
 
         // Parse the Initial packet header
@@ -308,7 +300,7 @@ impl<T: Transport> ServerConnection<T> {
                 return Err(Error::ConnectionTimedOut);
             }
             self.check_pto_and_retransmit().await?;
-            let result = self.receive_one().await;
+            let result = self.poll().await;
             match result {
                 Ok(()) => {}
                 Err(Error::ConnectionClosed(_, _)) => return result,
@@ -321,18 +313,18 @@ impl<T: Transport> ServerConnection<T> {
         matches!(self.state, ServerState::Established)
     }
 
-    /// Drive one I/O cycle: check PTO, receive and process one datagram.
-    pub async fn receive_one(&mut self) -> Result<(), Error> {
+    /// Drive the connection forward: check timers, receive and process
+    /// incoming datagrams.
+    ///
+    /// Returns `Ok(())` when idle. Call in a loop (or spawn a background
+    /// task) to keep the connection alive while using [`SendStream`]
+    /// and [`ReceiveStream`] objects.
+    pub async fn poll(&mut self) -> Result<(), Error> {
         self.check_pto_and_retransmit().await?;
 
         let buf_size = self.config.recv_buf_size;
         let mut buf = vec![0u8; buf_size];
-        let recv_result = self
-            .transport
-            .receive_from(&mut buf, Some(Duration::from_millis(50)))
-            .await;
-
-        match recv_result {
+        match self.transport.receive_from(&mut buf).await {
             Ok((0, _)) => Ok(()),
             Ok((n, _src)) => {
                 self.last_activity = self.clock();
@@ -350,8 +342,36 @@ impl<T: Transport> ServerConnection<T> {
                 }
                 Ok(())
             }
-            Err(IoError::WouldBlock | IoError::TimedOut) => Ok(()),
+            Err(IoError::WouldBlock) => Ok(()),
             Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Send a datagram to the peer on the 1-RTT encryption level.
+    pub async fn send_datagram(&mut self, data: &[u8]) -> Result<(), Error> {
+        self.send_frames_at_level(
+            2,
+            false,
+            false,
+            &[Frame::Datagram {
+                data: data.to_vec(),
+            }],
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Receive the next buffered datagram.
+    ///
+    /// Blocks until a datagram is received and processed.
+    /// To add a timeout, wrap the call with
+    /// [`tokio::time::timeout`](https://docs.rs/tokio/latest/tokio/time/fn.timeout.html).
+    pub async fn receive_datagram(&mut self) -> Result<Vec<u8>, Error> {
+        loop {
+            if let Some(d) = self.datagram_queue.pop_front() {
+                return Ok(d);
+            }
+            self.poll().await?;
         }
     }
 

@@ -18,15 +18,8 @@ impl Transport for UdpTransport {
     async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> Result<usize, IoError> {
         self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
-    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> Result<(usize, SocketAddr), IoError> {
-        if let Some(dur) = deadline {
-            tokio::time::timeout(dur, self.socket.recv_from(buf))
-                .await
-                .map_err(|_| IoError::TimedOut)?
-                .map_err(IoError::from)
-        } else {
-            self.socket.recv_from(buf).await.map_err(IoError::from)
-        }
+    async fn receive_from(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr), IoError> {
+        self.socket.recv_from(buf).await.map_err(IoError::from)
     }
     fn local_addr(&self) -> Result<SocketAddr, IoError> {
         self.socket.local_addr().map_err(IoError::from)

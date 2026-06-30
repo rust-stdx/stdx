@@ -328,7 +328,7 @@ impl<T: Transport> Connection<T> {
             }
             // Check PTO before blocking on recv
             self.check_pto_and_retransmit().await?;
-            let result = self.receive_one().await;
+            let result = self.poll().await;
             match result {
                 Ok(()) => {}
                 Err(Error::ConnectionClosed(_, _)) => return result,
@@ -525,7 +525,7 @@ impl<T: Transport> Connection<T> {
     /// Accept a peer-initiated bidirectional stream.
     ///
     /// Blocks until a peer-initiated bidirectional stream is available
-    /// (by calling [`receive_one`] internally if needed).
+    /// (by calling [`poll`] internally if needed).
     pub async fn accept_bidirectional_stream(&mut self) -> Result<(SendStream, ReceiveStream), Error> {
         loop {
             if let Some(pos) = self.pending_accepts.iter().position(|(_, dir)| *dir == StreamDir::Bi) {
@@ -547,7 +547,7 @@ impl<T: Transport> Connection<T> {
                 };
                 return Ok((send, recv));
             }
-            if self.receive_one().await.is_err() {
+            if self.poll().await.is_err() {
                 if self.pending_accepts.iter().any(|(_, d)| *d == StreamDir::Bi) {
                     continue;
                 }
@@ -564,7 +564,7 @@ impl<T: Transport> Connection<T> {
             if let Some(recv) = self.try_accept_unidirectional_stream() {
                 return Ok(recv);
             }
-            if self.receive_one().await.is_err() {
+            if self.poll().await.is_err() {
                 if self.pending_accepts.iter().any(|(_, d)| *d == StreamDir::Uni) {
                     continue;
                 }
@@ -577,7 +577,7 @@ impl<T: Transport> Connection<T> {
     ///
     /// Returns `Some(ReceiveStream)` if a peer-initiated unidirectional stream
     /// is waiting, or `None` if none are available.  Does not call
-    /// `receive_one()` — the caller is responsible for driving the connection.
+    /// `poll()` — the caller is responsible for driving the connection.
     pub fn try_accept_unidirectional_stream(&mut self) -> Option<ReceiveStream> {
         if let Some(pos) = self.pending_accepts.iter().position(|(_, d)| *d == StreamDir::Uni) {
             let (id, _) = self.pending_accepts.remove(pos).unwrap();
@@ -826,12 +826,13 @@ impl<T: Transport> Connection<T> {
         Ok(())
     }
 
-    pub async fn receive_datagram(&mut self) -> Result<Option<Vec<u8>>, Error> {
-        if let Some(d) = self.datagram_queue.pop_front() {
-            return Ok(Some(d));
+    pub async fn receive_datagram(&mut self) -> Result<Vec<u8>, Error> {
+        loop {
+            if let Some(d) = self.datagram_queue.pop_front() {
+                return Ok(d);
+            }
+            self.poll().await?;
         }
-        self.receive_one().await.ok();
-        Ok(self.datagram_queue.pop_front())
     }
 
     pub async fn close(&mut self, error_code: u64, reason: &[u8]) -> Result<(), Error> {
@@ -1100,26 +1101,21 @@ impl<T: Transport> Connection<T> {
         Ok(())
     }
 
-    // ── Receive ───────────────────────────────────────────────────────
+    // ── I/O poll ────────────────────────────────────────────────────
 
-    /// Drive one I/O cycle: process pending stream commands, then
-    /// receive and handle the next incoming datagram.
+    /// Drive the connection forward: flush outgoing frames, check
+    /// timers, receive and process incoming datagrams.
     ///
-    /// Call this in a loop (or spawn a background task) to keep the
-    /// connection alive while using [`SendStream`] and [`ReceiveStream`]
-    /// objects.
-    pub async fn receive_one(&mut self) -> Result<(), Error> {
+    /// Returns `Ok(())` when idle. Call in a loop (or spawn a
+    /// background task) to keep the connection alive while using
+    /// [`SendStream`] and [`ReceiveStream`] objects.
+    pub async fn poll(&mut self) -> Result<(), Error> {
         self.process_stream_commands().await?;
         self.check_pto_and_retransmit().await?;
 
         let buf_size = self.config.recv_buf_size;
         let mut buf = vec![0u8; buf_size];
-        let recv_result = self
-            .transport
-            .receive_from(&mut buf, Some(Duration::from_millis(50)))
-            .await;
-
-        match recv_result {
+        match self.transport.receive_from(&mut buf).await {
             Ok((0, _)) => Ok(()),
             Ok((n, src)) => {
                 self.last_activity = self.clock();
@@ -1144,8 +1140,8 @@ impl<T: Transport> Connection<T> {
                 }
                 Ok(())
             }
-            Err(IoError::WouldBlock | IoError::TimedOut) => Ok(()),
-            Err(e) => Err(e.into()),
+            Err(IoError::WouldBlock) => Ok(()),
+            Err(err) => Err(err.into()),
         }
     }
 

@@ -261,7 +261,7 @@ pub trait SessionTicketStore: Send + Sync {
 /// Available only when the `std` feature is enabled.
 #[cfg(feature = "std")]
 pub struct InMemorySessionTicketStore {
-    tickets: std::sync::Mutex<alloc::collections::BTreeMap<Vec<u8>, (Vec<u8>, u64)>>,
+    tickets: std::sync::Mutex<std::collections::HashMap<Vec<u8>, (Vec<u8>, u64)>>,
     ticket_lifetime: u32,
 }
 
@@ -269,7 +269,7 @@ pub struct InMemorySessionTicketStore {
 impl InMemorySessionTicketStore {
     pub fn new(ticket_lifetime: u32) -> Self {
         Self {
-            tickets: std::sync::Mutex::new(alloc::collections::BTreeMap::new()),
+            tickets: std::sync::Mutex::new(std::collections::HashMap::new()),
             ticket_lifetime,
         }
     }

@@ -67,6 +67,7 @@ struct HandshakeState {
     negotiated_cert_type: CertType,
     handshake_payload: BytesMut,
     server_hello_hash: heapless::Vec<u8, MAX_HASH_OUTPUT>,
+    server_finished_hash: heapless::Vec<u8, MAX_HASH_OUTPUT>,
     write_queue: VecDeque<Bytes>,
     app_data_queue: VecDeque<Bytes>,
     handshake_done: bool,
@@ -120,6 +121,7 @@ impl HandshakeState {
             negotiated_cert_type: CertType::X509,
             handshake_payload: BytesMut::new(),
             server_hello_hash: heapless::Vec::new(),
+            server_finished_hash: heapless::Vec::new(),
             write_queue: VecDeque::new(),
             app_data_queue: VecDeque::new(),
             handshake_done: false,
@@ -1129,8 +1131,7 @@ impl ServerConnection {
         let suite = self.hs.cipher_suite?;
         let provider = &self.config.provider;
         let sh_hash = self.hs.server_hello_hash.as_slice();
-        let sfin_hash_bytes = provider.hash(suite, &self.hs.transcript);
-        let sfin_hash = sfin_hash_bytes.as_slice();
+        let sfin_hash = self.hs.server_finished_hash.as_slice();
         Some(crate::quic::extract_quic_secrets(ks, sh_hash, sfin_hash))
     }
 
@@ -1553,6 +1554,16 @@ impl ServerConnection {
         };
 
         let fin = Finished::decode(&payload)?;
+
+        // Capture the server_finished_transcript hash before extending with
+        // the Client Finished — quic_secrets() needs this for deriving
+        // application traffic secrets (RFC 9001 §4.1).
+        let suite = self.hs.cipher_suite.unwrap();
+        let provider = &self.config.provider;
+        let sfin_hash = provider.hash(suite, &self.hs.transcript);
+        self.hs.server_finished_hash.clear();
+        self.hs.server_finished_hash.extend_from_slice(&sfin_hash).unwrap();
+
         self.hs.transcript.extend_from_slice(&fin.raw);
 
         let suite = self.hs.cipher_suite.unwrap();

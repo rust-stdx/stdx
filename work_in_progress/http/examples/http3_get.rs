@@ -1,7 +1,7 @@
 //! Example: connect to an HTTP/3 server, send GET /, and print the response.
 use std::{
     net::{SocketAddr, ToSocketAddrs},
-    time::Duration,
+    time::SystemTime,
 };
 
 use http::http3::{self, frame, qpack};
@@ -18,21 +18,17 @@ impl Transport for UdpTransport {
     async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> Result<usize, IoError> {
         self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
-    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> Result<(usize, SocketAddr), IoError> {
-        if let Some(dur) = deadline {
-            tokio::time::timeout(dur, self.socket.recv_from(buf))
-                .await
-                .map_err(|_| IoError::TimedOut)?
-                .map_err(IoError::from)
-        } else {
-            self.socket.recv_from(buf).await.map_err(IoError::from)
-        }
+    async fn receive_from(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr), IoError> {
+        self.socket.recv_from(buf).await.map_err(IoError::from)
     }
     fn local_addr(&self) -> Result<SocketAddr, IoError> {
         self.socket.local_addr().map_err(IoError::from)
     }
     fn now(&self) -> Instant {
-        let us = std::time::Instant::now().duration_since(self.epoch).as_micros() as u64;
+        let us = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time went backwards")
+            .as_micros() as u64;
         Instant::from_micros(us)
     }
 }
@@ -61,20 +57,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     quic::varint::encode(http3::CONTROL_STREAM_TYPE, &mut ctl_buf);
     ctl_buf.extend_from_slice(&frame::encode_frame(&frame::Frame::Settings(Vec::new())));
     ctl.send(&ctl_buf, false)?;
-    conn.receive_one().await?;
+    conn.poll().await?;
 
     let mut enc = conn.open_unidirectional_stream().await?;
     let mut buf = Vec::new();
     quic::varint::encode(http3::QPACK_ENCODER_STREAM_TYPE, &mut buf);
     quic::varint::encode(0x20, &mut buf);
     enc.send(&buf, false)?;
-    conn.receive_one().await?;
+    conn.poll().await?;
 
     let mut dec = conn.open_unidirectional_stream().await?;
     let mut buf = Vec::new();
     quic::varint::encode(http3::QPACK_DECODER_STREAM_TYPE, &mut buf);
     dec.send(&buf, false)?;
-    conn.receive_one().await?;
+    conn.poll().await?;
 
     let (mut req_send, mut req_recv) = conn.open_bidirectional_stream().await?;
 
@@ -83,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::spawn(async move {
         loop {
-            if let Err(_) = conn.receive_one().await {
+            if let Err(_) = conn.poll().await {
                 break;
             }
         }
