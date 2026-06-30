@@ -152,25 +152,22 @@ impl WebPkiValidator {
                     // Next cert in the chain is the issuer.
                     let issuer_der = &chain[i + 1];
                     let spki_full = x509::extract_spki_from_cert(issuer_der).map_err(|e| {
-                        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-                            "issuer SPKI (chain_idx={}): {e}",
-                            i + 1
-                        )))
+                        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                            format!("issuer SPKI (chain_idx={}): {e}", i + 1).into(),
+                        ))
                     })?;
                     let subject = x509::extract_subject_dn(issuer_der).map_err(|e| {
-                        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-                            "issuer subject DN (chain_idx={}): {e}",
-                            i + 1
-                        )))
+                        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                            format!("issuer subject DN (chain_idx={}): {e}", i + 1).into(),
+                        ))
                     })?;
                     (spki_full, subject)
                 } else {
                     // Signed by a trusted root.
                     let cert_issuer_dn = x509::extract_issuer_dn(cert_der).map_err(|e| {
-                        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-                            "cert issuer DN (chain_idx={}): {e}",
-                            i
-                        )))
+                        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                            format!("cert issuer DN (chain_idx={}): {e}", i).into(),
+                        ))
                     })?;
                     match self.find_root(cert_issuer_dn) {
                         Ok(root) => (root.spki, root.subject),
@@ -185,9 +182,9 @@ impl WebPkiValidator {
                 }
             };
             let cert_issuer_dn = x509::extract_issuer_dn(cert_der).map_err(|e| {
-                Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-                    "cert issuer DN: {e}"
-                )))
+                Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                    format!("cert issuer DN: {e}").into(),
+                ))
             })?;
             if !x509::dn_equal(cert_issuer_dn, issuer_subject_dn) {
                 // Cross-signed case: if this is the last intermediate in the chain
@@ -210,16 +207,17 @@ impl WebPkiValidator {
                 && !x509::dn_equal(cert_issuer_dn, issuer_subject_dn);
             if !is_cross_signed {
                 self.verify_cert_signature(cert_der, issuer_spki).map_err(|e| {
-                    Error::CertificateValidationFailed(CertificateValidationFailure::ChainValidation(format!(
-                        "signature verification failed at chain_idx={}: {e}",
-                        i
-                    )))
+                    Error::CertificateValidationFailed(CertificateValidationFailure::ChainValidation(
+                        format!("signature verification failed at chain_idx={}: {e}", i).into(),
+                    ))
                 })?;
             }
 
             // Check validity period.
             let (nb, na) = x509::parse_validity(cert_der).map_err(|e| {
-                Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("validity: {e}")))
+                Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                    format!("validity: {e}").into(),
+                ))
             })?;
             let now = self.clock.now();
             if now < nb.to_unix_seconds() {
@@ -248,14 +246,13 @@ impl WebPkiValidator {
 
     fn validate_ee_extensions(&self, ee_der: &[u8], server_name: &str) -> Result<(), Error> {
         let dns_names = x509::parse_san_dns_names(ee_der).map_err(|e| {
-            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("SAN: {e}")))
+            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("SAN: {e}").into()))
         })?;
         if !dns_names.iter().any(|n| dns_name_matches(n, server_name)) {
             return Err(Error::CertificateValidationFailed(
-                CertificateValidationFailure::SubjectNameMismatch(format!(
-                    "server name '{}' not found in SAN",
-                    server_name
-                )),
+                CertificateValidationFailure::SubjectNameMismatch(
+                    format!("server name '{}' not found in SAN", server_name).into(),
+                ),
             ));
         }
 
@@ -278,19 +275,21 @@ impl WebPkiValidator {
 
     fn verify_cert_signature(&self, cert_der: &[u8], issuer_spki: &[u8]) -> Result<(), Error> {
         let tbs_data = extract_tbs(cert_der).map_err(|e| {
-            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("TBS: {e}")))
+            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("TBS: {e}").into()))
         })?;
 
         let signature = extract_signature_value(cert_der).map_err(|e| {
-            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("signature: {e}")))
+            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                format!("signature: {e}").into(),
+            ))
         })?;
 
         let scheme = determine_signature_scheme(cert_der, issuer_spki)?;
 
         let public_key = x509::extract_key_from_spki(issuer_spki).map_err(|e| {
-            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-                "issuer public key: {e}"
-            )))
+            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                format!("issuer public key: {e}").into(),
+            ))
         })?;
 
         self.crypto.verify_signature(scheme, public_key, tbs_data, signature)
@@ -310,12 +309,15 @@ impl WebPkiValidator {
             .map(|r| x509::debug_dn_pairs(r.subject))
             .collect();
         Err(Error::CertificateValidationFailed(
-            CertificateValidationFailure::ChainValidation(format!(
-                "no trusted root found for issuer (issuer DN: {}; sample roots: [{}]; searched {} roots)",
-                issuer_pairs,
-                samples.join("] ["),
-                self.roots.len(),
-            )),
+            CertificateValidationFailure::ChainValidation(
+                format!(
+                    "no trusted root found for issuer (issuer DN: {}; sample roots: [{}]; searched {} roots)",
+                    issuer_pairs,
+                    samples.join("] ["),
+                    self.roots.len(),
+                )
+                .into(),
+            ),
         ))
     }
 
@@ -325,9 +327,9 @@ impl WebPkiValidator {
     /// public key (SPKI) as a trusted root but a different issuer DN.
     fn find_root_by_spki(&self, cert_der: &[u8]) -> Result<&RootCa, Error> {
         let cert_spki = x509::extract_spki_from_cert(cert_der).map_err(|e| {
-            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-                "cert SPKI for key matching: {e}"
-            )))
+            Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+                format!("cert SPKI for key matching: {e}").into(),
+            ))
         })?;
         for root in &self.roots {
             if root.spki == cert_spki {
@@ -384,13 +386,15 @@ fn extract_signature_value(cert_der: &[u8]) -> Result<&[u8], Error> {
 
 fn determine_signature_scheme(cert_der: &[u8], issuer_spki: &[u8]) -> Result<SignatureScheme, Error> {
     let sig_oid = x509::extract_signature_algorithm_oid(cert_der).map_err(|e| {
-        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!(
-            "signature algorithm: {e}"
-        )))
+        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+            format!("signature algorithm: {e}").into(),
+        ))
     })?;
 
     let spki_alg_oid = x509::extract_spki_algorithm_oid(issuer_spki).map_err(|e| {
-        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("SPKI algorithm: {e}")))
+        Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
+            format!("SPKI algorithm: {e}").into(),
+        ))
     })?;
 
     if sig_oid == x509::OID_ED25519 {

@@ -112,7 +112,7 @@ pub fn decode_handshake_header(data: &[u8]) -> Result<(HandshakeType, &[u8]), Er
         return Err(Error::DecodeError("handshake message too short".into()));
     }
     let msg_type = HandshakeType::from_u8(data[0])
-        .ok_or_else(|| Error::DecodeError(format!("unknown handshake type {}", data[0])))?;
+        .ok_or_else(|| Error::DecodeError(format!("unknown handshake type {}", data[0]).into()))?;
     let length = u32::from_be_bytes([0, data[1], data[2], data[3]]) as usize;
     if data.len() < 4 + length {
         return Err(Error::DecodeError("handshake message truncated".into()));
@@ -174,7 +174,8 @@ impl Extension {
 }
 
 pub fn encode_extensions(exts: &[Extension]) -> Bytes {
-    let mut body = BytesMut::new();
+    let total_size: usize = exts.iter().map(|e| 4 + e.data.len()).sum();
+    let mut body = BytesMut::with_capacity(total_size);
     for ext in exts {
         put_u16(&mut body, ext.ext_type as u16);
         put_u16_slice(&mut body, &ext.data);
@@ -196,7 +197,7 @@ pub fn decode_extensions(mut data: &[u8]) -> Result<Vec<Extension>, Error> {
     }
     data = &data[..total];
 
-    let mut exts = Vec::new();
+    let mut exts = Vec::with_capacity(total / 4);
     while data.len() >= 4 {
         let ext_type = ExtensionType::from_u16(u16::from_be_bytes([data[0], data[1]]));
         let len = u16::from_be_bytes([data[2], data[3]]) as usize;
@@ -232,7 +233,9 @@ pub fn encode_client_hello(
     cipher_suites: &[CipherSuite],
     extensions: &[Extension],
 ) -> Bytes {
-    let mut body = BytesMut::new();
+    let cs_size: usize = cipher_suites.len() * 2;
+    let ext_size: usize = extensions.iter().map(|e| 4 + e.data.len()).sum();
+    let mut body = BytesMut::with_capacity(2 + 32 + 1 + session_id.len() + 2 + cs_size + 2 + ext_size);
 
     // legacy_version = 0x0303
     put_u16(&mut body, 0x0303);
@@ -241,7 +244,7 @@ pub fn encode_client_hello(
     // session_id
     put_u8_slice(&mut body, session_id);
     // cipher_suites
-    let mut cs_buf = BytesMut::new();
+    let mut cs_buf = BytesMut::with_capacity(cipher_suites.len() * 2);
     for cs in cipher_suites {
         cs_buf.extend_from_slice(&cs.to_wire());
     }
@@ -339,7 +342,8 @@ pub fn encode_server_hello(
     cipher_suite: CipherSuite,
     extensions: &[Extension],
 ) -> Bytes {
-    let mut body = BytesMut::new();
+    let ext_size: usize = extensions.iter().map(|e| 4 + e.data.len()).sum();
+    let mut body = BytesMut::with_capacity(2 + 32 + 1 + session_id.len() + 2 + 1 + ext_size);
     put_u16(&mut body, 0x0303);
     body.extend_from_slice(random);
     put_u8_slice(&mut body, session_id);
@@ -494,7 +498,7 @@ pub fn encode_certificate_chain(context: &[u8], chain: &[Vec<u8>], extensions_pe
 
 #[derive(Debug, Clone)]
 pub struct Certificate {
-    pub context: Vec<u8>,
+    pub context: heapless::Vec<u8, 255>,
     pub entries: Vec<CertificateEntry>,
     pub raw: Bytes,
 }
@@ -515,7 +519,8 @@ impl Certificate {
         if 1 + ctx_len > body.len() {
             return Err(Error::DecodeError("certificate context truncated".into()));
         }
-        let context = body[1..1 + ctx_len].to_vec();
+        let mut context = heapless::Vec::<u8, 255>::new();
+        context.extend_from_slice(&body[1..1 + ctx_len]).ok();
         let mut off = 1 + ctx_len;
         if body.len() < off + 3 {
             return Err(Error::DecodeError("certificate list length truncated".into()));
@@ -527,7 +532,7 @@ impl Certificate {
             return Err(Error::DecodeError("certificate list truncated".into()));
         }
 
-        let mut entries = Vec::new();
+        let mut entries = Vec::with_capacity(list_len / 6);
         while off < list_end {
             if body.len() < off + 3 {
                 return Err(Error::DecodeError("certificate entry datalen truncated".into()));
@@ -576,7 +581,7 @@ impl Certificate {
 pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme]) -> Bytes {
     let exts = vec![ext_signature_algorithms(sig_schemes)];
     let ext_bytes = encode_extensions(&exts);
-    let mut body = BytesMut::new();
+    let mut body = BytesMut::with_capacity(1 + context.len() + ext_bytes.len());
     put_u8_slice(&mut body, context);
     body.extend_from_slice(&ext_bytes);
     encode_handshake(HandshakeType::CertificateRequest, &body)
@@ -585,7 +590,7 @@ pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme
 // ── CertificateVerify ─────────────────────────────────────────────────────
 
 pub fn encode_certificate_verify(scheme: SignatureScheme, signature: &[u8]) -> Bytes {
-    let mut body = BytesMut::new();
+    let mut body = BytesMut::with_capacity(4 + signature.len());
     body.extend_from_slice(&scheme.to_wire());
     put_u16_slice(&mut body, signature);
     encode_handshake(HandshakeType::CertificateVerify, &body)
@@ -710,7 +715,7 @@ pub fn encode_new_session_ticket(
 pub struct NewSessionTicket {
     pub ticket_lifetime: u32,
     pub ticket_age_add: u32,
-    pub ticket_nonce: Vec<u8>,
+    pub ticket_nonce: heapless::Vec<u8, 255>,
     pub ticket: Vec<u8>,
     pub extensions: Vec<Extension>,
     pub raw: Bytes,
@@ -732,7 +737,8 @@ impl NewSessionTicket {
         let ticket_lifetime = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
         let ticket_age_add = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
         let nonce_len = body[8] as usize;
-        let ticket_nonce = body[9..9 + nonce_len].to_vec();
+        let mut ticket_nonce = heapless::Vec::<u8, 255>::new();
+        ticket_nonce.extend_from_slice(&body[9..9 + nonce_len]).ok();
         let mut off = 9 + nonce_len;
         let ticket_len = u16::from_be_bytes([body[off], body[off + 1]]) as usize;
         off += 2;
@@ -772,7 +778,7 @@ pub fn ext_supported_versions_server() -> Extension {
 
 /// Build a `supported_groups` extension.
 pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
-    let mut body = BytesMut::new();
+    let mut body = BytesMut::with_capacity(groups.len() * 2);
     for g in groups {
         body.extend_from_slice(&g.to_wire());
     }
@@ -790,13 +796,14 @@ pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
 /// Each entry is a `(KeyExchangeGroup, public_key_bytes)` pair. The extension data
 /// contains the list length prefix followed by all entries.
 pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension {
-    let mut all_entries = BytesMut::new();
+    let entries_size: usize = entries.iter().map(|(_, pk)| 2 + 2 + pk.len()).sum();
+    let mut all_entries = BytesMut::with_capacity(entries_size);
     for (group, public_key) in entries {
         all_entries.extend_from_slice(&group.to_wire());
         put_u16(&mut all_entries, public_key.len() as u16);
         all_entries.extend_from_slice(public_key);
     }
-    let mut data = BytesMut::new();
+    let mut data = BytesMut::with_capacity(2 + all_entries.len());
     put_u16(&mut data, all_entries.len() as u16);
     data.extend_from_slice(&all_entries);
     Extension {
@@ -809,7 +816,7 @@ pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension 
 ///
 /// ServerHello key_share has no total length prefix — just the single entry.
 pub fn ext_key_share_server(public_key: &[u8], group: KeyExchangeGroup) -> Extension {
-    let mut entry = BytesMut::new();
+    let mut entry = BytesMut::with_capacity(2 + 2 + public_key.len());
     entry.extend_from_slice(&group.to_wire());
     put_u16(&mut entry, public_key.len() as u16);
     entry.extend_from_slice(public_key);
@@ -867,7 +874,7 @@ pub fn parse_key_share_server(
 
 /// Build a `signature_algorithms` extension.
 pub fn ext_signature_algorithms(schemes: &[SignatureScheme]) -> Extension {
-    let mut body = BytesMut::new();
+    let mut body = BytesMut::with_capacity(schemes.len() * 2);
     for s in schemes {
         body.extend_from_slice(&s.to_wire());
     }
@@ -902,7 +909,8 @@ pub fn parse_signature_algorithms(ext: &Extension) -> Result<Vec<SignatureScheme
 
 /// Build a `server_name` (SNI) extension.
 pub fn ext_server_name(hostname: &str) -> Extension {
-    let mut entry = BytesMut::new();
+    let entry_len = 1 + 2 + hostname.len();
+    let mut entry = BytesMut::with_capacity(entry_len);
     entry.put_u8(0); // host_name type
     put_u16(&mut entry, hostname.len() as u16);
     entry.extend_from_slice(hostname.as_bytes());
@@ -918,7 +926,8 @@ pub fn ext_server_name(hostname: &str) -> Extension {
 
 /// Build an ALPN extension.
 pub fn ext_alpn(protocols: &[Bytes]) -> Extension {
-    let mut body = BytesMut::new();
+    let body_size: usize = protocols.iter().map(|p| 1 + p.len()).sum();
+    let mut body = BytesMut::with_capacity(body_size);
     for p in protocols {
         put_u8_slice(&mut body, p);
     }
@@ -931,15 +940,15 @@ pub fn ext_alpn(protocols: &[Bytes]) -> Extension {
     }
 }
 
-/// Parse ALPN extension, returning the list of protocols.
-pub fn parse_alpn(ext: &Extension) -> Result<Vec<Bytes>, Error> {
+/// Parse ALPN extension, returning the list of protocols (max 8).
+pub fn parse_alpn(ext: &Extension) -> Result<heapless::Vec<Bytes, 8>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
         return Err(Error::DecodeError("ALPN extension too short".into()));
     }
     let total = u16::from_be_bytes([data[0], data[1]]) as usize;
     let data = &data[2..];
-    let mut items = Vec::new();
+    let mut items: heapless::Vec<Bytes, 8> = heapless::Vec::new();
     let mut off = 0;
     while off + 1 <= total && off < data.len() {
         let len = data[off] as usize;
@@ -947,7 +956,9 @@ pub fn parse_alpn(ext: &Extension) -> Result<Vec<Bytes>, Error> {
         if off + len > data.len() {
             break;
         }
-        items.push(Bytes::copy_from_slice(&data[off..off + len]));
+        items
+            .push(Bytes::copy_from_slice(&data[off..off + len]))
+            .map_err(|_| Error::DecodeError("ALPN: too many protocols (max 8)".into()))?;
         off += len;
     }
     Ok(items)
@@ -987,7 +998,7 @@ pub fn parse_server_cert_type_ee(ext: &Extension) -> Result<CertType, Error> {
     if data.is_empty() {
         return Err(Error::DecodeError("empty server_certificate_type extension".into()));
     }
-    CertType::from_u8(data[0]).ok_or_else(|| Error::DecodeError(format!("unknown cert type {}", data[0])))
+    CertType::from_u8(data[0]).ok_or_else(|| Error::DecodeError(format!("unknown cert type {}", data[0]).into()))
 }
 
 /// Parse a `server_certificate_type` extension from a ClientHello.
@@ -1016,10 +1027,12 @@ pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<Vec<CertType>, Error
 /// `identities` is one tuple (identity, obfuscated_ticket_age) per PSK.
 /// `binders` are the computed binder MAC values.
 pub fn ext_pre_shared_key(identities: &[(Vec<u8>, u32)], binders: &[Vec<u8>]) -> Extension {
-    let mut body = BytesMut::new();
+    let id_total: usize = identities.iter().map(|(id, _)| 2 + id.len() + 4).sum();
+    let b_total: usize = binders.iter().map(|b| 1 + b.len()).sum();
+    let mut body = BytesMut::with_capacity(2 + id_total + 2 + b_total);
 
     // identities
-    let mut id_body = BytesMut::new();
+    let mut id_body = BytesMut::with_capacity(id_total);
     for (id, age) in identities {
         put_u16_slice(&mut id_body, id);
         id_body.extend_from_slice(&age.to_be_bytes());
@@ -1028,7 +1041,7 @@ pub fn ext_pre_shared_key(identities: &[(Vec<u8>, u32)], binders: &[Vec<u8>]) ->
     body.extend_from_slice(&id_body);
 
     // binders
-    let mut b_body = BytesMut::new();
+    let mut b_body = BytesMut::with_capacity(b_total);
     for b in binders {
         put_u8_slice(&mut b_body, b);
     }

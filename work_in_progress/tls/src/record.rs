@@ -1,6 +1,6 @@
-use alloc::{boxed::Box, format, vec::Vec};
+use alloc::{boxed::Box, format};
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 
 use crate::{Error, crypto::Aead, error::HandshakeFailure};
 
@@ -103,7 +103,7 @@ impl RecordState {
         let inner_len = 1 + payload.len();
         let tag_sz = key.tag_size();
         let total = 5 + inner_len + tag_sz;
-        let mut buf = Vec::with_capacity(total);
+        let mut buf = BytesMut::with_capacity(total);
 
         // Build the nonce: iv XOR sequence_number
         let mut nonce = [0u8; 12];
@@ -117,7 +117,7 @@ impl RecordState {
         buf.extend_from_slice(&[ContentType::ApplicationData as u8, 0x03, 0x03, 0, 0]);
         // Write inner plaintext
         buf.extend_from_slice(payload);
-        buf.push(content_type as u8);
+        buf.extend_from_slice(&[content_type as u8]);
         // Fill in length
         let record_len = (inner_len + tag_sz) as u16;
         buf[3..5].copy_from_slice(&record_len.to_be_bytes());
@@ -128,38 +128,41 @@ impl RecordState {
         buf.extend_from_slice(&tag);
 
         self.seq_num += 1;
-        Ok(Bytes::from(buf))
+        Ok(buf.freeze())
     }
 
-    /// Decrypt a received TLS record.
+    /// Decrypt a received TLS record, consuming its bytes from `buf`.
     ///
-    /// Returns the content type and decrypted payload.
-    pub fn decrypt_record(&mut self, data: &[u8]) -> Result<Option<(ContentType, Bytes)>, Error> {
-        if data.len() < 5 {
-            return Ok(None); // need more data
+    /// Returns the content type and decrypted payload. On success the record
+    /// bytes are removed from `buf` via an O(1) split.
+    pub fn decrypt_record(&mut self, buf: &mut BytesMut) -> Result<Option<(ContentType, Bytes)>, Error> {
+        if buf.len() < 5 {
+            return Ok(None);
         }
 
-        let content_type = ContentType::from_u8(data[0]);
-        let _legacy = u16::from_be_bytes([data[1], data[2]]);
-        let length = u16::from_be_bytes([data[3], data[4]]) as usize;
+        let content_type = ContentType::from_u8(buf[0]);
+        let _legacy = u16::from_be_bytes([buf[1], buf[2]]);
+        let length = u16::from_be_bytes([buf[3], buf[4]]) as usize;
         if length > MAX_RECORD_PAYLOAD {
             return Err(Error::RecordOverflow);
         }
-        if data.len() < 5 + length {
-            return Ok(None); // need more data
+        if buf.len() < 5 + length {
+            return Ok(None);
         }
 
-        let fragment = &data[5..5 + length];
+        // Move the entire TLS record out of `buf` (O(1) pointer advance).
+        let mut record = buf.split_to(5 + length);
 
         match content_type {
             ContentType::ChangeCipherSpec => {
                 // Ignore single CCS byte (TLS 1.3 middlebox compat)
-                Ok(Some((ContentType::ChangeCipherSpec, Bytes::copy_from_slice(fragment))))
+                Ok(Some((ContentType::ChangeCipherSpec, record.split_off(5).freeze())))
             }
             ContentType::Alert => {
-                if fragment.len() >= 2 {
-                    let level = fragment[0];
-                    let desc = fragment[1];
+                let frag = &record[5..];
+                if frag.len() >= 2 {
+                    let level = frag[0];
+                    let desc = frag[1];
                     if level == 1 && desc == 0 {
                         return Err(Error::ConnectionClosed);
                     }
@@ -173,7 +176,7 @@ impl RecordState {
             }
             ContentType::Handshake => {
                 // Handshake in plaintext (before encryption is set up)
-                Ok(Some((ContentType::Handshake, Bytes::copy_from_slice(fragment))))
+                Ok(Some((ContentType::Handshake, record.split_off(5).freeze())))
             }
             ContentType::ApplicationData => {
                 let key = self
@@ -182,8 +185,7 @@ impl RecordState {
                     .ok_or_else(|| Error::InternalError("read key not set".into()))?;
 
                 // Build nonce
-                let mut nonce = [0u8; 12];
-                nonce[..key.nonce_size()].copy_from_slice(&self.read_iv[..key.nonce_size()]);
+                let mut nonce = self.read_iv;
                 let seq_bytes = self.seq_num.to_be_bytes();
                 for i in 0..8 {
                     nonce[4 + i] ^= seq_bytes[i];
@@ -191,11 +193,13 @@ impl RecordState {
                 self.seq_num += 1;
 
                 // AAD = the 5-byte record header (TLS 1.3 §5.2)
-                let aad = &data[..5];
+                let aad: [u8; 5] = record[..5].try_into().unwrap();
 
-                let mut ciphertext = fragment.to_vec();
-                let plaintext_len = key.decrypt(&mut ciphertext, &nonce, aad)?;
+                // Strip the 5-byte header; record now holds ciphertext + tag.
+                let _header = record.split_to(5);
 
+                // Decrypt in place on the already owned BytesMut.
+                let plaintext_len = key.decrypt(&mut record[..], &nonce, &aad)?;
                 if plaintext_len == 0 {
                     return Err(Error::DecryptFailed);
                 }
@@ -205,17 +209,18 @@ impl RecordState {
                 // timing side-channel on the padding length.
                 let mut typ_idx = 0;
                 for i in 0..plaintext_len {
-                    let cond = (ciphertext[i] != 0) as usize;
+                    let cond = (record[i] != 0) as usize;
                     typ_idx = (cond * i) | ((1usize.wrapping_sub(cond)) * typ_idx);
                 }
-                if ciphertext[typ_idx] == 0 {
+                if record[typ_idx] == 0 {
                     return Err(Error::DecryptFailed);
                 }
-                let inner_type = ContentType::from_u8(ciphertext[typ_idx]);
-                let payload = Bytes::copy_from_slice(&ciphertext[..typ_idx]);
-                Ok(Some((inner_type, payload)))
+                let inner_type = ContentType::from_u8(record[typ_idx]);
+
+                record.truncate(typ_idx);
+                Ok(Some((inner_type, record.freeze())))
             }
-            _ => Err(Error::DecodeError(format!("unknown content type {}", data[0]))),
+            _ => Err(Error::DecodeError(format!("unknown content type {}", buf[0]).into())),
         }
     }
 

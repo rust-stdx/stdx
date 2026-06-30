@@ -80,7 +80,7 @@ pub enum ReceivedCertificate {
     /// A raw public key (RFC 7250).
     RawPublicKey {
         /// Raw public key bytes (SubjectPublicKeyInfo DER).
-        public_key: Vec<u8>,
+        public_key: heapless::Vec<u8, MAX_PUBLIC_KEY_BYTES>,
         /// Signature scheme used for this certificate.
         scheme: SignatureScheme,
     },

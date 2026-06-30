@@ -85,9 +85,10 @@ impl CryptoProvider for DefaultCryptoProvider {
                 })?;
                 Ok(Box::new(ChaCha20Poly1305Aead::new(&key)))
             }
-            ciphersuite @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedCipherSuite(format!(
-                "{ciphersuite:?}"
-            )))),
+            ciphersuite @ _ => {
+                let msg = alloc::format!("{ciphersuite:?}");
+                Err(Error::CryptoError(CryptoFailure::UnsupportedCipherSuite(msg.into())))
+            }
         }
     }
 
@@ -162,9 +163,9 @@ impl CryptoProvider for DefaultCryptoProvider {
                     pk_bytes,
                 }))
             }
-            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(format!(
-                "{scheme:?}"
-            )))),
+            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(
+                format!("{scheme:?}").into(),
+            ))),
         }
     }
 
@@ -212,13 +213,16 @@ impl CryptoProvider for DefaultCryptoProvider {
                     Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
                 })
             }
-            SignatureScheme::RsaPkcs1Sha256 => crypto::rsa::verify_pkcs1_sha256(public_key, signature, data)
-                .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PKCS1-SHA256: {e}")))),
+            SignatureScheme::RsaPkcs1Sha256 => {
+                crypto::rsa::verify_pkcs1_sha256(public_key, signature, data).map_err(|e| {
+                    Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PKCS1-SHA256: {e}").into()))
+                })
+            }
             SignatureScheme::RsaPssRsaSha256 => crypto::rsa::verify_pss_sha256(public_key, signature, data)
-                .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}")))),
-            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(format!(
-                "{scheme:?}"
-            )))),
+                .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}").into()))),
+            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(
+                format!("{scheme:?}").into(),
+            ))),
         }
     }
 
@@ -561,11 +565,14 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
     fn set_peer_public_key(&mut self, peer_public_key: &[u8]) -> Result<(), Error> {
         let total_size = PUBLIC_KEY_SIZE_768 + 32;
         if peer_public_key.len() != total_size {
-            return Err(Error::InvalidKey(InvalidKeyFailure::Other(format!(
-                "X25519MLKEM768 peer (client) key must be {} bytes, got {}",
-                total_size,
-                peer_public_key.len()
-            ))));
+            return Err(Error::InvalidKey(InvalidKeyFailure::Other(
+                format!(
+                    "X25519MLKEM768 peer (client) key must be {} bytes, got {}",
+                    total_size,
+                    peer_public_key.len()
+                )
+                .into(),
+            )));
         }
 
         let peer_mlkem_pk = PublicKey768::from_bytes(peer_public_key[..PUBLIC_KEY_SIZE_768].try_into().unwrap());
@@ -591,11 +598,14 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
         } else {
             let total_size = CIPHERTEXT_SIZE_768 + 32;
             if peer_public_key.len() != total_size {
-                return Err(Error::InvalidKey(InvalidKeyFailure::Other(format!(
-                    "X25519MLKEM768 peer (server) key must be {} bytes, got {}",
-                    total_size,
-                    peer_public_key.len()
-                ))));
+                return Err(Error::InvalidKey(InvalidKeyFailure::Other(
+                    format!(
+                        "X25519MLKEM768 peer (server) key must be {} bytes, got {}",
+                        total_size,
+                        peer_public_key.len()
+                    )
+                    .into(),
+                )));
             }
             let peer_x25519_pk = crypto::curve25519::x25519::PublicKey::from_bytes(
                 peer_public_key[CIPHERTEXT_SIZE_768..].try_into().unwrap(),
@@ -619,7 +629,9 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
                     ))
                 })?
                 .decapsulate(&ct)
-                .map_err(|e| Error::InvalidKey(InvalidKeyFailure::Other(format!("ML-KEM decapsulation failed: {e}"))))?
+                .map_err(|e| {
+                    Error::InvalidKey(InvalidKeyFailure::Other(format!("ML-KEM decapsulation failed: {e}").into()))
+                })?
         };
 
         let mut shared = Vec::new();

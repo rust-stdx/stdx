@@ -112,7 +112,7 @@ impl HandshakeState {
             shared_secret: None,
             key_schedule: None,
             keys: None,
-            transcript: Vec::new(),
+            transcript: Vec::with_capacity(8192),
             write_record: RecordState::new(),
             read_record: RecordState::new(),
             read_buf: BytesMut::new(),
@@ -261,8 +261,9 @@ impl ClientConnection {
         let supported_groups = crypto_provider.supported_key_exchange_groups();
         let key_exchange_group = *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?;
 
-        let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::new();
-        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> = Vec::new();
+        let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::with_capacity(supported_groups.len());
+        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
+            Vec::with_capacity(supported_groups.len());
 
         // Generate key pairs for all groups; send all in key_share.
         for &group in supported_groups {
@@ -294,7 +295,7 @@ impl ClientConnection {
         if config.cert_types != [CertType::X509] || config.cert_types.len() != 1 {
             exts.push(ext_server_cert_type_client(&config.cert_types));
         }
-        let cipher_suites: Vec<_> = crypto_provider.supported_cipher_suites().to_vec();
+        let cipher_suites = crypto_provider.supported_cipher_suites();
 
         // PSK resumption
         let mut psk_for_key_schedule: Option<heapless::Vec<u8, MAX_HASH_OUTPUT>> = None;
@@ -303,7 +304,8 @@ impl ClientConnection {
             if let Some(ref name) = server_name {
                 if let Some((ticket, psk)) = cache.get(name).await {
                     let suite = cipher_suites[0];
-                    let zeros = alloc::vec![0u8; suite.hash_size()];
+                    let mut zeros: heapless::Vec<u8, MAX_HASH_OUTPUT> = heapless::Vec::new();
+                    zeros.resize(suite.hash_size(), 0).unwrap();
                     let early_secret = crypto_provider.hkdf_extract(suite, &zeros, &psk);
                     let binder_key = crypto_provider.hkdf_expand_label(
                         suite,
@@ -377,8 +379,9 @@ impl ClientConnection {
             *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?
         };
 
-        let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::new();
-        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> = Vec::new();
+        let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::with_capacity(supported_groups.len());
+        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
+            Vec::with_capacity(supported_groups.len());
 
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
@@ -412,7 +415,7 @@ impl ClientConnection {
         if config.cert_types != [CertType::X509] || config.cert_types.len() != 1 {
             exts.push(ext_server_cert_type_client(&config.cert_types));
         }
-        let cipher_suites: Vec<_> = crypto_provider.supported_cipher_suites().to_vec();
+        let cipher_suites = crypto_provider.supported_cipher_suites();
 
         let mut random = [0u8; 32];
         crypto_provider.secure_random(&mut random);
@@ -501,18 +504,8 @@ impl ClientConnection {
         if self.hs.read_buf.is_empty() {
             return Ok(None);
         }
-        let consumed = {
-            let data = &self.hs.read_buf[..];
-            self.hs.read_record.decrypt_record(data)
-        }?;
-        match consumed {
+        match self.hs.read_record.decrypt_record(&mut self.hs.read_buf)? {
             Some((ct, payload)) => {
-                let record_len = if self.hs.read_buf.len() >= 5 {
-                    5 + u16::from_be_bytes([self.hs.read_buf[3], self.hs.read_buf[4]]) as usize
-                } else {
-                    return Ok(None);
-                };
-                let _ = self.hs.read_buf.split_to(record_len);
                 if ct == ContentType::Handshake {
                     self.hs.handshake_payload.extend_from_slice(&payload);
                     return self.try_read_record();
@@ -600,16 +593,17 @@ impl ClientConnection {
         let supported_groups = crypto_provider.supported_key_exchange_groups();
 
         if !supported_groups.contains(&hrr_group) {
-            return Err(Error::HandshakeFailed(HandshakeFailure::Other(format!(
-                "HRR requested group {hrr_group:?} which is not supported"
-            ))));
+            return Err(Error::HandshakeFailed(HandshakeFailure::Other(
+                format!("HRR requested group {hrr_group:?} which is not supported").into(),
+            )));
         }
 
+        let supported_groups_count = supported_groups.len();
         self.hs.key_exchange_group = hrr_group;
         self.hs.kx_pairs.clear();
 
         let mut key_share_entries: alloc::vec::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
-            alloc::vec::Vec::new();
+            alloc::vec::Vec::with_capacity(supported_groups_count);
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
@@ -636,7 +630,7 @@ impl ClientConnection {
         if let Some(ref tp) = self.hs.quic_transport_params {
             exts.push(ext_quic_transport_parameters(tp));
         }
-        let cipher_suites: Vec<_> = crypto_provider.supported_cipher_suites().to_vec();
+        let cipher_suites = crypto_provider.supported_cipher_suites();
 
         let mut random = [0u8; 32];
         crypto_provider.secure_random(&mut random);
@@ -767,7 +761,13 @@ impl ClientConnection {
             },
             CertType::RawPublicKey => {
                 let pk = match chain.first() {
-                    Some(spki_der) => extract_key_from_spki(spki_der)?.to_vec(),
+                    Some(spki_der) => {
+                        let pk_bytes = extract_key_from_spki(spki_der)?;
+                        let mut pk = heapless::Vec::new();
+                        pk.extend_from_slice(&pk_bytes)
+                            .map_err(|_| Error::InternalError("public key too large".into()))?;
+                        pk
+                    }
                     None => return Err(Error::DecodeError("empty raw public key".into())),
                 };
                 ReceivedCertificate::RawPublicKey {
@@ -781,7 +781,9 @@ impl ClientConnection {
             .cert_validator
             .validate(&received, self.server_name.as_deref())
             .await
-            .map_err(|e| Error::CertificateValidationFailed(CertificateValidationFailure::Other(e.to_string())))?;
+            .map_err(|e| {
+                Error::CertificateValidationFailed(CertificateValidationFailure::Other(e.to_string().into()))
+            })?;
 
         let pk: Cow<'_, [u8]> = match &received {
             ReceivedCertificate::X509 {
@@ -790,9 +792,9 @@ impl ClientConnection {
                 #[cfg(feature = "webpki-validator")]
                 {
                     let spki_der = x509::extract_spki_from_cert(&chain[0])
-                        .map_err(|e| Error::DecodeError(format!("X.509 parse: {e}")))?;
+                        .map_err(|e| Error::DecodeError(format!("X.509 parse: {e}").into()))?;
                     let key_bytes = x509::extract_key_from_spki(spki_der)
-                        .map_err(|e| Error::DecodeError(format!("X.509 key: {e}")))?;
+                        .map_err(|e| Error::DecodeError(format!("X.509 key: {e}").into()))?;
                     Cow::Owned(key_bytes.to_vec())
                 }
                 #[cfg(not(feature = "webpki-validator"))]
@@ -987,8 +989,9 @@ impl ClientConnection {
             suite.hash_size(),
         );
         if let Some(ref cache) = self.config.session_cache {
-            let server_name = self.server_name.clone().unwrap_or_default();
-            cache.put(&server_name, nst.ticket, psk.to_vec()).await;
+            cache
+                .put(self.server_name.as_deref().unwrap_or(""), nst.ticket, psk.to_vec())
+                .await;
         }
         Ok(())
     }
@@ -1185,25 +1188,11 @@ impl ServerConnection {
         if self.hs.read_buf.is_empty() {
             return Ok(None);
         }
-        let consumed = {
-            let data = &self.hs.read_buf[..];
-            self.hs.read_record.decrypt_record(data)
-        }?;
-        match consumed {
-            Some((ct, payload)) => {
-                let record_len = if self.hs.read_buf.len() >= 5 {
-                    5 + u16::from_be_bytes([self.hs.read_buf[3], self.hs.read_buf[4]]) as usize
-                } else {
-                    return Ok(None);
-                };
-                let _ = self.hs.read_buf.split_to(record_len);
-                Ok(Some((ct, payload)))
-            }
+        match self.hs.read_record.decrypt_record(&mut self.hs.read_buf)? {
+            Some((ct, payload)) => Ok(Some((ct, payload))),
             None => Ok(None),
         }
     }
-
-    /// Try to resolve a PSK from the client's pre_shared_key extension.
     async fn try_resolve_psk(&self, ch: &ClientHelloMsg) -> Option<Vec<u8>> {
         let psk_ext = find_extension(&ch.extensions, ExtensionType::PreSharedKey)?;
         let data = psk_ext.data.as_ref();
@@ -1291,7 +1280,13 @@ impl ServerConnection {
                 return None;
             }
             let name_len = u16::from_be_bytes([d[3], d[4]]) as usize;
-            String::from_utf8(d[5..5 + name_len].to_vec()).ok()
+            if d.len() < 5 + name_len {
+                return None;
+            }
+            let mut name = heapless::String::<256>::new();
+            core::str::from_utf8(&d[5..5 + name_len])
+                .ok()
+                .and_then(|s| name.push_str(s).ok().map(|_| name))
         });
         let sig_schemes = find_extension(&ch.extensions, ExtensionType::SignatureAlgorithms)
             .map(|e| parse_signature_algorithms(e))
@@ -1319,10 +1314,13 @@ impl ServerConnection {
         let cert = self.config.cert_provider.provide(&client_hello).await?;
 
         if !sig_schemes.contains(&cert.scheme) {
-            return Err(Error::HandshakeFailed(HandshakeFailure::Other(format!(
-                "CertificateProvider selected scheme {:?} which was not offered by client",
-                cert.scheme
-            ))));
+            return Err(Error::HandshakeFailed(HandshakeFailure::Other(
+                format!(
+                    "CertificateProvider selected scheme {:?} which was not offered by client",
+                    cert.scheme
+                )
+                .into(),
+            )));
         }
 
         let selected_cert_type = if client_cert_types.contains(&CertType::RawPublicKey) {
@@ -1376,9 +1374,9 @@ impl ServerConnection {
 
         // 1) ServerHello (plaintext handshake record / QUIC CRYPTO frame)
         if self.hs.is_quic {
-            self.hs.quic_write_queue.push_back(Bytes::copy_from_slice(&sh));
+            self.hs.quic_write_queue.push_back(sh.clone());
         } else {
-            let mut sh_record = Vec::new();
+            let mut sh_record = Vec::with_capacity(5 + sh.len());
             sh_record.push(ContentType::Handshake as u8);
             sh_record.extend_from_slice(&0x0303u16.to_be_bytes());
             sh_record.extend_from_slice(&(sh.len() as u16).to_be_bytes());
@@ -1523,9 +1521,10 @@ impl ServerConnection {
         if chain.is_empty() {
             return Err(Error::DecodeError("empty client certificate chain".into()));
         }
-        let spki_der =
-            x509::extract_spki_from_cert(&chain[0]).map_err(|e| Error::DecodeError(format!("X.509 parse: {e}")))?;
-        let pk = x509::extract_key_from_spki(spki_der).map_err(|e| Error::DecodeError(format!("X.509 key: {e}")))?;
+        let spki_der = x509::extract_spki_from_cert(&chain[0])
+            .map_err(|e| Error::DecodeError(format!("X.509 parse: {e}").into()))?;
+        let pk =
+            x509::extract_key_from_spki(spki_der).map_err(|e| Error::DecodeError(format!("X.509 key: {e}").into()))?;
         let transcript_len_before = self.hs.transcript.len();
         self.hs.transcript.extend_from_slice(&cv.raw);
         let suite = self.hs.cipher_suite.unwrap();

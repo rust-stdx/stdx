@@ -1,4 +1,4 @@
-use alloc::format;
+use alloc::{borrow::Cow, format};
 use core::fmt;
 
 /// I/O error kind — mirrors common `std::io::ErrorKind` values without std.
@@ -68,17 +68,17 @@ pub enum HandshakeFailure {
     /// The peer's Finished verify_data did not match.
     FinishedVerificationFailed,
     /// An unrecognized or unsupported KX group.
-    UnsupportedKeyExchangeGroup(alloc::string::String),
+    UnsupportedKeyExchangeGroup(Cow<'static, str>),
     /// TLS 1.3 was not offered by the peer.
     Tls13NotOffered,
     /// No `key_share` extension in the hello message.
     NoKeyShare,
     /// CertificateProvider scheme selection conflict.
-    SchemeNotOffered(alloc::string::String),
+    SchemeNotOffered(Cow<'static, str>),
     /// Peer alert received.
     PeerAlert { level: u8, description: u8 },
     /// Other handshake failure.
-    Other(alloc::string::String),
+    Other(Cow<'static, str>),
 }
 
 /// Specific reasons certificate validation may fail.
@@ -89,34 +89,34 @@ pub enum CertificateValidationFailure {
     /// SNI is required for X.509 validation but was not provided.
     ServerNameRequired,
     /// Failed to parse the end-entity certificate.
-    ParseError(alloc::string::String),
+    ParseError(Cow<'static, str>),
     /// Invalid server name (e.g. for SAN matching).
-    InvalidServerName(alloc::string::String),
+    InvalidServerName(Cow<'static, str>),
     /// Subject name / SAN did not match.
-    SubjectNameMismatch(alloc::string::String),
+    SubjectNameMismatch(Cow<'static, str>),
     /// Chain validation against trust anchors failed.
-    ChainValidation(alloc::string::String),
+    ChainValidation(Cow<'static, str>),
     /// Raw public key validation requires a custom validator.
     RawPublicKeyRequiresCustomValidator,
     /// Signature verification failed.
     SignatureVerificationFailed,
     /// Other validation failure.
-    Other(alloc::string::String),
+    Other(Cow<'static, str>),
 }
 
 /// Specific crypto-related errors.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CryptoFailure {
     /// Unsupported cipher suite.
-    UnsupportedCipherSuite(alloc::string::String),
+    UnsupportedCipherSuite(Cow<'static, str>),
     /// Unsupported signature scheme.
-    UnsupportedSignatureScheme(alloc::string::String),
+    UnsupportedSignatureScheme(Cow<'static, str>),
     /// RSA verification failed.
-    RsaVerification(alloc::string::String),
+    RsaVerification(Cow<'static, str>),
     /// Signing operation failed.
     SigningFailed,
     /// Other crypto failure.
-    Other(alloc::string::String),
+    Other(Cow<'static, str>),
 }
 
 /// Specific key-related errors.
@@ -125,11 +125,11 @@ pub enum InvalidKeyFailure {
     /// Wrong key length.
     WrongLength { algorithm: &'static str, expected: usize },
     /// Key material could not be parsed.
-    ParseError(alloc::string::String),
+    ParseError(Cow<'static, str>),
     /// DER encoding error.
-    DerError(alloc::string::String),
+    DerError(Cow<'static, str>),
     /// Other key error.
-    Other(alloc::string::String),
+    Other(Cow<'static, str>),
 }
 
 impl fmt::Display for HandshakeFailure {
@@ -218,10 +218,10 @@ pub enum Error {
     NoKeyExchangeGroupInCommon,
 
     /// The peer sent a message that could not be parsed.
-    DecodeError(alloc::string::String),
+    DecodeError(Cow<'static, str>),
 
     /// An internal error in the TLS state machine.
-    InternalError(alloc::string::String),
+    InternalError(Cow<'static, str>),
 
     /// An I/O error.
     Io(IoError),

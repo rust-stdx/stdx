@@ -1,4 +1,4 @@
-use alloc::{sync::Arc, vec};
+use alloc::sync::Arc;
 
 use heapless::Vec;
 #[cfg(feature = "zeroize")]
@@ -102,7 +102,11 @@ impl KeySchedule {
         let hash_size = suite.hash_size();
         let zero_hash = provider.hash(suite, &[]);
 
-        let zeros = vec![0u8; hash_size];
+        let zeros = {
+            let mut v: Vec<u8, MAX_HASH_OUTPUT> = Vec::new();
+            v.resize(hash_size, 0).unwrap();
+            v
+        };
         let early_secret = if let Some(psk) = psk {
             provider.hkdf_extract(suite, &zeros, psk)
         } else {
@@ -148,7 +152,11 @@ impl KeySchedule {
             .provider
             .hkdf_extract(self.suite, &derived[..hash_size], shared_secret);
 
-        let zeros = vec![0u8; hash_size];
+        let zeros = {
+            let mut v: Vec<u8, MAX_HASH_OUTPUT> = Vec::new();
+            v.resize(hash_size, 0).unwrap();
+            v
+        };
         let handshake_derived =
             derive_secret(&handshake_secret, b"tls13 derived", &self.zero_hash, &self.provider, self.suite);
         let master_secret = self
