@@ -4,10 +4,12 @@ use alloc::{boxed::Box, format, string::String, sync::Arc, vec::Vec};
 #[cfg(feature = "webpki-validator")]
 use async_trait::async_trait;
 
+#[cfg(all(feature = "webpki-validator", feature = "std"))]
+use crate::config::SystemClock;
 #[cfg(feature = "webpki-validator")]
 use crate::{
     Error,
-    config::{CertificateValidator, ReceivedCertificate},
+    config::{CertificateValidator, Clock, ReceivedCertificate},
     crypto::{CryptoProvider, SignatureScheme},
     error::CertificateValidationFailure,
 };
@@ -37,6 +39,7 @@ pub struct RootCa {
 pub struct WebPkiValidator {
     roots: Vec<RootCa>,
     crypto: Arc<dyn CryptoProvider>,
+    clock: Arc<dyn Clock>,
 }
 
 #[cfg(feature = "webpki-validator")]
@@ -54,6 +57,7 @@ impl Clone for WebPkiValidator {
         Self {
             roots: self.roots.clone(),
             crypto: Arc::clone(&self.crypto),
+            clock: Arc::clone(&self.clock),
         }
     }
 }
@@ -61,31 +65,49 @@ impl Clone for WebPkiValidator {
 #[cfg(feature = "webpki-validator")]
 impl WebPkiValidator {
     /// Create a validator with root CAs loaded from the operating system's
-    /// trust store.
+    /// trust store, using the system clock for validity checks.
     ///
     /// `crypto` is used to verify signatures across the certificate chain.
+    ///
+    /// Available only when the `std` feature is enabled.
+    #[cfg(feature = "std")]
     pub fn with_default_roots(crypto: Arc<dyn CryptoProvider>) -> Self {
         Self {
             roots: load_system_roots(),
             crypto,
+            clock: Arc::new(SystemClock),
         }
     }
 
-    /// Create a validator with custom root trust anchors.
+    /// Create a validator with custom root trust anchors, using the system
+    /// clock for validity checks.
+    ///
+    /// Available only when the `std` feature is enabled.
+    #[cfg(feature = "std")]
     pub fn with_custom_roots(crypto: Arc<dyn CryptoProvider>, roots: Vec<RootCa>) -> Self {
         Self {
             roots,
             crypto,
+            clock: Arc::new(SystemClock),
         }
     }
-}
 
-#[cfg(feature = "webpki-validator")]
-fn system_time_now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
+    /// Create a validator with custom root trust anchors and a custom clock.
+    ///
+    /// This constructor works in both `std` and `no_std` environments.
+    /// The caller is responsible for providing a [`Clock`] implementation
+    /// that returns the current Unix timestamp in seconds.
+    pub fn with_custom_roots_and_clock(
+        crypto: Arc<dyn CryptoProvider>,
+        roots: Vec<RootCa>,
+        clock: Arc<dyn Clock>,
+    ) -> Self {
+        Self {
+            roots,
+            crypto,
+            clock,
+        }
+    }
 }
 
 #[cfg(feature = "webpki-validator")]
@@ -199,7 +221,7 @@ impl WebPkiValidator {
             let (nb, na) = x509::parse_validity(cert_der).map_err(|e| {
                 Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(format!("validity: {e}")))
             })?;
-            let now = system_time_now();
+            let now = self.clock.now();
             if now < nb.to_unix_seconds() {
                 return Err(Error::CertificateValidationFailed(
                     CertificateValidationFailure::ChainValidation("certificate not yet valid".into()),
@@ -452,6 +474,7 @@ fn server_name_matches_wildcard(dns_name: &str, server_name: &str) -> bool {
 // ── System root loading ────────────────────────────────────────────────────
 
 /// Load root CAs from the operating system's trust store.
+#[cfg(feature = "std")]
 fn load_system_roots() -> Vec<RootCa> {
     let mut roots = Vec::new();
     let dirs = [
@@ -465,6 +488,7 @@ fn load_system_roots() -> Vec<RootCa> {
     roots
 }
 
+#[cfg(feature = "std")]
 fn load_certs_from_dir(roots: &mut Vec<RootCa>, dir: &str) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -480,6 +504,7 @@ fn load_certs_from_dir(roots: &mut Vec<RootCa>, dir: &str) {
     }
 }
 
+#[cfg(feature = "std")]
 fn try_load_cert(roots: &mut Vec<RootCa>, path: &std::path::Path) {
     let raw = match std::fs::read(path) {
         Ok(d) => d,

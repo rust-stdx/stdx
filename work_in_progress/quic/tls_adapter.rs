@@ -28,6 +28,8 @@
 //! // feed ClientHello via inject_handshake, drive process() until complete
 //! ```
 
+use alloc::{boxed::Box, vec::Vec};
+
 use tls::{CipherSuite, QuicHandshake, QuicHandshakeEvent, quic::QuicSecrets};
 
 /// Adapter that bridges the TLS `QuicHandshake` trait to QUIC CRYPTO frames.

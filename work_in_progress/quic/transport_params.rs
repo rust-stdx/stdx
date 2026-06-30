@@ -1,5 +1,7 @@
 //! QUIC transport parameters (RFC 9000 §18).
 
+use alloc::vec::Vec;
+
 use crate::{error::Error, varint};
 
 /// Known transport parameter type codes (RFC 9000 §18.2).

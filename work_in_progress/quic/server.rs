@@ -12,11 +12,12 @@
 //! let (id, n) = server.stream_recv(&mut buf).await?;
 //! ```
 
-use core::net::SocketAddr;
-use std::{
-    collections::{HashMap, VecDeque},
-    time::{Duration, Instant},
-};
+#[cfg(feature = "std")]
+use alloc::sync::Arc;
+use alloc::{collections::VecDeque, vec, vec::Vec};
+use core::{net::SocketAddr, time::Duration};
+
+use hashbrown::HashMap;
 
 use crate::{
     ack::AckTracker,
@@ -24,7 +25,8 @@ use crate::{
     cmd_queue::CmdSender,
     config::Config,
     crypto_keys::{self, DirectionKeys},
-    error::Error,
+    error::{Error, IoError},
+    instant::Instant,
     loss::LossDetection,
     packet::{self, LongPacketType},
     stream::{ReceiveChunk, RecvFlowController, SendFlowController, Stream, StreamAllocator},
@@ -82,6 +84,7 @@ enum ServerState {
     Closed,
 }
 
+#[cfg(feature = "std")]
 impl<T: Transport> ServerConnection<T> {
     pub fn new(transport: T, config: Config) -> Self {
         let max_ack_delay = Duration::from_millis(config.max_ack_delay_ms);
@@ -89,6 +92,7 @@ impl<T: Transport> ServerConnection<T> {
         let _recv_buf_size = config.recv_buf_size;
         let max_idle_timeout = Duration::from_millis(config.max_idle_timeout_ms);
         let (cmd_tx, cmd_rx) = crate::cmd_queue::cmd_queue();
+        let now = transport.now();
         Self {
             transport,
             config,
@@ -123,20 +127,22 @@ impl<T: Transport> ServerConnection<T> {
                 LossDetection::new(max_ack_delay),
                 LossDetection::new(max_ack_delay),
             ],
-            last_activity: Instant::now(),
+            last_activity: now,
             ack_deadline: [None, None, None],
             send_flow: SendFlowController::new(initial_max_data),
             recv_flow: RecvFlowController::new(initial_max_data),
-            idle_deadline: Instant::now() + max_idle_timeout,
+            idle_deadline: now + max_idle_timeout,
         }
     }
+}
 
+impl<T: Transport> ServerConnection<T> {
     /// Process an incoming Initial packet to begin the server handshake.
     /// Returns `Ok(true)` when the handshake is complete and the connection
     /// is ready for application data.
     pub async fn accept(&mut self, src: SocketAddr, initial_packet: &[u8]) -> Result<bool, Error> {
         self.remote = src;
-        self.last_activity = Instant::now();
+        self.last_activity = self.transport.now();
 
         let header = packet::parse_long_header(initial_packet)?;
         if header.ty != LongPacketType::Initial {
@@ -145,7 +151,11 @@ impl<T: Transport> ServerConnection<T> {
         self.version = header.version;
         self.dcid = header.scid.clone();
         self.original_dcid = Some(header.dcid.clone());
-        let (ck, sk) = crypto_keys::derive_initial_keys_for_version(header.dcid.as_bytes(), self.version);
+        let (ck, sk) = crypto_keys::derive_initial_keys_for_version(
+            self.config.tls_config.crypto_provider(),
+            header.dcid.as_bytes(),
+            self.version,
+        );
         // Server uses server keys for recv, client keys for send
         self.init_recv = ck;
         self.init_send = LevelSendState {
@@ -174,19 +184,20 @@ impl<T: Transport> ServerConnection<T> {
             .await;
         match recv_result {
             Ok((n, _)) => {
-                self.last_activity = Instant::now();
+                self.last_activity = self.transport.now();
                 let _data = &buf[..n];
                 // Packet processing would go here
                 Ok(())
             }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => Ok(()),
-            Err(e) => Err(Error::Io(e)),
+            Err(IoError::WouldBlock | IoError::TimedOut) => Ok(()),
+            Err(e) => Err(e.into()),
         }
     }
 }
 
-fn placeholder_keys() -> crypto_keys::DirectionKeys {
-    let provider = std::sync::Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
-    let (ck, _sk) = crypto_keys::derive_initial_keys_for_version(&[0u8; 8], 0x00000001);
+#[cfg(feature = "std")]
+fn placeholder_keys() -> DirectionKeys {
+    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+    let (ck, _sk) = crypto_keys::derive_initial_keys_for_version(provider, &[0u8; 8], 0x00000001);
     ck
 }

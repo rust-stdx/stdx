@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 /// A QUIC stream (RFC 9000 §2-3) with flow control tracking.
 pub struct Stream {
     pub id: u64,

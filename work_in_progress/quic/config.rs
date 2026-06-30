@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use alloc::{sync::Arc, vec::Vec};
 
 use bytes::Bytes;
+use tls::crypto::CryptoProvider;
 
 /// QUIC connection configuration.
 ///
@@ -39,6 +40,16 @@ pub enum TlsConfig {
     Server(tls::ServerConfig),
 }
 
+impl TlsConfig {
+    pub fn crypto_provider(&self) -> Arc<dyn CryptoProvider> {
+        match self {
+            TlsConfig::Client(cfg) => cfg.crypto.clone(),
+            TlsConfig::Server(cfg) => cfg.provider.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
 impl Default for Config {
     fn default() -> Self {
         let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());

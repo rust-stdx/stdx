@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::error::Error;
 
 /// QUIC variable-length integer (RFC 9000 §16).

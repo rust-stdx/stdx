@@ -17,9 +17,9 @@
 //! * [`derive_level_keys`]
 //! * [`derive_next_keys`]
 
-use std::sync::Arc;
+use alloc::{sync::Arc, vec::Vec};
 
-use tls::{CipherSuite, quic::QuicPacketProtection};
+use tls::{CipherSuite, crypto::CryptoProvider, quic::QuicPacketProtection};
 
 use crate::error::Error;
 
@@ -73,20 +73,26 @@ pub struct LevelKeys {
 // ── Key derivation (delegates to tls::quic) ───────────────────────────────
 
 /// Derive the Initial encryption keys from the Destination Connection ID (v1).
-pub fn derive_initial_keys(dcid: &[u8]) -> (DirectionKeys, DirectionKeys) {
-    derive_initial_keys_for_version(dcid, 0x00000001)
+pub fn derive_initial_keys(provider: Arc<dyn CryptoProvider>, dcid: &[u8]) -> (DirectionKeys, DirectionKeys) {
+    derive_initial_keys_for_version(provider, dcid, 0x00000001)
 }
 
 /// Derive the Initial encryption keys for the given QUIC version.
-pub fn derive_initial_keys_for_version(dcid: &[u8], version: u32) -> (DirectionKeys, DirectionKeys) {
-    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+pub fn derive_initial_keys_for_version(
+    provider: Arc<dyn CryptoProvider>,
+    dcid: &[u8],
+    version: u32,
+) -> (DirectionKeys, DirectionKeys) {
     let (ck, sk) = tls::quic::derive_initial_keys(provider, dcid, version).expect("Initial key derivation failed");
     (dir_keys_from_prot(ck), dir_keys_from_prot(sk))
 }
 
 /// Derive Handshake or 1-RTT keys from a TLS traffic secret.
-pub fn derive_level_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> DirectionKeys {
-    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+pub fn derive_level_keys(
+    provider: Arc<dyn CryptoProvider>,
+    traffic_secret: &[u8],
+    cipher_suite: CipherSuite,
+) -> DirectionKeys {
     let prot =
         tls::quic::derive_level_keys(provider, cipher_suite, traffic_secret).expect("level key derivation failed");
     dir_keys_from_prot(prot)
@@ -97,8 +103,11 @@ pub fn derive_level_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> Di
 /// Returns `(new_traffic_secret, new_protection_keys)`.
 /// The caller must replace the current traffic secret with the new one
 /// so that subsequent key updates chain correctly.
-pub fn derive_next_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> Result<(Vec<u8>, DirectionKeys), Error> {
-    let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
+pub fn derive_next_keys(
+    provider: Arc<dyn CryptoProvider>,
+    traffic_secret: &[u8],
+    cipher_suite: CipherSuite,
+) -> Result<(Vec<u8>, DirectionKeys), Error> {
     let (new_secret, prot) = tls::quic::derive_next_keys(provider, cipher_suite, traffic_secret)
         .map_err(|_| Error::Crypto(crypto::AeadError::InvalidCiphertext))?;
     let new_secret = new_secret.into_iter().collect::<Vec<u8>>();
@@ -106,9 +115,13 @@ pub fn derive_next_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> Res
 }
 
 /// Derive 0-RTT keys from a 0-RTT traffic secret (RFC 9001 §6.1).
-pub fn derive_0rtt_keys(traffic_secret: &[u8], cipher_suite: CipherSuite) -> DirectionKeys {
+pub fn derive_0rtt_keys(
+    provider: Arc<dyn CryptoProvider>,
+    traffic_secret: &[u8],
+    cipher_suite: CipherSuite,
+) -> DirectionKeys {
     // 0-RTT keys are derived the same way as level keys from the 0-RTT secret.
-    derive_level_keys(traffic_secret, cipher_suite)
+    derive_level_keys(provider, traffic_secret, cipher_suite)
 }
 
 // ── Header protection (delegates to QuicPacketProtection) ─────────────────
@@ -204,10 +217,15 @@ fn dir_keys_from_prot(prot: QuicPacketProtection) -> DirectionKeys {
 mod tests {
     use super::*;
 
+    fn test_provider() -> Arc<dyn CryptoProvider> {
+        Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new())
+    }
+
     #[test]
     fn test_initial_key_derivation() {
+        let provider = test_provider();
         let dcid = hex::decode("8394c8f03e515708").unwrap();
-        let (client, server) = derive_initial_keys(&dcid);
+        let (client, server) = derive_initial_keys(provider, &dcid);
         assert_eq!(client.key.len(), 16);
         assert_eq!(client.iv.len(), 12);
         assert_eq!(client.hp_key.len(), 16);
@@ -216,8 +234,9 @@ mod tests {
 
     #[test]
     fn test_rfc9001_appendix_a_initial_packet() {
+        let provider = test_provider();
         let dcid = hex::decode("8394c8f03e515708").unwrap();
-        let (client, _server) = derive_initial_keys(&dcid);
+        let (client, _server) = derive_initial_keys(provider, &dcid);
 
         assert_eq!(hex::encode(&client.key), "1f369613dd76d5467730efcbe3b1a22d");
         assert_eq!(hex::encode(&client.iv), "fa044b2f42a3fd3b46fb255c");
@@ -245,8 +264,9 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
+        let provider = test_provider();
         let dcid = hex::decode("8394c8f03e515708").unwrap();
-        let (client, _server) = derive_initial_keys(&dcid);
+        let (client, _server) = derive_initial_keys(provider, &dcid);
         let mut payload = b"hello quic".to_vec();
         let header = b"\xc0\x00\x00\x00\x01\x08\x83\x94\xc8\xf0\x3e\x51\x57\x08\x00";
         let pn = 0u64;

@@ -38,10 +38,11 @@ pub mod io_tokio;
 
 pub mod quic;
 
+#[cfg(feature = "std")]
+pub use config::InMemorySessionTicketStore;
 pub use config::{
-    CertificateProvider, CertificateValidator, ClientCertificate, ClientConfig, ClientHello, ClientSessionCache,
-    InMemorySessionTicketStore, NoFingerprinter, ReceivedCertificate, ServerConfig, SessionTicketStore,
-    TlsFingerprinter,
+    CertificateProvider, CertificateValidator, ClientCertificate, ClientConfig, ClientHello, ClientSessionCache, Clock,
+    NoFingerprinter, ReceivedCertificate, ServerConfig, SessionTicketStore, TlsFingerprinter,
 };
 pub use connection::{ClientConnection, QuicHandshake, QuicHandshakeEvent, ServerConnection};
 pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};

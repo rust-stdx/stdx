@@ -7,18 +7,20 @@ edition = "2024"
 path = "quic.rs"
 
 [features]
-default = ["std"]
-std = ["crypto/std"]
+default = ["std", "tokio"]
+std = ["crypto/std", "tls/std", "tls/crypto-default-provider", "tls/webpki-validator"]
+tokio = ["dep:tokio", "std"]
 
 [dependencies]
 async-trait = { workspace = true }
 bytes = { workspace = true }
 constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto" }
+hashbrown = { workspace = true }
 hex = { path = "../../hex" }
 thiserror = { path = "../../thiserror" }
-tls = { path = "../tls", default-features = false, features = ["crypto-default-provider", "webpki-validator", "std"] }
-tokio = { workspace = true }
+tls = { path = "../tls", default-features = false }
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyerr = { path = "../../anyerr" }

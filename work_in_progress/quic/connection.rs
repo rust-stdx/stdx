@@ -1,10 +1,15 @@
-use core::net::SocketAddr;
-use std::{
-    collections::{HashMap, VecDeque},
-    time::{Duration, Instant},
+use alloc::{
+    borrow::ToOwned,
+    collections::{BTreeMap, VecDeque},
+    format,
+    string::String,
+    vec,
+    vec::Vec,
 };
+use core::{net::SocketAddr, time::Duration};
 
 use bytes::Bytes;
+use hashbrown::HashMap;
 use tls::QuicHandshakeEvent;
 
 use crate::{
@@ -13,8 +18,9 @@ use crate::{
     cmd_queue::{CmdReceiver, CmdSender, cmd_queue},
     config::Config,
     crypto_keys::{self, DirectionKeys},
-    error::Error,
+    error::{Error, IoError},
     frame::{self, Frame},
+    instant::Instant,
     loss::LossDetection,
     packet::{self, LongPacketType},
     stream::{
@@ -50,14 +56,14 @@ const RETRY_INTEGRITY_NONCE_V2: [u8; 12] = [0x4c, 0x6f, 0x2c, 0x6f, 0x2c, 0x6f, 
 /// chunks keyed by offset and delivers contiguous data as gaps are filled.
 struct CryptoBuffer {
     next_offset: u64,
-    chunks: std::collections::BTreeMap<u64, Vec<u8>>,
+    chunks: BTreeMap<u64, Vec<u8>>,
 }
 
 impl CryptoBuffer {
     fn new() -> Self {
         Self {
             next_offset: 0,
-            chunks: std::collections::BTreeMap::new(),
+            chunks: BTreeMap::new(),
         }
     }
 
@@ -189,13 +195,18 @@ pub struct Connection<T: Transport> {
 }
 
 impl<T: Transport> Connection<T> {
+    fn clock(&self) -> Instant {
+        self.transport.now()
+    }
+
     pub fn new(transport: T, config: Config) -> Self {
         let remote = "0.0.0.0:0".parse().unwrap();
         let dcid = ConnectionId::new(&[0; 8]);
-        let (ck, sk) = crypto_keys::derive_initial_keys(dcid.as_bytes());
+        let (ck, sk) = crypto_keys::derive_initial_keys(config.tls_config.crypto_provider(), dcid.as_bytes());
         let max_ack_delay = Duration::from_millis(config.max_ack_delay_ms);
         let initial_max_data = config.initial_max_data;
         let (cmd_tx, cmd_rx) = cmd_queue();
+        let now = transport.now();
         Connection {
             transport,
             config,
@@ -239,7 +250,7 @@ impl<T: Transport> Connection<T> {
                 LossDetection::new(max_ack_delay),
                 LossDetection::new(max_ack_delay),
             ],
-            last_activity: Instant::now(),
+            last_activity: now,
             established_at: None,
             ack_deadline: [None, None, None],
             send_flow: SendFlowController::new(initial_max_data),
@@ -257,7 +268,11 @@ impl<T: Transport> Connection<T> {
         let dcid = ConnectionId::random(8);
         self.dcid = dcid.clone();
         self.original_dcid = Some(dcid.clone());
-        let (ck, sk) = crypto_keys::derive_initial_keys_for_version(dcid.as_bytes(), self.version);
+        let (ck, sk) = crypto_keys::derive_initial_keys_for_version(
+            self.config.tls_config.crypto_provider(),
+            dcid.as_bytes(),
+            self.version,
+        );
         self.init_send = LevelSendState {
             keys: ck,
             pn: 0,
@@ -265,7 +280,7 @@ impl<T: Transport> Connection<T> {
         self.init_recv = sk;
         self.crypto_buffer.reset();
         self.crypto_buffer_hs.reset();
-        self.last_activity = Instant::now();
+        self.last_activity = self.clock();
 
         let tps = transport_params::encode(&build_transport_params(&self.config, &self.scid));
         let alpn: Vec<Bytes> = self
@@ -298,17 +313,17 @@ impl<T: Transport> Connection<T> {
 
         self.send_crypto_initial(&ch, None).await?;
 
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = self.clock() + Duration::from_secs(10);
         let idle_timeout = Duration::from_millis(self.config.max_idle_timeout_ms);
         loop {
             if self.is_established() {
                 return Ok(());
             }
-            if Instant::now() > deadline {
+            if self.clock() > deadline {
                 return Err(Error::ConnectionTimedOut);
             }
             // Idle timeout during handshake
-            if self.last_activity.elapsed() >= idle_timeout {
+            if self.clock().duration_since(self.last_activity) >= idle_timeout {
                 return Err(Error::ConnectionTimedOut);
             }
             // Check PTO before blocking on recv
@@ -372,8 +387,9 @@ impl<T: Transport> Connection<T> {
             .as_ref()
             .map(|s| s.keys.cipher_suite)
             .ok_or(Error::InvalidState("no app send keys".into()))?;
-        let (new_secret, new_keys) = crypto_keys::derive_next_keys(secret, suite)
-            .map_err(|e| Error::InvalidState(format!("key update: {e:?}")))?;
+        let (new_secret, new_keys) =
+            crypto_keys::derive_next_keys(self.config.tls_config.crypto_provider(), secret, suite)
+                .map_err(|e| Error::InvalidState(format!("key update: {e:?}")))?;
         self.app_traffic_secret = Some(new_secret);
         self.key_phase_send ^= 1;
         self.sent_since_key_update = 0;
@@ -410,7 +426,8 @@ impl<T: Transport> Connection<T> {
         };
 
         let (new_secret, new_keys) =
-            crypto_keys::derive_next_keys(secret, suite).expect("receive key update derivation failed");
+            crypto_keys::derive_next_keys(self.config.tls_config.crypto_provider(), secret, suite)
+                .expect("receive key update derivation failed");
         self.server_app_traffic_secret = Some(new_secret);
 
         let old_recv = self.app_recv.take();
@@ -463,7 +480,7 @@ impl<T: Transport> Connection<T> {
     /// Whether the idle timeout has been reached since last activity.
     pub fn idle_timeout_reached(&self) -> bool {
         let timeout = Duration::from_millis(self.config.max_idle_timeout_ms);
-        self.last_activity.elapsed() >= timeout
+        self.clock().duration_since(self.last_activity) >= timeout
     }
 
     pub async fn open_bidirectional_stream(&mut self) -> Result<(SendStream, ReceiveStream), Error> {
@@ -606,7 +623,7 @@ impl<T: Transport> Connection<T> {
     fn drain_pending_stream_data(&mut self, id: u64) -> (bool, Vec<u8>) {
         if let Some(s) = self.streams.get_mut(&id) {
             let fin = s.fin_received;
-            let data = std::mem::take(&mut s.recv_buffer);
+            let data = core::mem::take(&mut s.recv_buffer);
             (fin, data)
         } else {
             (false, Vec::new())
@@ -892,13 +909,14 @@ impl<T: Transport> Connection<T> {
         self.transport.send_to(self.remote, &full).await?;
         self.init_send.pn += 1;
 
+        let now = self.clock();
         let frames = vec![Frame::Crypto {
             offset: 0,
             data: data.to_vec(),
         }];
-        self.ack_tracker[0].on_packet_sent(pn, true, 0, true, true, frames);
-        self.loss_detect[0].on_packet_sent(true);
-        self.last_activity = Instant::now();
+        self.ack_tracker[0].on_packet_sent(now, pn, true, 0, true, true, frames);
+        self.loss_detect[0].on_packet_sent(now, true);
+        self.last_activity = now;
         Ok(())
     }
     /// Send frames at a specific encryption level.
@@ -992,7 +1010,7 @@ impl<T: Transport> Connection<T> {
     /// Send an ACK frame for a given PN space.
     async fn send_ack(&mut self, level: EncryptionLevel) -> Result<(), Error> {
         let idx = level.index();
-        let now = Instant::now();
+        let now = self.clock();
         let ack_delay_us = if let Some(first) = self.ack_tracker[idx].first_ack_eliciting {
             now.duration_since(first).as_micros().min(u64::MAX as u128) as u64
         } else {
@@ -1017,6 +1035,7 @@ impl<T: Transport> Connection<T> {
     // ── PTO / retransmission ──────────────────────────────────────────
 
     async fn check_pto_and_retransmit(&mut self) -> Result<(), Error> {
+        let now = self.clock();
         for level in [
             EncryptionLevel::Initial,
             EncryptionLevel::Handshake,
@@ -1032,7 +1051,7 @@ impl<T: Transport> Connection<T> {
             }
             // Check if we need to send a delayed ACK
             if let Some(deadline) = self.ack_deadline[idx] {
-                if Instant::now() >= deadline && self.ack_tracker[idx].ack_eliciting_since_last_ack {
+                if now >= deadline && self.ack_tracker[idx].ack_eliciting_since_last_ack {
                     self.send_ack(level).await?;
                 }
             }
@@ -1040,7 +1059,7 @@ impl<T: Transport> Connection<T> {
             if self.ack_tracker[idx].is_empty() {
                 continue;
             }
-            if !self.loss_detect[idx].pto_expired() {
+            if !self.loss_detect[idx].pto_expired(now) {
                 continue;
             }
 
@@ -1053,7 +1072,7 @@ impl<T: Transport> Connection<T> {
                 loss_detect.loss_time_threshold()
             };
 
-            let lost_pns = self.ack_tracker[idx].detect_lost_packets(time_threshold, largest_acked);
+            let lost_pns = self.ack_tracker[idx].detect_lost_packets(now, time_threshold, largest_acked);
             if !lost_pns.is_empty() {
                 let lost_data = self.ack_tracker[idx].remove_lost(&lost_pns);
                 for (_, enc_level, long_header, is_initial, frames) in lost_data {
@@ -1103,7 +1122,7 @@ impl<T: Transport> Connection<T> {
         match recv_result {
             Ok((0, _)) => Ok(()),
             Ok((n, src)) => {
-                self.last_activity = Instant::now();
+                self.last_activity = self.clock();
                 // Detect connection migration (peer address change)
                 if src != self.remote {
                     // Initiate path validation
@@ -1125,8 +1144,8 @@ impl<T: Transport> Connection<T> {
                 }
                 Ok(())
             }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => Ok(()),
-            Err(e) => Err(Error::Io(e)),
+            Err(IoError::WouldBlock | IoError::TimedOut) => Ok(()),
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -1198,7 +1217,11 @@ impl<T: Transport> Connection<T> {
             // Reconnect with the new version
             self.version = v;
             // Reset connection state
-            let (ck, sk) = crypto_keys::derive_initial_keys_for_version(self.dcid.as_bytes(), v);
+            let (ck, sk) = crypto_keys::derive_initial_keys_for_version(
+                self.config.tls_config.crypto_provider(),
+                self.dcid.as_bytes(),
+                v,
+            );
             self.init_send = LevelSendState {
                 keys: ck,
                 pn: 0,
@@ -1272,7 +1295,11 @@ impl<T: Transport> Connection<T> {
             self.retry_token = Some(data[h.pn_offset..tag_start].to_vec());
         }
 
-        let (ck, sk) = crypto_keys::derive_initial_keys_for_version(new_dcid.as_bytes(), self.version);
+        let (ck, sk) = crypto_keys::derive_initial_keys_for_version(
+            self.config.tls_config.crypto_provider(),
+            new_dcid.as_bytes(),
+            self.version,
+        );
         self.init_send.keys = ck;
         self.init_recv = sk;
         self.init_send.pn = 0;
@@ -1297,6 +1324,7 @@ impl<T: Transport> Connection<T> {
     }
 
     async fn process_initial(&mut self, h: &packet::LongHeader, pkt: &[u8]) -> Result<(), Error> {
+        let now = self.clock();
         let sample_start = h.pn_offset + 4;
         if sample_start + 16 > pkt.len() {
             return Err(Error::PacketDecode("packet too short for HP sample".into()));
@@ -1328,8 +1356,8 @@ impl<T: Transport> Connection<T> {
         self.pn_recv[0] = pn + 1;
 
         // Track received packet for ACK
-        self.ack_tracker[0].on_packet_received(pn, true);
-        self.loss_detect[0].on_packet_received(true);
+        self.ack_tracker[0].on_packet_received(now, pn, true);
+        self.loss_detect[0].on_packet_received(now, true);
         // Send ACK immediately for Initial (don't schedule)
         self.send_ack(EncryptionLevel::Initial).await?;
 
@@ -1338,6 +1366,7 @@ impl<T: Transport> Connection<T> {
     }
 
     async fn process_handshake(&mut self, h: &packet::LongHeader, pkt: &[u8]) -> Result<(), Error> {
+        let now = self.clock();
         let rk = self
             .hs_recv
             .as_ref()
@@ -1368,8 +1397,8 @@ impl<T: Transport> Connection<T> {
         self.pn_recv[1] = pn + 1;
 
         // Track received packet for ACK
-        self.ack_tracker[1].on_packet_received(pn, true);
-        self.loss_detect[1].on_packet_received(true);
+        self.ack_tracker[1].on_packet_received(now, pn, true);
+        self.loss_detect[1].on_packet_received(now, true);
         self.send_ack(EncryptionLevel::Handshake).await?;
 
         let frames = frames_from(&payload)?;
@@ -1429,10 +1458,11 @@ impl<T: Transport> Connection<T> {
     }
 
     async fn process_short_frames(&mut self, frames: Vec<Frame>, pkt_end: usize) -> Result<usize, Error> {
+        let now = self.clock();
         let pn = self.pn_recv[2] - 1;
         let has_ack_eliciting = frames.iter().any(|f| !matches!(f, Frame::Ack { .. } | Frame::Padding));
-        self.ack_tracker[2].on_packet_received(pn, has_ack_eliciting);
-        self.loss_detect[2].on_packet_received(has_ack_eliciting);
+        self.ack_tracker[2].on_packet_received(now, pn, has_ack_eliciting);
+        self.loss_detect[2].on_packet_received(now, has_ack_eliciting);
         if has_ack_eliciting {
             self.schedule_ack(EncryptionLevel::OneRtt);
         }
@@ -1454,10 +1484,10 @@ impl<T: Transport> Connection<T> {
                     };
                     let (acked, sent_times) = self.ack_tracker[2].on_ack_received(&ranges);
                     if !acked.is_empty() {
-                        self.loss_detect[2].on_ack_received();
+                        self.loss_detect[2].on_ack_received(now);
                         // Compute RTT from best (most recent) sample
                         if let Some(time_sent) = sent_times.last() {
-                            let rtt = Instant::now().duration_since(*time_sent);
+                            let rtt = now.duration_since(*time_sent);
                             self.loss_detect[2].on_rtt_measurement(rtt, Duration::from_micros(ack_delay));
                         }
                     }
@@ -1586,11 +1616,12 @@ impl<T: Transport> Connection<T> {
     fn schedule_ack(&mut self, level: EncryptionLevel) {
         let idx = level.index();
         let max_delay = Duration::from_millis(self.config.max_ack_delay_ms);
-        let deadline = Instant::now() + max_delay;
+        let deadline = self.clock() + max_delay;
         self.ack_deadline[idx] = Some(deadline);
     }
 
     async fn handle_crypto(&mut self, frames: Vec<Frame>, level: EncryptionLevel) -> Result<(), Error> {
+        let now = self.clock();
         let mut close = None;
         let mut crypto_frames = Vec::new();
 
@@ -1622,12 +1653,12 @@ impl<T: Transport> Connection<T> {
                     };
                     let (acked, sent_times) = self.ack_tracker[space].on_ack_received(&ranges);
                     if !acked.is_empty() {
-                        self.loss_detect[space].on_ack_received();
+                        self.loss_detect[space].on_ack_received(now);
                         if space == 2 && self.key_update_pending {
                             self.key_update_pending = false;
                         }
                         if let Some(time_sent) = sent_times.last() {
-                            let rtt = Instant::now().duration_since(*time_sent);
+                            let rtt = now.duration_since(*time_sent);
                             self.loss_detect[space].on_rtt_measurement(rtt, Duration::from_micros(ack_delay));
                         }
                     }
@@ -1665,6 +1696,7 @@ impl<T: Transport> Connection<T> {
     async fn process_crypto_data(&mut self, data: &[u8]) -> Result<(), Error> {
         let tls = self.tls.as_mut().unwrap();
         tls.inject_handshake(data);
+        let provider = self.config.tls_config.crypto_provider();
         match tls
             .process()
             .await
@@ -1676,8 +1708,16 @@ impl<T: Transport> Connection<T> {
                     .ok_or(Error::InvalidState("no cipher suite".into()))?;
                 let s = tls.quic_secrets().unwrap();
                 if self.hs_send.is_none() {
-                    let rh = crypto_keys::derive_level_keys(s.server_handshake_traffic_secret.as_slice(), suite);
-                    let lh = crypto_keys::derive_level_keys(s.client_handshake_traffic_secret.as_slice(), suite);
+                    let rh = crypto_keys::derive_level_keys(
+                        provider.clone(),
+                        s.server_handshake_traffic_secret.as_slice(),
+                        suite,
+                    );
+                    let lh = crypto_keys::derive_level_keys(
+                        provider.clone(),
+                        s.client_handshake_traffic_secret.as_slice(),
+                        suite,
+                    );
                     self.hs_send = Some(LevelSendState {
                         keys: lh,
                         pn: 0,
@@ -1696,8 +1736,16 @@ impl<T: Transport> Connection<T> {
                     )
                     .await?;
                 }
-                let ra = crypto_keys::derive_level_keys(s.server_application_traffic_secret.as_slice(), suite);
-                let la = crypto_keys::derive_level_keys(s.client_application_traffic_secret.as_slice(), suite);
+                let ra = crypto_keys::derive_level_keys(
+                    provider.clone(),
+                    s.server_application_traffic_secret.as_slice(),
+                    suite,
+                );
+                let la = crypto_keys::derive_level_keys(
+                    provider.clone(),
+                    s.client_application_traffic_secret.as_slice(),
+                    suite,
+                );
                 self.app_traffic_secret = Some(s.client_application_traffic_secret.to_vec());
                 self.server_app_traffic_secret = Some(s.server_application_traffic_secret.to_vec());
                 self.app_send = Some(LevelSendState {
@@ -1706,16 +1754,22 @@ impl<T: Transport> Connection<T> {
                 });
                 self.app_recv = Some(ra);
                 self.state = ConnState::Established;
-                self.established_at = Some(Instant::now());
+                self.established_at = Some(self.clock());
             }
             _ => {
                 if self.hs_send.is_none() {
                     if let Some(suite) = tls.cipher_suite() {
                         if let Some(s) = tls.quic_secrets() {
-                            let rh =
-                                crypto_keys::derive_level_keys(s.server_handshake_traffic_secret.as_slice(), suite);
-                            let lh =
-                                crypto_keys::derive_level_keys(s.client_handshake_traffic_secret.as_slice(), suite);
+                            let rh = crypto_keys::derive_level_keys(
+                                provider.clone(),
+                                s.server_handshake_traffic_secret.as_slice(),
+                                suite,
+                            );
+                            let lh = crypto_keys::derive_level_keys(
+                                provider.clone(),
+                                s.client_handshake_traffic_secret.as_slice(),
+                                suite,
+                            );
                             self.hs_send = Some(LevelSendState {
                                 keys: lh,
                                 pn: 0,
@@ -1825,12 +1879,13 @@ async fn send_one_packet<T: Transport>(
 
     transport.send_to(remote, &full).await?;
 
+    let now = transport.now();
     if ack_eliciting {
         let frames_vec: Vec<Frame> = frames.to_vec();
-        ack_tracker.on_packet_sent(pn, true, level_u8, long_header, is_initial, frames_vec);
+        ack_tracker.on_packet_sent(now, pn, true, level_u8, long_header, is_initial, frames_vec);
     }
-    loss_detect.on_packet_sent(ack_eliciting);
-    *last_activity = Instant::now();
+    loss_detect.on_packet_sent(now, ack_eliciting);
+    *last_activity = now;
     Ok(())
 }
 

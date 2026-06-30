@@ -1,4 +1,6 @@
-use std::time::{Duration, Instant};
+use core::time::Duration;
+
+use crate::instant::Instant;
 
 /// Loss detection and RTT tracking per RFC 9002.
 ///
@@ -66,16 +68,16 @@ impl LossDetection {
     }
 
     /// Record that we sent an ack-eliciting packet.
-    pub fn on_packet_sent(&mut self, ack_eliciting: bool) {
+    pub fn on_packet_sent(&mut self, now: Instant, ack_eliciting: bool) {
         if ack_eliciting {
-            self.time_last_sent = Some(Instant::now());
+            self.time_last_sent = Some(now);
         }
     }
 
     /// Record that we received an ack-eliciting packet.
-    pub fn on_packet_received(&mut self, ack_eliciting: bool) {
+    pub fn on_packet_received(&mut self, now: Instant, ack_eliciting: bool) {
         if ack_eliciting {
-            self.time_last_ack_eliciting = Some(Instant::now());
+            self.time_last_ack_eliciting = Some(now);
         }
     }
 
@@ -105,15 +107,15 @@ impl LossDetection {
     }
 
     /// Reset PTO counter and timer after receiving an ACK.
-    pub fn on_ack_received(&mut self) {
+    pub fn on_ack_received(&mut self, now: Instant) {
         self.pto_count = 0;
-        self.time_last_sent = Some(Instant::now());
+        self.time_last_sent = Some(now);
     }
 
     /// Whether the PTO timer has expired (i.e. we should send a probe).
-    pub fn pto_expired(&self) -> bool {
+    pub fn pto_expired(&self, now: Instant) -> bool {
         if let Some(last_sent) = self.time_last_sent {
-            Instant::now().duration_since(last_sent) >= self.pto_duration()
+            now.duration_since(last_sent) >= self.pto_duration()
         } else {
             true
         }

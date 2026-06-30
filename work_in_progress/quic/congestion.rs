@@ -1,4 +1,4 @@
-use std::time::Duration;
+use core::time::Duration;
 
 /// Congestion control trait (RFC 9002 §7).
 pub trait CongestionController: Send {

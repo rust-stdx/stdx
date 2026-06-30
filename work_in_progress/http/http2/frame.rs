@@ -1,16 +1,50 @@
 use super::error::ErrorCode;
 
+/// HTTP/2 frame type identifiers as defined in [RFC 9113 §7](https://www.rfc-editor.org/rfc/rfc9113#name-frame-types).
+///
+/// Each variant corresponds to a single-octet type field in the frame header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameType {
+    /// **DATA** (type `0x0`) — carries arbitrary, variable-length bytes
+    /// associated with a stream (e.g. response body). One or more DATA
+    /// frames may be sent; the `END_STREAM` flag marks the final one.
     Data,
+    /// **HEADERS** (type `0x1`) — opens or extends a stream by
+    /// conveying a HEADERS block (HPACK-encoded header fields).
+    /// May be padded and may carry optional priority information.
     Headers,
+    /// **PRIORITY** (type `0x2`) — specifies the sender-advised
+    /// priority of a stream. References another stream as a dependency
+    /// and assigns a weight.
     Priority,
+    /// **RST_STREAM** (type `0x3`) — immediately terminates a stream.
+    /// Carries a 32-bit error code that explains the reason for the
+    /// termination.
     RstStream,
+    /// **SETTINGS** (type `0x4`) — transmits configuration parameters
+    /// that affect peer-to-peer communication (e.g. max concurrent
+    /// streams, initial window size). Always sent on stream 0. An
+    /// empty SETTINGS with `ACK` flag acknowledges receipt.
     Settings,
+    /// **PUSH_PROMISE** (type `0x5`) — used by servers to push a
+    /// future stream to the client. Carries the promised stream ID
+    /// and a HEADERS block for the pushed request.
     PushPromise,
+    /// **PING** (type `0x6`) — a health-check frame. Carries 8 opaque
+    /// bytes; a PING with the `ACK` flag set is a response.
     Ping,
+    /// **GOAWAY** (type `0x7`) — initiates graceful shutdown of a
+    /// connection. Identifies the last stream the sender will process
+    /// and an error code. Any streams with higher IDs may be retried
+    /// on a new connection.
     GoAway,
+    /// **WINDOW_UPDATE** (type `0x8`) — used for flow control.
+    /// Increments the peer's window size by the given number of bytes,
+    /// allowing the peer to send more DATA frames.
     WindowUpdate,
+    /// **CONTINUATION** (type `0x9`) — continues a HEADERS or
+    /// PUSH_PROMISE block when the fragment does not fit in a single
+    /// frame. Carries the remainder of the HEADERS block.
     Continuation,
 }
 
@@ -47,12 +81,22 @@ impl FrameType {
     }
 }
 
+/// Flag: the last frame in a stream (used by DATA and HEADERS).
 pub const FLAG_END_STREAM: u8 = 0x01;
+/// Flag: acknowledgement (used by SETTINGS and PING).
 pub const FLAG_ACK: u8 = 0x01;
+/// Flag: the HEADERS block is complete (used by HEADERS, PUSH_PROMISE,
+/// and CONTINUATION).
 pub const FLAG_END_HEADERS: u8 = 0x04;
+/// Flag: padding is present (used by DATA, HEADERS, and PUSH_PROMISE).
 pub const FLAG_PADDED: u8 = 0x08;
+/// Flag: priority information follows the frame header (used by HEADERS).
 pub const FLAG_PRIORITY: u8 = 0x20;
 
+/// The 9-octet HTTP/2 frame header as defined in [RFC 9113 §7.1](https://www.rfc-editor.org/rfc/rfc9113#section-7.1).
+///
+/// Every HTTP/2 frame begins with this header, which identifies the
+/// frame's length, type, flags, and the stream it belongs to.
 #[derive(Debug, Clone)]
 pub struct FrameHeader {
     pub length: u32,
@@ -61,6 +105,8 @@ pub struct FrameHeader {
     pub stream_id: u32,
 }
 
+/// Encodes a [`FrameHeader`] into its 9-byte wire representation and
+/// appends it to `buf`.
 pub fn encode_frame_header(header: &FrameHeader, buf: &mut Vec<u8>) {
     buf.push((header.length >> 16) as u8);
     buf.push((header.length >> 8) as u8);
@@ -73,6 +119,12 @@ pub fn encode_frame_header(header: &FrameHeader, buf: &mut Vec<u8>) {
     buf.push(header.stream_id as u8);
 }
 
+/// Decodes a [`FrameHeader`] from the beginning of `data`.
+///
+/// Returns the header and the number of bytes consumed (always 9).
+/// Returns `H2FrameError::Incomplete` if fewer than 9 bytes are
+/// available, or `H2FrameError::UnknownFrameType` if the type code
+/// is not recognized.
 pub fn decode_frame_header(data: &[u8]) -> Result<(FrameHeader, usize), H2FrameError> {
     if data.len() < 9 {
         return Err(H2FrameError::Incomplete);
@@ -94,73 +146,122 @@ pub fn decode_frame_header(data: &[u8]) -> Result<(FrameHeader, usize), H2FrameE
     ))
 }
 
+/// Errors that can occur when decoding an HTTP/2 frame from raw bytes.
 #[derive(Debug)]
 pub enum H2FrameError {
+    /// Not enough bytes available to decode the frame.
     Incomplete,
+    /// The frame type field contains an unknown type code.
     UnknownFrameType(u8),
+    /// The frame payload violates HTTP/2 rules (e.g. truncated data,
+    /// invalid flags). The string describes the specific violation.
     BadPayload(&'static str),
+    /// The stream ID is invalid (e.g. reserved bit set incorrectly).
     InvalidStreamId,
 }
 
+/// An HTTP/2 frame, typed and parsed, ready for encoding or already decoded
+/// from the wire.
+///
+/// Each variant corresponds to one of the ten HTTP/2 frame types defined in
+/// [RFC 9113 §7](https://www.rfc-editor.org/rfc/rfc9113#name-frame-types).
 #[derive(Debug, Clone)]
 pub enum Frame {
+    /// **DATA** — carries arbitrary bytes (usually a response body chunk).
     Data {
+        /// The stream this data belongs to.
         stream_id: u32,
+        /// When `true`, this is the last frame on this stream.
         end_stream: bool,
+        /// Whether a padding length octet and padding bytes follow
+        /// the data payload.
         padded: bool,
+        /// The payload content (body bytes).
         data: Vec<u8>,
+        /// Padding bytes (present only when `padded` is `true`).
         padding: Vec<u8>,
     },
+    /// **HEADERS** — opens a stream or sends trailer headers,
+    /// containing an HPACK-encoded HEADERS block.
     Headers {
         stream_id: u32,
+        /// When `true`, the stream is half-closed after this frame.
         end_stream: bool,
+        /// When `true`, the HEADERS block is complete (not continued
+        /// by CONTINUATION frames).
         end_headers: bool,
         padded: bool,
+        /// Whether a 5-byte priority section follows the optional
+        /// padding length octet.
         priority: bool,
         exclusive: bool,
         stream_dependency: u32,
         weight: u8,
+        /// The HPACK-encoded header fragment.
         fragment: Vec<u8>,
         padding: Vec<u8>,
     },
+    /// **PRIORITY** — advises the peer of a stream's priority relative
+    /// to another stream.
     Priority {
         stream_id: u32,
         exclusive: bool,
         stream_dependency: u32,
         weight: u8,
     },
-    RstStream {
-        stream_id: u32,
-        error_code: ErrorCode,
-    },
+    /// **RST_STREAM** — immediately terminates a stream with an
+    /// error code.
+    RstStream { stream_id: u32, error_code: ErrorCode },
+    /// **SETTINGS** — conveys connection-scoped configuration.
     Settings {
+        /// When `true`, this frame acknowledges receipt of the peer's
+        /// SETTINGS (payload must be empty).
         ack: bool,
+        /// A list of (identifier, value) pairs.
         settings: Vec<(u16, u32)>,
     },
+    /// **PUSH_PROMISE** — a server-initiated promise to push a
+    /// resource to the client.
     PushPromise {
         stream_id: u32,
         end_headers: bool,
         padded: bool,
+        /// The ID of the stream the server intends to create.
         promised_stream_id: u32,
+        /// The HPACK-encoded header fragment for the pushed request.
         fragment: Vec<u8>,
         padding: Vec<u8>,
     },
+    /// **PING** — a liveness or round-trip time measurement frame.
     Ping {
+        /// When `true`, this is a response to a PING.
         ack: bool,
+        /// 8 arbitrary bytes (echoed by the peer on ACK).
         opaque_data: [u8; 8],
     },
+    /// **GOAWAY** — signals the start of graceful connection shutdown.
     GoAway {
+        /// The highest stream ID that the sender will process.
+        /// Streams with higher IDs can be retried on a new connection.
         last_stream_id: u32,
         error_code: ErrorCode,
+        /// Optional debug data for diagnostic purposes.
         debug_data: Vec<u8>,
     },
+    /// **WINDOW_UPDATE** — used for flow control; grants additional
+    /// bytes to the peer's flow-control window.
     WindowUpdate {
         stream_id: u32,
+        /// The number of bytes the sender can now send.
         window_size_increment: u32,
     },
+    /// **CONTINUATION** — carries the remainder of a HEADERS or
+    /// PUSH_PROMISE block that spanned multiple frames.
     Continuation {
         stream_id: u32,
+        /// When `true`, this is the last CONTINUATION for the block.
         end_headers: bool,
+        /// The HPACK-encoded header fragment continuation.
         fragment: Vec<u8>,
     },
 }
@@ -193,6 +294,8 @@ fn flag_headers(end_stream: bool, end_headers: bool, padded: bool, priority: boo
     f
 }
 
+/// Encodes an HTTP/2 [`Frame`] into its full wire representation
+/// (9-byte header + variable-length payload).
 pub fn encode_frame(frame: &Frame) -> Vec<u8> {
     match frame {
         Frame::Data {
@@ -466,6 +569,12 @@ pub fn encode_frame(frame: &Frame) -> Vec<u8> {
     }
 }
 
+/// Decodes an HTTP/2 [`Frame`] from raw bytes.
+///
+/// Reads the 9-byte header first, then the payload according to the
+/// frame type. Returns the decoded frame and the total number of bytes
+/// consumed. Returns an error if the data is truncated, the type is
+/// unknown, or the payload is malformed.
 pub fn decode_frame(data: &[u8]) -> Result<(Frame, usize), H2FrameError> {
     let (header, hdr_len) = decode_frame_header(data)?;
     let total_len = hdr_len + header.length as usize;

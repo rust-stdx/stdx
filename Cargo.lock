@@ -1302,6 +1302,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
  "foldhash 0.1.5",
+ "rustc-std-workspace-alloc",
 ]
 
 [[package]]
@@ -1404,6 +1405,7 @@ dependencies = [
  "bytes",
  "hex 0.1.0",
  "quic",
+ "tls",
  "tokio",
 ]
 
@@ -2262,6 +2264,7 @@ dependencies = [
  "bytes",
  "constant_time_eq 0.3.0",
  "crypto",
+ "hashbrown 0.15.5",
  "hex 0.1.0",
  "thiserror 1.0.61",
  "tls",
@@ -2549,6 +2552,12 @@ name = "rustc-hash"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe"
+
+[[package]]
+name = "rustc-std-workspace-alloc"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d441c3b2ebf55cebf796bfdc265d67fa09db17b7bb6bd4be75c509e1e8fec3"
 
 [[package]]
 name = "rustc_version"

@@ -10,6 +10,7 @@ pub enum Method {
     Connect,
     Options,
     Trace,
+    Query,
     Custom(String),
 }
 
@@ -24,6 +25,7 @@ impl Method {
             b"CONNECT" => Method::Connect,
             b"OPTIONS" => Method::Options,
             b"TRACE" => Method::Trace,
+            b"QUERY" => Method::Query,
             other => Method::Custom(String::from_utf8_lossy(other).to_string()),
         }
     }
@@ -38,6 +40,7 @@ impl Method {
             Method::Connect => "CONNECT",
             Method::Options => "OPTIONS",
             Method::Trace => "TRACE",
+            Method::Query => "QUERY",
             Method::Custom(s) => s.as_str(),
         }
     }

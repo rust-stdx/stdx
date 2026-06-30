@@ -21,6 +21,10 @@
 //! | [`tls`] | TLS 1.3 handshake adapter for QUIC |
 //! | [`connection`] | Main `Connection` struct |
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 pub mod ack;
 pub mod cid;
 pub mod cmd_queue;
@@ -30,6 +34,7 @@ pub mod connection;
 pub mod crypto_keys;
 pub mod error;
 pub mod frame;
+pub mod instant;
 pub mod loss;
 pub mod packet;
 pub mod server;
@@ -42,6 +47,7 @@ pub mod tls_adapter;
 
 pub use config::Config;
 pub use connection::Connection;
-pub use error::Error;
+pub use error::{Error, IoError};
+pub use instant::Instant;
 pub use stream::{ReceiveStream, SendStream};
 pub use transport::Transport;

@@ -5,26 +5,35 @@ use std::{
 };
 
 use http::http3::{self, frame, qpack};
-use quic::{Config, Transport};
+use quic::{Config, Instant, IoError, Transport};
 use tokio::net::UdpSocket as TokioUdpSocket;
 
-struct UdpTransport(TokioUdpSocket);
+struct UdpTransport {
+    socket: TokioUdpSocket,
+    epoch: std::time::Instant,
+}
+
 #[async_trait::async_trait]
 impl Transport for UdpTransport {
-    async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> std::io::Result<usize> {
-        self.0.send_to(data, dest).await
+    async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> Result<usize, IoError> {
+        self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
-    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> std::io::Result<(usize, SocketAddr)> {
+    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> Result<(usize, SocketAddr), IoError> {
         if let Some(dur) = deadline {
-            tokio::time::timeout(dur, self.0.recv_from(buf))
+            tokio::time::timeout(dur, self.socket.recv_from(buf))
                 .await
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, ""))?
+                .map_err(|_| IoError::TimedOut)?
+                .map_err(IoError::from)
         } else {
-            self.0.recv_from(buf).await
+            self.socket.recv_from(buf).await.map_err(IoError::from)
         }
     }
-    fn local_addr(&self) -> std::io::Result<SocketAddr> {
-        self.0.local_addr()
+    fn local_addr(&self) -> Result<SocketAddr, IoError> {
+        self.socket.local_addr().map_err(IoError::from)
+    }
+    fn now(&self) -> Instant {
+        let us = std::time::Instant::now().duration_since(self.epoch).as_micros() as u64;
+        Instant::from_micros(us)
     }
 }
 
@@ -39,7 +48,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Connecting to {server_name} at {addr}...");
     let mut config = Config::default();
     config.alpn_protocols = vec![bytes::Bytes::from_static(b"h3")];
-    let mut conn = quic::Connection::new(UdpTransport(TokioUdpSocket::bind("0.0.0.0:0").await?), config);
+    let transport = UdpTransport {
+        socket: TokioUdpSocket::bind("0.0.0.0:0").await?,
+        epoch: std::time::Instant::now(),
+    };
+    let mut conn = quic::Connection::new(transport, config);
     conn.connect(addr, &server_name).await?;
     println!("QUIC handshake complete");
 

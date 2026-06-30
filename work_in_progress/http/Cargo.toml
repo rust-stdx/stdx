@@ -6,11 +6,22 @@ edition = "2024"
 [lib]
 path = "http.rs"
 
+[features]
+default = ["tokio", "http1"]
+tokio = ["dep:tokio", "dep:async-trait"]
+http1 = []
+http2 = ["http1", "tls"]
+http3 = ["tls"]
+tls = ["dep:tls"]
+
 [dependencies]
+async-trait = { workspace = true, optional = true }
 bytes = { workspace = true }
 hex = { path = "../../hex", default-features = false }
 quic = { path = "../quic" }
+tls = { path = "../tls", optional = true, default-features = false, features = ["tokio", "crypto-default-provider", "webpki-validator", "std"] }
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
-async-trait = { workspace = true }
+tls = { path = "../tls", features = ["tokio"] }
 tokio = { workspace = true, features = ["net", "rt", "io-util", "macros"] }

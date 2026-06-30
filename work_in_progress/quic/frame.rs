@@ -1,5 +1,7 @@
 //! QUIC frame types (RFC 9000 §19).
 
+use alloc::vec::Vec;
+
 use crate::{error::Error, varint};
 
 /// All frame types used in milestone 1.

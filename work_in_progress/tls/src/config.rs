@@ -257,11 +257,15 @@ pub trait SessionTicketStore: Send + Sync {
 /// Tickets expire after the configured lifetime. This is suitable for
 /// single-process servers but NOT for multi-process or distributed
 /// deployments.
+///
+/// Available only when the `std` feature is enabled.
+#[cfg(feature = "std")]
 pub struct InMemorySessionTicketStore {
     tickets: std::sync::Mutex<alloc::collections::BTreeMap<Vec<u8>, (Vec<u8>, u64)>>,
     ticket_lifetime: u32,
 }
 
+#[cfg(feature = "std")]
 impl InMemorySessionTicketStore {
     pub fn new(ticket_lifetime: u32) -> Self {
         Self {
@@ -271,6 +275,7 @@ impl InMemorySessionTicketStore {
     }
 }
 
+#[cfg(feature = "std")]
 #[async_trait]
 impl SessionTicketStore for InMemorySessionTicketStore {
     async fn put_ticket(&self, _server_name: &str, ticket: Vec<u8>, psk: Vec<u8>, _lifetime_s: u32) {
@@ -297,6 +302,31 @@ impl SessionTicketStore for InMemorySessionTicketStore {
 
     async fn remove_ticket(&self, ticket: &[u8]) {
         self.tickets.lock().unwrap().remove(ticket);
+    }
+}
+
+/// A wall clock used to check certificate validity periods.
+///
+/// Returns the current Unix timestamp (seconds since epoch). This trait
+/// exists so that no_std environments can inject their own time source
+/// (hardware RTC, NTP, etc.) instead of relying on `std::time::SystemTime`.
+pub trait Clock: Send + Sync {
+    fn now(&self) -> u64;
+}
+
+/// A [`Clock`] backed by `std::time::SystemTime`.
+///
+/// Available only when the `std` feature is enabled.
+#[cfg(feature = "std")]
+pub struct SystemClock;
+
+#[cfg(feature = "std")]
+impl Clock for SystemClock {
+    fn now(&self) -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
     }
 }
 

@@ -59,12 +59,12 @@ fn into_io_err(e: Error) -> io::Error {
 fn block_on<F: Future>(f: F) -> F::Output {
     let mut fut = Box::pin(f);
     static VTABLE: RawWakerVTable = RawWakerVTable::new(|p| RawWaker::new(p, &VTABLE), |_| {}, |_| {}, |_| {});
-    let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) };
+    let waker = unsafe { Waker::from_raw(RawWaker::new(core::ptr::null(), &VTABLE)) };
     let mut cx = Context::from_waker(&waker);
     loop {
         match fut.as_mut().poll(&mut cx) {
             Poll::Ready(v) => return v,
-            Poll::Pending => std::hint::spin_loop(),
+            Poll::Pending => core::hint::spin_loop(),
         }
     }
 }

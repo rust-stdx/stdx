@@ -212,16 +212,10 @@ impl CryptoProvider for DefaultCryptoProvider {
                     Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
                 })
             }
-            SignatureScheme::RsaPkcs1Sha256 => {
-                let digest = Sha256::hash(data);
-                crypto::rsa::verify_pkcs1_sha256(public_key, signature, digest.as_ref())
-                    .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PKCS1-SHA256: {e}"))))
-            }
-            SignatureScheme::RsaPssRsaSha256 => {
-                let digest = Sha256::hash(data);
-                crypto::rsa::verify_pss_sha256(public_key, signature, digest.as_ref())
-                    .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}"))))
-            }
+            SignatureScheme::RsaPkcs1Sha256 => crypto::rsa::verify_pkcs1_sha256(public_key, signature, data)
+                .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PKCS1-SHA256: {e}")))),
+            SignatureScheme::RsaPssRsaSha256 => crypto::rsa::verify_pss_sha256(public_key, signature, data)
+                .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}")))),
             scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(format!(
                 "{scheme:?}"
             )))),

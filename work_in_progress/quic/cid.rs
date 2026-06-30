@@ -1,3 +1,5 @@
+use alloc::{vec, vec::Vec};
+
 /// A QUIC Connection ID (0-20 bytes, RFC 9000 §5.1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ConnectionId {
@@ -36,8 +38,8 @@ impl ConnectionId {
     }
 }
 
-impl std::fmt::Display for ConnectionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ConnectionId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for b in &self.bytes {
             write!(f, "{b:02x}")?;
         }

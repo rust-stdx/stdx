@@ -4,6 +4,8 @@
 //! - **Long header** (Initial, 0-RTT, Handshake, Retry)
 //! - **Short header** (1-RTT)
 
+use alloc::vec::Vec;
+
 use crate::{cid::ConnectionId, error::Error, varint};
 
 /// QUIC version 1.

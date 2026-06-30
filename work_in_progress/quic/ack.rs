@@ -1,6 +1,8 @@
-use std::collections::VecDeque;
+use alloc::{collections::VecDeque, vec::Vec};
 
-use crate::frame::Frame;
+use hashbrown::HashSet;
+
+use crate::{frame::Frame, instant::Instant};
 
 /// Tracks sent packets (for loss detection / retransmission) and
 /// received packets (for generating ACK frames with proper ranges).
@@ -16,13 +18,13 @@ pub struct AckTracker {
     /// Whether an ack-eliciting packet has been received since the last ACK.
     pub ack_eliciting_since_last_ack: bool,
     /// When the first ack-eliciting packet in the current batch arrived.
-    pub first_ack_eliciting: Option<std::time::Instant>,
+    pub first_ack_eliciting: Option<Instant>,
 }
 
 /// A packet we sent that the peer has not yet acknowledged.
 pub struct SentPacket {
     pub pn: u64,
-    pub time_sent: std::time::Instant,
+    pub time_sent: Instant,
     pub ack_eliciting: bool,
     /// Encryption level: 0 = Initial, 1 = Handshake, 2 = 1-RTT.
     pub encrypted_level: u8,
@@ -57,6 +59,7 @@ impl AckTracker {
     /// Record a packet we just sent.
     pub fn on_packet_sent(
         &mut self,
+        now: Instant,
         pn: u64,
         ack_eliciting: bool,
         level: u8,
@@ -66,7 +69,7 @@ impl AckTracker {
     ) {
         self.sent_packets.push_back(SentPacket {
             pn,
-            time_sent: std::time::Instant::now(),
+            time_sent: now,
             ack_eliciting,
             encrypted_level: level,
             long_header,
@@ -80,14 +83,14 @@ impl AckTracker {
     }
 
     /// Record a packet we received. Call this for every incoming packet.
-    pub fn on_packet_received(&mut self, pn: u64, ack_eliciting: bool) {
+    pub fn on_packet_received(&mut self, now: Instant, pn: u64, ack_eliciting: bool) {
         if pn > self.largest_received {
             self.largest_received = pn;
         }
         self.received_since_last_ack.push(pn);
         if ack_eliciting {
             if !self.ack_eliciting_since_last_ack {
-                self.first_ack_eliciting = Some(std::time::Instant::now());
+                self.first_ack_eliciting = Some(now);
             }
             self.ack_eliciting_since_last_ack = true;
         }
@@ -95,7 +98,7 @@ impl AckTracker {
 
     /// Process a received ACK frame. Returns the list of newly-acked PNs and their
     /// time_sent (for RTT measurement).
-    pub fn on_ack_received(&mut self, ranges: &AckRanges) -> (Vec<u64>, Vec<std::time::Instant>) {
+    pub fn on_ack_received(&mut self, ranges: &AckRanges) -> (Vec<u64>, Vec<Instant>) {
         let acked_set = ranges_to_set(ranges);
 
         // Update largest acked
@@ -106,7 +109,7 @@ impl AckTracker {
         let mut newly_acked = Vec::new();
         let mut sent_times = Vec::new();
 
-        let keep: Vec<SentPacket> = std::mem::take(&mut self.sent_packets)
+        let keep: Vec<SentPacket> = core::mem::take(&mut self.sent_packets)
             .into_iter()
             .filter_map(|p| {
                 if acked_set.contains(&p.pn) {
@@ -125,7 +128,7 @@ impl AckTracker {
     /// Build an ACK frame from the accumulated received packet numbers.
     /// Clears the accumulator after generating ranges.
     pub fn build_ack(&mut self, ack_delay: u64) -> AckRanges {
-        let mut pns = std::mem::take(&mut self.received_since_last_ack);
+        let mut pns = core::mem::take(&mut self.received_since_last_ack);
         pns.sort_unstable();
         pns.dedup();
         self.ack_eliciting_since_last_ack = false;
@@ -188,8 +191,12 @@ impl AckTracker {
     /// Detect sent packets that should be declared lost.
     /// Uses time-based loss: any unacked packet older than `time_threshold`
     /// AND with a PN less than `largest_acked` is potentially lost.
-    pub fn detect_lost_packets(&self, time_threshold: std::time::Duration, largest_acked: u64) -> Vec<u64> {
-        let now = std::time::Instant::now();
+    pub fn detect_lost_packets(
+        &self,
+        now: Instant,
+        time_threshold: core::time::Duration,
+        largest_acked: u64,
+    ) -> Vec<u64> {
         self.sent_packets
             .iter()
             .filter(|p| p.pn < largest_acked && now.duration_since(p.time_sent) >= time_threshold)
@@ -199,9 +206,9 @@ impl AckTracker {
 
     /// Remove packets that have been declared lost. Returns (pn, level, long_header, frames) for retransmission.
     pub fn remove_lost(&mut self, lost_pns: &[u64]) -> Vec<(u64, u8, bool, bool, Vec<Frame>)> {
-        let lost_set: std::collections::HashSet<u64> = lost_pns.iter().copied().collect();
+        let lost_set: HashSet<u64> = lost_pns.iter().copied().collect();
         let mut result = Vec::new();
-        let keep: Vec<SentPacket> = std::mem::take(&mut self.sent_packets)
+        let keep: Vec<SentPacket> = core::mem::take(&mut self.sent_packets)
             .into_iter()
             .filter_map(|p| {
                 if lost_set.contains(&p.pn) {
@@ -238,8 +245,8 @@ impl AckTracker {
 }
 
 /// Convert AckRanges into a HashSet of acknowledged PNs.
-fn ranges_to_set(ranges: &AckRanges) -> std::collections::HashSet<u64> {
-    let mut set = std::collections::HashSet::new();
+fn ranges_to_set(ranges: &AckRanges) -> HashSet<u64> {
+    let mut set = HashSet::new();
     let first_end = ranges.largest.saturating_sub(ranges.first_range);
     for pn in first_end..=ranges.largest {
         set.insert(pn);
