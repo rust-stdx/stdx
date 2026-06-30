@@ -47,7 +47,6 @@ impl RsaPublicKey {
     /// The input is the content of the BIT STRING inside the SPKI —
     /// an ASN.1 `SEQUENCE { INTEGER n, INTEGER e }`.
     pub fn from_pkcs1_der(mut data: &[u8]) -> Result<Self, RsaError> {
-        // Read SEQUENCE
         if data.is_empty() || data[0] != 0x30 {
             return Err(RsaError::Unspecified);
         }
@@ -58,23 +57,21 @@ impl RsaPublicKey {
         }
         data = &data[..seq_len];
 
-        // Read INTEGER: n
-        let n_bytes = read_integer_bytes(data)?;
+        let mut n_buf = [0u8; RSA_MAX_BYTES];
+        let n_len = read_integer_bytes(data, &mut n_buf)?;
         let consumed = asn1_integer_size(data);
         data = &data[consumed..];
 
-        // Read INTEGER: e
-        let e_bytes = read_integer_bytes(data)?;
+        let mut e_buf = [0u8; RSA_MAX_BYTES];
+        let e_len = read_integer_bytes(data, &mut e_buf)?;
 
-        // Parse n and e into Uint
-        let n = uint_from_variable_be(&n_bytes);
-        let e = uint_from_variable_be(&e_bytes);
-        let n_bytes_len = n_bytes.len();
+        let n = uint_from_variable_be(&n_buf[..n_len]);
+        let e = uint_from_variable_be(&e_buf[..e_len]);
 
         Ok(RsaPublicKey {
             n,
             e,
-            n_bytes: n_bytes_len,
+            n_bytes: n_len,
             mu: n.compute_mu_for_barrett(),
         })
     }
@@ -166,16 +163,7 @@ impl RsaPublicKey {
     /// `message_digest` is the hash of the TLS signed_data.
     /// `hash_fn` produces a digest of `hash_len` bytes.
     /// `salt_len` equals the hash length (Go's PSSSaltLengthEqualsHash).
-    pub fn verify_pss<F>(
-        &self,
-        signature: &[u8],
-        message_digest: &[u8],
-        hash_fn: F,
-        hash_len: usize,
-    ) -> Result<(), RsaError>
-    where
-        F: Fn(&[u8]) -> Vec<u8>,
-    {
+    pub fn verify_pss<H: Hasher>(&self, signature: &[u8], message: &[u8], salt_len: usize) -> Result<(), RsaError> {
         if signature.len() != self.n_bytes {
             return Err(RsaError::Unspecified);
         }
@@ -187,11 +175,11 @@ impl RsaPublicKey {
 
         let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
         let em_len = self.n_bytes;
+        let hash_len = H::OUTPUT_SIZE;
 
         let mut em = [0u8; RSA_MAX_BYTES];
         write_uint_be(&m, &mut em, em_len);
 
-        // Check leftmost bits of EM are zero (RFC 8017 §9.1.2 step 6)
         let em_bits = self.n_bytes * 8 - 1;
         let leftmost_bits = 8 * em_len - em_bits;
         if leftmost_bits > 0 && leftmost_bits < 8 {
@@ -200,8 +188,6 @@ impl RsaPublicKey {
             }
         }
 
-        // EM = maskedDB || H || 0xBC
-        let salt_len = hash_len;
         if em_len < hash_len + salt_len + 2 {
             return Err(RsaError::Unspecified);
         }
@@ -213,21 +199,19 @@ impl RsaPublicKey {
         let masked_db = &em[..masked_db_len];
         let h = &em[masked_db_len..masked_db_len + hash_len];
 
-        let db_mask = mgf1(h, &hash_fn, masked_db_len, hash_len);
+        let mut db_mask = [0u8; RSA_MAX_BYTES];
+        mgf1::<H>(h, &mut db_mask[..masked_db_len]);
 
         let mut db = [0u8; RSA_MAX_BYTES];
-        for (i, (a, b)) in masked_db.iter().zip(db_mask.iter()).enumerate() {
+        for (i, (a, b)) in masked_db.iter().zip(db_mask[..masked_db_len].iter()).enumerate() {
             db[i] = a ^ b;
         }
 
-        // Clear the leftmost bits of DB (must match EM's top bits, already zero)
         if leftmost_bits > 0 && leftmost_bits < 8 {
             db[0] &= 0xff >> leftmost_bits;
         }
 
-        // DB = PS || 0x01 || salt
         let ps_len = em_len - hash_len - salt_len - 2;
-        // PS must be all zeros
         if ps_len > 0 {
             for i in 0..ps_len {
                 if db[i] != 0x00 {
@@ -241,19 +225,17 @@ impl RsaPublicKey {
 
         let salt = &db[ps_len + 1..ps_len + 1 + salt_len];
 
-        // M' = 8 zero bytes || mHash || salt
-        let mut mp = Vec::with_capacity(8 + hash_len + salt_len);
-        mp.extend_from_slice(&[0u8; 8]);
-        mp.extend_from_slice(message_digest);
-        mp.extend_from_slice(salt);
+        let m_hash = H::hash(message);
+        let mut mp = [0u8; 8 + 64 + RSA_MAX_BYTES];
+        let mp_len = 8 + hash_len + salt_len;
+        mp[8..8 + hash_len].copy_from_slice(m_hash.as_ref());
+        mp[8 + hash_len..mp_len].copy_from_slice(salt);
 
-        // H' = Hash(M')
-        let hp = hash_fn(&mp);
+        let hp = H::hash(&mp[..mp_len]);
 
-        // Compare H == H' (constant-time)
         let mut ok = 0u8;
         for i in 0..hash_len {
-            ok |= h[i] ^ hp[i];
+            ok |= h[i] ^ hp.as_ref()[i];
         }
         if ok != 0 {
             return Err(RsaError::Unspecified);
@@ -264,24 +246,22 @@ impl RsaPublicKey {
 }
 
 /// MGF1 (Mask Generation Function 1) per RFC 8017 Appendix B.2.1.
-fn mgf1<F>(seed: &[u8], hash_fn: &F, out_len: usize, hash_len: usize) -> Vec<u8>
-where
-    F: Fn(&[u8]) -> Vec<u8>,
-{
-    let mut out = Vec::with_capacity(out_len);
+fn mgf1<H: Hasher>(seed: &[u8], out: &mut [u8]) {
+    let out_len = out.len();
+    let hash_len = H::OUTPUT_SIZE;
+    let mut offset = 0;
     let mut counter: u32 = 0;
-    let max_input_len = seed.len() + 4;
-    let mut input_buf = Vec::with_capacity(max_input_len);
-    while out.len() < out_len {
-        input_buf.clear();
-        input_buf.extend_from_slice(seed);
-        input_buf.extend_from_slice(&counter.to_be_bytes());
-        let hash = hash_fn(&input_buf);
-        let take = (out_len - out.len()).min(hash_len);
-        out.extend_from_slice(&hash[..take]);
+    let input_prefix = seed.len();
+    let mut input_buf = [0u8; RSA_MAX_BYTES + 4];
+    input_buf[..input_prefix].copy_from_slice(seed);
+    while offset < out_len {
+        input_buf[input_prefix..input_prefix + 4].copy_from_slice(&counter.to_be_bytes());
+        let hash = H::hash(&input_buf[..input_prefix + 4]);
+        let take = (out_len - offset).min(hash_len);
+        out[offset..offset + take].copy_from_slice(&hash.as_ref()[..take]);
+        offset += take;
         counter += 1;
     }
-    out
 }
 
 /// Read an ASN.1 length field. Returns (value, bytes_consumed_for_length).
@@ -306,22 +286,26 @@ fn read_length(data: &[u8]) -> Result<(usize, usize), RsaError> {
 
 /// Read the raw big-endian bytes of an ASN.1 INTEGER, skipping any leading
 /// 0x00 sign byte.
-fn read_integer_bytes(mut data: &[u8]) -> Result<Vec<u8>, RsaError> {
+fn read_integer_bytes(data: &[u8], out: &mut [u8]) -> Result<usize, RsaError> {
     if data.len() < 2 || data[0] != 0x02 {
         return Err(RsaError::Unspecified);
     }
     let (len, len_size) = read_length(&data[1..])?;
-    data = &data[1 + len_size..];
-    if data.len() < len {
+    let value = &data[1 + len_size..];
+    if value.len() < len {
         return Err(RsaError::Unspecified);
     }
-    let bytes = &data[..len];
+    let bytes = &value[..len];
     if bytes.is_empty() {
         return Err(RsaError::Unspecified);
     }
-    // Skip leading 0x00 (sign byte for positive numbers with MSB set)
     let start = if bytes[0] == 0x00 && bytes.len() > 1 { 1 } else { 0 };
-    Ok(bytes[start..].to_vec())
+    let val_len = bytes.len() - start;
+    if out.len() < val_len {
+        return Err(RsaError::Unspecified);
+    }
+    out[..val_len].copy_from_slice(&bytes[start..]);
+    Ok(val_len)
 }
 
 /// Return the total byte size of an ASN.1 INTEGER (tag + length + value).
@@ -365,54 +349,42 @@ fn write_uint_be(value: &Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>, out: &mut [u8], byte
 }
 
 /// Convenience: verify RSA-PKCS1-SHA256.
-pub fn verify_pkcs1_sha256(pkcs1_der: &[u8], signature: &[u8], message_digest: &[u8]) -> Result<(), RsaError> {
+pub fn verify_pkcs1_sha256(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
     let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
-    key.verify_pkcs1_v1_5(signature, message_digest, DIGEST_INFO_SHA256_PREFIX)
+    let digest = crate::sha2::Sha256::hash(message);
+    key.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA256_PREFIX)
 }
 
 /// Convenience: verify RSA-PKCS1-SHA384.
-pub fn verify_pkcs1_sha384(pkcs1_der: &[u8], signature: &[u8], message_digest: &[u8]) -> Result<(), RsaError> {
+pub fn verify_pkcs1_sha384(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
     let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
-    key.verify_pkcs1_v1_5(signature, message_digest, DIGEST_INFO_SHA384_PREFIX)
+    let digest = crate::sha2::Sha384::hash(message);
+    key.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA384_PREFIX)
 }
 
 /// Convenience: verify RSA-PKCS1-SHA512.
-pub fn verify_pkcs1_sha512(pkcs1_der: &[u8], signature: &[u8], message_digest: &[u8]) -> Result<(), RsaError> {
+pub fn verify_pkcs1_sha512(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
     let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
-    key.verify_pkcs1_v1_5(signature, message_digest, DIGEST_INFO_SHA512_PREFIX)
+    let digest = crate::sha2::Sha512::hash(message);
+    key.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA512_PREFIX)
 }
 
 /// Convenience: verify RSA-PSS-SHA256.
-pub fn verify_pss_sha256(pkcs1_der: &[u8], signature: &[u8], message_digest: &[u8]) -> Result<(), RsaError> {
+pub fn verify_pss_sha256(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
     let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
-    key.verify_pss(
-        signature,
-        message_digest,
-        |data| crate::sha2::Sha256::hash(data).as_ref().to_vec(),
-        32,
-    )
+    key.verify_pss::<crate::sha2::Sha256>(signature, message, 32)
 }
 
 /// Convenience: verify RSA-PSS-SHA384.
-pub fn verify_pss_sha384(pkcs1_der: &[u8], signature: &[u8], message_digest: &[u8]) -> Result<(), RsaError> {
+pub fn verify_pss_sha384(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
     let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
-    key.verify_pss(
-        signature,
-        message_digest,
-        |data| crate::sha2::Sha384::hash(data).as_ref().to_vec(),
-        48,
-    )
+    key.verify_pss::<crate::sha2::Sha384>(signature, message, 48)
 }
 
 /// Convenience: verify RSA-PSS-SHA512.
-pub fn verify_pss_sha512(pkcs1_der: &[u8], signature: &[u8], message_digest: &[u8]) -> Result<(), RsaError> {
+pub fn verify_pss_sha512(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
     let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
-    key.verify_pss(
-        signature,
-        message_digest,
-        |data| crate::sha2::Sha512::hash(data).as_ref().to_vec(),
-        64,
-    )
+    key.verify_pss::<crate::sha2::Sha512>(signature, message, 64)
 }
 
 #[cfg(test)]
@@ -487,7 +459,7 @@ mod tests {
     }
 
     macro_rules! wycheproof_rsa_pss_test {
-        ($path:expr, $hash_fn:expr, $hash_len:expr) => {{
+        ($path:expr, $hasher:ty, $hash_len:expr) => {{
             let data: serde_json::Value = serde_json::from_str(include_str!($path)).unwrap();
             let mut valid_tested = 0u64;
             let mut invalid_tested = 0u64;
@@ -504,8 +476,7 @@ mod tests {
                     let msg = hex::decode(msg_hex).unwrap();
                     let sig = hex::decode(sig_hex).unwrap();
 
-                    let digest = ($hash_fn)(&msg);
-                    let verify_result = key.verify_pss(&sig, &digest, $hash_fn, $hash_len);
+                    let verify_result = key.verify_pss::<$hasher>(&sig, &msg, $hash_len);
 
                     match result {
                         "valid" => {
@@ -554,7 +525,7 @@ mod tests {
     fn wycheproof_rsa_pss_2048_sha256() {
         wycheproof_rsa_pss_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_pss_2048_sha256_mgf1_32_test.json",
-            |data| crate::sha2::Sha256::hash(data).as_ref().to_vec(),
+            crate::sha2::Sha256,
             32
         );
     }
@@ -564,7 +535,7 @@ mod tests {
     fn wycheproof_rsa_pss_2048_sha384() {
         wycheproof_rsa_pss_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_pss_2048_sha384_mgf1_48_test.json",
-            |data| crate::sha2::Sha384::hash(data).as_ref().to_vec(),
+            crate::sha2::Sha384,
             48
         );
     }
@@ -574,7 +545,7 @@ mod tests {
     fn wycheproof_rsa_pss_4096_sha512() {
         wycheproof_rsa_pss_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_pss_4096_sha512_mgf1_64_test.json",
-            |data| crate::sha2::Sha512::hash(data).as_ref().to_vec(),
+            crate::sha2::Sha512,
             64
         );
     }
@@ -596,7 +567,7 @@ mod tests {
     #[cfg(feature = "std")]
     #[test]
     fn wycheproof_rsa_pkcs1_2048_sha256() {
-        use crate::{Hasher, sha2::Sha256};
+        use crate::sha2::Sha256;
         wycheproof_rsa_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_signature_2048_sha256_test.json",
             Sha256,
@@ -607,7 +578,7 @@ mod tests {
     #[cfg(feature = "std")]
     #[test]
     fn wycheproof_rsa_pkcs1_2048_sha384() {
-        use crate::{Hasher, sha2::Sha384};
+        use crate::sha2::Sha384;
         wycheproof_rsa_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_signature_2048_sha384_test.json",
             Sha384,
@@ -618,7 +589,7 @@ mod tests {
     #[cfg(feature = "std")]
     #[test]
     fn wycheproof_rsa_pkcs1_2048_sha512() {
-        use crate::{Hasher, sha2::Sha512};
+        use crate::sha2::Sha512;
         wycheproof_rsa_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_signature_2048_sha512_test.json",
             Sha512,

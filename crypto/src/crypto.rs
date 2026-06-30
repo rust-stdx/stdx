@@ -6,6 +6,8 @@
 //! This crate has **not** undergone a third-party security audit or formal
 //! cryptographic review yet. Use at your own risk.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
