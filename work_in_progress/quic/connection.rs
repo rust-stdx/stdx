@@ -54,20 +54,20 @@ const RETRY_INTEGRITY_NONCE_V2: [u8; 12] = [0x4c, 0x6f, 0x2c, 0x6f, 0x2c, 0x6f, 
 ///
 /// CRYPTO frames may arrive out of order. This buffer stores received
 /// chunks keyed by offset and delivers contiguous data as gaps are filled.
-struct CryptoBuffer {
+pub(crate) struct CryptoBuffer {
     next_offset: u64,
     chunks: BTreeMap<u64, Vec<u8>>,
 }
 
 impl CryptoBuffer {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             next_offset: 0,
             chunks: BTreeMap::new(),
         }
     }
 
-    fn ingest(&mut self, offset: u64, data: &[u8]) -> Option<Vec<u8>> {
+    pub(crate) fn ingest(&mut self, offset: u64, data: &[u8]) -> Option<Vec<u8>> {
         // Trim data that we've already consumed
         if offset < self.next_offset {
             let skip = (self.next_offset - offset) as usize;
@@ -87,7 +87,7 @@ impl CryptoBuffer {
         if contiguous.is_empty() { None } else { Some(contiguous) }
     }
 
-    fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.next_offset = 0;
         self.chunks.clear();
     }
@@ -110,9 +110,9 @@ impl EncryptionLevel {
     }
 }
 
-struct LevelSendState {
-    keys: DirectionKeys,
-    pn: u64,
+pub(crate) struct LevelSendState {
+    pub(crate) keys: DirectionKeys,
+    pub(crate) pn: u64,
 }
 
 enum ConnState {
@@ -1804,7 +1804,7 @@ impl<T: Transport> Connection<T> {
 // ── Free send helper (avoid borrow conflicts) ────────────────────────
 
 /// General-purpose packet sender with ACK tracking.
-async fn send_one_packet<T: Transport>(
+pub(crate) async fn send_one_packet<T: Transport>(
     transport: &T,
     remote: SocketAddr,
     dcid: &ConnectionId,
@@ -1889,11 +1889,11 @@ async fn send_one_packet<T: Transport>(
     Ok(())
 }
 
-fn frames_from(data: &[u8]) -> Result<Vec<Frame>, Error> {
+pub(crate) fn frames_from(data: &[u8]) -> Result<Vec<Frame>, Error> {
     frame::decode_all(data)
 }
 
-fn build_transport_params(config: &Config, scid: &ConnectionId) -> Vec<Param> {
+pub(crate) fn build_transport_params(config: &Config, scid: &ConnectionId) -> Vec<Param> {
     vec![
         Param {
             ty: ParamType::InitialSourceConnectionId as u64,
@@ -1930,7 +1930,7 @@ fn build_transport_params(config: &Config, scid: &ConnectionId) -> Vec<Param> {
     ]
 }
 
-fn enc_varint(v: u64) -> Vec<u8> {
+pub(crate) fn enc_varint(v: u64) -> Vec<u8> {
     let mut b = Vec::new();
     varint::encode(v, &mut b);
     b
@@ -1938,13 +1938,19 @@ fn enc_varint(v: u64) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::sync::Arc;
+
     use super::*;
+
+    fn test_provider() -> Arc<dyn tls::crypto::CryptoProvider> {
+        Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new())
+    }
 
     #[test]
     fn initial_packet_send_receive_roundtrip() {
         let dcid = ConnectionId::random(8);
         let scid = ConnectionId::random(8);
-        let (client_keys, _server_keys) = crypto_keys::derive_initial_keys(dcid.as_bytes());
+        let (client_keys, _server_keys) = crypto_keys::derive_initial_keys(test_provider(), dcid.as_bytes());
         let ss = LevelSendState {
             keys: client_keys,
             pn: 0,
@@ -2024,7 +2030,7 @@ mod tests {
     fn initial_packet_with_zero_byte_pn_roundtrip() {
         let dcid = ConnectionId::random(8);
         let scid = ConnectionId::random(8);
-        let (client_keys, _server_keys) = crypto_keys::derive_initial_keys(dcid.as_bytes());
+        let (client_keys, _server_keys) = crypto_keys::derive_initial_keys(test_provider(), dcid.as_bytes());
         let ss = LevelSendState {
             keys: client_keys,
             pn: 0,

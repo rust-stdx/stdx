@@ -1115,6 +1115,14 @@ impl ServerConnection {
         self.hs.handshake_payload.extend_from_slice(data);
     }
 
+    /// Set the QUIC transport parameters to include in EncryptedExtensions.
+    ///
+    /// Must be called before [`process`] is invoked, or the parameters will
+    /// not be sent.
+    pub fn set_quic_transport_params(&mut self, params: &[u8]) {
+        self.hs.quic_transport_params = Some(Bytes::copy_from_slice(params));
+    }
+
     /// Return the QUIC traffic secrets after the handshake completes.
     pub fn quic_secrets(&self) -> Option<crate::quic::QuicSecrets> {
         let ks = self.hs.key_schedule.as_ref()?;

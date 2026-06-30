@@ -2265,6 +2265,7 @@ dependencies = [
  "constant_time_eq 0.3.0",
  "crypto",
  "hashbrown 0.15.5",
+ "heapless",
  "hex 0.1.0",
  "thiserror 1.0.61",
  "tls",

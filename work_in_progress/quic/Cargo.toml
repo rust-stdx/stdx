@@ -24,4 +24,5 @@ tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyerr = { path = "../../anyerr" }
+heapless = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt", "io-util", "macros"] }

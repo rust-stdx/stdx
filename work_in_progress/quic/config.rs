@@ -47,6 +47,13 @@ impl TlsConfig {
             TlsConfig::Server(cfg) => cfg.provider.clone(),
         }
     }
+
+    pub fn server_config(&self) -> Option<&tls::ServerConfig> {
+        match self {
+            TlsConfig::Server(cfg) => Some(cfg),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(feature = "std")]

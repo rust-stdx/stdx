@@ -5,6 +5,7 @@ pub struct StatusCode(u16);
 
 macro_rules! status_codes {
     ($($name:ident = $code:expr, $reason:expr, $class:ident),* $(,)?) => {
+        #[allow(non_upper_case_globals)]
         impl StatusCode {
             $(pub const $name: StatusCode = StatusCode($code);)*
 

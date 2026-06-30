@@ -1,5 +1,5 @@
 #[cfg(feature = "webpki-validator")]
-use alloc::{boxed::Box, format, string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, format, sync::Arc, vec::Vec};
 
 #[cfg(feature = "webpki-validator")]
 use async_trait::async_trait;

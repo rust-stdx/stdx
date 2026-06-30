@@ -4,7 +4,7 @@ use heapless::Vec;
 
 use crate::{
     Error,
-    crypto::{Aead, CipherSuite, CryptoProvider, MAX_HASH_OUTPUT, MAX_KEY_SIZE},
+    crypto::{Aead, CipherSuite, CryptoProvider, MAX_HASH_OUTPUT},
     message::Extension,
 };
 

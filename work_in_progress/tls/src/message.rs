@@ -574,7 +574,7 @@ impl Certificate {
 /// `sig_schemes` is the list of acceptable signature schemes (the
 /// `signature_algorithms` extension is required).
 pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme]) -> Bytes {
-    let mut exts = vec![ext_signature_algorithms(sig_schemes)];
+    let exts = vec![ext_signature_algorithms(sig_schemes)];
     let ext_bytes = encode_extensions(&exts);
     let mut body = BytesMut::new();
     put_u8_slice(&mut body, context);
