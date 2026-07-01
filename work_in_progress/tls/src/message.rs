@@ -6,6 +6,7 @@ use heapless;
 
 use crate::{
     ALPN_PROTOCOL_MAX_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SESSION_ID, MAX_SIGNATURE_SIZE,
+    TICKET_NONCE_MAX_SIZE,
     crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme},
 };
 
@@ -271,8 +272,8 @@ pub struct ClientHelloMsg {
 }
 
 impl ClientHelloMsg {
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::ClientHello {
             return Err(Error::UnexpectedMessage {
                 expected: "ClientHello",
@@ -322,7 +323,7 @@ impl ClientHelloMsg {
             session_id,
             cipher_suites,
             extensions,
-            raw: Bytes::copy_from_slice(data),
+            raw: data,
         })
     }
 }
@@ -368,8 +369,8 @@ pub struct ServerHello {
 }
 
 impl ServerHello {
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::ServerHello {
             return Err(Error::UnexpectedMessage {
                 expected: "ServerHello",
@@ -407,7 +408,7 @@ impl ServerHello {
             session_id,
             cipher_suite: cs,
             extensions,
-            raw: Bytes::copy_from_slice(data),
+            raw: data,
         })
     }
 }
@@ -426,8 +427,8 @@ pub struct EncryptedExtensions {
 }
 
 impl EncryptedExtensions {
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::EncryptedExtensions {
             return Err(Error::UnexpectedMessage {
                 expected: "EncryptedExtensions",
@@ -437,7 +438,7 @@ impl EncryptedExtensions {
         let extensions = decode_extensions(body)?;
         Ok(EncryptedExtensions {
             extensions,
-            raw: Bytes::copy_from_slice(data),
+            raw: data,
         })
     }
 }
@@ -450,7 +451,7 @@ impl EncryptedExtensions {
 /// In raw public key mode (RFC 7250) it is a DER-encoded SubjectPublicKeyInfo.
 #[derive(Debug, Clone)]
 pub struct CertificateEntry {
-    pub cert_data: Vec<u8>,
+    pub cert_data: Bytes,
     pub extensions: Vec<Extension>,
 }
 
@@ -481,7 +482,7 @@ pub fn encode_certificate_raw_public_key(context: &[u8], public_key: &[u8], exte
 /// Encode a Certificate message with an X.509 certificate chain.
 ///
 /// `chain` is ordered end-entity first, followed by intermediates.
-pub fn encode_certificate_chain(context: &[u8], chain: &[Vec<u8>], extensions_per_entry: &[Vec<Extension>]) -> Bytes {
+pub fn encode_certificate_chain(context: &[u8], chain: &[Bytes], extensions_per_entry: &[Vec<Extension>]) -> Bytes {
     let ext_list: Vec<Bytes> = chain
         .iter()
         .enumerate()
@@ -516,8 +517,8 @@ pub struct Certificate {
 }
 
 impl Certificate {
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::Certificate {
             return Err(Error::UnexpectedMessage {
                 expected: "Certificate",
@@ -554,7 +555,7 @@ impl Certificate {
             if off + cert_data_len > list_end {
                 return Err(Error::DecodeError("certificate entry data truncated".into()));
             }
-            let cert_data = body[off..off + cert_data_len].to_vec();
+            let cert_data = data.slice(4 + off..4 + off + cert_data_len);
             off += cert_data_len;
 
             let remaining = list_end.saturating_sub(off);
@@ -578,7 +579,7 @@ impl Certificate {
         Ok(Certificate {
             context,
             entries,
-            raw: Bytes::copy_from_slice(data),
+            raw: data,
         })
     }
 }
@@ -616,8 +617,8 @@ pub struct CertificateVerify {
 }
 
 impl CertificateVerify {
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::CertificateVerify {
             return Err(Error::UnexpectedMessage {
                 expected: "CertificateVerify",
@@ -640,7 +641,7 @@ impl CertificateVerify {
         Ok(CertificateVerify {
             scheme,
             signature,
-            raw: Bytes::copy_from_slice(data),
+            raw: data,
         })
     }
 }
@@ -658,8 +659,8 @@ pub struct Finished {
 }
 
 impl Finished {
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::Finished {
             return Err(Error::UnexpectedMessage {
                 expected: "Finished",
@@ -672,7 +673,7 @@ impl Finished {
             .map_err(|_| Error::DecodeError("verify_data too long".into()))?;
         Ok(Finished {
             verify_data,
-            raw: Bytes::copy_from_slice(data),
+            raw: data,
         })
     }
 }
@@ -728,16 +729,15 @@ pub fn encode_new_session_ticket(
 pub struct NewSessionTicket {
     pub ticket_lifetime: u32,
     pub ticket_age_add: u32,
-    pub ticket_nonce: Vec<u8>,
-    pub ticket: Vec<u8>,
+    pub ticket_nonce: heapless::Vec<u8, TICKET_NONCE_MAX_SIZE>,
+    pub ticket: Bytes,
     pub extensions: Vec<Extension>,
-    pub raw: Bytes,
 }
 
 impl NewSessionTicket {
     #[allow(dead_code)]
-    pub fn decode(data: &[u8]) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(data)?;
+    pub fn decode(data: Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(&data)?;
         if msg_type != HandshakeType::NewSessionTicket {
             return Err(Error::UnexpectedMessage {
                 expected: "NewSessionTicket",
@@ -750,11 +750,18 @@ impl NewSessionTicket {
         let ticket_lifetime = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
         let ticket_age_add = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
         let nonce_len = body[8] as usize;
-        let ticket_nonce = body[9..9 + nonce_len].to_vec();
+        if nonce_len > TICKET_NONCE_MAX_SIZE {
+            return Err(Error::DecodeError("ticket_nonce too long".into()));
+        }
+        let mut ticket_nonce = heapless::Vec::new();
+        ticket_nonce
+            .extend_from_slice(&body[9..9 + nonce_len])
+            .map_err(|_| Error::DecodeError("ticket_nonce too long".into()))?;
         let mut off = 9 + nonce_len;
         let ticket_len = u16::from_be_bytes([body[off], body[off + 1]]) as usize;
         off += 2;
-        let ticket = body[off..off + ticket_len].to_vec();
+        // Zero-copy: share the input Bytes allocation (handshake header is 4 bytes before body)
+        let ticket = data.slice(4 + off..4 + off + ticket_len);
         off += ticket_len;
         let extensions = decode_extensions(&body[off..]).unwrap_or_default();
         Ok(NewSessionTicket {
@@ -763,7 +770,6 @@ impl NewSessionTicket {
             ticket_nonce,
             ticket,
             extensions,
-            raw: Bytes::copy_from_slice(data),
         })
     }
 }

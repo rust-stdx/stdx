@@ -27,7 +27,7 @@ async fn webpki_validator_self_signed_as_root() {
     let validator = WebPkiValidator::with_custom_roots(provider.clone(), roots);
 
     let received = ReceivedCertificate::X509 {
-        chain: vec![der],
+        chain: vec![der.into()],
         verify_scheme: tls::crypto::SignatureScheme::EcdsaP256Sha256,
     };
 

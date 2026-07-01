@@ -91,7 +91,7 @@ struct HandshakeState {
     read_record: RecordState,
     read_buf: BytesMut,
     alpn_selected: Option<AlpnProtocol>,
-    cert_chain: Option<Vec<Vec<u8>>>,
+    cert_chain: Option<Vec<Bytes>>,
     negotiated_cert_type: CertType,
     handshake_payload: BytesMut,
     server_hello_hash: heapless::Vec<u8, MAX_HASH_SIZE>,
@@ -132,6 +132,10 @@ impl Drop for HandshakeState {
 
 impl HandshakeState {
     fn new() -> Self {
+        Self::with_transcript_capacity(8192)
+    }
+
+    fn with_transcript_capacity(cap: usize) -> Self {
         Self {
             cipher_suite: None,
             key_exchange_group: KeyExchangeGroup::X25519,
@@ -140,7 +144,7 @@ impl HandshakeState {
             shared_secret: None,
             key_schedule: None,
             keys: None,
-            transcript: Vec::with_capacity(8192),
+            transcript: Vec::with_capacity(cap),
             write_record: RecordState::new(),
             read_record: RecordState::new(),
             read_buf: BytesMut::new(),
@@ -287,7 +291,12 @@ impl ClientConnection {
     /// The initial ClientHello bytes are queued internally and can be drained
     /// via [`write_tls`].
     pub async fn new(config: ClientConfig, server_name: Option<String>) -> Result<Self, Error> {
-        let mut hs = HandshakeState::new();
+        let transcript_cap = if config.cert_types == [CertType::RawPublicKey] {
+            1600
+        } else {
+            8192
+        };
+        let mut hs = HandshakeState::with_transcript_capacity(transcript_cap);
         let crypto_provider = &config.crypto;
 
         let supported_groups = crypto_provider.supported_key_exchange_groups();
@@ -384,14 +393,14 @@ impl ClientConnection {
             crypto_provider.secure_random(&mut random);
         }
 
-        let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
-        hs.transcript.extend_from_slice(&ch);
+        let client_hello = encode_client_hello(&random, &[], &cipher_suites, &exts);
+        hs.transcript.extend_from_slice(&client_hello);
 
-        let mut record = BytesMut::with_capacity(5 + ch.len());
+        let mut record = BytesMut::with_capacity(5 + client_hello.len());
         record.put_u8(ContentType::Handshake as u8);
         record.put_u16(0x0301);
-        record.put_u16(ch.len() as u16);
-        record.extend_from_slice(&ch);
+        record.put_u16(client_hello.len() as u16);
+        record.extend_from_slice(&client_hello);
 
         hs.write_queue.push_back(record.freeze());
         hs.psk = psk_for_key_schedule;
@@ -486,10 +495,10 @@ impl ClientConnection {
         let mut random = [0u8; 32];
         crypto_provider.secure_random(&mut random);
 
-        let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
-        handshake_state.transcript.extend_from_slice(&ch);
+        let client_hello = encode_client_hello(&random, &[], &cipher_suites, &exts);
+        handshake_state.transcript.extend_from_slice(&client_hello);
 
-        handshake_state.quic_write_queue.push_back(Bytes::from(ch));
+        handshake_state.quic_write_queue.push_back(Bytes::from(client_hello));
 
         Ok(Self {
             config,
@@ -601,7 +610,7 @@ impl ClientConnection {
             }
         };
 
-        let sh = ServerHello::decode(&payload)?;
+        let sh = ServerHello::decode(payload)?;
         self.handshake_state.transcript.extend_from_slice(&sh.raw);
         self.handshake_state.cipher_suite = Some(sh.cipher_suite);
 
@@ -759,7 +768,7 @@ impl ClientConnection {
                 }
             }
         };
-        let ee = EncryptedExtensions::decode(&payload)?;
+        let ee = EncryptedExtensions::decode(payload)?;
         self.handshake_state.transcript.extend_from_slice(&ee.raw);
 
         if let Some(ext) = find_extension(&ee.extensions, ExtensionType::ApplicationLayerProtocolNegotiation) {
@@ -796,7 +805,7 @@ impl ClientConnection {
                 }
             }
         };
-        let cert = Certificate::decode(&payload)?;
+        let cert = Certificate::decode(payload)?;
         self.handshake_state.transcript.extend_from_slice(&cert.raw);
         self.handshake_state.cert_chain = {
             let mut chain = Vec::with_capacity(cert.entries.len());
@@ -824,7 +833,7 @@ impl ClientConnection {
                 }
             }
         };
-        let cv = CertificateVerify::decode(&payload)?;
+        let cv = CertificateVerify::decode(payload)?;
         self.handshake_state.signature_scheme = Some(cv.scheme);
         let transcript_len_before = self.handshake_state.transcript.len();
         self.handshake_state.transcript.extend_from_slice(&cv.raw);
@@ -921,7 +930,7 @@ impl ClientConnection {
                 }
             }
         };
-        let fin = Finished::decode(&payload)?;
+        let fin = Finished::decode(payload)?;
 
         let suite = self.handshake_state.cipher_suite.unwrap();
         let crypto_provider = &self.config.crypto;
@@ -1005,7 +1014,7 @@ impl ClientConnection {
                         self.handle_key_update_client(&payload)?;
                         processed_any = true;
                     } else if ht == HandshakeType::NewSessionTicket {
-                        self.handle_new_session_ticket(&payload).await?;
+                        self.handle_new_session_ticket(payload).await?;
                         processed_any = true;
                     }
                     continue;
@@ -1042,7 +1051,7 @@ impl ClientConnection {
         Ok(())
     }
 
-    async fn handle_new_session_ticket(&mut self, payload: &[u8]) -> Result<(), Error> {
+    async fn handle_new_session_ticket(&mut self, payload: Bytes) -> Result<(), Error> {
         let nst = NewSessionTicket::decode(payload)?;
         let suite = self.handshake_state.cipher_suite.unwrap();
         let crypto_provider = &self.config.crypto;
@@ -1064,7 +1073,7 @@ impl ClientConnection {
         );
         if let Some(ref cache) = self.config.session_cache {
             cache
-                .put(self.server_name.as_deref().unwrap_or(""), nst.ticket, psk.to_vec())
+                .put(self.server_name.as_deref().unwrap_or(""), &nst.ticket, &psk)
                 .await;
         }
         Ok(())
@@ -1312,7 +1321,7 @@ impl ServerConnection {
             }
         };
 
-        let ch = ClientHelloMsg::decode(&payload)?;
+        let ch = ClientHelloMsg::decode(payload)?;
         self.handshake_state.transcript.extend_from_slice(&ch.raw);
 
         let sv_ext = find_extension(&ch.extensions, ExtensionType::SupportedVersions);
@@ -1595,7 +1604,7 @@ impl ServerConnection {
                 });
             }
         };
-        let cert = Certificate::decode(&payload)?;
+        let cert = Certificate::decode(payload)?;
         self.handshake_state.transcript.extend_from_slice(&cert.raw);
         self.handshake_state.cert_chain = {
             let mut chain = Vec::with_capacity(cert.entries.len());
@@ -1619,7 +1628,7 @@ impl ServerConnection {
                 });
             }
         };
-        let cv = CertificateVerify::decode(&payload)?;
+        let cv = CertificateVerify::decode(payload)?;
         let chain = self
             .handshake_state
             .cert_chain
@@ -1659,7 +1668,7 @@ impl ServerConnection {
             }
         };
 
-        let fin = Finished::decode(&payload)?;
+        let fin = Finished::decode(payload)?;
 
         // Capture the server_finished_transcript hash before extending with
         // the Client Finished — quic_secrets() needs this for deriving

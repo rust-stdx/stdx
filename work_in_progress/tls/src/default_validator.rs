@@ -3,6 +3,8 @@ use alloc::{boxed::Box, format, sync::Arc, vec::Vec};
 
 #[cfg(feature = "webpki-validator")]
 use async_trait::async_trait;
+#[cfg(feature = "webpki-validator")]
+use bytes::Bytes;
 
 #[cfg(all(feature = "webpki-validator", feature = "std"))]
 use crate::config::SystemClock;
@@ -129,7 +131,7 @@ impl CertificateValidator for WebPkiValidator {
 
 #[cfg(feature = "webpki-validator")]
 impl WebPkiValidator {
-    fn validate_chain(&self, chain: &[Vec<u8>], server_name: Option<&str>) -> Result<(), Error> {
+    fn validate_chain(&self, chain: &[Bytes], server_name: Option<&str>) -> Result<(), Error> {
         if chain.is_empty() {
             return Err(Error::CertificateValidationFailed(CertificateValidationFailure::EmptyChain));
         }

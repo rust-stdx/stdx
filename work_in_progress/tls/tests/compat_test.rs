@@ -128,6 +128,7 @@ async fn handshake_and_app_data_compat_test() {
     let _ = server_thread.join();
 }
 
+/// returns (config, certificate, key)
 fn make_self_signed() -> (rustls::ServerConfig, Vec<u8>, Vec<u8>) {
     use rustls::pki_types::{CertificateDer, PrivateKeyDer};
     let subject_alt_names = vec!["localhost".to_string()];

@@ -1,9 +1,10 @@
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 
 use async_trait::async_trait;
+use bytes::Bytes;
 
 use crate::{
-    AlpnProtocol, Error, MAX_ALPN_PROTOCOLS, PSK_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE,
+    AlpnProtocol, Error, MAX_ALPN_PROTOCOLS, PSK_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE, TICKET_MAX_SIZE,
     crypto::{CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, SignatureScheme},
 };
 
@@ -72,7 +73,7 @@ pub enum ReceivedCertificate {
     /// An X.509 certificate chain (end-entity first, then intermediates).
     X509 {
         /// DER-encoded certificate chain.
-        chain: Vec<Vec<u8>>,
+        chain: Vec<Bytes>,
         /// Signature scheme used for CertificateVerify.
         verify_scheme: SignatureScheme,
     },
@@ -162,7 +163,7 @@ pub struct ClientConfig {
 /// `CertificateRequest` (mutual TLS / client authentication).
 pub struct ClientCertificate {
     /// The certificate chain (X.509 DER, end-entity first).
-    pub cert_chain: Vec<Vec<u8>>,
+    pub cert_chain: Vec<Bytes>,
     /// Signer for the CertificateVerify message.
     pub signer: Box<dyn crate::crypto::Signer>,
 }
@@ -262,7 +263,9 @@ pub trait SessionTicketStore: Send + Sync {
 /// Available only when the `std` feature is enabled.
 #[cfg(feature = "std")]
 pub struct InMemorySessionTicketStore {
-    tickets: std::sync::Mutex<std::collections::HashMap<heapless::Vec<u8, 64>, (heapless::Vec<u8, PSK_MAX_SIZE>, u64)>>,
+    tickets: std::sync::Mutex<
+        std::collections::HashMap<heapless::Vec<u8, TICKET_MAX_SIZE>, (heapless::Vec<u8, PSK_MAX_SIZE>, u64)>,
+    >,
     ticket_lifetime: u32,
 }
 
@@ -347,9 +350,12 @@ impl Clock for SystemClock {
 #[async_trait]
 pub trait ClientSessionCache: Send + Sync {
     /// Store a ticket and PSK for a given server.
-    async fn put(&self, server_name: &str, ticket: Vec<u8>, psk: Vec<u8>);
+    async fn put(&self, server_name: &str, ticket: &[u8], psk: &[u8]);
     /// Retrieve the (ticket, PSK) for a given server, if available.
-    async fn get(&self, server_name: &str) -> Option<(Vec<u8>, Vec<u8>)>;
+    async fn get(
+        &self,
+        server_name: &str,
+    ) -> Option<(heapless::Vec<u8, TICKET_MAX_SIZE>, heapless::Vec<u8, PSK_MAX_SIZE>)>;
     /// Remove a cached entry (e.g. after failed resumption).
     async fn remove(&self, server_name: &str);
 }
