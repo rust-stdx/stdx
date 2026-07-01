@@ -145,7 +145,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> TlsStream<S> {
         self.state.key_exchange_group()
     }
 
-    pub fn alpn_protocol(&self) -> Option<&Bytes> {
+    pub fn alpn_protocol(&self) -> Option<&[u8]> {
         self.state.alpn_protocol()
     }
 

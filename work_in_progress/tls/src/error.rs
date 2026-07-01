@@ -1,6 +1,8 @@
 use alloc::{borrow::Cow, format};
 use core::fmt;
 
+use crate::{CipherSuite, SignatureScheme};
+
 /// I/O error kind — mirrors common `std::io::ErrorKind` values without std.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IoErrorKind {
@@ -108,9 +110,9 @@ pub enum CertificateValidationFailure {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CryptoFailure {
     /// Unsupported cipher suite.
-    UnsupportedCipherSuite(Cow<'static, str>),
+    UnsupportedCipherSuite(CipherSuite),
     /// Unsupported signature scheme.
-    UnsupportedSignatureScheme(Cow<'static, str>),
+    UnsupportedSignatureScheme(SignatureScheme),
     /// RSA verification failed.
     RsaVerification(Cow<'static, str>),
     /// Signing operation failed.
@@ -170,8 +172,8 @@ impl fmt::Display for CertificateValidationFailure {
 impl fmt::Display for CryptoFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnsupportedCipherSuite(s) => write!(f, "unsupported cipher suite: {s}"),
-            Self::UnsupportedSignatureScheme(s) => write!(f, "unsupported signature scheme: {s}"),
+            Self::UnsupportedCipherSuite(c) => write!(f, "unsupported cipher suite: {c:?}"),
+            Self::UnsupportedSignatureScheme(s) => write!(f, "unsupported signature scheme: {s:?}"),
             Self::RsaVerification(e) => write!(f, "RSA verification failed: {e}"),
             Self::SigningFailed => write!(f, "signing failed"),
             Self::Other(msg) => write!(f, "{msg}"),

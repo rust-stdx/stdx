@@ -480,7 +480,9 @@ fn server_name_matches_wildcard(dns_name: &str, server_name: &str) -> bool {
 /// Load root CAs from the operating system's trust store.
 #[cfg(feature = "std")]
 fn load_system_roots() -> Vec<RootCa> {
-    let mut roots = Vec::new();
+    // we pre-alloc 60 because there is around 118 Mozilla's root certs
+    // so we expect system certs to be around that number.
+    let mut roots = Vec::with_capacity(60);
     let dirs = [
         "/usr/share/ca-certificates/mozilla",
         "/etc/ssl/certs",

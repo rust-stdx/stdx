@@ -20,7 +20,7 @@ pub struct ClientHello<'a> {
     /// Server Name Indication (SNI), if provided.
     pub server_name: Option<&'a str>,
     /// ALPN protocols offered by the client.
-    pub alpn_protocols: &'a [Bytes],
+    pub alpn_protocols: &'a [&'a [u8]],
     /// Cipher suites offered by the client.
     pub cipher_suites: &'a [CipherSuite],
     /// Key exchange negotiated (from the client's `key_share` extension).

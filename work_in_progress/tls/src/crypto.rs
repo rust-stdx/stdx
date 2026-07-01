@@ -13,6 +13,7 @@ pub const MAX_PUBLIC_KEY_BYTES: usize = 97;
 pub const MAX_SIGNATURE_SIZE: usize = 256;
 pub const MAX_SESSION_ID: usize = 32;
 pub const MAX_CERT_TYPES: usize = 4;
+pub const MAX_KEY_EXCHANGE_PAIRS: usize = 6;
 pub const PSK_MAX_SIZE: usize = MAX_HASH_OUTPUT;
 
 /// A cryptographic provider that supplies all primitives needed for a TLS 1.3

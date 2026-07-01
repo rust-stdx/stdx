@@ -85,10 +85,7 @@ impl CryptoProvider for DefaultCryptoProvider {
                 })?;
                 Ok(Box::new(ChaCha20Poly1305Aead::new(&key)))
             }
-            ciphersuite @ _ => {
-                let msg = alloc::format!("{ciphersuite:?}");
-                Err(Error::CryptoError(CryptoFailure::UnsupportedCipherSuite(msg.into())))
-            }
+            ciphersuite @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedCipherSuite(ciphersuite))),
         }
     }
 
@@ -163,9 +160,7 @@ impl CryptoProvider for DefaultCryptoProvider {
                     pk_bytes,
                 }))
             }
-            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(
-                format!("{scheme:?}").into(),
-            ))),
+            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(scheme))),
         }
     }
 
@@ -220,9 +215,7 @@ impl CryptoProvider for DefaultCryptoProvider {
             }
             SignatureScheme::RsaPssRsaSha256 => crypto::rsa::verify_pss_sha256(public_key, signature, data)
                 .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}").into()))),
-            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(
-                format!("{scheme:?}").into(),
-            ))),
+            scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(scheme))),
         }
     }
 

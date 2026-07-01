@@ -283,12 +283,7 @@ impl<T: Transport> Connection<T> {
         self.last_activity = self.clock();
 
         let tps = transport_params::encode(&build_transport_params(&self.config, &self.scid));
-        let alpn: Vec<Bytes> = self
-            .config
-            .alpn_protocols
-            .iter()
-            .map(|a| Bytes::copy_from_slice(a))
-            .collect();
+        let alpn_refs: heapless::Vec<&[u8], 8> = self.config.alpn_protocols.iter().map(|p| p.as_ref()).collect();
         let tls_client_config = match &self.config.tls_config {
             crate::config::TlsConfig::Client(cfg) => cfg.clone(),
             crate::config::TlsConfig::Server(_) => {
@@ -299,10 +294,11 @@ impl<T: Transport> Connection<T> {
             tls_client_config,
             Some(server_name.to_owned()),
             &tps,
-            &alpn,
+            &alpn_refs[..],
             None,
         )
         .map_err(|e| Error::ConnectionRejected(format!("TLS init failed: {e}")))?;
+        drop(alpn_refs);
         self.tls = Some(TlsAdapter::new(tls_conn));
         let ch = self
             .tls

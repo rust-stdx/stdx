@@ -1,11 +1,12 @@
 #![allow(dead_code)]
-use alloc::{format, vec, vec::Vec};
+use alloc::{format, vec::Vec};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use heapless;
 
 use crate::{
     Error,
+    connection::ALPN_MAX_SIZE,
     crypto::{
         CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SESSION_ID,
         MAX_SIGNATURE_SIZE, SignatureScheme,
@@ -67,24 +68,29 @@ impl HandshakeType {
 
 // ── Wire format helpers ───────────────────────────────────────────────────
 
+#[inline]
 fn put_u16(buf: &mut BytesMut, v: u16) {
     buf.extend_from_slice(&v.to_be_bytes());
 }
 
+#[inline]
 fn put_u24(buf: &mut BytesMut, v: u32) {
     buf.extend_from_slice(&v.to_be_bytes()[1..]);
 }
 
+#[inline]
 fn put_u8_slice(buf: &mut BytesMut, data: &[u8]) {
     buf.put_u8(data.len() as u8);
     buf.extend_from_slice(data);
 }
 
+#[inline]
 fn put_u16_slice(buf: &mut BytesMut, data: &[u8]) {
     put_u16(buf, data.len() as u16);
     buf.extend_from_slice(data);
 }
 
+#[inline]
 fn put_u24_slice(buf: &mut BytesMut, data: &[u8]) {
     put_u24(buf, data.len() as u32);
     buf.extend_from_slice(data);
@@ -466,15 +472,13 @@ pub struct CertificateEntry {
 /// } CertificateEntry;
 /// ```
 pub fn encode_certificate_raw_public_key(context: &[u8], public_key: &[u8], extensions: &[Extension]) -> Bytes {
-    let mut entry = BytesMut::new();
-    put_u24_slice(&mut entry, public_key);
     let entry_exts = encode_extensions(extensions);
-    entry.extend_from_slice(&entry_exts);
-
-    let mut body = BytesMut::new();
+    let entry_len = 3 + public_key.len() + entry_exts.len();
+    let mut body = BytesMut::with_capacity(1 + context.len() + 3 + entry_len);
     put_u8_slice(&mut body, context);
-    put_u24_slice(&mut body, &entry);
-
+    put_u24(&mut body, entry_len as u32);
+    put_u24_slice(&mut body, public_key);
+    body.extend_from_slice(&entry_exts);
     encode_handshake(HandshakeType::Certificate, &body)
 }
 
@@ -482,17 +486,28 @@ pub fn encode_certificate_raw_public_key(context: &[u8], public_key: &[u8], exte
 ///
 /// `chain` is ordered end-entity first, followed by intermediates.
 pub fn encode_certificate_chain(context: &[u8], chain: &[Vec<u8>], extensions_per_entry: &[Vec<Extension>]) -> Bytes {
-    let mut entries = BytesMut::new();
-    for (i, cert_der) in chain.iter().enumerate() {
-        put_u24_slice(&mut entries, cert_der);
-        let exts = extensions_per_entry.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
-        let ext_bytes = encode_extensions(exts);
-        entries.extend_from_slice(&ext_bytes);
-    }
+    let ext_list: Vec<Bytes> = chain
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let exts = extensions_per_entry.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
+            encode_extensions(exts)
+        })
+        .collect();
 
-    let mut body = BytesMut::new();
+    let entries_size: usize = chain
+        .iter()
+        .enumerate()
+        .map(|(i, cert_der)| 3 + cert_der.len() + ext_list[i].len())
+        .sum();
+
+    let mut body = BytesMut::with_capacity(1 + context.len() + 3 + entries_size);
     put_u8_slice(&mut body, context);
-    put_u24_slice(&mut body, &entries);
+    put_u24(&mut body, entries_size as u32);
+    for (i, cert_der) in chain.iter().enumerate() {
+        put_u24_slice(&mut body, cert_der);
+        body.extend_from_slice(&ext_list[i]);
+    }
 
     encode_handshake(HandshakeType::Certificate, &body)
 }
@@ -580,9 +595,9 @@ impl Certificate {
 /// `sig_schemes` is the list of acceptable signature schemes (the
 /// `signature_algorithms` extension is required).
 pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme]) -> Bytes {
-    let exts = vec![ext_signature_algorithms(sig_schemes)];
-    let ext_bytes = encode_extensions(&exts);
-    let mut body = BytesMut::new();
+    let ext = ext_signature_algorithms(sig_schemes);
+    let ext_bytes = encode_extensions(&[ext]);
+    let mut body = BytesMut::with_capacity(1 + context.len() + ext_bytes.len());
     put_u8_slice(&mut body, context);
     body.extend_from_slice(&ext_bytes);
     encode_handshake(HandshakeType::CertificateRequest, &body)
@@ -591,7 +606,7 @@ pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme
 // ── CertificateVerify ─────────────────────────────────────────────────────
 
 pub fn encode_certificate_verify(scheme: SignatureScheme, signature: &[u8]) -> Bytes {
-    let mut body = BytesMut::new();
+    let mut body = BytesMut::with_capacity(4 + signature.len());
     body.extend_from_slice(&scheme.to_wire());
     put_u16_slice(&mut body, signature);
     encode_handshake(HandshakeType::CertificateVerify, &body)
@@ -702,12 +717,13 @@ pub fn encode_new_session_ticket(
     ticket: &[u8],
     extensions: &[Extension],
 ) -> Bytes {
-    let mut body = BytesMut::new();
+    let ext_bytes = encode_extensions(extensions);
+    let total = 4 + 4 + 1 + ticket_nonce.len() + 2 + ticket.len() + ext_bytes.len();
+    let mut body = BytesMut::with_capacity(total);
     body.extend_from_slice(&ticket_lifetime.to_be_bytes());
     body.extend_from_slice(&ticket_age_add.to_be_bytes());
     put_u8_slice(&mut body, ticket_nonce);
     put_u16_slice(&mut body, ticket);
-    let ext_bytes = encode_extensions(extensions);
     body.extend_from_slice(&ext_bytes);
     encode_handshake(HandshakeType::NewSessionTicket, &body)
 }
@@ -871,13 +887,11 @@ pub fn parse_key_share_server(
 
 /// Build a `signature_algorithms` extension.
 pub fn ext_signature_algorithms(schemes: &[SignatureScheme]) -> Extension {
-    let mut body = BytesMut::with_capacity(schemes.len() * 2);
+    let mut data = BytesMut::with_capacity(2 + schemes.len() * 2);
+    put_u16(&mut data, (schemes.len() * 2) as u16);
     for s in schemes {
-        body.extend_from_slice(&s.to_wire());
+        data.extend_from_slice(&s.to_wire());
     }
-    let mut data = BytesMut::with_capacity(2 + body.len());
-    put_u16(&mut data, body.len() as u16);
-    data.extend_from_slice(&body);
     Extension {
         ext_type: ExtensionType::SignatureAlgorithms,
         data: data.freeze(),
@@ -921,7 +935,7 @@ pub fn ext_server_name(hostname: &str) -> Extension {
 }
 
 /// Build an ALPN extension.
-pub fn ext_alpn(protocols: &[Bytes]) -> Extension {
+pub fn ext_alpn(protocols: &[&[u8]]) -> Extension {
     let body_size: usize = protocols.iter().map(|p| 1 + p.len()).sum();
     let mut data = BytesMut::with_capacity(2 + body_size);
     put_u16(&mut data, body_size as u16);
@@ -935,7 +949,7 @@ pub fn ext_alpn(protocols: &[Bytes]) -> Extension {
 }
 
 /// Parse ALPN extension, returning the list of protocols (max 8).
-pub fn parse_alpn(ext: &Extension) -> Result<heapless::Vec<Bytes, 8>, Error> {
+pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
         return Err(Error::DecodeError("ALPN extension too short".into()));
@@ -946,12 +960,15 @@ pub fn parse_alpn(ext: &Extension) -> Result<heapless::Vec<Bytes, 8>, Error> {
     let mut off = 0;
     while off + 1 <= total && off < data.len() {
         let len = data[off] as usize;
+        if len > ALPN_MAX_SIZE {
+            return Err(Error::DecodeError("ALPN protocol is too long (max: 32 bytes)".into()));
+        }
         off += 1;
         if off + len > data.len() {
             break;
         }
         items
-            .push(Bytes::copy_from_slice(&data[off..off + len]))
+            .push(&data[off..off + len])
             .map_err(|_| Error::DecodeError("ALPN: too many protocols (max 8)".into()))?;
         off += len;
     }
@@ -980,7 +997,7 @@ pub fn ext_server_cert_type_client(types: &[CertType]) -> Extension {
 pub fn ext_server_cert_type_server(cert_type: CertType) -> Extension {
     Extension {
         ext_type: ExtensionType::ServerCertificateType,
-        data: Bytes::from(vec![cert_type as u8]),
+        data: Bytes::copy_from_slice(&[cert_type as u8]),
     }
 }
 
