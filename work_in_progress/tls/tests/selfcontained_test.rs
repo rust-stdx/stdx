@@ -71,11 +71,14 @@ impl tls::config::CertificateValidator for AcceptAllValidator {
 async fn selfcontained_app_data() {
     let provider = Arc::new(DefaultCryptoProvider::new());
 
-    let server_cfg = ServerConfig::new(provider.clone(), vec![], Arc::new(DummyCertProvider));
+    let server_cfg = ServerConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(DummyCertProvider));
     let mut server = ServerConnection::new(server_cfg);
 
-    let client_cfg = ClientConfig::new(provider.clone(), vec![], Arc::new(AcceptAllValidator))
-        .with_cert_types(vec![CertType::X509, CertType::RawPublicKey]);
+    let mut cert_types = heapless::Vec::new();
+    cert_types.push(CertType::X509);
+    cert_types.push(CertType::RawPublicKey);
+    let client_cfg = ClientConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(AcceptAllValidator))
+        .with_cert_types(cert_types);
     let mut client = ClientConnection::new(client_cfg, Some("localhost".into()))
         .await
         .unwrap();
@@ -139,11 +142,14 @@ async fn selfcontained_app_data() {
 async fn selfcontained_app_data_pq() {
     let provider = Arc::new(DefaultCryptoProvider::new());
 
-    let server_cfg = ServerConfig::new(provider.clone(), vec![], Arc::new(DummyCertProvider));
+    let server_cfg = ServerConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(DummyCertProvider));
     let mut server = ServerConnection::new(server_cfg);
 
-    let client_cfg = ClientConfig::new(provider.clone(), vec![], Arc::new(AcceptAllValidator))
-        .with_cert_types(vec![CertType::X509, CertType::RawPublicKey]);
+    let mut cert_types = heapless::Vec::new();
+    cert_types.push(CertType::X509);
+    cert_types.push(CertType::RawPublicKey);
+    let client_cfg = ClientConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(AcceptAllValidator))
+        .with_cert_types(cert_types);
     let mut client = ClientConnection::new(client_cfg, Some("localhost".into()))
         .await
         .unwrap();

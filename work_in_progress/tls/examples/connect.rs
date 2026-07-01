@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let provider = Arc::new(DefaultCryptoProvider::new());
     let validator = Arc::new(WebPkiValidator::with_default_roots(provider.clone()));
-    let config = ClientConfig::new(provider, vec![], validator);
+    let config = ClientConfig::new(provider, heapless::Vec::new(), validator);
 
     let connector = TlsConnector::new(config);
     let mut tls = connector.connect(&server_name, stream)?;

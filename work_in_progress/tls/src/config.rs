@@ -1,11 +1,13 @@
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 
 use async_trait::async_trait;
 use bytes::Bytes;
 
 use crate::{
     Error,
-    crypto::{CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, MAX_PUBLIC_KEY_BYTES, SignatureScheme},
+    crypto::{
+        CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, MAX_PUBLIC_KEY_BYTES, PSK_MAX_SIZE, SignatureScheme,
+    },
 };
 
 /// Parsed client hello information passed to [`CertificateProvider`].
@@ -145,11 +147,11 @@ pub struct ClientConfig {
     /// The crypto provider.
     pub crypto: Arc<dyn CryptoProvider>,
     /// ALPN protocols to offer, in preference order.
-    pub alpn_protocols: Vec<Bytes>,
+    pub alpn_protocols: heapless::Vec<Bytes, 8>,
     /// Certificate types the client supports (sent via `server_certificate_type`
     /// extension). Defaults to `[CertType::X509]`. To enable raw public keys
     /// add `CertType::RawPublicKey` as well.
-    pub cert_types: Vec<CertType>,
+    pub cert_types: heapless::Vec<CertType, 2>,
     /// Validates the server's certificate / raw public key.
     pub cert_validator: Arc<dyn CertificateValidator>,
     /// Optional provider for a client certificate when the server requests
@@ -171,13 +173,13 @@ pub struct ClientCertificate {
 impl ClientConfig {
     pub fn new(
         crypto_provider: Arc<dyn CryptoProvider>,
-        alpn_protocols: Vec<Bytes>,
+        alpn_protocols: heapless::Vec<Bytes, 8>,
         cert_validator: Arc<dyn CertificateValidator>,
     ) -> Self {
         Self {
             crypto: crypto_provider,
             alpn_protocols,
-            cert_types: vec![CertType::X509],
+            cert_types: [CertType::X509].into(),
             cert_validator,
             client_cert: None,
             session_cache: None,
@@ -186,7 +188,7 @@ impl ClientConfig {
 
     /// Set the supported certificate types (sent via `server_certificate_type`
     /// extension). If only `[CertType::X509]` the extension is not sent.
-    pub fn with_cert_types(mut self, cert_types: Vec<CertType>) -> Self {
+    pub fn with_cert_types(mut self, cert_types: heapless::Vec<CertType, 2>) -> Self {
         self.cert_types = cert_types;
         self
     }
@@ -208,7 +210,7 @@ pub struct ServerConfig {
     /// The crypto provider.
     pub provider: Arc<dyn CryptoProvider>,
     /// ALPN protocols the server is willing to select.
-    pub alpn_protocols: Vec<Bytes>,
+    pub alpn_protocols: heapless::Vec<Bytes, 8>,
     /// Produces the server's certificate (raw public key) on each connection.
     pub cert_provider: Arc<dyn CertificateProvider>,
     /// Whether to request a client certificate.
@@ -222,7 +224,7 @@ pub struct ServerConfig {
 impl ServerConfig {
     pub fn new(
         provider: Arc<dyn CryptoProvider>,
-        alpn_protocols: Vec<Bytes>,
+        alpn_protocols: heapless::Vec<Bytes, 8>,
         cert_provider: Arc<dyn CertificateProvider>,
     ) -> Self {
         Self {
@@ -245,9 +247,15 @@ impl ServerConfig {
 #[async_trait]
 pub trait SessionTicketStore: Send + Sync {
     /// Store a ticket and its associated PSK.
-    async fn put_ticket(&self, server_name: &str, ticket: Vec<u8>, psk: Vec<u8>, lifetime_s: u32);
+    async fn put_ticket(
+        &self,
+        server_name: &str,
+        ticket: Vec<u8>,
+        psk: heapless::Vec<u8, PSK_MAX_SIZE>,
+        lifetime_s: u32,
+    );
     /// Look up a PSK by ticket, if it exists.
-    async fn get_psk(&self, ticket: &[u8]) -> Option<Vec<u8>>;
+    async fn get_psk(&self, ticket: &[u8]) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>>;
     /// Remove a ticket (e.g. after failed resumption).
     async fn remove_ticket(&self, ticket: &[u8]);
 }
@@ -261,7 +269,7 @@ pub trait SessionTicketStore: Send + Sync {
 /// Available only when the `std` feature is enabled.
 #[cfg(feature = "std")]
 pub struct InMemorySessionTicketStore {
-    tickets: std::sync::Mutex<std::collections::HashMap<Vec<u8>, (Vec<u8>, u64)>>,
+    tickets: std::sync::Mutex<std::collections::HashMap<Vec<u8>, (heapless::Vec<u8, PSK_MAX_SIZE>, u64)>>,
     ticket_lifetime: u32,
 }
 
@@ -278,7 +286,13 @@ impl InMemorySessionTicketStore {
 #[cfg(feature = "std")]
 #[async_trait]
 impl SessionTicketStore for InMemorySessionTicketStore {
-    async fn put_ticket(&self, _server_name: &str, ticket: Vec<u8>, psk: Vec<u8>, _lifetime_s: u32) {
+    async fn put_ticket(
+        &self,
+        _server_name: &str,
+        ticket: Vec<u8>,
+        psk: heapless::Vec<u8, PSK_MAX_SIZE>,
+        _lifetime_s: u32,
+    ) {
         let expiry = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -287,7 +301,7 @@ impl SessionTicketStore for InMemorySessionTicketStore {
         self.tickets.lock().unwrap().insert(ticket, (psk, expiry));
     }
 
-    async fn get_psk(&self, ticket: &[u8]) -> Option<Vec<u8>> {
+    async fn get_psk(&self, ticket: &[u8]) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>> {
         let mut map = self.tickets.lock().unwrap();
         let (psk, expiry) = map.get(ticket)?;
         let now = std::time::SystemTime::now()

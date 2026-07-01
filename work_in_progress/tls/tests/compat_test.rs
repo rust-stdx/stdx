@@ -69,7 +69,7 @@ async fn handshake_and_app_data_compat_test() {
 
     let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
     let validator = Arc::new(AcceptAllValidator);
-    let config = tls::config::ClientConfig::new(provider, vec![], validator);
+    let config = tls::config::ClientConfig::new(provider, heapless::Vec::new(), validator);
 
     let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port)).await.unwrap();
 
@@ -179,7 +179,7 @@ async fn x25519mlkem768_clienthello_accepted_by_rustls() {
 
     let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
     let validator = Arc::new(AcceptAllValidator);
-    let config = tls::config::ClientConfig::new(provider, vec![], validator);
+    let config = tls::config::ClientConfig::new(provider, heapless::Vec::new(), validator);
     let mut client = tls::ClientConnection::new(config, Some("localhost".to_string()))
         .await
         .unwrap();

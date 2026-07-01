@@ -15,7 +15,8 @@ use crate::{
     Error,
     config::{ClientConfig, ClientHello, ReceivedCertificate, ServerConfig},
     crypto::{
-        CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SHARED_SECRET, SignatureScheme,
+        CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SHARED_SECRET, PSK_MAX_SIZE,
+        SignatureScheme,
     },
     error::{CertificateValidationFailure, HandshakeFailure},
     key_schedule::{KeySchedule, TlsKeys},
@@ -1193,7 +1194,7 @@ impl ServerConnection {
             None => Ok(None),
         }
     }
-    async fn try_resolve_psk(&self, ch: &ClientHelloMsg) -> Option<Vec<u8>> {
+    async fn try_resolve_psk(&self, ch: &ClientHelloMsg) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>> {
         let psk_ext = find_extension(&ch.extensions, ExtensionType::PreSharedKey)?;
         let data = psk_ext.data.as_ref();
         if data.len() < 2 {
@@ -1609,9 +1610,7 @@ impl ServerConnection {
                 &ticket_nonce,
                 suite.hash_size(),
             );
-            store
-                .put_ticket("", ticket.to_vec(), psk.to_vec(), ticket_lifetime)
-                .await;
+            store.put_ticket("", ticket.to_vec(), psk, ticket_lifetime).await;
             let nst = encode_new_session_ticket(
                 ticket_lifetime,
                 u32::from_be_bytes(ticket_age_add),

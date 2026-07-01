@@ -947,7 +947,7 @@ pub fn parse_alpn(ext: &Extension) -> Result<heapless::Vec<Bytes, 8>, Error> {
     }
     let total = u16::from_be_bytes([data[0], data[1]]) as usize;
     let data = &data[2..];
-    let mut items: heapless::Vec<Bytes, 8> = heapless::Vec::new();
+    let mut items = heapless::Vec::new();
     let mut off = 0;
     while off + 1 <= total && off < data.len() {
         let len = data[off] as usize;

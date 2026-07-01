@@ -106,8 +106,7 @@ impl RecordState {
         let mut buf = BytesMut::with_capacity(total);
 
         // Build the nonce: iv XOR sequence_number
-        let mut nonce = [0u8; 12];
-        nonce[..key.nonce_size()].copy_from_slice(&self.write_iv[..key.nonce_size()]);
+        let mut nonce = self.write_iv;
         let seq_bytes = self.seq_num.to_be_bytes();
         for i in 0..8 {
             nonce[4 + i] ^= seq_bytes[i];
