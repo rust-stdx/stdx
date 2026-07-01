@@ -18,8 +18,6 @@ members = [
     "cron",
     "crypto",
     "csv",
-    "csv_legacy2",
-    "csv_legacy",
     "docker",
     "dotenv",
     "dotenv/dotenv_derive",

@@ -288,13 +288,14 @@ impl SessionTicketStore for InMemorySessionTicketStore {
     }
 
     async fn get_psk(&self, ticket: &[u8]) -> Option<Vec<u8>> {
-        let map = self.tickets.lock().unwrap();
+        let mut map = self.tickets.lock().unwrap();
         let (psk, expiry) = map.get(ticket)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
         if now > *expiry {
+            map.remove(ticket);
             return None;
         }
         Some(psk.clone())

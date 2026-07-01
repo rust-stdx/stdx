@@ -244,7 +244,7 @@ pub fn encode_client_hello(
     // session_id
     put_u8_slice(&mut body, session_id);
     // cipher_suites
-    let mut cs_buf = BytesMut::with_capacity(cipher_suites.len() * 2);
+    let mut cs_buf = BytesMut::new();
     for cs in cipher_suites {
         cs_buf.extend_from_slice(&cs.to_wire());
     }
@@ -581,7 +581,7 @@ impl Certificate {
 pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme]) -> Bytes {
     let exts = vec![ext_signature_algorithms(sig_schemes)];
     let ext_bytes = encode_extensions(&exts);
-    let mut body = BytesMut::with_capacity(1 + context.len() + ext_bytes.len());
+    let mut body = BytesMut::new();
     put_u8_slice(&mut body, context);
     body.extend_from_slice(&ext_bytes);
     encode_handshake(HandshakeType::CertificateRequest, &body)
@@ -590,7 +590,7 @@ pub fn encode_certificate_request(context: &[u8], sig_schemes: &[SignatureScheme
 // ── CertificateVerify ─────────────────────────────────────────────────────
 
 pub fn encode_certificate_verify(scheme: SignatureScheme, signature: &[u8]) -> Bytes {
-    let mut body = BytesMut::with_capacity(4 + signature.len());
+    let mut body = BytesMut::new();
     body.extend_from_slice(&scheme.to_wire());
     put_u16_slice(&mut body, signature);
     encode_handshake(HandshakeType::CertificateVerify, &body)
@@ -715,7 +715,7 @@ pub fn encode_new_session_ticket(
 pub struct NewSessionTicket {
     pub ticket_lifetime: u32,
     pub ticket_age_add: u32,
-    pub ticket_nonce: heapless::Vec<u8, 255>,
+    pub ticket_nonce: Vec<u8>,
     pub ticket: Vec<u8>,
     pub extensions: Vec<Extension>,
     pub raw: Bytes,
@@ -737,8 +737,7 @@ impl NewSessionTicket {
         let ticket_lifetime = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
         let ticket_age_add = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
         let nonce_len = body[8] as usize;
-        let mut ticket_nonce = heapless::Vec::<u8, 255>::new();
-        ticket_nonce.extend_from_slice(&body[9..9 + nonce_len]).ok();
+        let ticket_nonce = body[9..9 + nonce_len].to_vec();
         let mut off = 9 + nonce_len;
         let ticket_len = u16::from_be_bytes([body[off], body[off + 1]]) as usize;
         off += 2;
@@ -803,7 +802,7 @@ pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension 
         put_u16(&mut all_entries, public_key.len() as u16);
         all_entries.extend_from_slice(public_key);
     }
-    let mut data = BytesMut::with_capacity(2 + all_entries.len());
+    let mut data = BytesMut::new();
     put_u16(&mut data, all_entries.len() as u16);
     data.extend_from_slice(&all_entries);
     Extension {

@@ -62,8 +62,6 @@ Complete catalog of all crates in the stdx monorepo. Import any of these directl
 | `serde_yaml` | YAML data format for Serde | `std` | dtolnay/serde-yaml |
 | `serde_urlencoded` | URL-encoded form data for Serde | `std` | nox/serde_urlencoded |
 | `csv` | CSV reading and writing (no_std compatible) | `std` (default), `alloc` | — |
-| `csv_legacy` | CSV reading (legacy, std only) | `std` (default) | — |
-| `csv_legacy2` | CSV reader/writer (legacy) | `std` (default), `alloc` | — |
 
 ## Database
 
