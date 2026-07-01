@@ -41,8 +41,10 @@ pub const MAX_ALPN_PROTOCOLS: usize = 8;
 pub const ALPN_PROTOCOL_MAX_SIZE: usize = 32;
 /// The maximum length of a valid server name, in bytes
 pub const MAX_SERVER_NAME_LENGTH: usize = 256;
+/// Maximum number of cipher suites in a ClientHello
+pub const MAX_CLIENT_HELLO_CIPHERSUITES: usize = 16;
 
-mod error;
+mod errors;
 mod message;
 mod record;
 
@@ -73,7 +75,8 @@ pub use connection::{AlpnProtocol, ClientConnection, QuicHandshake, QuicHandshak
 pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};
 #[cfg(feature = "webpki-validator")]
 pub use default_validator::WebPkiValidator;
-pub use error::{
-    CertificateValidationFailure, CryptoFailure, Error, HandshakeFailure, InvalidKeyFailure, IoError, IoErrorKind,
+pub use errors::{
+    CertificateValidationFailure, CryptoFailure, DecodeFailure, Error, HandshakeFailure, InternalFailure,
+    InvalidKeyFailure, IoError, IoErrorKind,
 };
 pub use key_schedule::{KeySchedule, TlsKeys};

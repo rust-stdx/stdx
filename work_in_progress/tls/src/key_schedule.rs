@@ -7,7 +7,7 @@ use zeroize::Zeroize;
 use crate::{
     MAX_HASH_SIZE,
     crypto::{CipherSuite, CryptoProvider},
-    error::HandshakeFailure,
+    errors::HandshakeFailure,
 };
 
 #[cfg(feature = "zeroize")]
@@ -311,9 +311,7 @@ impl KeySchedule {
         if constant_time_eq::constant_time_eq(&expected, verify_data) {
             Ok(())
         } else {
-            Err(crate::Error::HandshakeFailed(HandshakeFailure::Other(
-                "finished verification failed".into(),
-            )))
+            Err(crate::Error::HandshakeFailed(HandshakeFailure::FinishedVerificationFailed))
         }
     }
 
@@ -353,34 +351,33 @@ impl KeySchedule {
         let ms = self.master_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(ms, b"tls13 exp master", transcript, &self.provider, self.suite)
     }
+}
 
-    /// Post-handshake key update (RFC 8446 §4.6.3).
-    ///
-    /// Derives a new traffic secret, key, and IV from the *current* traffic
-    /// secret via:
-    ///
-    /// ```text
-    /// new_secret = HKDF-Expand-Label(secret, "traffic upd", "", Hash.length)
-    /// new_key    = HKDF-Expand-Label(new_secret, "key", "", key_size)
-    /// new_iv     = HKDF-Expand-Label(new_secret, "iv", "", 12)
-    /// ```
-    ///
-    /// Returns the new traffic secret (for the next update), key, and IV.
-    pub fn key_update_traffic(&self, old_secret: &[u8]) -> (Vec<u8, MAX_HASH_SIZE>, Vec<u8, MAX_HASH_SIZE>, [u8; 12]) {
-        let hash_size = self.suite.hash_size();
-        let new_secret = self
-            .provider
-            .hkdf_expand_label(self.suite, old_secret, b"tls13 traffic upd", &[], hash_size);
-        let key_size = self.suite.key_size();
-        let new_key = self
-            .provider
-            .hkdf_expand_label(self.suite, &new_secret, b"tls13 key", &[], key_size);
-        let new_iv_arr: [u8; 12] = self
-            .provider
-            .hkdf_expand_label(self.suite, &new_secret, b"tls13 iv", &[], 12)
-            .as_slice()
-            .try_into()
-            .unwrap();
-        (new_secret, new_key, new_iv_arr)
-    }
+/// Post-handshake key update (RFC 8446 §4.6.3).
+///
+/// Derives a new traffic secret, key, and IV from the *current* traffic
+/// secret via:
+///
+/// ```text
+/// new_secret = HKDF-Expand-Label(secret, "traffic upd", "", Hash.length)
+/// new_key    = HKDF-Expand-Label(new_secret, "key", "", key_size)
+/// new_iv     = HKDF-Expand-Label(new_secret, "iv", "", 12)
+/// ```
+///
+/// Returns the new traffic secret (for the next update), key, and IV.
+pub fn key_update_traffic(
+    provider: &dyn CryptoProvider,
+    suite: CipherSuite,
+    old_secret: &[u8],
+) -> (Vec<u8, MAX_HASH_SIZE>, Vec<u8, MAX_HASH_SIZE>, [u8; 12]) {
+    let hash_size = suite.hash_size();
+    let new_secret = provider.hkdf_expand_label(suite, old_secret, b"tls13 traffic upd", &[], hash_size);
+    let key_size = suite.key_size();
+    let new_key = provider.hkdf_expand_label(suite, &new_secret, b"tls13 key", &[], key_size);
+    let new_iv_arr: [u8; 12] = provider
+        .hkdf_expand_label(suite, &new_secret, b"tls13 iv", &[], 12)
+        .as_slice()
+        .try_into()
+        .unwrap();
+    (new_secret, new_key, new_iv_arr)
 }

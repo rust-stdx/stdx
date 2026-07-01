@@ -1,8 +1,8 @@
-use alloc::{boxed::Box, format};
+use alloc::boxed::Box;
 
 use bytes::{Bytes, BytesMut};
 
-use crate::{Error, crypto::Aead, error::HandshakeFailure};
+use crate::{Error, crypto::Aead, errors::HandshakeFailure, errors::DecodeFailure, errors::InternalFailure};
 
 /// Maximum TLS fragment plaintext length (2^14 bytes). RFC 8446 §5.1.
 pub const MAX_FRAGMENT_SIZE: usize = 16384;
@@ -97,7 +97,7 @@ impl RecordState {
         let key = self
             .key
             .as_ref()
-            .ok_or_else(|| Error::InternalError("write key not set".into()))?;
+            .ok_or_else(|| Error::InternalError(InternalFailure::WriteKeyNotSet))?;
 
         // Inner plaintext: payload || type (TLS 1.3 §5.2)
         let inner_len = 1 + payload.len();
@@ -181,7 +181,7 @@ impl RecordState {
                 let key = self
                     .read_key
                     .as_ref()
-                    .ok_or_else(|| Error::InternalError("read key not set".into()))?;
+                    .ok_or_else(|| Error::InternalError(InternalFailure::ReadKeyNotSet))?;
 
                 // Build nonce
                 let mut nonce = self.read_iv;
@@ -219,7 +219,7 @@ impl RecordState {
                 record.truncate(typ_idx);
                 Ok(Some((inner_type, record.freeze())))
             }
-            _ => Err(Error::DecodeError(format!("unknown content type {}", buf[0]).into())),
+            _ => Err(Error::DecodeError(DecodeFailure::UnknownContentType(buf[0]))),
         }
     }
 

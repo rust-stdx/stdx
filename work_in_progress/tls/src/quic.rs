@@ -14,6 +14,7 @@ pub fn transport_parameters_extension(params: &[u8]) -> Extension {
 
 // ── QUIC traffic secrets (output of the TLS handshake) ───────────────────
 
+#[derive(Clone)]
 pub struct QuicSecrets {
     pub client_early_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
     pub client_handshake_traffic_secret: Vec<u8, MAX_HASH_SIZE>,

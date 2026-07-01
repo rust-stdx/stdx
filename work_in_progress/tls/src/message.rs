@@ -1,12 +1,11 @@
-#![allow(dead_code)]
-use alloc::{format, vec::Vec};
+use alloc::vec::Vec;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use heapless;
 
 use crate::{
-    ALPN_PROTOCOL_MAX_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SESSION_ID, MAX_SIGNATURE_SIZE,
-    TICKET_NONCE_MAX_SIZE,
+    ALPN_PROTOCOL_MAX_SIZE, DecodeFailure, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_CLIENT_HELLO_CIPHERSUITES,
+    MAX_HASH_SIZE, MAX_SESSION_ID, MAX_SIGNATURE_SIZE, TICKET_NONCE_MAX_SIZE,
     crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme},
 };
 
@@ -113,13 +112,13 @@ pub fn encode_handshake(msg_type: HandshakeType, body: &[u8]) -> Bytes {
 /// Parse a handshake message header, returning the type and body.
 pub fn decode_handshake_header(data: &[u8]) -> Result<(HandshakeType, &[u8]), Error> {
     if data.len() < 4 {
-        return Err(Error::DecodeError("handshake message too short".into()));
+        return Err(Error::DecodeError(DecodeFailure::HandshakeMessageTooShort));
     }
     let msg_type = HandshakeType::from_u8(data[0])
-        .ok_or_else(|| Error::DecodeError(format!("unknown handshake type {}", data[0]).into()))?;
+        .ok_or_else(|| Error::DecodeError(DecodeFailure::UnknownHandshakeType(data[0])))?;
     let length = u32::from_be_bytes([0, data[1], data[2], data[3]]) as usize;
     if data.len() < 4 + length {
-        return Err(Error::DecodeError("handshake message truncated".into()));
+        return Err(Error::DecodeError(DecodeFailure::HandshakeMessageTruncated));
     }
     Ok((msg_type, &data[4..4 + length]))
 }
@@ -192,12 +191,12 @@ pub fn encode_extensions(exts: &[Extension]) -> Bytes {
 
 pub fn decode_extensions(mut data: &[u8]) -> Result<Vec<Extension>, Error> {
     if data.len() < 2 {
-        return Err(Error::DecodeError("extensions too short".into()));
+        return Err(Error::DecodeError(DecodeFailure::ExtensionsTooShort));
     }
     let total = u16::from_be_bytes([data[0], data[1]]) as usize;
     data = &data[2..];
     if data.len() < total {
-        return Err(Error::DecodeError("extensions truncated".into()));
+        return Err(Error::DecodeError(DecodeFailure::ExtensionsTruncated));
     }
     data = &data[..total];
 
@@ -206,7 +205,7 @@ pub fn decode_extensions(mut data: &[u8]) -> Result<Vec<Extension>, Error> {
         let ext_type = ExtensionType::from_u16(u16::from_be_bytes([data[0], data[1]]));
         let len = u16::from_be_bytes([data[2], data[3]]) as usize;
         if data.len() < 4 + len {
-            return Err(Error::DecodeError("extension truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::ExtensionTruncated));
         }
         if let Some(ext_type) = ext_type {
             exts.push(Extension {
@@ -266,7 +265,7 @@ pub fn encode_client_hello(
 pub struct ClientHelloMsg {
     pub random: [u8; 32],
     pub session_id: heapless::Vec<u8, MAX_SESSION_ID>,
-    pub cipher_suites: Vec<CipherSuite>,
+    pub cipher_suites: heapless::Vec<CipherSuite, MAX_CLIENT_HELLO_CIPHERSUITES>,
     pub extensions: Vec<Extension>,
     pub raw: Bytes,
 }
@@ -281,7 +280,7 @@ impl ClientHelloMsg {
             });
         }
         if body.len() < 38 {
-            return Err(Error::DecodeError("ClientHello too short".into()));
+            return Err(Error::DecodeError(DecodeFailure::ClientHelloTooShort));
         }
 
         let legacy_version = u16::from_be_bytes([body[0], body[1]]);
@@ -290,24 +289,24 @@ impl ClientHelloMsg {
         random.copy_from_slice(&body[2..34]);
         let session_id_len = body[34] as usize;
         if body.len() < 35 + session_id_len {
-            return Err(Error::DecodeError("ClientHello session_id truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::ClientHelloSessionIdTruncated));
         }
         let mut session_id = heapless::Vec::<u8, MAX_SESSION_ID>::new();
         session_id
             .extend_from_slice(&body[35..35 + session_id_len])
-            .map_err(|_| Error::DecodeError("session_id too long".into()))?;
+            .map_err(|_| Error::DecodeError(DecodeFailure::SessionIdTooLong))?;
         let mut off = 35 + session_id_len;
 
         let cs_len = u16::from_be_bytes([body[off], body[off + 1]]) as usize;
         off += 2;
         if body.len() < off + cs_len || cs_len % 2 != 0 {
-            return Err(Error::DecodeError("ClientHello cipher_suites malformed".into()));
+            return Err(Error::DecodeError(DecodeFailure::ClientHelloCipherSuitesMalformed));
         }
-        let mut cipher_suites = Vec::with_capacity(cs_len / 2);
+        let mut cipher_suites = heapless::Vec::new();
         for i in (0..cs_len).step_by(2) {
             let b: [u8; 2] = [body[off + i], body[off + i + 1]];
             if let Some(cs) = CipherSuite::from_wire(b) {
-                cipher_suites.push(cs);
+                cipher_suites.push(cs).map_err(|_| Error::DecodeError(DecodeFailure::ClientHelloCipherSuitesMalformed))?;
             }
         }
         off += cs_len;
@@ -378,7 +377,7 @@ impl ServerHello {
             });
         }
         if body.len() < 40 {
-            return Err(Error::DecodeError("ServerHello too short".into()));
+            return Err(Error::DecodeError(DecodeFailure::ServerHelloTooShort));
         }
 
         let _legacy = u16::from_be_bytes([body[0], body[1]]);
@@ -386,19 +385,19 @@ impl ServerHello {
         random.copy_from_slice(&body[2..34]);
         let sid_len = body[34] as usize;
         if body.len() < 35 + sid_len {
-            return Err(Error::DecodeError("ServerHello session_id truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::ServerHelloSessionIdTruncated));
         }
         let mut session_id = heapless::Vec::<u8, MAX_SESSION_ID>::new();
         session_id
             .extend_from_slice(&body[35..35 + sid_len])
-            .map_err(|_| Error::DecodeError("session_id too long".into()))?;
+            .map_err(|_| Error::DecodeError(DecodeFailure::SessionIdTooLong))?;
         let off = 35 + sid_len;
 
         let cs = CipherSuite::from_wire([body[off], body[off + 1]])
-            .ok_or_else(|| Error::DecodeError("unknown cipher suite in ServerHello".into()))?;
+            .ok_or_else(|| Error::DecodeError(DecodeFailure::UnknownCipherSuiteInServerHello))?;
         let comp = body[off + 2];
         if comp != 0 {
-            return Err(Error::DecodeError("non-null compression in ServerHello".into()));
+            return Err(Error::DecodeError(DecodeFailure::NonNullCompressionInServerHello));
         }
 
         let extensions = decode_extensions(&body[off + 3..])?;
@@ -511,7 +510,6 @@ pub fn encode_certificate_chain(context: &[u8], chain: &[Bytes], extensions_per_
 
 #[derive(Debug, Clone)]
 pub struct Certificate {
-    pub context: heapless::Vec<u8, 255>,
     pub entries: Vec<CertificateEntry>,
     pub raw: Bytes,
 }
@@ -526,34 +524,34 @@ impl Certificate {
             });
         }
         if body.is_empty() {
-            return Err(Error::DecodeError("empty Certificate".into()));
+            return Err(Error::DecodeError(DecodeFailure::CertificateEmpty));
         }
         let ctx_len = body[0] as usize;
         if 1 + ctx_len > body.len() {
-            return Err(Error::DecodeError("certificate context truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::CertificateContextTruncated));
         }
         let mut context = heapless::Vec::<u8, 255>::new();
         context.extend_from_slice(&body[1..1 + ctx_len]).ok();
         let mut off = 1 + ctx_len;
         if body.len() < off + 3 {
-            return Err(Error::DecodeError("certificate list length truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::CertificateListLengthTruncated));
         }
         let list_len = u32::from_be_bytes([0, body[off], body[off + 1], body[off + 2]]) as usize;
         off += 3;
         let list_end = off + list_len;
         if body.len() < list_end {
-            return Err(Error::DecodeError("certificate list truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::CertificateListTruncated));
         }
 
         let mut entries = Vec::with_capacity(list_len / 6);
         while off < list_end {
             if body.len() < off + 3 {
-                return Err(Error::DecodeError("certificate entry datalen truncated".into()));
+                return Err(Error::DecodeError(DecodeFailure::CertificateEntryDataLenTruncated));
             }
             let cert_data_len = u32::from_be_bytes([0, body[off], body[off + 1], body[off + 2]]) as usize;
             off += 3;
             if off + cert_data_len > list_end {
-                return Err(Error::DecodeError("certificate entry data truncated".into()));
+                return Err(Error::DecodeError(DecodeFailure::CertificateEntryDataTruncated));
             }
             let cert_data = data.slice(4 + off..4 + off + cert_data_len);
             off += cert_data_len;
@@ -577,7 +575,6 @@ impl Certificate {
         }
 
         Ok(Certificate {
-            context,
             entries,
             raw: data,
         })
@@ -626,18 +623,18 @@ impl CertificateVerify {
             });
         }
         if body.len() < 2 {
-            return Err(Error::DecodeError("CertificateVerify too short".into()));
+            return Err(Error::DecodeError(DecodeFailure::CertificateVerifyTooShort));
         }
         let scheme = SignatureScheme::from_wire([body[0], body[1]])
-            .ok_or_else(|| Error::DecodeError("unknown signature scheme in CertificateVerify".into()))?;
+            .ok_or_else(|| Error::DecodeError(DecodeFailure::UnknownSignatureSchemeInCertificateVerify))?;
         let sig_len = u16::from_be_bytes([body[2], body[3]]) as usize;
         if body.len() < 4 + sig_len {
-            return Err(Error::DecodeError("CertificateVerify signature truncated".into()));
+            return Err(Error::DecodeError(DecodeFailure::CertificateVerifySignatureTruncated));
         }
         let mut signature = heapless::Vec::<u8, MAX_SIGNATURE_SIZE>::new();
         signature
             .extend_from_slice(&body[4..4 + sig_len])
-            .map_err(|_| Error::DecodeError("signature too long".into()))?;
+            .map_err(|_| Error::DecodeError(DecodeFailure::SignatureTooLong))?;
         Ok(CertificateVerify {
             scheme,
             signature,
@@ -670,7 +667,7 @@ impl Finished {
         let mut verify_data = heapless::Vec::<u8, MAX_HASH_SIZE>::new();
         verify_data
             .extend_from_slice(body)
-            .map_err(|_| Error::DecodeError("verify_data too long".into()))?;
+            .map_err(|_| Error::DecodeError(DecodeFailure::VerifyDataTooLong))?;
         Ok(Finished {
             verify_data,
             raw: data,
@@ -700,7 +697,7 @@ pub fn decode_key_update(data: &[u8]) -> Result<u8, Error> {
         });
     }
     if body.len() != 1 || body[0] > 1 {
-        return Err(Error::DecodeError("KeyUpdate: invalid request_update".into()));
+        return Err(Error::DecodeError(DecodeFailure::KeyUpdateInvalidRequestUpdate));
     }
     Ok(body[0])
 }
@@ -745,25 +742,25 @@ impl NewSessionTicket {
             });
         }
         if body.len() < 10 {
-            return Err(Error::DecodeError("NewSessionTicket too short".into()));
+            return Err(Error::DecodeError(DecodeFailure::NewSessionTicketTooShort));
         }
         let ticket_lifetime = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
         let ticket_age_add = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
         let nonce_len = body[8] as usize;
         if nonce_len > TICKET_NONCE_MAX_SIZE {
-            return Err(Error::DecodeError("ticket_nonce too long".into()));
+            return Err(Error::DecodeError(DecodeFailure::TicketNonceTooLong));
         }
         let mut ticket_nonce = heapless::Vec::new();
         ticket_nonce
             .extend_from_slice(&body[9..9 + nonce_len])
-            .map_err(|_| Error::DecodeError("ticket_nonce too long".into()))?;
-        let mut off = 9 + nonce_len;
-        let ticket_len = u16::from_be_bytes([body[off], body[off + 1]]) as usize;
-        off += 2;
+            .map_err(|_| Error::DecodeError(DecodeFailure::TicketNonceTooLong))?;
+        let mut offset = 9 + nonce_len;
+        let ticket_len = u16::from_be_bytes([body[offset], body[offset + 1]]) as usize;
+        offset += 2;
         // Zero-copy: share the input Bytes allocation (handshake header is 4 bytes before body)
-        let ticket = data.slice(4 + off..4 + off + ticket_len);
-        off += ticket_len;
-        let extensions = decode_extensions(&body[off..]).unwrap_or_default();
+        let ticket = data.slice(4 + offset..4 + offset + ticket_len);
+        offset += ticket_len;
+        let extensions = decode_extensions(&body[offset..]).unwrap_or_default();
         Ok(NewSessionTicket {
             ticket_lifetime,
             ticket_age_add,
@@ -858,15 +855,15 @@ pub fn ext_key_share_hrr(group: KeyExchangeGroup) -> Extension {
 pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Error> {
     let data = &ext.data[..];
     if data.len() < 6 {
-        return Err(Error::DecodeError("key_share too short".into()));
+        return Err(Error::DecodeError(DecodeFailure::KeyShareTooShort));
     }
     let _total = u16::from_be_bytes([data[0], data[1]]) as usize;
     let group = KeyExchangeGroup::from_wire([data[2], data[3]])
-        .ok_or_else(|| Error::DecodeError("unknown kx group in key_share".into()))?;
+        .ok_or_else(|| Error::DecodeError(DecodeFailure::UnknownKeyExchangeGroupInKeyShare))?;
 
     let pk_len = u16::from_be_bytes([data[4], data[5]]) as usize;
     if pk_len > KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE {
-        return Err(Error::DecodeError("key share data too large".into()));
+        return Err(Error::DecodeError(DecodeFailure::KeyShareDataTooLarge));
     }
 
     let public_key = ext.data.slice(6..6 + pk_len);
@@ -877,13 +874,13 @@ pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Err
 pub fn parse_key_share_server(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Error> {
     let data = &ext.data[..];
     if data.len() < 4 {
-        return Err(Error::DecodeError("key_share (ServerHello) too short".into()));
+        return Err(Error::DecodeError(DecodeFailure::KeyShareServerHelloTooShort));
     }
     let group = KeyExchangeGroup::from_wire([data[0], data[1]])
-        .ok_or_else(|| Error::DecodeError("unknown kx group in ServerHello key_share".into()))?;
+        .ok_or_else(|| Error::DecodeError(DecodeFailure::UnknownKeyExchangeGroupInServerHelloKeyShare))?;
     let pk_len = u16::from_be_bytes([data[2], data[3]]) as usize;
     if pk_len > KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE {
-        return Err(Error::DecodeError("key share data too large".into()));
+        return Err(Error::DecodeError(DecodeFailure::KeyShareDataTooLarge));
     }
 
     let public_key = ext.data.slice(4..4 + pk_len);
@@ -907,11 +904,11 @@ pub fn ext_signature_algorithms(schemes: &[SignatureScheme]) -> Extension {
 pub fn parse_signature_algorithms(ext: &Extension) -> Result<heapless::Vec<SignatureScheme, 24>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
-        return Err(Error::DecodeError("signature_algorithms extension too short".into()));
+        return Err(Error::DecodeError(DecodeFailure::SignatureAlgorithmsTooShort));
     }
     let total = u16::from_be_bytes([data[0], data[1]]) as usize;
     if data.len() < 2 + total || total % 2 != 0 {
-        return Err(Error::DecodeError("signature_algorithms extension malformed".into()));
+        return Err(Error::DecodeError(DecodeFailure::SignatureAlgorithmsMalformed));
     }
     let mut schemes = heapless::Vec::new();
     for i in (0..total).step_by(2) {
@@ -919,7 +916,7 @@ pub fn parse_signature_algorithms(ext: &Extension) -> Result<heapless::Vec<Signa
         if let Some(s) = SignatureScheme::from_wire(b) {
             schemes
                 .push(s)
-                .map_err(|_| Error::DecodeError("too many signature_algorithms. limit: 24".into()))?;
+                .map_err(|_| Error::DecodeError(DecodeFailure::TooManySignatureAlgorithms))?;
         }
     }
     Ok(schemes)
@@ -957,7 +954,7 @@ pub fn ext_alpn(protocols: &[&[u8]]) -> Extension {
 pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
-        return Err(Error::DecodeError("ALPN extension too short".into()));
+        return Err(Error::DecodeError(DecodeFailure::AlpnTooShort));
     }
     let total = u16::from_be_bytes([data[0], data[1]]) as usize;
     let data = &data[2..];
@@ -966,7 +963,7 @@ pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, 
     while off + 1 <= total && off < data.len() {
         let len = data[off] as usize;
         if len > ALPN_PROTOCOL_MAX_SIZE {
-            return Err(Error::DecodeError("ALPN protocol is too long (max: 32 bytes)".into()));
+            return Err(Error::DecodeError(DecodeFailure::AlpnProtocolTooLong));
         }
         off += 1;
         if off + len > data.len() {
@@ -974,7 +971,7 @@ pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, 
         }
         items
             .push(&data[off..off + len])
-            .map_err(|_| Error::DecodeError("ALPN: too many protocols (max 8)".into()))?;
+            .map_err(|_| Error::DecodeError(DecodeFailure::AlpnTooManyProtocols))?;
         off += len;
     }
     Ok(items)
@@ -1016,9 +1013,9 @@ pub fn ext_server_cert_type_server(cert_type: CertType) -> Extension {
 pub fn parse_server_cert_type_ee(ext: &Extension) -> Result<CertType, Error> {
     let data = &ext.data[..];
     if data.is_empty() {
-        return Err(Error::DecodeError("empty server_certificate_type extension".into()));
+        return Err(Error::DecodeError(DecodeFailure::EmptyServerCertificateType));
     }
-    CertType::from_u8(data[0]).ok_or_else(|| Error::DecodeError(format!("unknown cert type {}", data[0]).into()))
+    CertType::from_u8(data[0]).ok_or_else(|| Error::DecodeError(DecodeFailure::UnknownCertType(data[0])))
 }
 
 /// Parse a `server_certificate_type` extension from a ClientHello.
@@ -1027,11 +1024,11 @@ pub fn parse_server_cert_type_ee(ext: &Extension) -> Result<CertType, Error> {
 pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<heapless::Vec<CertType, 4>, Error> {
     let data = &ext.data[..];
     if data.is_empty() {
-        return Err(Error::DecodeError("empty server_certificate_type extension".into()));
+        return Err(Error::DecodeError(DecodeFailure::EmptyServerCertificateType));
     }
     let len = data[0] as usize;
     if data.len() < 1 + len {
-        return Err(Error::DecodeError("server_certificate_type list truncated".into()));
+        return Err(Error::DecodeError(DecodeFailure::ServerCertificateTypeListTruncated));
     }
 
     let mut types = heapless::Vec::new();
@@ -1039,7 +1036,7 @@ pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<heapless::Vec<CertTy
         if let Some(ct) = CertType::from_u8(data[1 + i]) {
             types
                 .push(ct)
-                .map_err(|_| Error::DecodeError("too many server_certificate_type. limit: 4".into()))?;
+                .map_err(|_| Error::DecodeError(DecodeFailure::TooManyServerCertificateTypes))?;
         }
     }
     Ok(types)

@@ -241,7 +241,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AsyncWrite for TlsStream<S> {
             ready!(self.as_mut().poll_flush_pending(cx))?;
         }
 
-        let encrypted = self.state.send(buf).map_err(into_io_err)?;
+        let encrypted = self.state.encrypt_application_data(buf).map_err(into_io_err)?;
 
         let len = encrypted.len();
         let n = ready!(Pin::new(&mut self.stream).poll_write(cx, &encrypted))?;
@@ -301,7 +301,7 @@ impl TlsConnector {
         server_name: &str,
         mut stream: S,
     ) -> Result<TlsStream<S>, Error> {
-        let conn = ClientConnection::new(self.config.clone(), Some(server_name.into())).await?;
+        let conn = ClientConnection::new(self.config.clone(), Some(server_name)).await?;
         let state = client_handshake(conn, &mut stream).await?;
         Ok(TlsStream {
             stream,

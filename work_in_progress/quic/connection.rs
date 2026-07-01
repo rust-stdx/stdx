@@ -292,7 +292,7 @@ impl<T: Transport> Connection<T> {
         };
         let tls_conn = tls::ClientConnection::new_quic_with_preferred_group(
             tls_client_config,
-            Some(server_name.to_owned()),
+            Some(server_name),
             &tps,
             &alpn_refs[..],
             None,

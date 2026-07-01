@@ -193,7 +193,7 @@ impl<S: Read + Write> Read for TlsStream<S> {
 
 impl<S: Read + Write> Write for TlsStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let encrypted = self.state.send(buf).map_err(into_io_err)?;
+        let encrypted = self.state.encrypt_application_data(buf).map_err(into_io_err)?;
         self.stream.write_all(&encrypted)?;
         Ok(buf.len())
     }
@@ -219,7 +219,7 @@ impl TlsConnector {
 
     /// Connect to a TLS server and complete the handshake.
     pub fn connect<S: Read + Write>(&self, server_name: &str, mut stream: S) -> Result<TlsStream<S>, Error> {
-        let conn = block_on(ClientConnection::new(self.config.clone(), Some(server_name.into())))?;
+        let conn = block_on(ClientConnection::new(self.config.clone(), Some(server_name)))?;
         let state = client_handshake(conn, &mut stream)?;
         Ok(TlsStream {
             stream,

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, format};
+use alloc::boxed::Box;
 
 use crypto::{
     Aead as CryptoAead, Hasher, StreamCipher, hkdf,
@@ -12,7 +12,7 @@ use crate::{
     AEAD_MAX_TAG_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SIGNATURE_SIZE,
     SHARED_SECRET_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE,
     crypto::{Aead, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeKeyPair, SignatureScheme, Signer},
-    error::{CertificateValidationFailure, CryptoFailure, InvalidKeyFailure},
+    errors::{CertificateValidationFailure, CryptoFailure, EcdsaDerError, InvalidKeyFailure, InvalidKeyParseFailure, PeerSide},
 };
 
 /// The default [`CryptoProvider`], backed by the `crypto` crate.
@@ -134,7 +134,7 @@ impl CryptoProvider for DefaultCryptoProvider {
                     })
                 })?;
                 let pk = crypto::p256::PrivateKey::from_bytes(&key_bytes).map_err(|_| {
-                    Error::InvalidKey(InvalidKeyFailure::ParseError("invalid P-256 private key".into()))
+                    Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP256PrivateKey))
                 })?;
                 let pk_bytes = pk.public_key().to_bytes();
                 Ok(Box::new(P256Signer {
@@ -150,7 +150,7 @@ impl CryptoProvider for DefaultCryptoProvider {
                     })
                 })?;
                 let pk = crypto::p384::PrivateKey::from_bytes(&key_bytes).map_err(|_| {
-                    Error::InvalidKey(InvalidKeyFailure::ParseError("invalid P-384 private key".into()))
+                    Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP384PrivateKey))
                 })?;
                 let pk_bytes = pk.public_key().to_bytes();
                 Ok(Box::new(P384Signer {
@@ -178,7 +178,7 @@ impl CryptoProvider for DefaultCryptoProvider {
                     })
                 })?;
                 let pk = crypto::curve25519::ed25519::PublicKey::from_bytes(&pk_bytes).map_err(|_| {
-                    Error::InvalidKey(InvalidKeyFailure::ParseError("invalid Ed25519 public key".into()))
+                    Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidEd25519PublicKey))
                 })?;
                 let sig: [u8; 64] = signature.try_into().map_err(|_| {
                     Error::InvalidKey(InvalidKeyFailure::WrongLength {
@@ -192,7 +192,7 @@ impl CryptoProvider for DefaultCryptoProvider {
             }
             SignatureScheme::EcdsaP256Sha256 => {
                 let pk = crypto::p256::PublicKey::from_bytes(public_key)
-                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError("invalid P-256 public key".into())))?;
+                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP256PublicKey)))?;
                 let sig_raw = der_to_raw_p256_signature(signature)?;
                 pk.verify(data, &sig_raw).map_err(|_| {
                     Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
@@ -200,19 +200,19 @@ impl CryptoProvider for DefaultCryptoProvider {
             }
             SignatureScheme::EcdsaP384Sha384 => {
                 let pk = crypto::p384::PublicKey::from_bytes(public_key)
-                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError("invalid P-384 public key".into())))?;
+                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP384PublicKey)))?;
                 let sig_raw = der_to_raw_p384_signature(signature)?;
                 pk.verify(data, &sig_raw).map_err(|_| {
                     Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
                 })
             }
             SignatureScheme::RsaPkcs1Sha256 => {
-                crypto::rsa::verify_pkcs1_sha256(public_key, signature, data).map_err(|e| {
-                    Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PKCS1-SHA256: {e}").into()))
+                crypto::rsa::verify_pkcs1_sha256(public_key, signature, data).map_err(|_| {
+                    Error::CryptoError(CryptoFailure::RsaVerificationFailed(SignatureScheme::RsaPkcs1Sha256))
                 })
             }
             SignatureScheme::RsaPssRsaSha256 => crypto::rsa::verify_pss_sha256(public_key, signature, data)
-                .map_err(|e| Error::CryptoError(CryptoFailure::RsaVerification(format!("RSA-PSS-SHA256: {e}").into()))),
+                .map_err(|_| Error::CryptoError(CryptoFailure::RsaVerificationFailed(SignatureScheme::RsaPssRsaSha256))),
             scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(scheme))),
         }
     }
@@ -556,14 +556,11 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
     fn set_peer_public_key(&mut self, peer_public_key: &[u8]) -> Result<(), Error> {
         let total_size = PUBLIC_KEY_SIZE_768 + 32;
         if peer_public_key.len() != total_size {
-            return Err(Error::InvalidKey(InvalidKeyFailure::Other(
-                format!(
-                    "X25519MLKEM768 peer (client) key must be {} bytes, got {}",
-                    total_size,
-                    peer_public_key.len()
-                )
-                .into(),
-            )));
+            return Err(Error::InvalidKey(InvalidKeyFailure::X25519MlKem768PeerKeyLengthMismatch {
+                side: PeerSide::Client,
+                expected: total_size,
+                got: peer_public_key.len(),
+            }));
         }
 
         let peer_mlkem_pk = PublicKey768::from_bytes(peer_public_key[..PUBLIC_KEY_SIZE_768].try_into().unwrap());
@@ -589,14 +586,11 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
         } else {
             let total_size = CIPHERTEXT_SIZE_768 + 32;
             if peer_public_key.len() != total_size {
-                return Err(Error::InvalidKey(InvalidKeyFailure::Other(
-                    format!(
-                        "X25519MLKEM768 peer (server) key must be {} bytes, got {}",
-                        total_size,
-                        peer_public_key.len()
-                    )
-                    .into(),
-                )));
+                return Err(Error::InvalidKey(InvalidKeyFailure::X25519MlKem768PeerKeyLengthMismatch {
+                    side: PeerSide::Server,
+                    expected: total_size,
+                    got: peer_public_key.len(),
+                }));
             }
             let peer_x25519_pk = crypto::curve25519::x25519::PublicKey::from_bytes(
                 peer_public_key[CIPHERTEXT_SIZE_768..].try_into().unwrap(),
@@ -608,21 +602,13 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
             ss
         } else {
             let ct: [u8; CIPHERTEXT_SIZE_768] = peer_public_key[..CIPHERTEXT_SIZE_768].try_into().map_err(|_| {
-                Error::InvalidKey(InvalidKeyFailure::ParseError(
-                    "X25519MLKEM768 peer key: ML-KEM ciphertext too short".into(),
-                ))
+                Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::X25519MlKem768CiphertextTooShort))
             })?;
             self.mlkem_secret
                 .as_ref()
-                .ok_or_else(|| {
-                    Error::InvalidKey(InvalidKeyFailure::Other(
-                        "X25519MLKEM768: no ML-KEM secret key available for decapsulation".into(),
-                    ))
-                })?
+                .ok_or_else(|| Error::InvalidKey(InvalidKeyFailure::X25519MlKem768NoSecretKey))?
                 .decapsulate(&ct)
-                .map_err(|e| {
-                    Error::InvalidKey(InvalidKeyFailure::Other(format!("ML-KEM decapsulation failed: {e}").into()))
-                })?
+                .map_err(|_| Error::InvalidKey(InvalidKeyFailure::MlKemDecapsulationFailed))?
         };
 
         let mut shared = Vec::new();
@@ -759,37 +745,37 @@ fn trim_leading_zeros(bytes: &[u8]) -> Vec<u8, 128> {
 
 fn der_to_raw_p256_signature(der: &[u8]) -> Result<[u8; 64], Error> {
     if der.len() < 8 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("too short".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::TooShort)));
     }
     if der[0] != 0x30 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected SEQUENCE".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::ExpectedSequence)));
     }
     let mut pos = 2;
     if der.len() < pos + 2 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::Truncated)));
     }
     if der[pos] != 0x02 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected INTEGER r".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::ExpectedIntegerR)));
     }
     pos += 1;
     let r_len = der[pos] as usize;
     pos += 1;
     if der.len() < pos + r_len {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("r truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::RTruncated)));
     }
     let r = normalize_scalar(&der[pos..pos + r_len]);
     pos += r_len;
     if der.len() < pos + 2 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("s header truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::SHeaderTruncated)));
     }
     if der[pos] != 0x02 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected INTEGER s".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::ExpectedIntegerS)));
     }
     pos += 1;
     let s_len = der[pos] as usize;
     pos += 1;
     if der.len() < pos + s_len {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("s truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::STruncated)));
     }
     let s = normalize_scalar(&der[pos..pos + s_len]);
     let mut sig = [0u8; 64];
@@ -816,37 +802,37 @@ fn normalize_scalar_48(bytes: &[u8]) -> [u8; 48] {
 
 fn der_to_raw_p384_signature(der: &[u8]) -> Result<[u8; 96], Error> {
     if der.len() < 8 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("too short".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::TooShort)));
     }
     if der[0] != 0x30 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected SEQUENCE".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::ExpectedSequence)));
     }
     let mut pos = 2;
     if der.len() < pos + 2 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::Truncated)));
     }
     if der[pos] != 0x02 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected INTEGER r".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::ExpectedIntegerR)));
     }
     pos += 1;
     let r_len = der[pos] as usize;
     pos += 1;
     if der.len() < pos + r_len {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("r truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::RTruncated)));
     }
     let r = normalize_scalar_48(&der[pos..pos + r_len]);
     pos += r_len;
     if der.len() < pos + 2 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("s header truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::SHeaderTruncated)));
     }
     if der[pos] != 0x02 {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("expected INTEGER s".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::ExpectedIntegerS)));
     }
     pos += 1;
     let s_len = der[pos] as usize;
     pos += 1;
     if der.len() < pos + s_len {
-        return Err(Error::InvalidKey(InvalidKeyFailure::DerError("s truncated".into())));
+        return Err(Error::InvalidKey(InvalidKeyFailure::DerError(EcdsaDerError::STruncated)));
     }
     let s = normalize_scalar_48(&der[pos..pos + s_len]);
     let mut sig = [0u8; 96];

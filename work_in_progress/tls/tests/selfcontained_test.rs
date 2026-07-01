@@ -22,7 +22,7 @@ impl CertificateProvider for DummyCertProvider {
         let scheme = *client_hello
             .sig_schemes
             .first()
-            .ok_or(Error::HandshakeFailed(HandshakeFailure::Other("no sig schemes".into())))?;
+            .ok_or(Error::NoKeyExchangeGroupInCommon)?;
         let provider = DefaultCryptoProvider::new();
         provider.secure_random(&mut seed);
         let sk = crypto::curve25519::ed25519::SecretKey::from_bytes(&seed);
@@ -77,7 +77,7 @@ async fn selfcontained_app_data() {
 
     let client_cfg = ClientConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(AcceptAllValidator))
         .with_cert_types([CertType::X509, CertType::RawPublicKey].into());
-    let mut client = ClientConnection::new(client_cfg, Some("localhost".into()))
+    let mut client = ClientConnection::new(client_cfg, Some("localhost"))
         .await
         .unwrap();
 
@@ -113,7 +113,7 @@ async fn selfcontained_app_data() {
 
     assert!(server.handshake_done(), "Full handshake should complete");
 
-    let server_app = server.send(b"HELLO FROM SERVER").unwrap();
+    let server_app = server.encrypt_application_data(b"HELLO FROM SERVER").unwrap();
     client.inject(&server_app);
     client.process().await.unwrap();
     let mut received_server = false;
@@ -123,7 +123,7 @@ async fn selfcontained_app_data() {
     }
     assert!(received_server, "Client should receive app data from server");
 
-    let client_app = client.send(b"HELLO FROM CLIENT").unwrap();
+    let client_app = client.encrypt_application_data(b"HELLO FROM CLIENT").unwrap();
     server.inject(&client_app);
     server.process().await.unwrap();
     let mut received_client = false;
@@ -145,7 +145,7 @@ async fn selfcontained_app_data_pq() {
 
     let client_cfg = ClientConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(AcceptAllValidator))
         .with_cert_types([CertType::X509, CertType::RawPublicKey].into());
-    let mut client = ClientConnection::new(client_cfg, Some("localhost".into()))
+    let mut client = ClientConnection::new(client_cfg, Some("localhost"))
         .await
         .unwrap();
 
