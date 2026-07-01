@@ -2,6 +2,7 @@
 use alloc::{format, vec, vec::Vec};
 
 use bytes::{BufMut, Bytes, BytesMut};
+use heapless;
 
 use crate::{
     Error,
@@ -244,7 +245,7 @@ pub fn encode_client_hello(
     // session_id
     put_u8_slice(&mut body, session_id);
     // cipher_suites
-    let mut cs_buf = BytesMut::new();
+    let mut cs_buf = BytesMut::with_capacity(cs_size);
     for cs in cipher_suites {
         cs_buf.extend_from_slice(&cs.to_wire());
     }
@@ -777,13 +778,12 @@ pub fn ext_supported_versions_server() -> Extension {
 
 /// Build a `supported_groups` extension.
 pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
-    let mut body = BytesMut::with_capacity(groups.len() * 2);
+    let size = groups.len() * 2;
+    let mut data = BytesMut::with_capacity(2 + size);
+    put_u16(&mut data, size as u16);
     for g in groups {
-        body.extend_from_slice(&g.to_wire());
+        data.extend_from_slice(&g.to_wire());
     }
-    let mut data = BytesMut::with_capacity(2 + body.len());
-    put_u16(&mut data, body.len() as u16);
-    data.extend_from_slice(&body);
     Extension {
         ext_type: ExtensionType::SupportedGroups,
         data: data.freeze(),
@@ -796,15 +796,13 @@ pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
 /// contains the list length prefix followed by all entries.
 pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension {
     let entries_size: usize = entries.iter().map(|(_, pk)| 2 + 2 + pk.len()).sum();
-    let mut all_entries = BytesMut::with_capacity(entries_size);
+    let mut data = BytesMut::with_capacity(2 + entries_size);
+    put_u16(&mut data, entries_size as u16);
     for (group, public_key) in entries {
-        all_entries.extend_from_slice(&group.to_wire());
-        put_u16(&mut all_entries, public_key.len() as u16);
-        all_entries.extend_from_slice(public_key);
+        data.extend_from_slice(&group.to_wire());
+        put_u16(&mut data, public_key.len() as u16);
+        data.extend_from_slice(public_key);
     }
-    let mut data = BytesMut::new();
-    put_u16(&mut data, all_entries.len() as u16);
-    data.extend_from_slice(&all_entries);
     Extension {
         ext_type: ExtensionType::KeyShare,
         data: data.freeze(),
@@ -887,7 +885,7 @@ pub fn ext_signature_algorithms(schemes: &[SignatureScheme]) -> Extension {
 }
 
 /// Parse a `signature_algorithms` extension, returning the list of schemes.
-pub fn parse_signature_algorithms(ext: &Extension) -> Result<Vec<SignatureScheme>, Error> {
+pub fn parse_signature_algorithms(ext: &Extension) -> Result<heapless::Vec<SignatureScheme, 24>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
         return Err(Error::DecodeError("signature_algorithms extension too short".into()));
@@ -896,11 +894,13 @@ pub fn parse_signature_algorithms(ext: &Extension) -> Result<Vec<SignatureScheme
     if data.len() < 2 + total || total % 2 != 0 {
         return Err(Error::DecodeError("signature_algorithms extension malformed".into()));
     }
-    let mut schemes = Vec::with_capacity(total / 2);
+    let mut schemes = heapless::Vec::new();
     for i in (0..total).step_by(2) {
         let b: [u8; 2] = [data[2 + i], data[2 + i + 1]];
         if let Some(s) = SignatureScheme::from_wire(b) {
-            schemes.push(s);
+            schemes
+                .push(s)
+                .map_err(|_| Error::DecodeError("too many signature_algorithms. limit: 24".into()))?;
         }
     }
     Ok(schemes)
@@ -909,14 +909,11 @@ pub fn parse_signature_algorithms(ext: &Extension) -> Result<Vec<SignatureScheme
 /// Build a `server_name` (SNI) extension.
 pub fn ext_server_name(hostname: &str) -> Extension {
     let entry_len = 1 + 2 + hostname.len();
-    let mut entry = BytesMut::with_capacity(entry_len);
-    entry.put_u8(0); // host_name type
-    put_u16(&mut entry, hostname.len() as u16);
-    entry.extend_from_slice(hostname.as_bytes());
-
-    let mut data = BytesMut::with_capacity(2 + entry.len());
-    put_u16(&mut data, entry.len() as u16);
-    data.extend_from_slice(&entry);
+    let mut data = BytesMut::with_capacity(2 + entry_len);
+    put_u16(&mut data, entry_len as u16);
+    data.put_u8(0); // host_name type
+    put_u16(&mut data, hostname.len() as u16);
+    data.extend_from_slice(hostname.as_bytes());
     Extension {
         ext_type: ExtensionType::ServerName,
         data: data.freeze(),
@@ -926,13 +923,11 @@ pub fn ext_server_name(hostname: &str) -> Extension {
 /// Build an ALPN extension.
 pub fn ext_alpn(protocols: &[Bytes]) -> Extension {
     let body_size: usize = protocols.iter().map(|p| 1 + p.len()).sum();
-    let mut body = BytesMut::with_capacity(body_size);
+    let mut data = BytesMut::with_capacity(2 + body_size);
+    put_u16(&mut data, body_size as u16);
     for p in protocols {
-        put_u8_slice(&mut body, p);
+        put_u8_slice(&mut data, p);
     }
-    let mut data = BytesMut::with_capacity(2 + body.len());
-    put_u16(&mut data, body.len() as u16);
-    data.extend_from_slice(&body);
     Extension {
         ext_type: ExtensionType::ApplicationLayerProtocolNegotiation,
         data: data.freeze(),
@@ -1003,7 +998,7 @@ pub fn parse_server_cert_type_ee(ext: &Extension) -> Result<CertType, Error> {
 /// Parse a `server_certificate_type` extension from a ClientHello.
 ///
 /// Returns the list of certificate types offered by the client.
-pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<Vec<CertType>, Error> {
+pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<heapless::Vec<CertType, 4>, Error> {
     let data = &ext.data[..];
     if data.is_empty() {
         return Err(Error::DecodeError("empty server_certificate_type extension".into()));
@@ -1012,10 +1007,13 @@ pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<Vec<CertType>, Error
     if data.len() < 1 + len {
         return Err(Error::DecodeError("server_certificate_type list truncated".into()));
     }
-    let mut types = Vec::with_capacity(len);
+
+    let mut types = heapless::Vec::new();
     for i in 0..len {
         if let Some(ct) = CertType::from_u8(data[1 + i]) {
-            types.push(ct);
+            types
+                .push(ct)
+                .map_err(|_| Error::DecodeError("too many server_certificate_type. limit: 4".into()))?;
         }
     }
     Ok(types)
@@ -1025,31 +1023,25 @@ pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<Vec<CertType>, Error
 ///
 /// `identities` is one tuple (identity, obfuscated_ticket_age) per PSK.
 /// `binders` are the computed binder MAC values.
-pub fn ext_pre_shared_key(identities: &[(Vec<u8>, u32)], binders: &[Vec<u8>]) -> Extension {
+pub fn ext_pre_shared_key(identities: &[(&[u8], u32)], binders: &[&[u8]]) -> Extension {
     let id_total: usize = identities.iter().map(|(id, _)| 2 + id.len() + 4).sum();
     let b_total: usize = binders.iter().map(|b| 1 + b.len()).sum();
-    let mut body = BytesMut::with_capacity(2 + id_total + 2 + b_total);
+    let mut data = BytesMut::with_capacity(2 + id_total + 2 + b_total);
 
-    // identities
-    let mut id_body = BytesMut::with_capacity(id_total);
+    put_u16(&mut data, id_total as u16);
     for (id, age) in identities {
-        put_u16_slice(&mut id_body, id);
-        id_body.extend_from_slice(&age.to_be_bytes());
+        put_u16_slice(&mut data, id);
+        data.extend_from_slice(&age.to_be_bytes());
     }
-    put_u16(&mut body, id_body.len() as u16);
-    body.extend_from_slice(&id_body);
 
-    // binders
-    let mut b_body = BytesMut::with_capacity(b_total);
+    put_u16(&mut data, b_total as u16);
     for b in binders {
-        put_u8_slice(&mut b_body, b);
+        put_u8_slice(&mut data, b);
     }
-    put_u16(&mut body, b_body.len() as u16);
-    body.extend_from_slice(&b_body);
 
     Extension {
         ext_type: ExtensionType::PreSharedKey,
-        data: body.freeze(),
+        data: data.freeze(),
     }
 }
 

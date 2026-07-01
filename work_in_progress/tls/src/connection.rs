@@ -5,11 +5,11 @@ use alloc::{
     format,
     string::{String, ToString},
     sync::Arc,
-    vec,
     vec::Vec,
 };
 
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
+use heapless;
 
 use crate::{
     Error,
@@ -263,38 +263,41 @@ impl ClientConnection {
         let key_exchange_group = *supported_groups.first().ok_or(Error::NoKeyExchangeGroupInCommon)?;
 
         let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::with_capacity(supported_groups.len());
-        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
-            Vec::with_capacity(supported_groups.len());
+        let mut key_share_entries: heapless::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>), 4> =
+            heapless::Vec::new();
 
         // Generate key pairs for all groups; send all in key_share.
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
-            key_share_entries.push((group, pk));
+            let _ = key_share_entries.push((group, pk));
             kx_pairs.push(kp);
         }
 
         hs.key_exchange_group = key_exchange_group;
         hs.kx_pairs = kx_pairs;
 
-        let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
-            key_share_entries.iter().map(|(g, pk)| (*g, pk.as_slice())).collect();
+        let mut key_share_refs: heapless::Vec<(KeyExchangeGroup, &[u8]), 4> = heapless::Vec::new();
+        for (g, pk) in &key_share_entries {
+            let _ = key_share_refs.push((*g, pk.as_slice()));
+        }
 
-        let mut exts = vec![
+        let mut exts: heapless::Vec<Extension, 12> = [
             ext_supported_versions(),
             ext_psk_key_exchange_modes(),
             ext_supported_groups(&supported_groups),
-            ext_key_share_client(&key_share_refs),
+            ext_key_share_client(key_share_refs.as_slice()),
             ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
-        ];
+        ]
+        .into();
         if let Some(ref name) = server_name {
-            exts.push(ext_server_name(name));
+            let _ = exts.push(ext_server_name(name));
         }
         if !config.alpn_protocols.is_empty() {
-            exts.push(ext_alpn(&config.alpn_protocols));
+            let _ = exts.push(ext_alpn(&config.alpn_protocols));
         }
         if config.cert_types != [CertType::X509] || config.cert_types.len() != 1 {
-            exts.push(ext_server_cert_type_client(&config.cert_types));
+            let _ = exts.push(ext_server_cert_type_client(&config.cert_types));
         }
         let cipher_suites = crypto_provider.supported_cipher_suites();
 
@@ -315,15 +318,20 @@ impl ClientConnection {
                         &[],
                         suite.hash_size(),
                     );
-                    let zero_binder = alloc::vec![0u8; suite.hash_size()];
-                    let partial_psk_ext = ext_pre_shared_key(&[(ticket.clone(), 0)], &[zero_binder]);
-                    let partial_exts: Vec<_> = exts.iter().cloned().chain(alloc::vec![partial_psk_ext]).collect();
+                    let zero_binder = [0u8; 48];
+                    let zero_binder_slice = &zero_binder[..suite.hash_size()];
+                    let partial_psk_ext = ext_pre_shared_key(&[(ticket.as_slice(), 0)], &[zero_binder_slice]);
+                    let mut partial_exts: heapless::Vec<Extension, 12> = heapless::Vec::new();
+                    for ext in exts.iter() {
+                        let _ = partial_exts.push(ext.clone());
+                    }
+                    let _ = partial_exts.push(partial_psk_ext);
                     crypto_provider.secure_random(&mut random);
                     let partial_ch = encode_client_hello(&random, &[], &cipher_suites, &partial_exts);
                     let ch_hash = crypto_provider.hash(suite, &partial_ch);
                     let binder = crypto_provider.hmac(suite, &binder_key, &ch_hash);
-                    let final_psk_ext = ext_pre_shared_key(&[(ticket, 0)], &[binder.to_vec()]);
-                    exts.push(final_psk_ext);
+                    let final_psk_ext = ext_pre_shared_key(&[(ticket.as_slice(), 0)], &[binder.as_slice()]);
+                    let _ = exts.push(final_psk_ext);
                     let mut psk_vec = heapless::Vec::new();
                     let _ = psk_vec.extend_from_slice(&psk);
                     psk_for_key_schedule = Some(psk_vec);
@@ -337,13 +345,13 @@ impl ClientConnection {
         let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
         hs.transcript.extend_from_slice(&ch);
 
-        let mut record = Vec::with_capacity(5 + ch.len());
-        record.push(ContentType::Handshake as u8);
-        record.extend_from_slice(&0x0301u16.to_be_bytes());
-        record.extend_from_slice(&(ch.len() as u16).to_be_bytes());
+        let mut record = BytesMut::with_capacity(5 + ch.len());
+        record.put_u8(ContentType::Handshake as u8);
+        record.put_u16(0x0301);
+        record.put_u16(ch.len() as u16);
         record.extend_from_slice(&ch);
 
-        hs.write_queue.push_back(Bytes::from(record));
+        hs.write_queue.push_back(record.freeze());
         hs.psk = psk_for_key_schedule;
 
         Ok(Self {
@@ -381,14 +389,14 @@ impl ClientConnection {
         };
 
         let mut kx_pairs: Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>> = Vec::with_capacity(supported_groups.len());
-        let mut key_share_entries: Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
-            Vec::with_capacity(supported_groups.len());
+        let mut key_share_entries: heapless::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>), 4> =
+            heapless::Vec::new();
 
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
             if group == key_exchange_group {
-                key_share_entries.push((group, pk));
+                let _ = key_share_entries.push((group, pk));
             }
             kx_pairs.push(kp);
         }
@@ -396,25 +404,26 @@ impl ClientConnection {
         handshake_state.key_exchange_group = key_exchange_group;
         handshake_state.kx_pairs = kx_pairs;
 
-        let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
-            key_share_entries.iter().map(|(g, pk)| (*g, pk.as_slice())).collect();
-
-        let mut exts = vec![
-            ext_supported_versions(),
-            ext_psk_key_exchange_modes(),
-            ext_supported_groups(supported_groups),
-            ext_key_share_client(&key_share_refs),
-            ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
-        ];
-        if let Some(ref name) = server_name {
-            exts.push(ext_server_name(name));
+        let mut key_share_refs: heapless::Vec<(KeyExchangeGroup, &[u8]), 4> = heapless::Vec::new();
+        for (g, pk) in &key_share_entries {
+            let _ = key_share_refs.push((*g, pk.as_slice()));
         }
-        exts.push(ext_alpn(alpn));
-        exts.push(ext_quic_transport_parameters(transport_params));
+
+        let mut exts: heapless::Vec<Extension, 12> = heapless::Vec::new();
+        let _ = exts.push(ext_supported_versions());
+        let _ = exts.push(ext_psk_key_exchange_modes());
+        let _ = exts.push(ext_supported_groups(supported_groups));
+        let _ = exts.push(ext_key_share_client(key_share_refs.as_slice()));
+        let _ = exts.push(ext_signature_algorithms(crypto_provider.supported_signature_schemes()));
+        if let Some(ref name) = server_name {
+            let _ = exts.push(ext_server_name(name));
+        }
+        let _ = exts.push(ext_alpn(alpn));
+        let _ = exts.push(ext_quic_transport_parameters(transport_params));
         handshake_state.is_quic = true;
         handshake_state.quic_transport_params = Some(Bytes::copy_from_slice(transport_params));
         if config.cert_types != [CertType::X509] || config.cert_types.len() != 1 {
-            exts.push(ext_server_cert_type_client(&config.cert_types));
+            let _ = exts.push(ext_server_cert_type_client(&config.cert_types));
         }
         let cipher_suites = crypto_provider.supported_cipher_suites();
 
@@ -586,7 +595,7 @@ impl ClientConnection {
         Ok(true)
     }
 
-    fn handle_quic_hrr(&mut self, sh: &ServerHello, ks_ext: &Extension) -> Result<bool, Error> {
+    fn handle_quic_hrr(&mut self, _sh: &ServerHello, ks_ext: &Extension) -> Result<bool, Error> {
         let hrr_group = KeyExchangeGroup::from_wire([ks_ext.data[0], ks_ext.data[1]])
             .ok_or_else(|| Error::DecodeError("unknown KX group in HRR".into()))?;
 
@@ -599,37 +608,37 @@ impl ClientConnection {
             )));
         }
 
-        let supported_groups_count = supported_groups.len();
         self.hs.key_exchange_group = hrr_group;
         self.hs.kx_pairs.clear();
 
-        let mut key_share_entries: alloc::vec::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>)> =
-            alloc::vec::Vec::with_capacity(supported_groups_count);
+        let mut key_share_entries: heapless::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>), 4> =
+            heapless::Vec::new();
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
             if group == hrr_group {
-                key_share_entries.push((group, pk));
+                let _ = key_share_entries.push((group, pk));
             }
             self.hs.kx_pairs.push(kp);
         }
 
-        let key_share_refs: Vec<(KeyExchangeGroup, &[u8])> =
-            key_share_entries.iter().map(|(g, pk)| (*g, pk.as_slice())).collect();
-
-        let mut exts = vec![
-            ext_supported_versions(),
-            ext_psk_key_exchange_modes(),
-            ext_supported_groups(supported_groups),
-            ext_key_share_client(&key_share_refs),
-            ext_signature_algorithms(crypto_provider.supported_signature_schemes()),
-        ];
-        if let Some(ref name) = self.server_name {
-            exts.push(ext_server_name(name));
+        let mut key_share_refs: heapless::Vec<(KeyExchangeGroup, &[u8]), 4> = heapless::Vec::new();
+        for (g, pk) in &key_share_entries {
+            let _ = key_share_refs.push((*g, pk.as_slice()));
         }
-        exts.push(ext_alpn(&self.config.alpn_protocols));
+
+        let mut exts: heapless::Vec<Extension, 12> = heapless::Vec::new();
+        let _ = exts.push(ext_supported_versions());
+        let _ = exts.push(ext_psk_key_exchange_modes());
+        let _ = exts.push(ext_supported_groups(supported_groups));
+        let _ = exts.push(ext_key_share_client(key_share_refs.as_slice()));
+        let _ = exts.push(ext_signature_algorithms(crypto_provider.supported_signature_schemes()));
+        if let Some(ref name) = self.server_name {
+            let _ = exts.push(ext_server_name(name));
+        }
+        let _ = exts.push(ext_alpn(&self.config.alpn_protocols));
         if let Some(ref tp) = self.hs.quic_transport_params {
-            exts.push(ext_quic_transport_parameters(tp));
+            let _ = exts.push(ext_quic_transport_parameters(tp));
         }
         let cipher_suites = crypto_provider.supported_cipher_suites();
 
@@ -639,7 +648,7 @@ impl ClientConnection {
         let ch = encode_client_hello(&random, &[], &cipher_suites, &exts);
         self.hs.transcript.extend_from_slice(&ch);
 
-        self.hs.quic_write_queue.push_back(Bytes::from(ch));
+        self.hs.quic_write_queue.push_back(ch);
 
         Ok(true)
     }
@@ -796,7 +805,7 @@ impl ClientConnection {
                         .map_err(|e| Error::DecodeError(format!("X.509 parse: {e}").into()))?;
                     let key_bytes = x509::extract_key_from_spki(spki_der)
                         .map_err(|e| Error::DecodeError(format!("X.509 key: {e}").into()))?;
-                    Cow::Owned(key_bytes.to_vec())
+                    Cow::Borrowed(key_bytes)
                 }
                 #[cfg(not(feature = "webpki-validator"))]
                 return Err(Error::InternalError(
@@ -812,11 +821,11 @@ impl ClientConnection {
         let crypto_provider = &self.config.crypto;
         let transcript_hash = crypto_provider.hash(suite, &self.hs.transcript[..transcript_len_before]);
 
-        let mut signed_data = Vec::with_capacity(64 + 33 + 1 + 48);
-        signed_data.extend_from_slice(&[0x20; 64]);
-        signed_data.extend_from_slice(b"TLS 1.3, server CertificateVerify");
-        signed_data.push(0);
-        signed_data.extend_from_slice(&transcript_hash);
+        let mut signed_data: heapless::Vec<u8, 200> = heapless::Vec::new();
+        let _ = signed_data.extend_from_slice(&[0x20; 64]);
+        let _ = signed_data.extend_from_slice(b"TLS 1.3, server CertificateVerify");
+        let _ = signed_data.push(0);
+        let _ = signed_data.extend_from_slice(&transcript_hash);
 
         crypto_provider.verify_signature(cv.scheme, &pk[..], &signed_data, &cv.signature)?;
 
@@ -882,30 +891,14 @@ impl ClientConnection {
             self.hs.write_queue.push_back(encrypted_fin);
         }
 
-        if !self.hs.is_quic {
-            self.hs.read_record.set_read_keys(
-                crypto_provider.create_aead(suite, &keys.server_application_key)?,
-                keys.server_application_iv,
-            );
-            self.hs.write_record.set_write_keys(
-                crypto_provider.create_aead(suite, &keys.client_application_key)?,
-                keys.client_application_iv,
-            );
-        }
-
-        {
-            self.hs.read_record.set_read_keys(
-                crypto_provider.create_aead(suite, &keys.server_application_key)?,
-                keys.server_application_iv,
-            );
-            self.hs.write_record.set_write_keys(
-                crypto_provider.create_aead(suite, &keys.client_application_key)?,
-                keys.client_application_iv,
-            );
-        }
-
-        self.hs.client_app_traffic_secret = keys.client_application_traffic_secret.clone();
-        self.hs.server_app_traffic_secret = keys.server_application_traffic_secret.clone();
+        self.hs.read_record.set_read_keys(
+            crypto_provider.create_aead(suite, &keys.server_application_key)?,
+            keys.server_application_iv,
+        );
+        self.hs.write_record.set_write_keys(
+            crypto_provider.create_aead(suite, &keys.client_application_key)?,
+            keys.client_application_iv,
+        );
 
         self.hs.client_app_traffic_secret = keys.client_application_traffic_secret.clone();
         self.hs.server_app_traffic_secret = keys.server_application_traffic_secret.clone();
@@ -1132,8 +1125,8 @@ impl ServerConnection {
     /// Return the QUIC traffic secrets after the handshake completes.
     pub fn quic_secrets(&self) -> Option<crate::quic::QuicSecrets> {
         let ks = self.hs.key_schedule.as_ref()?;
-        let suite = self.hs.cipher_suite?;
-        let provider = &self.config.provider;
+        // let suite = self.hs.cipher_suite?;
+        // let provider = &self.config.provider;
         let sh_hash = self.hs.server_hello_hash.as_slice();
         let sfin_hash = self.hs.server_finished_hash.as_slice();
         Some(crate::quic::extract_quic_secrets(ks, sh_hash, sfin_hash))
@@ -1242,12 +1235,11 @@ impl ServerConnection {
 
         let provider = &self.config.provider;
 
-        let offer: Vec<_> = ch.cipher_suites.iter().copied().collect();
         let suite = provider
             .supported_cipher_suites()
             .iter()
-            .map(|s| *s)
-            .find(|s| offer.contains(s))
+            .copied()
+            .find(|s| ch.cipher_suites.contains(s))
             .ok_or(Error::NoCipherSuitesInCommon)?;
         self.hs.cipher_suite = Some(suite);
 
@@ -1297,7 +1289,7 @@ impl ServerConnection {
         let client_cert_types = find_extension(&ch.extensions, ExtensionType::ServerCertificateType)
             .map(|e| parse_server_cert_type_ch(e))
             .transpose()?
-            .unwrap_or_else(|| vec![CertType::X509]);
+            .unwrap_or_else(|| [CertType::X509].into());
 
         if let Some(ref fp) = self.config.fingerprinter {
             self.fingerprint = Some(fp.fingerprint(&ch.raw).await?);
@@ -1333,9 +1325,10 @@ impl ServerConnection {
         let mut random = [0u8; 32];
         provider.secure_random(&mut random);
 
-        let mut sh_exts = vec![ext_supported_versions_server(), ext_key_share_server(&kx_pub, group)];
+        let mut sh_exts: heapless::Vec<Extension, 6> =
+            [ext_supported_versions_server(), ext_key_share_server(&kx_pub, group)].into();
         if psk_resolved.is_some() {
-            sh_exts.push(ext_pre_shared_key_server(0));
+            let _ = sh_exts.push(ext_pre_shared_key_server(0));
         }
         let alpn_sel = client_hello
             .alpn_protocols
@@ -1343,7 +1336,7 @@ impl ServerConnection {
             .find(|p| self.config.alpn_protocols.contains(p))
             .cloned();
         if let Some(ref proto) = alpn_sel {
-            sh_exts.push(ext_alpn(&[proto.clone()]));
+            let _ = sh_exts.push(ext_alpn(&[proto.clone()]));
             self.hs.alpn_selected = Some(proto.clone());
         }
 
@@ -1377,21 +1370,19 @@ impl ServerConnection {
         if self.hs.is_quic {
             self.hs.quic_write_queue.push_back(sh.clone());
         } else {
-            let mut sh_record = Vec::with_capacity(5 + sh.len());
-            sh_record.push(ContentType::Handshake as u8);
-            sh_record.extend_from_slice(&0x0303u16.to_be_bytes());
-            sh_record.extend_from_slice(&(sh.len() as u16).to_be_bytes());
+            let mut sh_record = BytesMut::with_capacity(5 + sh.len());
+            sh_record.put_u8(ContentType::Handshake as u8);
+            sh_record.put_u16(0x0303);
+            sh_record.put_u16(sh.len() as u16);
             sh_record.extend_from_slice(&sh);
-            self.hs.write_queue.push_back(Bytes::from(sh_record));
+            self.hs.write_queue.push_back(sh_record.freeze());
         }
 
         // 2) EncryptedExtensions
-        let ee_exts =
-            if client_cert_types.contains(&CertType::RawPublicKey) || client_cert_types.contains(&CertType::X509) {
-                vec![ext_server_cert_type_server(selected_cert_type)]
-            } else {
-                vec![]
-            };
+        let mut ee_exts: heapless::Vec<Extension, 2> = heapless::Vec::new();
+        if client_cert_types.contains(&CertType::RawPublicKey) || client_cert_types.contains(&CertType::X509) {
+            let _ = ee_exts.push(ext_server_cert_type_server(selected_cert_type));
+        }
         let ee = encode_encrypted_extensions(&ee_exts);
         self.hs.transcript.extend_from_slice(&ee);
         if self.hs.is_quic {
@@ -1429,11 +1420,11 @@ impl ServerConnection {
 
         // 5) CertificateVerify
         let cv_transcript_hash = provider.hash(suite, &self.hs.transcript);
-        let mut signed_data = Vec::with_capacity(64 + 34 + 1 + 48);
-        signed_data.extend_from_slice(&[0x20; 64]);
-        signed_data.extend_from_slice(b"TLS 1.3, server CertificateVerify");
-        signed_data.push(0);
-        signed_data.extend_from_slice(&cv_transcript_hash);
+        let mut signed_data: heapless::Vec<u8, 200> = heapless::Vec::new();
+        let _ = signed_data.extend_from_slice(&[0x20; 64]);
+        let _ = signed_data.extend_from_slice(b"TLS 1.3, server CertificateVerify");
+        let _ = signed_data.push(0);
+        let _ = signed_data.extend_from_slice(&cv_transcript_hash);
         let signature = signer.sign(&signed_data)?;
 
         let cv_msg = encode_certificate_verify(cert.scheme, &signature);
@@ -1531,11 +1522,11 @@ impl ServerConnection {
         let suite = self.hs.cipher_suite.unwrap();
         let provider = &self.config.provider;
         let transcript_hash = provider.hash(suite, &self.hs.transcript[..transcript_len_before]);
-        let mut signed_data = Vec::with_capacity(64 + 34 + 1 + 48);
-        signed_data.extend_from_slice(&[0x20; 64]);
-        signed_data.extend_from_slice(b"TLS 1.3, client CertificateVerify");
-        signed_data.push(0);
-        signed_data.extend_from_slice(&transcript_hash);
+        let mut signed_data: heapless::Vec<u8, 200> = heapless::Vec::new();
+        let _ = signed_data.extend_from_slice(&[0x20; 64]);
+        let _ = signed_data.extend_from_slice(b"TLS 1.3, client CertificateVerify");
+        let _ = signed_data.push(0);
+        let _ = signed_data.extend_from_slice(&transcript_hash);
         provider.verify_signature(cv.scheme, pk, &signed_data, &cv.signature)?;
         self.state = ServerState::WaitClientFinished;
         Ok(true)
