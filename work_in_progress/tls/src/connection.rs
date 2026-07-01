@@ -636,7 +636,6 @@ impl ClientConnection {
         }
 
         let (group, peer_pk) = parse_key_share_server(ks_ext)?;
-        self.handshake_state.peer_public_key = Some(peer_pk.clone());
 
         let kx = self
             .handshake_state
@@ -645,6 +644,8 @@ impl ClientConnection {
             .find(|kp| kp.group() == group)
             .ok_or_else(|| Error::InternalError("no kx_pair for negotiated group".into()))?;
         self.handshake_state.shared_secret = Some(kx.shared_secret(&peer_pk)?);
+
+        self.handshake_state.peer_public_key = Some(peer_pk);
 
         let suite = sh.cipher_suite;
         let mut ks = KeySchedule::new(suite, Arc::clone(&self.config.crypto), self.handshake_state.psk.as_deref());
@@ -1059,7 +1060,7 @@ impl ClientConnection {
             .handshake_state
             .keys
             .as_ref()
-            .map(|k| k.resumption_master_secret.clone())
+            .map(|k| &k.resumption_master_secret)
             .ok_or_else(|| Error::InternalError("no keys for NST".into()))?;
         if res_master.is_empty() {
             return Ok(());
@@ -1343,10 +1344,12 @@ impl ServerConnection {
         let ks_ext = find_extension(&ch.extensions, ExtensionType::KeyShare)
             .ok_or_else(|| Error::HandshakeFailed(HandshakeFailure::Other("no key_share in ClientHello".into())))?;
         let (group, peer_pk) = parse_key_share(ks_ext)?;
-        self.handshake_state.peer_public_key = Some(peer_pk.clone());
 
         let mut kx_pair = crypto_provider.create_kx_pair(group)?;
         kx_pair.set_peer_public_key(&peer_pk)?;
+
+        self.handshake_state.peer_public_key = Some(peer_pk);
+
         let kx_pub = kx_pair.public_key_bytes();
         let shared = kx_pair.shared_secret(self.handshake_state.peer_public_key.as_ref().unwrap())?;
         self.handshake_state.shared_secret = Some(shared);
@@ -1711,9 +1714,8 @@ impl ServerConnection {
 
         // Derive the resumption_master_secret now that the client's Finished is in the transcript.
         let client_fin_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
-        let res_master = ks.derive_resumption_secret(&client_fin_hash);
-        let res_master_clone = res_master.clone();
-        self.handshake_state.keys.as_mut().unwrap().resumption_master_secret = res_master;
+        self.handshake_state.keys.as_mut().unwrap().resumption_master_secret =
+            ks.derive_resumption_secret(&client_fin_hash);
 
         // Send a NewSessionTicket if a ticket store is configured.
         if let Some(ref store) = self.config.session_tickets {
@@ -1726,7 +1728,7 @@ impl ServerConnection {
             crypto_provider.secure_random(&mut ticket);
             let psk = crypto_provider.hkdf_expand_label(
                 suite,
-                &res_master_clone,
+                &self.handshake_state.keys.as_ref().unwrap().resumption_master_secret,
                 b"tls13 resumption",
                 &ticket_nonce,
                 suite.hash_size(),

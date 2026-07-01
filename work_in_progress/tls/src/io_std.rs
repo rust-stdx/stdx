@@ -15,7 +15,7 @@ use crate::{
 // ── Minimal block_on ────────────────────────────────────────────────────
 
 fn block_on<F: Future>(f: F) -> F::Output {
-    let mut fut = Box::pin(f);
+    let mut fut = core::pin::pin!(f);
     static VTABLE: RawWakerVTable = RawWakerVTable::new(|p| RawWaker::new(p, &VTABLE), |_| {}, |_| {}, |_| {});
     let waker = unsafe { Waker::from_raw(RawWaker::new(core::ptr::null(), &VTABLE)) };
     let mut cx = Context::from_waker(&waker);

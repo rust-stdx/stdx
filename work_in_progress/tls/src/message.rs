@@ -869,9 +869,8 @@ pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Err
         return Err(Error::DecodeError("key share data too large".into()));
     }
 
-    let mut public_key = BytesMut::with_capacity(pk_len);
-    public_key.extend_from_slice(&data[6..6 + pk_len]);
-    Ok((group, public_key.freeze()))
+    let public_key = ext.data.slice(6..6 + pk_len);
+    Ok((group, public_key))
 }
 
 /// Parse a key share extension from a ServerHello (no total length prefix).
@@ -887,9 +886,8 @@ pub fn parse_key_share_server(ext: &Extension) -> Result<(KeyExchangeGroup, Byte
         return Err(Error::DecodeError("key share data too large".into()));
     }
 
-    let mut public_key = BytesMut::with_capacity(pk_len);
-    public_key.extend_from_slice(&data[4..4 + pk_len]);
-    Ok((group, public_key.freeze()))
+    let public_key = ext.data.slice(4..4 + pk_len);
+    Ok((group, public_key))
 }
 
 /// Build a `signature_algorithms` extension.
@@ -1002,9 +1000,13 @@ pub fn ext_server_cert_type_client(types: &[CertType]) -> Extension {
 ///
 /// `cert_type` is the single certificate type selected by the server.
 pub fn ext_server_cert_type_server(cert_type: CertType) -> Extension {
+    let data = match cert_type {
+        CertType::X509 => Bytes::from_static(&[0]),
+        CertType::RawPublicKey => Bytes::from_static(&[1]),
+    };
     Extension {
         ext_type: ExtensionType::ServerCertificateType,
-        data: Bytes::copy_from_slice(&[cert_type as u8]),
+        data,
     }
 }
 
