@@ -44,7 +44,7 @@ pub use config::{
     CertificateProvider, CertificateValidator, ClientCertificate, ClientConfig, ClientHello, ClientSessionCache, Clock,
     NoFingerprinter, ReceivedCertificate, ServerConfig, SessionTicketStore, TlsFingerprinter,
 };
-pub use connection::{ClientConnection, QuicHandshake, QuicHandshakeEvent, ServerConnection};
+pub use connection::{AlpnProtocol, ClientConnection, QuicHandshake, QuicHandshakeEvent, ServerConnection};
 pub use crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme};
 #[cfg(feature = "webpki-validator")]
 pub use default_validator::WebPkiValidator;

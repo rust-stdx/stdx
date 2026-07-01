@@ -24,8 +24,6 @@ use crate::{
     record::{ContentType, RecordState},
 };
 
-pub const ALPN_MAX_SIZE: usize = 32;
-
 /// Extract raw public key bytes from a SubjectPublicKeyInfo DER blob.
 ///
 /// The SPKI DER contains a BIT STRING that holds the raw key bytes
@@ -52,6 +50,33 @@ fn extract_key_from_spki<'a>(spki_der: &'a [u8]) -> Result<&'a [u8], Error> {
     Ok(&spki_der[key_start..key_start + key_len])
 }
 
+pub const ALPN_PROTOCOL_MAX_SIZE: usize = 32;
+
+#[derive(Clone)]
+pub struct AlpnProtocol(heapless::Vec<u8, ALPN_PROTOCOL_MAX_SIZE>);
+
+impl AlpnProtocol {
+    pub fn from_slice(protocol: &[u8]) -> Result<Self, Error> {
+        let ret = heapless::Vec::from_slice(protocol)
+            .map_err(|_| Error::InternalError("ALPN protocol is too long. max: 32 bytes".into()))?;
+        Ok(AlpnProtocol(ret))
+    }
+
+    pub fn from_static(protocol: &'static [u8]) -> Self {
+        AlpnProtocol(heapless::Vec::from_slice(protocol).expect("ALPN protocol exceeds maximum length of 32 bytes"))
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+impl AsRef<[u8]> for AlpnProtocol {
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
 /// Common handshake state shared by client and server.
 struct HandshakeState {
     cipher_suite: Option<CipherSuite>,
@@ -65,7 +90,7 @@ struct HandshakeState {
     write_record: RecordState,
     read_record: RecordState,
     read_buf: BytesMut,
-    alpn_selected: Option<heapless::Vec<u8, ALPN_MAX_SIZE>>,
+    alpn_selected: Option<AlpnProtocol>,
     cert_chain: Option<Vec<Vec<u8>>>,
     negotiated_cert_type: CertType,
     handshake_payload: BytesMut,
@@ -167,7 +192,7 @@ pub struct ClientConnection {
 impl ClientConnection {
     /// Return the selected ALPN protocol, if any.
     pub fn alpn_protocol(&self) -> Option<&[u8]> {
-        self.handshake_state.alpn_selected.as_ref().map(|alpn| &alpn[..])
+        self.handshake_state.alpn_selected.as_ref().map(|alpn| alpn.as_ref())
     }
 
     /// Return the negotiated cipher suite, if the handshake has progressed far enough.
@@ -736,8 +761,7 @@ impl ClientConnection {
 
         if let Some(ext) = find_extension(&ee.extensions, ExtensionType::ApplicationLayerProtocolNegotiation) {
             let alpn = parse_alpn(ext)?;
-            self.handshake_state.alpn_selected =
-                alpn.into_iter().next().and_then(|p| heapless::Vec::from_slice(p).ok());
+            self.handshake_state.alpn_selected = alpn.into_iter().next().and_then(|p| AlpnProtocol::from_slice(p).ok());
         }
 
         if let Some(ext) = find_extension(&ee.extensions, ExtensionType::ServerCertificateType) {
@@ -1083,7 +1107,7 @@ impl ServerConnection {
 
     /// Return the selected ALPN protocol, if any.
     pub fn alpn_protocol(&self) -> Option<&[u8]> {
-        self.handshake_state.alpn_selected.as_ref().map(|alpn| &alpn[..])
+        self.handshake_state.alpn_selected.as_ref().map(|alpn| alpn.as_ref())
     }
 
     /// Initiate a post-handshake key update (RFC 8446 §4.6.3).
@@ -1397,8 +1421,7 @@ impl ServerConnection {
             .find(|p| self.config.alpn_protocols.iter().any(|a| a.as_ref() == **p))
             .copied();
         if let Some(protocol) = selected_alpn {
-            let protocol = heapless::Vec::from_slice(protocol)
-                .map_err(|_| Error::DecodeError("ALPN protocol is too large. max: 32 bytes".into()))?;
+            let protocol = AlpnProtocol::from_slice(protocol)?;
             let _ = server_hello_exts.push(ext_alpn(&[protocol.as_slice()]));
             self.handshake_state.alpn_selected = Some(protocol);
         }

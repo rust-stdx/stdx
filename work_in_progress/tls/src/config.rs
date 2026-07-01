@@ -1,10 +1,9 @@
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 
 use async_trait::async_trait;
-use bytes::Bytes;
 
 use crate::{
-    Error,
+    AlpnProtocol, Error,
     crypto::{
         CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, MAX_PUBLIC_KEY_BYTES, PSK_MAX_SIZE, SignatureScheme,
     },
@@ -147,7 +146,7 @@ pub struct ClientConfig {
     /// The crypto provider.
     pub crypto: Arc<dyn CryptoProvider>,
     /// ALPN protocols to offer, in preference order.
-    pub alpn_protocols: heapless::Vec<Bytes, 8>,
+    pub alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
     /// Certificate types the client supports (sent via `server_certificate_type`
     /// extension). Defaults to `[CertType::X509]`. To enable raw public keys
     /// add `CertType::RawPublicKey` as well.
@@ -173,7 +172,7 @@ pub struct ClientCertificate {
 impl ClientConfig {
     pub fn new(
         crypto_provider: Arc<dyn CryptoProvider>,
-        alpn_protocols: heapless::Vec<Bytes, 8>,
+        alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
         cert_validator: Arc<dyn CertificateValidator>,
     ) -> Self {
         Self {
@@ -210,7 +209,7 @@ pub struct ServerConfig {
     /// The crypto provider.
     pub provider: Arc<dyn CryptoProvider>,
     /// ALPN protocols the server is willing to select.
-    pub alpn_protocols: heapless::Vec<Bytes, 8>,
+    pub alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
     /// Produces the server's certificate (raw public key) on each connection.
     pub cert_provider: Arc<dyn CertificateProvider>,
     /// Whether to request a client certificate.
@@ -224,7 +223,7 @@ pub struct ServerConfig {
 impl ServerConfig {
     pub fn new(
         provider: Arc<dyn CryptoProvider>,
-        alpn_protocols: heapless::Vec<Bytes, 8>,
+        alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
         cert_provider: Arc<dyn CertificateProvider>,
     ) -> Self {
         Self {

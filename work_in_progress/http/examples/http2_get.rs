@@ -5,7 +5,7 @@ use http::http2::{
     hpack::{HpackDecoder, HpackEncoder},
 };
 use tls::{
-    CertificateValidator, ClientConfig, Error as TlsError, ReceivedCertificate,
+    AlpnProtocol, CertificateValidator, ClientConfig, Error as TlsError, ReceivedCertificate,
     crypto_default_provider::DefaultCryptoProvider, io_tokio::TlsConnector,
 };
 use tokio::{
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = ClientConfig::new(
         Arc::new(DefaultCryptoProvider::new()),
-        [bytes::Bytes::from_static(b"h2")].into(),
+        [AlpnProtocol::from_static(b"h2")].into(),
         Arc::new(AcceptAll),
     );
     let connector = TlsConnector::new(config);

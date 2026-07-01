@@ -6,7 +6,7 @@ use heapless;
 
 use crate::{
     Error,
-    connection::ALPN_MAX_SIZE,
+    connection::ALPN_PROTOCOL_MAX_SIZE,
     crypto::{
         CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SESSION_ID,
         MAX_SIGNATURE_SIZE, SignatureScheme,
@@ -960,7 +960,7 @@ pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, 
     let mut off = 0;
     while off + 1 <= total && off < data.len() {
         let len = data[off] as usize;
-        if len > ALPN_MAX_SIZE {
+        if len > ALPN_PROTOCOL_MAX_SIZE {
             return Err(Error::DecodeError("ALPN protocol is too long (max: 32 bytes)".into()));
         }
         off += 1;

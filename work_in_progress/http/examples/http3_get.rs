@@ -6,6 +6,7 @@ use std::{
 
 use http::http3::{self, frame, qpack};
 use quic::{Config, Instant, IoError, Transport};
+use tls::AlpnProtocol;
 use tokio::net::UdpSocket as TokioUdpSocket;
 
 struct UdpTransport {
@@ -42,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     println!("Connecting to {server_name} at {addr}...");
     let mut config = Config::default();
-    config.alpn_protocols = [bytes::Bytes::from_static(b"h3")].into();
+    config.alpn_protocols = [AlpnProtocol::from_static(b"h3")].into();
 
     let transport = UdpTransport {
         socket: TokioUdpSocket::bind("0.0.0.0:0").await?,

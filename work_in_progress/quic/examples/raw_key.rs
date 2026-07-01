@@ -143,7 +143,7 @@ impl CertificateValidator for PinnedKeyValidator {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(DefaultCryptoProvider::new());
-    let alpn: heapless::Vec<bytes::Bytes, _> = [bytes::Bytes::from_static(b"h3")].into();
+    let alpn: heapless::Vec<_, _> = [tls::AlpnProtocol::from_static(b"h3")].into();
 
     // ── Server config ───────────────────────────────────────────────────
     let server_cfg = ServerConfig::new(provider.clone(), alpn.clone(), Arc::new(StaticCertProvider));
