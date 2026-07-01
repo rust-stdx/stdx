@@ -12,12 +12,10 @@ use bytes::{BufMut, Bytes, BytesMut};
 use heapless;
 
 use crate::{
-    Error,
+    ALPN_PROTOCOL_MAX_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_ALPN_PROTOCOLS, MAX_HASH_SIZE,
+    MAX_KEY_EXCHANGE_PAIRS, MAX_SERVER_NAME_LENGTH, PSK_MAX_SIZE, SHARED_SECRET_MAX_SIZE,
     config::{ClientConfig, ClientHello, ReceivedCertificate, ServerConfig},
-    crypto::{
-        CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KEY_EXCHANGE_PAIRS, MAX_KX_PUBLIC_KEY,
-        MAX_SHARED_SECRET, PSK_MAX_SIZE, SignatureScheme,
-    },
+    crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme},
     error::{CertificateValidationFailure, HandshakeFailure},
     key_schedule::{KeySchedule, TlsKeys},
     message::*,
@@ -50,28 +48,30 @@ fn extract_key_from_spki<'a>(spki_der: &'a [u8]) -> Result<&'a [u8], Error> {
     Ok(&spki_der[key_start..key_start + key_len])
 }
 
-pub const ALPN_PROTOCOL_MAX_SIZE: usize = 32;
-
 #[derive(Clone)]
 pub struct AlpnProtocol(heapless::Vec<u8, ALPN_PROTOCOL_MAX_SIZE>);
 
 impl AlpnProtocol {
+    #[inline]
     pub fn from_slice(protocol: &[u8]) -> Result<Self, Error> {
         let ret = heapless::Vec::from_slice(protocol)
             .map_err(|_| Error::InternalError("ALPN protocol is too long. max: 32 bytes".into()))?;
         Ok(AlpnProtocol(ret))
     }
 
+    #[inline]
     pub fn from_static(protocol: &'static [u8]) -> Self {
         AlpnProtocol(heapless::Vec::from_slice(protocol).expect("ALPN protocol exceeds maximum length of 32 bytes"))
     }
 
+    #[inline]
     pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
 }
 
 impl AsRef<[u8]> for AlpnProtocol {
+    #[inline]
     fn as_ref(&self) -> &[u8] {
         &self.0[..]
     }
@@ -82,8 +82,8 @@ struct HandshakeState {
     cipher_suite: Option<CipherSuite>,
     key_exchange_group: KeyExchangeGroup,
     kx_pairs: heapless::Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>, MAX_KEY_EXCHANGE_PAIRS>,
-    peer_public_key: Option<heapless::Vec<u8, MAX_KX_PUBLIC_KEY>>,
-    shared_secret: Option<heapless::Vec<u8, MAX_SHARED_SECRET>>,
+    peer_public_key: Option<Bytes>,
+    shared_secret: Option<heapless::Vec<u8, SHARED_SECRET_MAX_SIZE>>,
     key_schedule: Option<KeySchedule>,
     keys: Option<TlsKeys>,
     transcript: Vec<u8>,
@@ -94,8 +94,8 @@ struct HandshakeState {
     cert_chain: Option<Vec<Vec<u8>>>,
     negotiated_cert_type: CertType,
     handshake_payload: BytesMut,
-    server_hello_hash: heapless::Vec<u8, MAX_HASH_OUTPUT>,
-    server_finished_hash: heapless::Vec<u8, MAX_HASH_OUTPUT>,
+    server_hello_hash: heapless::Vec<u8, MAX_HASH_SIZE>,
+    server_finished_hash: heapless::Vec<u8, MAX_HASH_SIZE>,
     write_queue: VecDeque<Bytes>,
     app_data_queue: VecDeque<Bytes>,
     handshake_done: bool,
@@ -107,10 +107,10 @@ struct HandshakeState {
     quic_transport_params: Option<Bytes>,
 
     // Current application traffic secrets (for KeyUpdate).
-    client_app_traffic_secret: heapless::Vec<u8, MAX_HASH_OUTPUT>,
-    server_app_traffic_secret: heapless::Vec<u8, MAX_HASH_OUTPUT>,
+    client_app_traffic_secret: heapless::Vec<u8, MAX_HASH_SIZE>,
+    server_app_traffic_secret: heapless::Vec<u8, MAX_HASH_SIZE>,
     pending_key_update_response: bool,
-    psk: Option<heapless::Vec<u8, MAX_HASH_OUTPUT>>,
+    psk: Option<heapless::Vec<u8, MAX_HASH_SIZE>>,
     certificate_request_received: bool,
 }
 
@@ -296,7 +296,7 @@ impl ClientConnection {
         let mut kx_pairs: heapless::Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>, MAX_KEY_EXCHANGE_PAIRS> =
             heapless::Vec::new();
         let mut key_share_entries: heapless::Vec<
-            (KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>),
+            (KeyExchangeGroup, heapless::Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE>),
             MAX_KEY_EXCHANGE_PAIRS,
         > = heapless::Vec::new();
 
@@ -334,7 +334,8 @@ impl ClientConnection {
             let _ = exts.push(ext_server_name(name));
         }
         if !config.alpn_protocols.is_empty() {
-            let alpn_refs: heapless::Vec<&[u8], 8> = config.alpn_protocols.iter().map(|p| p.as_ref()).collect();
+            let alpn_refs: heapless::Vec<&[u8], MAX_ALPN_PROTOCOLS> =
+                config.alpn_protocols.iter().map(|p| p.as_ref()).collect();
             let _ = exts.push(ext_alpn(&alpn_refs[..]));
         }
         if config.cert_types != [CertType::X509] || config.cert_types.len() != 1 {
@@ -343,13 +344,13 @@ impl ClientConnection {
         let cipher_suites = crypto_provider.supported_cipher_suites();
 
         // PSK resumption
-        let mut psk_for_key_schedule: Option<heapless::Vec<u8, MAX_HASH_OUTPUT>> = None;
+        let mut psk_for_key_schedule: Option<heapless::Vec<u8, MAX_HASH_SIZE>> = None;
         let mut random = [0u8; 32];
         if let Some(ref cache) = config.session_cache {
             if let Some(ref name) = server_name {
                 if let Some((ticket, psk)) = cache.get(name).await {
                     let suite = cipher_suites[0];
-                    let mut zeros: heapless::Vec<u8, MAX_HASH_OUTPUT> = heapless::Vec::new();
+                    let mut zeros: heapless::Vec<u8, MAX_HASH_SIZE> = heapless::Vec::new();
                     zeros.resize(suite.hash_size(), 0).unwrap();
                     let early_secret = crypto_provider.hkdf_extract(suite, &zeros, &psk);
                     let binder_key = crypto_provider.hkdf_expand_label(
@@ -432,7 +433,7 @@ impl ClientConnection {
         let mut kx_pairs: heapless::Vec<Box<dyn crate::crypto::KeyExchangeKeyPair>, MAX_KEY_EXCHANGE_PAIRS> =
             heapless::Vec::new();
         let mut key_share_entries: heapless::Vec<
-            (KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>),
+            (KeyExchangeGroup, heapless::Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE>),
             MAX_KEY_EXCHANGE_PAIRS,
         > = heapless::Vec::new();
 
@@ -673,8 +674,10 @@ impl ClientConnection {
         self.handshake_state.key_exchange_group = hrr_group;
         self.handshake_state.kx_pairs.clear();
 
-        let mut key_share_entries: heapless::Vec<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>), 4> =
-            heapless::Vec::new();
+        let mut key_share_entries: heapless::Vec<
+            (KeyExchangeGroup, heapless::Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE>),
+            4,
+        > = heapless::Vec::new();
         for &group in supported_groups {
             let kp = crypto_provider.create_kx_pair(group)?;
             let pk = kp.public_key_bytes();
@@ -1120,7 +1123,7 @@ impl ServerConnection {
         self.handshake_state.server_app_traffic_secret = new_secret;
         let aead = self
             .config
-            .provider
+            .crypto_provider
             .create_aead(self.handshake_state.cipher_suite.unwrap(), &new_key)?;
         self.handshake_state.write_record.set_write_keys(aead, new_iv);
         let ku = encode_key_update(request_update as u8);
@@ -1318,9 +1321,9 @@ impl ServerConnection {
         }
         self.handshake_state.negotiated_version = parse_supported_versions(sv_ext).unwrap_or(0x0304);
 
-        let provider = &self.config.provider;
+        let crypto_provider = &self.config.crypto_provider;
 
-        let suite = provider
+        let suite = crypto_provider
             .supported_cipher_suites()
             .iter()
             .copied()
@@ -1333,7 +1336,7 @@ impl ServerConnection {
         let (group, peer_pk) = parse_key_share(ks_ext)?;
         self.handshake_state.peer_public_key = Some(peer_pk.clone());
 
-        let mut kx_pair = provider.create_kx_pair(group)?;
+        let mut kx_pair = crypto_provider.create_kx_pair(group)?;
         kx_pair.set_peer_public_key(&peer_pk)?;
         let kx_pub = kx_pair.public_key_bytes();
         let shared = kx_pair.shared_secret(self.handshake_state.peer_public_key.as_ref().unwrap())?;
@@ -1341,7 +1344,7 @@ impl ServerConnection {
         let _ = self.handshake_state.kx_pairs.push(kx_pair);
 
         let psk_resolved = self.try_resolve_psk(&ch).await;
-        let mut ks = KeySchedule::new(suite, Arc::clone(provider), psk_resolved.as_deref());
+        let mut ks = KeySchedule::new(suite, Arc::clone(crypto_provider), psk_resolved.as_deref());
         ks.add_shared_secret(self.handshake_state.shared_secret.as_ref().unwrap());
         self.handshake_state.key_schedule = Some(ks);
 
@@ -1361,7 +1364,7 @@ impl ServerConnection {
             if d.len() < 5 + name_len {
                 return None;
             }
-            let mut name = heapless::String::<256>::new();
+            let mut name = heapless::String::<MAX_SERVER_NAME_LENGTH>::new();
             core::str::from_utf8(&d[5..5 + name_len])
                 .ok()
                 .and_then(|s| name.push_str(s).ok().map(|_| name))
@@ -1408,7 +1411,7 @@ impl ServerConnection {
         };
 
         let mut random = [0u8; 32];
-        provider.secure_random(&mut random);
+        crypto_provider.secure_random(&mut random);
 
         let mut server_hello_exts: heapless::Vec<Extension, 6> =
             [ext_supported_versions_server(), ext_key_share_server(&kx_pub, group)].into();
@@ -1429,20 +1432,20 @@ impl ServerConnection {
         let sh = encode_server_hello(&random, &ch.session_id, suite, &server_hello_exts);
         self.handshake_state.transcript.extend_from_slice(&sh);
 
-        let transcript_hash = provider.hash(suite, &self.handshake_state.transcript);
+        let transcript_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
         self.handshake_state.server_hello_hash = transcript_hash.clone();
 
         let ks_ref = self.handshake_state.key_schedule.as_ref().unwrap();
         let c_hs_traffic = ks_ref.client_handshake_traffic_secret(&transcript_hash);
         let s_hs_traffic = ks_ref.server_handshake_traffic_secret(&transcript_hash);
-        let s_hs_key = provider.hkdf_expand_label(suite, &s_hs_traffic, b"tls13 key", &[], suite.key_size());
-        let s_hs_iv: [u8; 12] = provider
+        let s_hs_key = crypto_provider.hkdf_expand_label(suite, &s_hs_traffic, b"tls13 key", &[], suite.key_size());
+        let s_hs_iv: [u8; 12] = crypto_provider
             .hkdf_expand_label(suite, &s_hs_traffic, b"tls13 iv", &[], 12)
             .as_slice()
             .try_into()
             .unwrap();
-        let c_hs_key = provider.hkdf_expand_label(suite, &c_hs_traffic, b"tls13 key", &[], suite.key_size());
-        let c_hs_iv: [u8; 12] = provider
+        let c_hs_key = crypto_provider.hkdf_expand_label(suite, &c_hs_traffic, b"tls13 key", &[], suite.key_size());
+        let c_hs_iv: [u8; 12] = crypto_provider
             .hkdf_expand_label(suite, &c_hs_traffic, b"tls13 iv", &[], 12)
             .as_slice()
             .try_into()
@@ -1450,7 +1453,7 @@ impl ServerConnection {
 
         self.handshake_state
             .write_record
-            .set_write_keys(provider.create_aead(suite, &s_hs_key)?, s_hs_iv);
+            .set_write_keys(crypto_provider.create_aead(suite, &s_hs_key)?, s_hs_iv);
 
         // 1) ServerHello (plaintext handshake record / QUIC CRYPTO frame)
         if self.handshake_state.is_quic {
@@ -1517,7 +1520,7 @@ impl ServerConnection {
         }
 
         // 5) CertificateVerify
-        let cv_transcript_hash = provider.hash(suite, &self.handshake_state.transcript);
+        let cv_transcript_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
         let mut signed_data: heapless::Vec<u8, 200> = heapless::Vec::new();
         let _ = signed_data.extend_from_slice(&[0x20; 64]);
         let _ = signed_data.extend_from_slice(b"TLS 1.3, server CertificateVerify");
@@ -1542,11 +1545,11 @@ impl ServerConnection {
         // 6) Server Finished
         let s_hs_traffic_for_fin = ks_ref.server_handshake_traffic_secret(&self.handshake_state.server_hello_hash);
         let s_fin_key =
-            provider.hkdf_expand_label(suite, &s_hs_traffic_for_fin, b"tls13 finished", &[], suite.hash_size());
+            crypto_provider.hkdf_expand_label(suite, &s_hs_traffic_for_fin, b"tls13 finished", &[], suite.hash_size());
 
-        let fin_transcript_hash = provider.hash(suite, &self.handshake_state.transcript);
+        let fin_transcript_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
 
-        let verify_data = provider.hmac(suite, &s_fin_key, &fin_transcript_hash);
+        let verify_data = crypto_provider.hmac(suite, &s_fin_key, &fin_transcript_hash);
         let fin_msg = encode_finished(&verify_data);
         self.handshake_state.transcript.extend_from_slice(&fin_msg);
         if self.handshake_state.is_quic {
@@ -1561,13 +1564,13 @@ impl ServerConnection {
             );
         }
 
-        let post_sfin_hash = provider.hash(suite, &self.handshake_state.transcript);
+        let post_sfin_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
 
         let keys = ks_ref.derive_traffic_keys(&self.handshake_state.server_hello_hash, &post_sfin_hash);
 
         self.handshake_state
             .read_record
-            .set_read_keys(provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
+            .set_read_keys(crypto_provider.create_aead(suite, &c_hs_key)?, c_hs_iv);
 
         self.handshake_state.client_app_traffic_secret = keys.client_application_traffic_secret.clone();
         self.handshake_state.server_app_traffic_secret = keys.server_application_traffic_secret.clone();
@@ -1632,14 +1635,14 @@ impl ServerConnection {
         let transcript_len_before = self.handshake_state.transcript.len();
         self.handshake_state.transcript.extend_from_slice(&cv.raw);
         let suite = self.handshake_state.cipher_suite.unwrap();
-        let provider = &self.config.provider;
-        let transcript_hash = provider.hash(suite, &self.handshake_state.transcript[..transcript_len_before]);
+        let crypto_provider = &self.config.crypto_provider;
+        let transcript_hash = crypto_provider.hash(suite, &self.handshake_state.transcript[..transcript_len_before]);
         let mut signed_data: heapless::Vec<u8, 200> = heapless::Vec::new();
         let _ = signed_data.extend_from_slice(&[0x20; 64]);
         let _ = signed_data.extend_from_slice(b"TLS 1.3, client CertificateVerify");
         let _ = signed_data.push(0);
         let _ = signed_data.extend_from_slice(&transcript_hash);
-        provider.verify_signature(cv.scheme, pk, &signed_data, &cv.signature)?;
+        crypto_provider.verify_signature(cv.scheme, pk, &signed_data, &cv.signature)?;
         self.state = ServerState::WaitClientFinished;
         Ok(true)
     }
@@ -1662,8 +1665,8 @@ impl ServerConnection {
         // the Client Finished — quic_secrets() needs this for deriving
         // application traffic secrets (RFC 9001 §4.1).
         let suite = self.handshake_state.cipher_suite.unwrap();
-        let provider = &self.config.provider;
-        let sfin_hash = provider.hash(suite, &self.handshake_state.transcript);
+        let crypto_provider = &self.config.crypto_provider;
+        let sfin_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
         self.handshake_state.server_finished_hash.clear();
         self.handshake_state
             .server_finished_hash
@@ -1673,7 +1676,7 @@ impl ServerConnection {
         self.handshake_state.transcript.extend_from_slice(&fin.raw);
 
         let suite = self.handshake_state.cipher_suite.unwrap();
-        let provider = &self.config.provider;
+        let crypto_provider = &self.config.crypto_provider;
         let ks = self.handshake_state.key_schedule.as_ref().unwrap();
         let keys = self
             .handshake_state
@@ -1681,7 +1684,7 @@ impl ServerConnection {
             .as_ref()
             .ok_or_else(|| Error::InternalError("no keys".into()))?;
 
-        let transcript_hash = provider.hash(
+        let transcript_hash = crypto_provider.hash(
             suite,
             &self.handshake_state.transcript[..self.handshake_state.transcript.len() - fin.raw.len()],
         );
@@ -1689,16 +1692,16 @@ impl ServerConnection {
         ks.verify_finished(&keys.client_finished_key, &transcript_hash, &fin.verify_data)?;
 
         self.handshake_state.read_record.set_read_keys(
-            provider.create_aead(suite, &keys.client_application_key)?,
+            crypto_provider.create_aead(suite, &keys.client_application_key)?,
             keys.client_application_iv,
         );
         self.handshake_state.write_record.set_write_keys(
-            provider.create_aead(suite, &keys.server_application_key)?,
+            crypto_provider.create_aead(suite, &keys.server_application_key)?,
             keys.server_application_iv,
         );
 
         // Derive the resumption_master_secret now that the client's Finished is in the transcript.
-        let client_fin_hash = provider.hash(suite, &self.handshake_state.transcript);
+        let client_fin_hash = crypto_provider.hash(suite, &self.handshake_state.transcript);
         let res_master = ks.derive_resumption_secret(&client_fin_hash);
         let res_master_clone = res_master.clone();
         self.handshake_state.keys.as_mut().unwrap().resumption_master_secret = res_master;
@@ -1707,12 +1710,12 @@ impl ServerConnection {
         if let Some(ref store) = self.config.session_tickets {
             let ticket_lifetime = 86400u32;
             let mut ticket_age_add = [0u8; 4];
-            provider.secure_random(&mut ticket_age_add);
+            crypto_provider.secure_random(&mut ticket_age_add);
             let mut ticket_nonce = [0u8; 8];
-            provider.secure_random(&mut ticket_nonce);
+            crypto_provider.secure_random(&mut ticket_nonce);
             let mut ticket = [0u8; 32];
-            provider.secure_random(&mut ticket);
-            let psk = provider.hkdf_expand_label(
+            crypto_provider.secure_random(&mut ticket);
+            let psk = crypto_provider.hkdf_expand_label(
                 suite,
                 &res_master_clone,
                 b"tls13 resumption",
@@ -1777,16 +1780,16 @@ impl ServerConnection {
         let request_update = decode_key_update(payload)?;
         let suite = self.handshake_state.cipher_suite.unwrap();
         let ks = self.handshake_state.key_schedule.as_ref().unwrap();
-        let provider = &self.config.provider;
+        let crypto_provider = &self.config.crypto_provider;
         let (new_secret, new_key, new_iv) = ks.key_update_traffic(&self.handshake_state.client_app_traffic_secret);
         self.handshake_state.client_app_traffic_secret = new_secret;
-        let aead = provider.create_aead(suite, &new_key)?;
+        let aead = crypto_provider.create_aead(suite, &new_key)?;
         self.handshake_state.read_record.set_read_keys(aead, new_iv);
         if request_update == 1 && !self.handshake_state.pending_key_update_response {
             self.handshake_state.pending_key_update_response = true;
             let (new_ws, new_wk, new_wiv) = ks.key_update_traffic(&self.handshake_state.server_app_traffic_secret);
             self.handshake_state.server_app_traffic_secret = new_ws;
-            let waead = provider.create_aead(suite, &new_wk)?;
+            let waead = crypto_provider.create_aead(suite, &new_wk)?;
             self.handshake_state.write_record.set_write_keys(waead, new_wiv);
             let ku = encode_key_update(0);
             let encrypted = self

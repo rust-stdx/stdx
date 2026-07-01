@@ -3,8 +3,8 @@ use alloc::{boxed::Box, sync::Arc};
 use heapless::Vec;
 
 use crate::{
-    Error,
-    crypto::{Aead, CipherSuite, CryptoProvider, MAX_HASH_OUTPUT},
+    Error, MAX_HASH_SIZE,
+    crypto::{Aead, CipherSuite, CryptoProvider},
     message::Extension,
 };
 
@@ -15,12 +15,12 @@ pub fn transport_parameters_extension(params: &[u8]) -> Extension {
 // ── QUIC traffic secrets (output of the TLS handshake) ───────────────────
 
 pub struct QuicSecrets {
-    pub client_early_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_handshake_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub server_handshake_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_application_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub server_application_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub exporter_master_secret: Vec<u8, MAX_HASH_OUTPUT>,
+    pub client_early_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub client_handshake_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub server_handshake_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub client_application_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub server_application_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub exporter_master_secret: Vec<u8, MAX_HASH_SIZE>,
 }
 
 pub fn extract_quic_secrets(
@@ -70,8 +70,8 @@ const INITIAL_SALT_V2: [u8; 20] = [
 /// [`derive_next_keys`].
 pub struct QuicPacketProtection {
     aead: Box<dyn Aead>,
-    key: Vec<u8, MAX_HASH_OUTPUT>,
-    hp_key: Vec<u8, MAX_HASH_OUTPUT>,
+    key: Vec<u8, MAX_HASH_SIZE>,
+    hp_key: Vec<u8, MAX_HASH_SIZE>,
     suite: CipherSuite,
     iv: [u8; 12],
     provider: Arc<dyn CryptoProvider>,
@@ -83,8 +83,8 @@ impl QuicPacketProtection {
     /// This is a low-level constructor; prefer [`derive_level_keys`].
     pub fn from_parts(
         aead: Box<dyn Aead>,
-        key: Vec<u8, MAX_HASH_OUTPUT>,
-        hp_key: Vec<u8, MAX_HASH_OUTPUT>,
+        key: Vec<u8, MAX_HASH_SIZE>,
+        hp_key: Vec<u8, MAX_HASH_SIZE>,
         suite: CipherSuite,
         iv: [u8; 12],
         provider: Arc<dyn CryptoProvider>,
@@ -269,7 +269,7 @@ pub fn derive_next_keys(
     provider: Arc<dyn CryptoProvider>,
     suite: CipherSuite,
     current_traffic_secret: &[u8],
-) -> Result<(Vec<u8, MAX_HASH_OUTPUT>, QuicPacketProtection), Error> {
+) -> Result<(Vec<u8, MAX_HASH_SIZE>, QuicPacketProtection), Error> {
     let hash_len = suite.hash_size();
     let new_secret = provider.hkdf_expand_label(suite, current_traffic_secret, b"tls13 quic ku", b"", hash_len);
     let protection = derive_level_keys_inner(Arc::clone(&provider), suite, &new_secret)?;

@@ -5,12 +5,8 @@ use bytes::{BufMut, Bytes, BytesMut};
 use heapless;
 
 use crate::{
-    Error,
-    connection::ALPN_PROTOCOL_MAX_SIZE,
-    crypto::{
-        CertType, CipherSuite, KeyExchangeGroup, MAX_HASH_OUTPUT, MAX_KX_PUBLIC_KEY, MAX_SESSION_ID,
-        MAX_SIGNATURE_SIZE, SignatureScheme,
-    },
+    ALPN_PROTOCOL_MAX_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SESSION_ID, MAX_SIGNATURE_SIZE,
+    crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme},
 };
 
 // ── Handshake types ───────────────────────────────────────────────────────
@@ -657,7 +653,7 @@ pub fn encode_finished(verify_data: &[u8]) -> Bytes {
 
 #[derive(Debug, Clone)]
 pub struct Finished {
-    pub verify_data: heapless::Vec<u8, MAX_HASH_OUTPUT>,
+    pub verify_data: heapless::Vec<u8, MAX_HASH_SIZE>,
     pub raw: Bytes,
 }
 
@@ -670,7 +666,7 @@ impl Finished {
                 got: msg_type.name(),
             });
         }
-        let mut verify_data = heapless::Vec::<u8, MAX_HASH_OUTPUT>::new();
+        let mut verify_data = heapless::Vec::<u8, MAX_HASH_SIZE>::new();
         verify_data
             .extend_from_slice(body)
             .map_err(|_| Error::DecodeError("verify_data too long".into()))?;
@@ -853,7 +849,7 @@ pub fn ext_key_share_hrr(group: KeyExchangeGroup) -> Extension {
 }
 
 /// Parse a key share extension from a ClientHello.
-pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>), Error> {
+pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Error> {
     let data = &ext.data[..];
     if data.len() < 6 {
         return Err(Error::DecodeError("key_share too short".into()));
@@ -861,17 +857,19 @@ pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, heapless::V
     let _total = u16::from_be_bytes([data[0], data[1]]) as usize;
     let group = KeyExchangeGroup::from_wire([data[2], data[3]])
         .ok_or_else(|| Error::DecodeError("unknown kx group in key_share".into()))?;
+
     let pk_len = u16::from_be_bytes([data[4], data[5]]) as usize;
-    let mut pk = heapless::Vec::<u8, MAX_KX_PUBLIC_KEY>::new();
-    pk.extend_from_slice(&data[6..6 + pk_len])
-        .map_err(|_| Error::DecodeError("key share data too large".into()))?;
-    Ok((group, pk))
+    if pk_len > KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE {
+        return Err(Error::DecodeError("key share data too large".into()));
+    }
+
+    let mut public_key = BytesMut::with_capacity(pk_len);
+    public_key.extend_from_slice(&data[6..6 + pk_len]);
+    Ok((group, public_key.freeze()))
 }
 
 /// Parse a key share extension from a ServerHello (no total length prefix).
-pub fn parse_key_share_server(
-    ext: &Extension,
-) -> Result<(KeyExchangeGroup, heapless::Vec<u8, MAX_KX_PUBLIC_KEY>), Error> {
+pub fn parse_key_share_server(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Error> {
     let data = &ext.data[..];
     if data.len() < 4 {
         return Err(Error::DecodeError("key_share (ServerHello) too short".into()));
@@ -879,10 +877,13 @@ pub fn parse_key_share_server(
     let group = KeyExchangeGroup::from_wire([data[0], data[1]])
         .ok_or_else(|| Error::DecodeError("unknown kx group in ServerHello key_share".into()))?;
     let pk_len = u16::from_be_bytes([data[2], data[3]]) as usize;
-    let mut pk = heapless::Vec::<u8, MAX_KX_PUBLIC_KEY>::new();
-    pk.extend_from_slice(&data[4..4 + pk_len])
-        .map_err(|_| Error::DecodeError("key share data too large".into()))?;
-    Ok((group, pk))
+    if pk_len > KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE {
+        return Err(Error::DecodeError("key share data too large".into()));
+    }
+
+    let mut public_key = BytesMut::with_capacity(pk_len);
+    public_key.extend_from_slice(&data[4..4 + pk_len]);
+    Ok((group, public_key.freeze()))
 }
 
 /// Build a `signature_algorithms` extension.

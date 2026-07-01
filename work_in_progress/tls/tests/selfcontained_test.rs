@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tls::{
-    CertType, ClientConfig, ClientConnection, Error, HandshakeFailure, ServerConfig, ServerConnection,
+    CertType, ClientConfig, ClientConnection, Error, HandshakeFailure, SIGNING_PUBLIC_KEY_MAX_SIZE, ServerConfig,
+    ServerConnection,
     config::{CertificateProvider, ClientHello, ProvidedCertificate},
-    crypto::{CryptoProvider, MAX_PUBLIC_KEY_BYTES},
+    crypto::CryptoProvider,
     crypto_default_provider::DefaultCryptoProvider,
 };
 
@@ -39,7 +40,7 @@ impl CertificateProvider for DummyCertProvider {
     }
 }
 
-fn build_ed25519_spki(public_key: &[u8; 32]) -> heapless::Vec<u8, MAX_PUBLIC_KEY_BYTES> {
+fn build_ed25519_spki(public_key: &[u8; 32]) -> heapless::Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE> {
     let mut spki = heapless::Vec::new();
     let alg_id = [0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70];
     let bitstring_len = 2 + 1 + 32; // 0x03, 0x21, 0x00, 32 bytes

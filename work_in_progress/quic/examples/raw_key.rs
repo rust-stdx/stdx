@@ -17,12 +17,12 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use quic::{Config, Instant, IoError, Transport};
 use tls::{
-    CertType, ClientConfig, ServerConfig,
+    CertType, ClientConfig, SIGNING_PUBLIC_KEY_MAX_SIZE, ServerConfig,
     config::{
         CertificateProvider, CertificateValidator, ClientHello, ProvidedCertificate, RawPublicKeyCert,
         ReceivedCertificate,
     },
-    crypto::{CryptoProvider, MAX_PUBLIC_KEY_BYTES, SignatureScheme},
+    crypto::{CryptoProvider, SignatureScheme},
     crypto_default_provider::DefaultCryptoProvider,
 };
 use tokio::net::UdpSocket as TokioUdpSocket;
@@ -42,7 +42,7 @@ fn server_public_key() -> [u8; 32] {
 
 // ── DER SPKI builder ───────────────────────────────────────────────────
 
-fn build_ed25519_spki(public_key: [u8; 32]) -> heapless::Vec<u8, MAX_PUBLIC_KEY_BYTES> {
+fn build_ed25519_spki(public_key: [u8; 32]) -> heapless::Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE> {
     let mut spki = heapless::Vec::new();
     let alg_id: [u8; 7] = [0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70];
     let bitstring_len = 2 + 1 + 32;

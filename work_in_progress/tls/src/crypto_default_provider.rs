@@ -9,11 +9,9 @@ use crypto::{
 use heapless::Vec;
 
 use crate::{
-    Error,
-    crypto::{
-        Aead, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeKeyPair, MAX_AEAD_TAG_SIZE, MAX_HASH_OUTPUT,
-        MAX_KX_PUBLIC_KEY, MAX_PUBLIC_KEY_BYTES, MAX_SHARED_SECRET, MAX_SIGNATURE_SIZE, SignatureScheme, Signer,
-    },
+    AEAD_MAX_TAG_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SIGNATURE_SIZE,
+    SHARED_SECRET_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE,
+    crypto::{Aead, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeKeyPair, SignatureScheme, Signer},
     error::{CertificateValidationFailure, CryptoFailure, InvalidKeyFailure},
 };
 
@@ -219,7 +217,7 @@ impl CryptoProvider for DefaultCryptoProvider {
         }
     }
 
-    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let mut out = Vec::new();
         match suite {
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
@@ -237,7 +235,7 @@ impl CryptoProvider for DefaultCryptoProvider {
         crypto::random_fill(buf);
     }
 
-    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let mut out = Vec::new();
         match suite {
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
@@ -251,7 +249,7 @@ impl CryptoProvider for DefaultCryptoProvider {
         out
     }
 
-    fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let mut out = Vec::new();
         match suite {
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
@@ -267,8 +265,8 @@ impl CryptoProvider for DefaultCryptoProvider {
         out
     }
 
-    fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_OUTPUT> {
-        fn expand_inner<H: Hasher>(prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_SIZE> {
+        fn expand_inner<H: Hasher>(prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_SIZE> {
             let mut out = Vec::new();
             match length {
                 12 => {
@@ -305,7 +303,7 @@ impl CryptoProvider for DefaultCryptoProvider {
         label: &[u8],
         context: &[u8],
         length: usize,
-    ) -> Vec<u8, MAX_HASH_OUTPUT> {
+    ) -> Vec<u8, MAX_HASH_SIZE> {
         let mut hkdf_label = Vec::<u8, 128>::new();
         hkdf_label.extend_from_slice(&(length as u16).to_be_bytes()).unwrap();
         hkdf_label.push(label.len() as u8).unwrap();
@@ -373,7 +371,7 @@ impl Aes128GcmAead {
 }
 
 impl Aead for Aes128GcmAead {
-    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> heapless::Vec<u8, MAX_AEAD_TAG_SIZE> {
+    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> heapless::Vec<u8, AEAD_MAX_TAG_SIZE> {
         let tag = self.0.encrypt_in_place(buf, nonce, aad);
         tag.as_ref().try_into().unwrap()
     }
@@ -459,7 +457,7 @@ impl ChaCha20Poly1305Aead {
 }
 
 impl Aead for ChaCha20Poly1305Aead {
-    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> heapless::Vec<u8, MAX_AEAD_TAG_SIZE> {
+    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> heapless::Vec<u8, AEAD_MAX_TAG_SIZE> {
         let tag = self.0.encrypt_in_place(buf, nonce, aad);
         tag.as_ref().try_into().unwrap()
     }
@@ -502,14 +500,14 @@ impl KeyExchangeKeyPair for X25519KxKeyPair {
         KeyExchangeGroup::X25519
     }
 
-    fn public_key_bytes(&self) -> Vec<u8, MAX_KX_PUBLIC_KEY> {
+    fn public_key_bytes(&self) -> Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE> {
         let arr = self.0.public_key().to_bytes();
         let mut out = Vec::new();
         out.extend_from_slice(&arr).unwrap();
         out
     }
 
-    fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, MAX_SHARED_SECRET>, Error> {
+    fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, SHARED_SECRET_MAX_SIZE>, Error> {
         let peer_bytes: [u8; 32] = peer_public_key.try_into().map_err(|_| {
             Error::InvalidKey(InvalidKeyFailure::WrongLength {
                 algorithm: "X25519",
@@ -530,7 +528,7 @@ struct X25519MlKem768KxKeyPair {
     mlkem_secret: Option<SecretKey768>,
     mlkem_public: Option<PublicKey768>,
     peer_x25519_public_key: Option<crypto::curve25519::x25519::PublicKey>,
-    our_public_bytes: Option<Vec<u8, MAX_KX_PUBLIC_KEY>>,
+    our_public_bytes: Option<Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE>>,
     mlkem_shared_secret: Option<[u8; 32]>,
 }
 
@@ -539,7 +537,7 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
         KeyExchangeGroup::X25519MlKem768
     }
 
-    fn public_key_bytes(&self) -> Vec<u8, MAX_KX_PUBLIC_KEY> {
+    fn public_key_bytes(&self) -> Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE> {
         if let Some(ref cached) = self.our_public_bytes {
             cached.clone()
         } else {
@@ -585,7 +583,7 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
         Ok(())
     }
 
-    fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, MAX_SHARED_SECRET>, Error> {
+    fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, SHARED_SECRET_MAX_SIZE>, Error> {
         let x25519_ss = if let Some(ref peer_pk) = self.peer_x25519_public_key {
             self.x25519_secret.ecdh(peer_pk)
         } else {
@@ -646,7 +644,7 @@ impl Signer for Ed25519Signer {
         SignatureScheme::Ed25519
     }
 
-    fn public_key_bytes(&self) -> Vec<u8, MAX_PUBLIC_KEY_BYTES> {
+    fn public_key_bytes(&self) -> Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE> {
         let mut out = Vec::new();
         out.extend_from_slice(&self.pk_bytes).unwrap();
         out
@@ -670,7 +668,7 @@ impl Signer for P256Signer {
         SignatureScheme::EcdsaP256Sha256
     }
 
-    fn public_key_bytes(&self) -> Vec<u8, MAX_PUBLIC_KEY_BYTES> {
+    fn public_key_bytes(&self) -> Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE> {
         let mut out = Vec::new();
         out.extend_from_slice(&self.pk_bytes).unwrap();
         out
@@ -695,7 +693,7 @@ impl Signer for P384Signer {
         SignatureScheme::EcdsaP384Sha384
     }
 
-    fn public_key_bytes(&self) -> Vec<u8, MAX_PUBLIC_KEY_BYTES> {
+    fn public_key_bytes(&self) -> Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE> {
         let mut out = Vec::new();
         out.extend_from_slice(&self.pk_bytes).unwrap();
         out

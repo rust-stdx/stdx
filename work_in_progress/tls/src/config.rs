@@ -3,10 +3,8 @@ use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use async_trait::async_trait;
 
 use crate::{
-    AlpnProtocol, Error,
-    crypto::{
-        CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, MAX_PUBLIC_KEY_BYTES, PSK_MAX_SIZE, SignatureScheme,
-    },
+    AlpnProtocol, Error, MAX_ALPN_PROTOCOLS, PSK_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE,
+    crypto::{CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, SignatureScheme},
 };
 
 /// Parsed client hello information passed to [`CertificateProvider`].
@@ -60,7 +58,7 @@ pub struct ProvidedCertificate {
 /// message.
 pub struct RawPublicKeyCert {
     /// The raw public key bytes (placed in the Certificate message).
-    pub public_key: heapless::Vec<u8, MAX_PUBLIC_KEY_BYTES>,
+    pub public_key: heapless::Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE>,
     /// Signer for the CertificateVerify signature.
     pub signer: Box<dyn crate::crypto::Signer>,
 }
@@ -81,7 +79,7 @@ pub enum ReceivedCertificate {
     /// A raw public key (RFC 7250).
     RawPublicKey {
         /// Raw public key bytes (SubjectPublicKeyInfo DER).
-        public_key: heapless::Vec<u8, MAX_PUBLIC_KEY_BYTES>,
+        public_key: heapless::Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE>,
         /// Signature scheme used for this certificate.
         scheme: SignatureScheme,
     },
@@ -146,7 +144,7 @@ pub struct ClientConfig {
     /// The crypto provider.
     pub crypto: Arc<dyn CryptoProvider>,
     /// ALPN protocols to offer, in preference order.
-    pub alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
+    pub alpn_protocols: heapless::Vec<AlpnProtocol, MAX_ALPN_PROTOCOLS>,
     /// Certificate types the client supports (sent via `server_certificate_type`
     /// extension). Defaults to `[CertType::X509]`. To enable raw public keys
     /// add `CertType::RawPublicKey` as well.
@@ -172,7 +170,7 @@ pub struct ClientCertificate {
 impl ClientConfig {
     pub fn new(
         crypto_provider: Arc<dyn CryptoProvider>,
-        alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
+        alpn_protocols: heapless::Vec<AlpnProtocol, MAX_ALPN_PROTOCOLS>,
         cert_validator: Arc<dyn CertificateValidator>,
     ) -> Self {
         Self {
@@ -207,9 +205,9 @@ impl ClientConfig {
 #[derive(Clone)]
 pub struct ServerConfig {
     /// The crypto provider.
-    pub provider: Arc<dyn CryptoProvider>,
+    pub crypto_provider: Arc<dyn CryptoProvider>,
     /// ALPN protocols the server is willing to select.
-    pub alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
+    pub alpn_protocols: heapless::Vec<AlpnProtocol, MAX_ALPN_PROTOCOLS>,
     /// Produces the server's certificate (raw public key) on each connection.
     pub cert_provider: Arc<dyn CertificateProvider>,
     /// Whether to request a client certificate.
@@ -222,12 +220,12 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn new(
-        provider: Arc<dyn CryptoProvider>,
-        alpn_protocols: heapless::Vec<AlpnProtocol, 8>,
+        crypto_provider: Arc<dyn CryptoProvider>,
+        alpn_protocols: heapless::Vec<AlpnProtocol, MAX_ALPN_PROTOCOLS>,
         cert_provider: Arc<dyn CertificateProvider>,
     ) -> Self {
         Self {
-            provider,
+            crypto_provider,
             alpn_protocols,
             cert_provider,
             require_client_auth: false,

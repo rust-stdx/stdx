@@ -43,7 +43,7 @@ impl TlsConfig {
     pub fn crypto_provider(&self) -> Arc<dyn CryptoProvider> {
         match self {
             TlsConfig::Client(cfg) => cfg.crypto.clone(),
-            TlsConfig::Server(cfg) => cfg.provider.clone(),
+            TlsConfig::Server(cfg) => cfg.crypto_provider.clone(),
         }
     }
 

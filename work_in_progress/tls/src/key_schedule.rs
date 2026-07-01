@@ -5,7 +5,8 @@ use heapless::Vec;
 use zeroize::Zeroize;
 
 use crate::{
-    crypto::{CipherSuite, CryptoProvider, MAX_HASH_OUTPUT},
+    MAX_HASH_SIZE,
+    crypto::{CipherSuite, CryptoProvider},
     error::HandshakeFailure,
 };
 
@@ -20,7 +21,7 @@ fn derive_secret(
     transcript_hash: &[u8],
     provider: &Arc<dyn CryptoProvider>,
     suite: CipherSuite,
-) -> Vec<u8, MAX_HASH_OUTPUT> {
+) -> Vec<u8, MAX_HASH_SIZE> {
     let hash_size = suite.hash_size();
     provider.hkdf_expand_label(suite, secret, label, transcript_hash, hash_size)
 }
@@ -28,24 +29,24 @@ fn derive_secret(
 #[derive(Clone)]
 pub struct TlsKeys {
     pub suite: CipherSuite,
-    pub client_handshake_key: Vec<u8, MAX_HASH_OUTPUT>,
+    pub client_handshake_key: Vec<u8, MAX_HASH_SIZE>,
     pub client_handshake_iv: [u8; 12],
-    pub server_handshake_key: Vec<u8, MAX_HASH_OUTPUT>,
+    pub server_handshake_key: Vec<u8, MAX_HASH_SIZE>,
     pub server_handshake_iv: [u8; 12],
-    pub server_finished_key: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_finished_key: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_application_key: Vec<u8, MAX_HASH_OUTPUT>,
+    pub server_finished_key: Vec<u8, MAX_HASH_SIZE>,
+    pub client_finished_key: Vec<u8, MAX_HASH_SIZE>,
+    pub client_application_key: Vec<u8, MAX_HASH_SIZE>,
     pub client_application_iv: [u8; 12],
-    pub server_application_key: Vec<u8, MAX_HASH_OUTPUT>,
+    pub server_application_key: Vec<u8, MAX_HASH_SIZE>,
     pub server_application_iv: [u8; 12],
-    pub resumption_master_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_handshake_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub server_handshake_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_application_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub server_application_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub client_early_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    pub binder_key: Vec<u8, MAX_HASH_OUTPUT>,
-    pub exporter_master_secret: Vec<u8, MAX_HASH_OUTPUT>,
+    pub resumption_master_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub client_handshake_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub server_handshake_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub client_application_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub server_application_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub client_early_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    pub binder_key: Vec<u8, MAX_HASH_SIZE>,
+    pub exporter_master_secret: Vec<u8, MAX_HASH_SIZE>,
 }
 
 #[cfg(feature = "zeroize")]
@@ -75,11 +76,11 @@ impl Drop for TlsKeys {
 pub struct KeySchedule {
     suite: CipherSuite,
     provider: Arc<dyn CryptoProvider>,
-    early_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    handshake_secret: Option<Vec<u8, MAX_HASH_OUTPUT>>,
-    master_secret: Option<Vec<u8, MAX_HASH_OUTPUT>>,
-    client_early_traffic_secret: Vec<u8, MAX_HASH_OUTPUT>,
-    zero_hash: Vec<u8, MAX_HASH_OUTPUT>,
+    early_secret: Vec<u8, MAX_HASH_SIZE>,
+    handshake_secret: Option<Vec<u8, MAX_HASH_SIZE>>,
+    master_secret: Option<Vec<u8, MAX_HASH_SIZE>>,
+    client_early_traffic_secret: Vec<u8, MAX_HASH_SIZE>,
+    zero_hash: Vec<u8, MAX_HASH_SIZE>,
 }
 
 #[cfg(feature = "zeroize")]
@@ -103,7 +104,7 @@ impl KeySchedule {
         let zero_hash = provider.hash(suite, &[]);
 
         let zeros = {
-            let mut v: Vec<u8, MAX_HASH_OUTPUT> = Vec::new();
+            let mut v: Vec<u8, MAX_HASH_SIZE> = Vec::new();
             v.resize(hash_size, 0).unwrap();
             v
         };
@@ -153,7 +154,7 @@ impl KeySchedule {
             .hkdf_extract(self.suite, &derived[..hash_size], shared_secret);
 
         let zeros = {
-            let mut v: Vec<u8, MAX_HASH_OUTPUT> = Vec::new();
+            let mut v: Vec<u8, MAX_HASH_SIZE> = Vec::new();
             v.resize(hash_size, 0).unwrap();
             v
         };
@@ -281,12 +282,12 @@ impl KeySchedule {
     /// Must be called *after* the client's Finished message has been appended
     /// to the transcript. `client_finished_transcript` is
     /// `Transcript-Hash(ClientHello...client Finished)`.
-    pub fn derive_resumption_secret(&self, client_finished_transcript: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn derive_resumption_secret(&self, client_finished_transcript: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let ms = self.master_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(ms, b"tls13 res master", client_finished_transcript, &self.provider, self.suite)
     }
 
-    pub fn compute_binder_key(&self) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn compute_binder_key(&self) -> Vec<u8, MAX_HASH_SIZE> {
         self.provider.hkdf_expand_label(
             self.suite,
             &self.early_secret,
@@ -296,7 +297,7 @@ impl KeySchedule {
         )
     }
 
-    pub fn compute_finished(&self, finished_key: &[u8], transcript_hash: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn compute_finished(&self, finished_key: &[u8], transcript_hash: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         self.provider.hmac(self.suite, finished_key, transcript_hash)
     }
 
@@ -328,27 +329,27 @@ impl KeySchedule {
         self.handshake_secret.as_deref()
     }
 
-    pub fn client_handshake_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn client_handshake_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let hs = self.handshake_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(hs, b"tls13 c hs traffic", transcript, &self.provider, self.suite)
     }
 
-    pub fn server_handshake_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn server_handshake_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let hs = self.handshake_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(hs, b"tls13 s hs traffic", transcript, &self.provider, self.suite)
     }
 
-    pub fn client_application_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn client_application_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let ms = self.master_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(ms, b"tls13 c ap traffic", transcript, &self.provider, self.suite)
     }
 
-    pub fn server_application_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn server_application_traffic_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let ms = self.master_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(ms, b"tls13 s ap traffic", transcript, &self.provider, self.suite)
     }
 
-    pub fn exporter_master_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    pub fn exporter_master_secret(&self, transcript: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         let ms = self.master_secret.as_ref().expect("add_shared_secret not called");
         derive_secret(ms, b"tls13 exp master", transcript, &self.provider, self.suite)
     }
@@ -365,10 +366,7 @@ impl KeySchedule {
     /// ```
     ///
     /// Returns the new traffic secret (for the next update), key, and IV.
-    pub fn key_update_traffic(
-        &self,
-        old_secret: &[u8],
-    ) -> (Vec<u8, MAX_HASH_OUTPUT>, Vec<u8, MAX_HASH_OUTPUT>, [u8; 12]) {
+    pub fn key_update_traffic(&self, old_secret: &[u8]) -> (Vec<u8, MAX_HASH_SIZE>, Vec<u8, MAX_HASH_SIZE>, [u8; 12]) {
         let hash_size = self.suite.hash_size();
         let new_secret = self
             .provider

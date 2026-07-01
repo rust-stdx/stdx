@@ -2,19 +2,10 @@ use alloc::boxed::Box;
 
 use heapless::Vec;
 
-use crate::Error;
-
-pub const MAX_HASH_OUTPUT: usize = 48;
-pub const MAX_KEY_SIZE: usize = 32;
-pub const MAX_AEAD_TAG_SIZE: usize = 32;
-pub const MAX_KX_PUBLIC_KEY: usize = 1216;
-pub const MAX_SHARED_SECRET: usize = 64;
-pub const MAX_PUBLIC_KEY_BYTES: usize = 97;
-pub const MAX_SIGNATURE_SIZE: usize = 256;
-pub const MAX_SESSION_ID: usize = 32;
-pub const MAX_CERT_TYPES: usize = 4;
-pub const MAX_KEY_EXCHANGE_PAIRS: usize = 6;
-pub const PSK_MAX_SIZE: usize = MAX_HASH_OUTPUT;
+use crate::{
+    AEAD_MAX_TAG_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SIGNATURE_SIZE,
+    SHARED_SECRET_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE,
+};
 
 /// A cryptographic provider that supplies all primitives needed for a TLS 1.3
 /// connection.
@@ -55,19 +46,19 @@ pub trait CryptoProvider: Send + Sync + 'static {
 
     /// Hash the given data using the hash function associated with the given
     /// cipher suite (oneshot).
-    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT>;
+    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_SIZE>;
 
     /// Fill `buf` with cryptographically secure random bytes.
     fn secure_random(&self, buf: &mut [u8]);
 
     /// Compute HMAC-Hash for the given cipher suite.
-    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT>;
+    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_SIZE>;
 
     /// HKDF-Extract for the given cipher suite.
-    fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT>;
+    fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_SIZE>;
 
     /// HKDF-Expand for the given cipher suite.
-    fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_OUTPUT>;
+    fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_SIZE>;
 
     /// HKDF-Expand-Label (RFC 8446 §7.1).
     ///
@@ -79,7 +70,7 @@ pub trait CryptoProvider: Send + Sync + 'static {
         label: &[u8],
         context: &[u8],
         length: usize,
-    ) -> Vec<u8, MAX_HASH_OUTPUT>;
+    ) -> Vec<u8, MAX_HASH_SIZE>;
 
     /// Compute the QUIC header protection mask (RFC 9001 §5.4).
     ///
@@ -126,7 +117,7 @@ impl<T: CryptoProvider> CryptoProvider for alloc::sync::Arc<T> {
         (**self).verify_signature(scheme, public_key, data, signature)
     }
 
-    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         (**self).hash(suite, data)
     }
 
@@ -134,15 +125,15 @@ impl<T: CryptoProvider> CryptoProvider for alloc::sync::Arc<T> {
         (**self).secure_random(buf)
     }
 
-    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         (**self).hmac(suite, key, data)
     }
 
-    fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hkdf_extract(&self, suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Vec<u8, MAX_HASH_SIZE> {
         (**self).hkdf_extract(suite, salt, ikm)
     }
 
-    fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_OUTPUT> {
+    fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_SIZE> {
         (**self).hkdf_expand(suite, prk, info, length)
     }
 
@@ -153,7 +144,7 @@ impl<T: CryptoProvider> CryptoProvider for alloc::sync::Arc<T> {
         label: &[u8],
         context: &[u8],
         length: usize,
-    ) -> Vec<u8, MAX_HASH_OUTPUT> {
+    ) -> Vec<u8, MAX_HASH_SIZE> {
         (**self).hkdf_expand_label(suite, secret, label, context, length)
     }
 
@@ -168,7 +159,7 @@ impl<T: CryptoProvider> CryptoProvider for alloc::sync::Arc<T> {
 pub trait Aead: Send + Sync {
     /// Encrypt `plaintext` in place, appending the authentication tag.
     /// The buffer must have space for `plaintext.len() + tag_size()` bytes past the plaintext.
-    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> Vec<u8, MAX_AEAD_TAG_SIZE>;
+    fn encrypt(&self, buf: &mut [u8], nonce: &[u8], aad: &[u8]) -> Vec<u8, AEAD_MAX_TAG_SIZE>;
 
     /// Decrypt `ciphertext` in place.
     ///
@@ -193,10 +184,10 @@ pub trait KeyExchangeKeyPair: Send + Sync {
     fn group(&self) -> KeyExchangeGroup;
 
     /// Our public key bytes.
-    fn public_key_bytes(&self) -> Vec<u8, MAX_KX_PUBLIC_KEY>;
+    fn public_key_bytes(&self) -> Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE>;
 
     /// Derive the shared secret from the peer's public key.
-    fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, MAX_SHARED_SECRET>, Error>;
+    fn shared_secret(&self, peer_public_key: &[u8]) -> Result<Vec<u8, SHARED_SECRET_MAX_SIZE>, Error>;
 
     /// Inject the peer's public key before [`public_key_bytes`](Self::public_key_bytes)
     /// is called.
@@ -217,7 +208,7 @@ pub trait Signer: Send + Sync {
     fn scheme(&self) -> SignatureScheme;
 
     /// Raw public key bytes that will be placed in the Certificate message.
-    fn public_key_bytes(&self) -> Vec<u8, MAX_PUBLIC_KEY_BYTES>;
+    fn public_key_bytes(&self) -> Vec<u8, SIGNING_PUBLIC_KEY_MAX_SIZE>;
 
     /// Sign the given data.
     fn sign(&self, data: &[u8]) -> Result<Vec<u8, MAX_SIGNATURE_SIZE>, Error>;
