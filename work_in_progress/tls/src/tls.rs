@@ -43,6 +43,11 @@ pub const ALPN_PROTOCOL_MAX_SIZE: usize = 32;
 pub const MAX_SERVER_NAME_LENGTH: usize = 256;
 /// Maximum number of cipher suites in a ClientHello
 pub const MAX_CLIENT_HELLO_CIPHERSUITES: usize = 16;
+/// Maximum number of extensions in a TLS handshake message
+pub const MAX_EXTENSIONS: usize = 16;
+
+/// Maximum number of certificate in a chain
+pub const MAX_CERTIFICATES_IN_CHAIN: usize = 10;
 
 mod errors;
 mod message;

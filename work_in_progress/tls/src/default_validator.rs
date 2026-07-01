@@ -157,12 +157,16 @@ impl WebPkiValidator {
                     let issuer_der = &chain[i + 1];
                     let spki_full = x509::extract_spki_from_cert(issuer_der).map_err(|_| {
                         Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
-                        CertificateParseFailure::IssuerSpkiParse { chain_index: i + 1 },
+                            CertificateParseFailure::IssuerSpkiParse {
+                                chain_index: i + 1,
+                            },
                         ))
                     })?;
                     let subject = x509::extract_subject_dn(issuer_der).map_err(|_| {
                         Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
-                        CertificateParseFailure::IssuerSubjectDnParse { chain_index: i + 1 },
+                            CertificateParseFailure::IssuerSubjectDnParse {
+                                chain_index: i + 1,
+                            },
                         ))
                     })?;
                     (spki_full, subject)
@@ -170,7 +174,9 @@ impl WebPkiValidator {
                     // Signed by a trusted root.
                     let cert_issuer_dn = x509::extract_issuer_dn(cert_der).map_err(|_| {
                         Error::CertificateValidationFailed(CertificateValidationFailure::ParseError(
-                        CertificateParseFailure::CertIssuerDnParse { chain_index: i },
+                            CertificateParseFailure::CertIssuerDnParse {
+                                chain_index: i,
+                            },
                         ))
                     })?;
                     match self.find_root(cert_issuer_dn) {
@@ -212,7 +218,9 @@ impl WebPkiValidator {
             if !is_cross_signed {
                 self.verify_cert_signature(cert_der, issuer_spki).map_err(|_| {
                     Error::CertificateValidationFailed(CertificateValidationFailure::ChainValidation(
-                        CertificateChainFailure::SignatureVerificationFailed { chain_index: i },
+                        CertificateChainFailure::SignatureVerificationFailed {
+                            chain_index: i,
+                        },
                     ))
                 })?;
             }

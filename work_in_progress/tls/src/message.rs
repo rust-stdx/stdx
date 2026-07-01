@@ -1,11 +1,13 @@
 use alloc::vec::Vec;
+use core::ops::Deref;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use heapless;
 
 use crate::{
-    ALPN_PROTOCOL_MAX_SIZE, DecodeFailure, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_CLIENT_HELLO_CIPHERSUITES,
-    MAX_HASH_SIZE, MAX_SESSION_ID, MAX_SIGNATURE_SIZE, TICKET_NONCE_MAX_SIZE,
+    ALPN_PROTOCOL_MAX_SIZE, DecodeFailure, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_CERTIFICATES_IN_CHAIN,
+    MAX_CLIENT_HELLO_CIPHERSUITES, MAX_EXTENSIONS, MAX_HASH_SIZE, MAX_SESSION_ID, MAX_SIGNATURE_SIZE,
+    TICKET_NONCE_MAX_SIZE,
     crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme},
 };
 
@@ -137,7 +139,7 @@ pub enum ExtensionType {
     PreSharedKey = 41,
     PskKeyExchangeModes = 45,
     KeyShare = 51,
-    ServerCertificateType = 50, // RFC 7250 / RFC 9633
+    ServerCertificateType = 20, // RFC 7250 / RFC 9633
     QuicTransportParameters = 0x0039,
 }
 
@@ -152,7 +154,7 @@ impl ExtensionType {
             42 => Some(Self::EarlyData),
             43 => Some(Self::SupportedVersions),
             45 => Some(Self::PskKeyExchangeModes),
-            50 => Some(Self::ServerCertificateType),
+            20 => Some(Self::ServerCertificateType),
             51 => Some(Self::KeyShare),
             0x0039 => Some(Self::QuicTransportParameters),
             _ => None,
@@ -160,28 +162,42 @@ impl ExtensionType {
     }
 }
 
-/// A single extension: type + opaque data.
+/// Owned or borrowed extension data.
 #[derive(Debug, Clone)]
-pub struct Extension {
-    pub ext_type: ExtensionType,
-    pub data: Bytes,
+pub enum ExtData<'a> {
+    Slice(&'a [u8]),
+    Bytes(Bytes),
 }
 
-impl Extension {
-    pub fn new(ext_type: ExtensionType, data: Bytes) -> Self {
-        Self {
-            ext_type,
-            data,
+impl Deref for ExtData<'_> {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            Self::Slice(s) => s,
+            Self::Bytes(b) => b.as_ref(),
         }
     }
 }
 
-pub fn encode_extensions(exts: &[Extension]) -> Bytes {
-    let total_size: usize = exts.iter().map(|e| 4 + e.data.len()).sum();
+impl AsRef<[u8]> for ExtData<'_> {
+    fn as_ref(&self) -> &[u8] {
+        self.deref()
+    }
+}
+
+/// A single extension: type + opaque data.
+#[derive(Debug, Clone)]
+pub struct Extension<'a> {
+    pub ext_type: ExtensionType,
+    pub data: ExtData<'a>,
+}
+
+pub fn encode_extensions(exts: &[Extension<'_>]) -> Bytes {
+    let total_size: usize = exts.iter().map(|e| 4 + e.data.as_ref().len()).sum();
     let mut body = BytesMut::with_capacity(total_size);
     for ext in exts {
         put_u16(&mut body, ext.ext_type as u16);
-        put_u16_slice(&mut body, &ext.data);
+        put_u16_slice(&mut body, ext.data.as_ref());
     }
     let mut buf = BytesMut::with_capacity(2 + body.len());
     put_u16(&mut buf, body.len() as u16);
@@ -189,7 +205,7 @@ pub fn encode_extensions(exts: &[Extension]) -> Bytes {
     buf.freeze()
 }
 
-pub fn decode_extensions(mut data: &[u8]) -> Result<Vec<Extension>, Error> {
+pub fn decode_extensions<'a>(mut data: &'a [u8]) -> Result<smallvec::SmallVec<Extension<'a>, MAX_EXTENSIONS>, Error> {
     if data.len() < 2 {
         return Err(Error::DecodeError(DecodeFailure::ExtensionsTooShort));
     }
@@ -200,7 +216,7 @@ pub fn decode_extensions(mut data: &[u8]) -> Result<Vec<Extension>, Error> {
     }
     data = &data[..total];
 
-    let mut exts = Vec::with_capacity(total / 4);
+    let mut exts = smallvec::SmallVec::new();
     while data.len() >= 4 {
         let ext_type = ExtensionType::from_u16(u16::from_be_bytes([data[0], data[1]]));
         let len = u16::from_be_bytes([data[2], data[3]]) as usize;
@@ -210,7 +226,7 @@ pub fn decode_extensions(mut data: &[u8]) -> Result<Vec<Extension>, Error> {
         if let Some(ext_type) = ext_type {
             exts.push(Extension {
                 ext_type,
-                data: Bytes::copy_from_slice(&data[4..4 + len]),
+                data: ExtData::Slice(&data[4..4 + len]),
             });
         }
         data = &data[4 + len..];
@@ -262,17 +278,17 @@ pub fn encode_client_hello(
 }
 
 #[derive(Debug, Clone)]
-pub struct ClientHelloMsg {
+pub struct ClientHelloMsg<'a> {
     pub random: [u8; 32],
     pub session_id: heapless::Vec<u8, MAX_SESSION_ID>,
     pub cipher_suites: heapless::Vec<CipherSuite, MAX_CLIENT_HELLO_CIPHERSUITES>,
-    pub extensions: Vec<Extension>,
-    pub raw: Bytes,
+    pub extensions: smallvec::SmallVec<Extension<'a>, MAX_EXTENSIONS>,
+    pub raw: &'a [u8],
 }
 
-impl ClientHelloMsg {
-    pub fn decode(data: Bytes) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(&data)?;
+impl<'a> ClientHelloMsg<'a> {
+    pub fn decode(data: &'a [u8]) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(data.as_ref())?;
         if msg_type != HandshakeType::ClientHello {
             return Err(Error::UnexpectedMessage {
                 expected: "ClientHello",
@@ -306,7 +322,9 @@ impl ClientHelloMsg {
         for i in (0..cs_len).step_by(2) {
             let b: [u8; 2] = [body[off + i], body[off + i + 1]];
             if let Some(cs) = CipherSuite::from_wire(b) {
-                cipher_suites.push(cs).map_err(|_| Error::DecodeError(DecodeFailure::ClientHelloCipherSuitesMalformed))?;
+                cipher_suites
+                    .push(cs)
+                    .map_err(|_| Error::DecodeError(DecodeFailure::ClientHelloCipherSuitesMalformed))?;
             }
         }
         off += cs_len;
@@ -322,7 +340,7 @@ impl ClientHelloMsg {
             session_id,
             cipher_suites,
             extensions,
-            raw: data,
+            raw: data.as_ref(),
         })
     }
 }
@@ -359,17 +377,17 @@ pub fn encode_server_hello(
 }
 
 #[derive(Debug, Clone)]
-pub struct ServerHello {
+pub struct ServerHello<'a> {
     pub random: [u8; 32],
     pub session_id: heapless::Vec<u8, MAX_SESSION_ID>,
     pub cipher_suite: CipherSuite,
-    pub extensions: Vec<Extension>,
-    pub raw: Bytes,
+    pub extensions: smallvec::SmallVec<Extension<'a>, MAX_EXTENSIONS>,
+    pub raw: &'a [u8],
 }
 
-impl ServerHello {
-    pub fn decode(data: Bytes) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(&data)?;
+impl<'a> ServerHello<'a> {
+    pub fn decode(data: &'a [u8]) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(data.as_ref())?;
         if msg_type != HandshakeType::ServerHello {
             return Err(Error::UnexpectedMessage {
                 expected: "ServerHello",
@@ -407,7 +425,7 @@ impl ServerHello {
             session_id,
             cipher_suite: cs,
             extensions,
-            raw: data,
+            raw: data.as_ref(),
         })
     }
 }
@@ -420,14 +438,14 @@ pub fn encode_encrypted_extensions(extensions: &[Extension]) -> Bytes {
 }
 
 #[derive(Debug, Clone)]
-pub struct EncryptedExtensions {
-    pub extensions: Vec<Extension>,
-    pub raw: Bytes,
+pub struct EncryptedExtensions<'a> {
+    pub extensions: smallvec::SmallVec<Extension<'a>, MAX_EXTENSIONS>,
+    pub raw: &'a [u8],
 }
 
-impl EncryptedExtensions {
-    pub fn decode(data: Bytes) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(&data)?;
+impl<'a> EncryptedExtensions<'a> {
+    pub fn decode(data: &'a [u8]) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(data.as_ref())?;
         if msg_type != HandshakeType::EncryptedExtensions {
             return Err(Error::UnexpectedMessage {
                 expected: "EncryptedExtensions",
@@ -437,7 +455,7 @@ impl EncryptedExtensions {
         let extensions = decode_extensions(body)?;
         Ok(EncryptedExtensions {
             extensions,
-            raw: data,
+            raw: data.as_ref(),
         })
     }
 }
@@ -451,7 +469,6 @@ impl EncryptedExtensions {
 #[derive(Debug, Clone)]
 pub struct CertificateEntry {
     pub cert_data: Bytes,
-    pub extensions: Vec<Extension>,
 }
 
 /// RFC 7250 / RFC 8446 Certificate message.
@@ -467,7 +484,7 @@ pub struct CertificateEntry {
 ///     Extension extensions<0..2^16-1>;
 /// } CertificateEntry;
 /// ```
-pub fn encode_certificate_raw_public_key(context: &[u8], public_key: &[u8], extensions: &[Extension]) -> Bytes {
+pub fn encode_certificate_raw_public_key(context: &[u8], public_key: &[u8], extensions: &[Extension<'_>]) -> Bytes {
     let entry_exts = encode_extensions(extensions);
     let entry_len = 3 + public_key.len() + entry_exts.len();
     let mut body = BytesMut::with_capacity(1 + context.len() + 3 + entry_len);
@@ -481,7 +498,7 @@ pub fn encode_certificate_raw_public_key(context: &[u8], public_key: &[u8], exte
 /// Encode a Certificate message with an X.509 certificate chain.
 ///
 /// `chain` is ordered end-entity first, followed by intermediates.
-pub fn encode_certificate_chain(context: &[u8], chain: &[Bytes], extensions_per_entry: &[Vec<Extension>]) -> Bytes {
+pub fn encode_certificate_chain(context: &[u8], chain: &[Bytes], extensions_per_entry: &[Vec<Extension<'_>>]) -> Bytes {
     let ext_list: Vec<Bytes> = chain
         .iter()
         .enumerate()
@@ -510,7 +527,7 @@ pub fn encode_certificate_chain(context: &[u8], chain: &[Bytes], extensions_per_
 
 #[derive(Debug, Clone)]
 pub struct Certificate {
-    pub entries: Vec<CertificateEntry>,
+    pub entries: heapless::Vec<CertificateEntry, MAX_CERTIFICATES_IN_CHAIN>,
     pub raw: Bytes,
 }
 
@@ -543,7 +560,7 @@ impl Certificate {
             return Err(Error::DecodeError(DecodeFailure::CertificateListTruncated));
         }
 
-        let mut entries = Vec::with_capacity(list_len / 6);
+        let mut entries = heapless::Vec::new();
         while off < list_end {
             if body.len() < off + 3 {
                 return Err(Error::DecodeError(DecodeFailure::CertificateEntryDataLenTruncated));
@@ -556,22 +573,18 @@ impl Certificate {
             let cert_data = data.slice(4 + off..4 + off + cert_data_len);
             off += cert_data_len;
 
+            // Skip per-entry extensions (not consumed anywhere)
             let remaining = list_end.saturating_sub(off);
-            let exts = if remaining >= 2 {
+            if remaining >= 2 {
                 let exts_len = u16::from_be_bytes([body[off], body[off + 1]]) as usize;
-                // Limit to remaining bytes
-                let el = exts_len.min(remaining - 2);
-                let ext_bytes = &body[off..off + 2 + el];
-                off += 2 + el;
-                decode_extensions(ext_bytes).unwrap_or_default()
-            } else {
-                Vec::new()
-            };
+                off += 2 + exts_len.min(remaining - 2);
+            }
 
-            entries.push(CertificateEntry {
-                cert_data,
-                extensions: exts,
-            });
+            entries
+                .push(CertificateEntry {
+                    cert_data,
+                })
+                .map_err(|_| Error::DecodeError(DecodeFailure::CertificateListTooLong))?;
         }
 
         Ok(Certificate {
@@ -607,15 +620,15 @@ pub fn encode_certificate_verify(scheme: SignatureScheme, signature: &[u8]) -> B
 }
 
 #[derive(Debug, Clone)]
-pub struct CertificateVerify {
+pub struct CertificateVerify<'a> {
     pub scheme: SignatureScheme,
     pub signature: heapless::Vec<u8, MAX_SIGNATURE_SIZE>,
-    pub raw: Bytes,
+    pub raw: &'a [u8],
 }
 
-impl CertificateVerify {
-    pub fn decode(data: Bytes) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(&data)?;
+impl<'a> CertificateVerify<'a> {
+    pub fn decode(data: &'a Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(data.as_ref())?;
         if msg_type != HandshakeType::CertificateVerify {
             return Err(Error::UnexpectedMessage {
                 expected: "CertificateVerify",
@@ -638,7 +651,7 @@ impl CertificateVerify {
         Ok(CertificateVerify {
             scheme,
             signature,
-            raw: data,
+            raw: data.as_ref(),
         })
     }
 }
@@ -650,14 +663,14 @@ pub fn encode_finished(verify_data: &[u8]) -> Bytes {
 }
 
 #[derive(Debug, Clone)]
-pub struct Finished {
+pub struct Finished<'a> {
     pub verify_data: heapless::Vec<u8, MAX_HASH_SIZE>,
-    pub raw: Bytes,
+    pub raw: &'a [u8],
 }
 
-impl Finished {
-    pub fn decode(data: Bytes) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(&data)?;
+impl<'a> Finished<'a> {
+    pub fn decode(data: &'a Bytes) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(data.as_ref())?;
         if msg_type != HandshakeType::Finished {
             return Err(Error::UnexpectedMessage {
                 expected: "Finished",
@@ -670,7 +683,7 @@ impl Finished {
             .map_err(|_| Error::DecodeError(DecodeFailure::VerifyDataTooLong))?;
         Ok(Finished {
             verify_data,
-            raw: data,
+            raw: data.as_ref(),
         })
     }
 }
@@ -709,7 +722,7 @@ pub fn encode_new_session_ticket(
     ticket_age_add: u32,
     ticket_nonce: &[u8],
     ticket: &[u8],
-    extensions: &[Extension],
+    extensions: &[Extension<'_>],
 ) -> Bytes {
     let ext_bytes = encode_extensions(extensions);
     let total = 4 + 4 + 1 + ticket_nonce.len() + 2 + ticket.len() + ext_bytes.len();
@@ -723,18 +736,18 @@ pub fn encode_new_session_ticket(
 }
 
 #[derive(Debug, Clone)]
-pub struct NewSessionTicket {
+pub struct NewSessionTicket<'a> {
     pub ticket_lifetime: u32,
     pub ticket_age_add: u32,
     pub ticket_nonce: heapless::Vec<u8, TICKET_NONCE_MAX_SIZE>,
-    pub ticket: Bytes,
-    pub extensions: Vec<Extension>,
+    pub ticket: &'a [u8],
+    pub extensions: smallvec::SmallVec<Extension<'a>, MAX_EXTENSIONS>,
 }
 
-impl NewSessionTicket {
+impl<'a> NewSessionTicket<'a> {
     #[allow(dead_code)]
-    pub fn decode(data: Bytes) -> Result<Self, Error> {
-        let (msg_type, body) = decode_handshake_header(&data)?;
+    pub fn decode(data: &'a [u8]) -> Result<Self, Error> {
+        let (msg_type, body) = decode_handshake_header(data.as_ref())?;
         if msg_type != HandshakeType::NewSessionTicket {
             return Err(Error::UnexpectedMessage {
                 expected: "NewSessionTicket",
@@ -757,8 +770,10 @@ impl NewSessionTicket {
         let mut offset = 9 + nonce_len;
         let ticket_len = u16::from_be_bytes([body[offset], body[offset + 1]]) as usize;
         offset += 2;
-        // Zero-copy: share the input Bytes allocation (handshake header is 4 bytes before body)
-        let ticket = data.slice(4 + offset..4 + offset + ticket_len);
+        if offset + ticket_len > body.len() {
+            return Err(Error::DecodeError(DecodeFailure::NewSessionTicketTooShort));
+        }
+        let ticket = &body[offset..offset + ticket_len];
         offset += ticket_len;
         let extensions = decode_extensions(&body[offset..]).unwrap_or_default();
         Ok(NewSessionTicket {
@@ -774,25 +789,23 @@ impl NewSessionTicket {
 // ── Extension builders ────────────────────────────────────────────────────
 
 /// Build a `supported_versions` extension (TLS 1.3 only).
-pub fn ext_supported_versions() -> Extension {
-    let data = Bytes::from_static(&[2, 3, 4]); // length + 0x0304
+pub fn ext_supported_versions() -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::SupportedVersions,
-        data,
+        data: ExtData::Bytes(Bytes::from_static(&[2, 3, 4])),
     }
 }
 
 /// Build a `supported_versions` extension for ServerHello (TLS 1.3 only).
-pub fn ext_supported_versions_server() -> Extension {
-    let data = Bytes::from_static(&[2, 3, 4]); // 0x0304 only
+pub fn ext_supported_versions_server() -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::SupportedVersions,
-        data,
+        data: ExtData::Bytes(Bytes::from_static(&[2, 3, 4])),
     }
 }
 
 /// Build a `supported_groups` extension.
-pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
+pub fn ext_supported_groups<'a>(groups: &[KeyExchangeGroup]) -> Extension<'static> {
     let size = groups.len() * 2;
     let mut data = BytesMut::with_capacity(2 + size);
     put_u16(&mut data, size as u16);
@@ -801,7 +814,7 @@ pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
     }
     Extension {
         ext_type: ExtensionType::SupportedGroups,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
@@ -809,7 +822,7 @@ pub fn ext_supported_groups(groups: &[KeyExchangeGroup]) -> Extension {
 ///
 /// Each entry is a `(KeyExchangeGroup, public_key_bytes)` pair. The extension data
 /// contains the list length prefix followed by all entries.
-pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension {
+pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension<'static> {
     let entries_size: usize = entries.iter().map(|(_, pk)| 2 + 2 + pk.len()).sum();
     let mut data = BytesMut::with_capacity(2 + entries_size);
     put_u16(&mut data, entries_size as u16);
@@ -820,14 +833,14 @@ pub fn ext_key_share_client(entries: &[(KeyExchangeGroup, &[u8])]) -> Extension 
     }
     Extension {
         ext_type: ExtensionType::KeyShare,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
 /// Build a `key_share` extension for the server hello (response).
 ///
 /// ServerHello key_share has no total length prefix — just the single entry.
-pub fn ext_key_share_server(public_key: &[u8], group: KeyExchangeGroup) -> Extension {
+pub fn ext_key_share_server<'a>(public_key: &[u8], group: KeyExchangeGroup) -> Extension<'static> {
     let mut entry = BytesMut::with_capacity(2 + 2 + public_key.len());
     entry.extend_from_slice(&group.to_wire());
     put_u16(&mut entry, public_key.len() as u16);
@@ -835,7 +848,7 @@ pub fn ext_key_share_server(public_key: &[u8], group: KeyExchangeGroup) -> Exten
 
     Extension {
         ext_type: ExtensionType::KeyShare,
-        data: entry.freeze(),
+        data: ExtData::Bytes(entry.freeze()),
     }
 }
 
@@ -844,15 +857,15 @@ pub fn ext_key_share_server(public_key: &[u8], group: KeyExchangeGroup) -> Exten
 /// In HRR the `key_share` extension carries only a 2-byte `NamedGroup`
 /// (the group the server wants the client to retry with), with no public key
 /// (RFC 8446 §4.1.4).
-pub fn ext_key_share_hrr(group: KeyExchangeGroup) -> Extension {
+pub fn ext_key_share_hrr(group: KeyExchangeGroup) -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::KeyShare,
-        data: Bytes::copy_from_slice(&group.to_wire()),
+        data: ExtData::Bytes(Bytes::copy_from_slice(&group.to_wire())),
     }
 }
 
 /// Parse a key share extension from a ClientHello.
-pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Error> {
+pub fn parse_key_share(ext: &Extension<'_>) -> Result<(KeyExchangeGroup, Bytes), Error> {
     let data = &ext.data[..];
     if data.len() < 6 {
         return Err(Error::DecodeError(DecodeFailure::KeyShareTooShort));
@@ -866,12 +879,12 @@ pub fn parse_key_share(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Err
         return Err(Error::DecodeError(DecodeFailure::KeyShareDataTooLarge));
     }
 
-    let public_key = ext.data.slice(6..6 + pk_len);
+    let public_key = Bytes::copy_from_slice(&data[6..6 + pk_len]);
     Ok((group, public_key))
 }
 
 /// Parse a key share extension from a ServerHello (no total length prefix).
-pub fn parse_key_share_server(ext: &Extension) -> Result<(KeyExchangeGroup, Bytes), Error> {
+pub fn parse_key_share_server(ext: &Extension<'_>) -> Result<(KeyExchangeGroup, Bytes), Error> {
     let data = &ext.data[..];
     if data.len() < 4 {
         return Err(Error::DecodeError(DecodeFailure::KeyShareServerHelloTooShort));
@@ -883,12 +896,12 @@ pub fn parse_key_share_server(ext: &Extension) -> Result<(KeyExchangeGroup, Byte
         return Err(Error::DecodeError(DecodeFailure::KeyShareDataTooLarge));
     }
 
-    let public_key = ext.data.slice(4..4 + pk_len);
+    let public_key = Bytes::copy_from_slice(&data[4..4 + pk_len]);
     Ok((group, public_key))
 }
 
 /// Build a `signature_algorithms` extension.
-pub fn ext_signature_algorithms(schemes: &[SignatureScheme]) -> Extension {
+pub fn ext_signature_algorithms<'a>(schemes: &[SignatureScheme]) -> Extension<'static> {
     let mut data = BytesMut::with_capacity(2 + schemes.len() * 2);
     put_u16(&mut data, (schemes.len() * 2) as u16);
     for s in schemes {
@@ -896,12 +909,12 @@ pub fn ext_signature_algorithms(schemes: &[SignatureScheme]) -> Extension {
     }
     Extension {
         ext_type: ExtensionType::SignatureAlgorithms,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
 /// Parse a `signature_algorithms` extension, returning the list of schemes.
-pub fn parse_signature_algorithms(ext: &Extension) -> Result<heapless::Vec<SignatureScheme, 24>, Error> {
+pub fn parse_signature_algorithms(ext: &Extension<'_>) -> Result<heapless::Vec<SignatureScheme, 24>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
         return Err(Error::DecodeError(DecodeFailure::SignatureAlgorithmsTooShort));
@@ -923,7 +936,7 @@ pub fn parse_signature_algorithms(ext: &Extension) -> Result<heapless::Vec<Signa
 }
 
 /// Build a `server_name` (SNI) extension.
-pub fn ext_server_name(hostname: &str) -> Extension {
+pub fn ext_server_name<'a>(hostname: &str) -> Extension<'static> {
     let entry_len = 1 + 2 + hostname.len();
     let mut data = BytesMut::with_capacity(2 + entry_len);
     put_u16(&mut data, entry_len as u16);
@@ -932,12 +945,12 @@ pub fn ext_server_name(hostname: &str) -> Extension {
     data.extend_from_slice(hostname.as_bytes());
     Extension {
         ext_type: ExtensionType::ServerName,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
-/// Build an ALPN extension.
-pub fn ext_alpn(protocols: &[&[u8]]) -> Extension {
+/// Build an `application_layer_protocol_negotiation` (ALPN) extension.
+pub fn ext_alpn<'a>(protocols: &[&[u8]]) -> Extension<'static> {
     let body_size: usize = protocols.iter().map(|p| 1 + p.len()).sum();
     let mut data = BytesMut::with_capacity(2 + body_size);
     put_u16(&mut data, body_size as u16);
@@ -946,12 +959,12 @@ pub fn ext_alpn(protocols: &[&[u8]]) -> Extension {
     }
     Extension {
         ext_type: ExtensionType::ApplicationLayerProtocolNegotiation,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
 /// Parse ALPN extension, returning the list of protocols (max 8).
-pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, Error> {
+pub fn parse_alpn<'a>(ext: &'a Extension<'a>) -> Result<heapless::Vec<&'a [u8], 8>, Error> {
     let data = &ext.data[..];
     if data.len() < 2 {
         return Err(Error::DecodeError(DecodeFailure::AlpnTooShort));
@@ -981,7 +994,7 @@ pub fn parse_alpn<'a>(ext: &'a Extension) -> Result<heapless::Vec<&'a [u8], 8>, 
 ///
 /// `types` is the list of certificate types the client supports,
 /// in preference order (each is one byte: 0 for X.509, 1 for RawPublicKey).
-pub fn ext_server_cert_type_client(types: &[CertType]) -> Extension {
+pub fn ext_server_cert_type_client<'a>(types: &[CertType]) -> Extension<'static> {
     let mut data = BytesMut::with_capacity(1 + types.len());
     data.put_u8(types.len() as u8);
     for t in types {
@@ -989,28 +1002,28 @@ pub fn ext_server_cert_type_client(types: &[CertType]) -> Extension {
     }
     Extension {
         ext_type: ExtensionType::ServerCertificateType,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
 /// Build a `server_certificate_type` extension for the EncryptedExtensions.
 ///
 /// `cert_type` is the single certificate type selected by the server.
-pub fn ext_server_cert_type_server(cert_type: CertType) -> Extension {
+pub fn ext_server_cert_type_server(cert_type: CertType) -> Extension<'static> {
     let data = match cert_type {
         CertType::X509 => Bytes::from_static(&[0]),
         CertType::RawPublicKey => Bytes::from_static(&[1]),
     };
     Extension {
         ext_type: ExtensionType::ServerCertificateType,
-        data,
+        data: ExtData::Bytes(data),
     }
 }
 
 /// Parse a `server_certificate_type` extension from EncryptedExtensions.
 ///
 /// Returns the certificate type selected by the server (1 byte).
-pub fn parse_server_cert_type_ee(ext: &Extension) -> Result<CertType, Error> {
+pub fn parse_server_cert_type_ee(ext: &Extension<'_>) -> Result<CertType, Error> {
     let data = &ext.data[..];
     if data.is_empty() {
         return Err(Error::DecodeError(DecodeFailure::EmptyServerCertificateType));
@@ -1021,7 +1034,7 @@ pub fn parse_server_cert_type_ee(ext: &Extension) -> Result<CertType, Error> {
 /// Parse a `server_certificate_type` extension from a ClientHello.
 ///
 /// Returns the list of certificate types offered by the client.
-pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<heapless::Vec<CertType, 4>, Error> {
+pub fn parse_server_cert_type_ch(ext: &Extension<'_>) -> Result<heapless::Vec<CertType, 4>, Error> {
     let data = &ext.data[..];
     if data.is_empty() {
         return Err(Error::DecodeError(DecodeFailure::EmptyServerCertificateType));
@@ -1046,7 +1059,7 @@ pub fn parse_server_cert_type_ch(ext: &Extension) -> Result<heapless::Vec<CertTy
 ///
 /// `identities` is one tuple (identity, obfuscated_ticket_age) per PSK.
 /// `binders` are the computed binder MAC values.
-pub fn ext_pre_shared_key(identities: &[(&[u8], u32)], binders: &[&[u8]]) -> Extension {
+pub fn ext_pre_shared_key(identities: &[(&[u8], u32)], binders: &[&[u8]]) -> Extension<'static> {
     let id_total: usize = identities.iter().map(|(id, _)| 2 + id.len() + 4).sum();
     let b_total: usize = binders.iter().map(|b| 1 + b.len()).sum();
     let mut data = BytesMut::with_capacity(2 + id_total + 2 + b_total);
@@ -1064,58 +1077,52 @@ pub fn ext_pre_shared_key(identities: &[(&[u8], u32)], binders: &[&[u8]]) -> Ext
 
     Extension {
         ext_type: ExtensionType::PreSharedKey,
-        data: data.freeze(),
+        data: ExtData::Bytes(data.freeze()),
     }
 }
 
 /// Build the `psk_key_exchange_modes` extension.
-pub fn ext_psk_key_exchange_modes() -> Extension {
+pub fn ext_psk_key_exchange_modes() -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::PskKeyExchangeModes,
-        data: Bytes::from_static(&[1, 1]), // psk_dhe_ke
+        data: ExtData::Bytes(Bytes::from_static(&[1, 1])),
     }
 }
 
 /// Build an `early_data` extension for ClientHello (RFC 8446 §4.2.10).
-///
-/// Indicates the client wishes to send 0-RTT data. The extension carries
-/// no data in ClientHello.
-pub fn ext_early_data_client() -> Extension {
+pub fn ext_early_data_client() -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::EarlyData,
-        data: Bytes::new(),
+        data: ExtData::Slice(&[]),
     }
 }
 
 /// Build an `early_data` extension for EncryptedExtensions (server acceptance).
-pub fn ext_early_data_encrypted_extensions() -> Extension {
+pub fn ext_early_data_encrypted_extensions() -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::EarlyData,
-        data: Bytes::new(),
+        data: ExtData::Slice(&[]),
     }
 }
 
 /// Build the `pre_shared_key` extension for a ServerHello.
-///
-/// `selected_identity` is the 0-based index of the PSK identity that
-/// the server selected from the client's offer (RFC 8446 §4.2.11).
-pub fn ext_pre_shared_key_server(selected_identity: u16) -> Extension {
+pub fn ext_pre_shared_key_server(selected_identity: u16) -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::PreSharedKey,
-        data: Bytes::copy_from_slice(&selected_identity.to_be_bytes()),
+        data: ExtData::Bytes(Bytes::copy_from_slice(&selected_identity.to_be_bytes())),
     }
 }
 
 /// Build a QUIC transport parameters extension.
-pub fn ext_quic_transport_parameters(params: &[u8]) -> Extension {
+pub fn ext_quic_transport_parameters<'a>(params: &[u8]) -> Extension<'static> {
     Extension {
         ext_type: ExtensionType::QuicTransportParameters,
-        data: Bytes::copy_from_slice(params),
+        data: ExtData::Bytes(Bytes::copy_from_slice(params)),
     }
 }
 
 /// Find an extension by type in a list.
-pub fn find_extension<'a>(exts: &'a [Extension], ext_type: ExtensionType) -> Option<&'a Extension> {
+pub fn find_extension<'a>(exts: &'a [Extension<'a>], ext_type: ExtensionType) -> Option<&'a Extension<'a>> {
     exts.iter().find(|e| e.ext_type == ext_type)
 }
 

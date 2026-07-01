@@ -24,7 +24,10 @@ pub struct IoError {
 
 impl IoError {
     pub const fn new(kind: IoErrorKind, description: &'static str) -> Self {
-        Self { kind, description }
+        Self {
+            kind,
+            description,
+        }
     }
 
     pub fn kind(&self) -> IoErrorKind {
@@ -108,6 +111,7 @@ pub enum DecodeFailure {
     CertificateContextTruncated,
     CertificateListLengthTruncated,
     CertificateListTruncated,
+    CertificateListTooLong,
     CertificateEntryDataLenTruncated,
     CertificateEntryDataTruncated,
     // CertificateVerify
@@ -175,10 +179,13 @@ impl fmt::Display for DecodeFailure {
             Self::CertificateContextTruncated => f.write_str("certificate context truncated"),
             Self::CertificateListLengthTruncated => f.write_str("certificate list length truncated"),
             Self::CertificateListTruncated => f.write_str("certificate list truncated"),
+            Self::CertificateListTooLong => f.write_str("certificate list is too long"),
             Self::CertificateEntryDataLenTruncated => f.write_str("certificate entry datalen truncated"),
             Self::CertificateEntryDataTruncated => f.write_str("certificate entry data truncated"),
             Self::CertificateVerifyTooShort => f.write_str("CertificateVerify too short"),
-            Self::UnknownSignatureSchemeInCertificateVerify => f.write_str("unknown signature scheme in CertificateVerify"),
+            Self::UnknownSignatureSchemeInCertificateVerify => {
+                f.write_str("unknown signature scheme in CertificateVerify")
+            }
             Self::CertificateVerifySignatureTruncated => f.write_str("CertificateVerify signature truncated"),
             Self::SignatureTooLong => f.write_str("signature too long"),
             Self::VerifyDataTooLong => f.write_str("verify_data too long"),
@@ -276,13 +283,19 @@ pub enum CertificateParseFailure {
 impl fmt::Display for CertificateParseFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::IssuerSpkiParse { chain_index } => {
+            Self::IssuerSpkiParse {
+                chain_index,
+            } => {
                 write!(f, "issuer SPKI parse error at chain_index={chain_index}")
             }
-            Self::IssuerSubjectDnParse { chain_index } => {
+            Self::IssuerSubjectDnParse {
+                chain_index,
+            } => {
                 write!(f, "issuer subject DN parse error at chain_index={chain_index}")
             }
-            Self::CertIssuerDnParse { chain_index } => {
+            Self::CertIssuerDnParse {
+                chain_index,
+            } => {
                 write!(f, "cert issuer DN parse error at chain_index={chain_index}")
             }
             Self::CertIssuerDn => f.write_str("cert issuer DN parse error"),
@@ -323,7 +336,9 @@ impl fmt::Display for CertificateChainFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IssuerSubjectDnMismatch => f.write_str("issuer/subject DN mismatch"),
-            Self::SignatureVerificationFailed { chain_index } => {
+            Self::SignatureVerificationFailed {
+                chain_index,
+            } => {
                 write!(f, "signature verification failed at chain_index={chain_index}")
             }
             Self::CertificateNotYetValid => f.write_str("certificate not yet valid"),
@@ -333,7 +348,9 @@ impl fmt::Display for CertificateChainFailure {
             Self::EkuDoesNotIncludeServerAuth => f.write_str("EKU does not include serverAuth"),
             Self::UnsupportedSignatureAlgorithm => f.write_str("unsupported signature algorithm"),
             Self::NoRootFoundBySpkiMatching => f.write_str("no root found by SPKI matching"),
-            Self::NoTrustedRootFound { searched_roots } => {
+            Self::NoTrustedRootFound {
+                searched_roots,
+            } => {
                 write!(f, "no trusted root found (searched {searched_roots} roots)")
             }
         }
@@ -416,7 +433,10 @@ impl fmt::Display for HandshakeFailure {
             Self::FinishedVerificationFailed => f.write_str("finished verification failed"),
             Self::Tls13NotOffered => f.write_str("TLS 1.3 not offered"),
             Self::NoKeyShare => f.write_str("no key_share extension"),
-            Self::PeerAlert { level, description } => {
+            Self::PeerAlert {
+                level,
+                description,
+            } => {
                 write!(f, "peer alert: level={level} desc={description}")
             }
             Self::ConnectionInFailedState => f.write_str("connection in failed state"),
@@ -481,10 +501,17 @@ impl fmt::Display for CryptoFailure {
 /// Specific key-related errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InvalidKeyFailure {
-    WrongLength { algorithm: &'static str, expected: usize },
+    WrongLength {
+        algorithm: &'static str,
+        expected: usize,
+    },
     ParseError(InvalidKeyParseFailure),
     DerError(EcdsaDerError),
-    X25519MlKem768PeerKeyLengthMismatch { side: PeerSide, expected: usize, got: usize },
+    X25519MlKem768PeerKeyLengthMismatch {
+        side: PeerSide,
+        expected: usize,
+        got: usize,
+    },
     X25519MlKem768NoSecretKey,
     MlKemDecapsulationFailed,
 }
@@ -492,10 +519,17 @@ pub enum InvalidKeyFailure {
 impl fmt::Display for InvalidKeyFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::WrongLength { algorithm, expected } => write!(f, "{algorithm} expects a {expected}-byte key"),
+            Self::WrongLength {
+                algorithm,
+                expected,
+            } => write!(f, "{algorithm} expects a {expected}-byte key"),
             Self::ParseError(e) => write!(f, "{e}"),
             Self::DerError(e) => write!(f, "DER error: {e}"),
-            Self::X25519MlKem768PeerKeyLengthMismatch { side, expected, got } => {
+            Self::X25519MlKem768PeerKeyLengthMismatch {
+                side,
+                expected,
+                got,
+            } => {
                 write!(f, "X25519MLKEM768 peer ({side}) key must be {expected} bytes, got {got}")
             }
             Self::X25519MlKem768NoSecretKey => {
@@ -527,7 +561,10 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnexpectedMessage { expected, got } => {
+            Self::UnexpectedMessage {
+                expected,
+                got,
+            } => {
                 write!(f, "unexpected message: expected {expected}, got {got}")
             }
             Self::HandshakeFailed(msg) => write!(f, "handshake failed: {msg}"),

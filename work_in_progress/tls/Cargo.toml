@@ -20,6 +20,7 @@ bytes = { workspace = true }
 constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto", optional = true, default-features = false }
 heapless = { workspace = true }
+smallvec = { workspace = true }
 x509 = { path = "../x509" }
 tokio = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }

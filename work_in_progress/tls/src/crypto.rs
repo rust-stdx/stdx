@@ -307,7 +307,7 @@ pub enum KeyExchangeGroup {
 
 impl KeyExchangeGroup {
     /// TLS wire identifier (two bytes, big-endian).
-    pub fn to_wire(self) -> [u8; 2] {
+    pub const fn to_wire(self) -> [u8; 2] {
         match self {
             Self::X25519 => [0x00, 0x1D],
             Self::X25519MlKem768 => [0x11, 0xEC],
@@ -315,7 +315,7 @@ impl KeyExchangeGroup {
     }
 
     /// Parse a key exchange group from its wire identifier.
-    pub fn from_wire(bytes: [u8; 2]) -> Option<Self> {
+    pub const fn from_wire(bytes: [u8; 2]) -> Option<Self> {
         match bytes {
             [0x00, 0x1D] => Some(Self::X25519),
             [0x11, 0xEC] => Some(Self::X25519MlKem768),
@@ -324,7 +324,7 @@ impl KeyExchangeGroup {
     }
 
     /// Size of the client-side KeyShare entry for this group, in bytes.
-    pub fn public_key_size_client(self) -> usize {
+    pub const fn public_key_size_client(self) -> usize {
         match self {
             Self::X25519 => 32,
             Self::X25519MlKem768 => 1216,
@@ -335,7 +335,7 @@ impl KeyExchangeGroup {
     ///
     /// For KEM-based groups the server returns a ciphertext (which may
     /// differ from the client's public key size).
-    pub fn public_key_size_server(self) -> usize {
+    pub const fn public_key_size_server(self) -> usize {
         match self {
             Self::X25519 => 32,
             Self::X25519MlKem768 => 1120,

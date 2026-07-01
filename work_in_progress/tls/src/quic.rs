@@ -5,10 +5,10 @@ use heapless::Vec;
 use crate::{
     Error, MAX_HASH_SIZE,
     crypto::{Aead, CipherSuite, CryptoProvider},
-    message::Extension,
+    message,
 };
 
-pub fn transport_parameters_extension(params: &[u8]) -> Extension {
+pub fn transport_parameters_extension(params: &[u8]) -> message::Extension<'_> {
     crate::message::ext_quic_transport_parameters(params)
 }
 

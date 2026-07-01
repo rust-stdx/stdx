@@ -12,7 +12,9 @@ use crate::{
     AEAD_MAX_TAG_SIZE, Error, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, MAX_HASH_SIZE, MAX_SIGNATURE_SIZE,
     SHARED_SECRET_MAX_SIZE, SIGNING_PUBLIC_KEY_MAX_SIZE,
     crypto::{Aead, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeKeyPair, SignatureScheme, Signer},
-    errors::{CertificateValidationFailure, CryptoFailure, EcdsaDerError, InvalidKeyFailure, InvalidKeyParseFailure, PeerSide},
+    errors::{
+        CertificateValidationFailure, CryptoFailure, EcdsaDerError, InvalidKeyFailure, InvalidKeyParseFailure, PeerSide,
+    },
 };
 
 /// The default [`CryptoProvider`], backed by the `crypto` crate.
@@ -191,28 +193,30 @@ impl CryptoProvider for DefaultCryptoProvider {
                 })
             }
             SignatureScheme::EcdsaP256Sha256 => {
-                let pk = crypto::p256::PublicKey::from_bytes(public_key)
-                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP256PublicKey)))?;
+                let pk = crypto::p256::PublicKey::from_bytes(public_key).map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP256PublicKey))
+                })?;
                 let sig_raw = der_to_raw_p256_signature(signature)?;
                 pk.verify(data, &sig_raw).map_err(|_| {
                     Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
                 })
             }
             SignatureScheme::EcdsaP384Sha384 => {
-                let pk = crypto::p384::PublicKey::from_bytes(public_key)
-                    .map_err(|_| Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP384PublicKey)))?;
+                let pk = crypto::p384::PublicKey::from_bytes(public_key).map_err(|_| {
+                    Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::InvalidP384PublicKey))
+                })?;
                 let sig_raw = der_to_raw_p384_signature(signature)?;
                 pk.verify(data, &sig_raw).map_err(|_| {
                     Error::CertificateValidationFailed(CertificateValidationFailure::SignatureVerificationFailed)
                 })
             }
-            SignatureScheme::RsaPkcs1Sha256 => {
-                crypto::rsa::verify_pkcs1_sha256(public_key, signature, data).map_err(|_| {
-                    Error::CryptoError(CryptoFailure::RsaVerificationFailed(SignatureScheme::RsaPkcs1Sha256))
+            SignatureScheme::RsaPkcs1Sha256 => crypto::rsa::verify_pkcs1_sha256(public_key, signature, data)
+                .map_err(|_| Error::CryptoError(CryptoFailure::RsaVerificationFailed(SignatureScheme::RsaPkcs1Sha256))),
+            SignatureScheme::RsaPssRsaSha256 => {
+                crypto::rsa::verify_pss_sha256(public_key, signature, data).map_err(|_| {
+                    Error::CryptoError(CryptoFailure::RsaVerificationFailed(SignatureScheme::RsaPssRsaSha256))
                 })
             }
-            SignatureScheme::RsaPssRsaSha256 => crypto::rsa::verify_pss_sha256(public_key, signature, data)
-                .map_err(|_| Error::CryptoError(CryptoFailure::RsaVerificationFailed(SignatureScheme::RsaPssRsaSha256))),
             scheme @ _ => Err(Error::CryptoError(CryptoFailure::UnsupportedSignatureScheme(scheme))),
         }
     }
@@ -602,7 +606,9 @@ impl KeyExchangeKeyPair for X25519MlKem768KxKeyPair {
             ss
         } else {
             let ct: [u8; CIPHERTEXT_SIZE_768] = peer_public_key[..CIPHERTEXT_SIZE_768].try_into().map_err(|_| {
-                Error::InvalidKey(InvalidKeyFailure::ParseError(InvalidKeyParseFailure::X25519MlKem768CiphertextTooShort))
+                Error::InvalidKey(InvalidKeyFailure::ParseError(
+                    InvalidKeyParseFailure::X25519MlKem768CiphertextTooShort,
+                ))
             })?;
             self.mlkem_secret
                 .as_ref()

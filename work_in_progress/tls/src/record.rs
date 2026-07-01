@@ -2,7 +2,11 @@ use alloc::boxed::Box;
 
 use bytes::{Bytes, BytesMut};
 
-use crate::{Error, crypto::Aead, errors::HandshakeFailure, errors::DecodeFailure, errors::InternalFailure};
+use crate::{
+    Error,
+    crypto::Aead,
+    errors::{DecodeFailure, HandshakeFailure, InternalFailure},
+};
 
 /// Maximum TLS fragment plaintext length (2^14 bytes). RFC 8446 §5.1.
 pub const MAX_FRAGMENT_SIZE: usize = 16384;

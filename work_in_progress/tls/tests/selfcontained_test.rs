@@ -77,9 +77,7 @@ async fn selfcontained_app_data() {
 
     let client_cfg = ClientConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(AcceptAllValidator))
         .with_cert_types([CertType::X509, CertType::RawPublicKey].into());
-    let mut client = ClientConnection::new(client_cfg, Some("localhost"))
-        .await
-        .unwrap();
+    let mut client = ClientConnection::new(client_cfg, Some("localhost")).await.unwrap();
 
     let mut ch_bytes = Vec::new();
     while let Some(data) = client.write_tls() {
@@ -145,9 +143,7 @@ async fn selfcontained_app_data_pq() {
 
     let client_cfg = ClientConfig::new(provider.clone(), heapless::Vec::new(), Arc::new(AcceptAllValidator))
         .with_cert_types([CertType::X509, CertType::RawPublicKey].into());
-    let mut client = ClientConnection::new(client_cfg, Some("localhost"))
-        .await
-        .unwrap();
+    let mut client = ClientConnection::new(client_cfg, Some("localhost")).await.unwrap();
 
     let mut ch_bytes = Vec::new();
     while let Some(data) = client.write_tls() {

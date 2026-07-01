@@ -73,7 +73,7 @@ pub enum ReceivedCertificate {
     /// An X.509 certificate chain (end-entity first, then intermediates).
     X509 {
         /// DER-encoded certificate chain.
-        chain: Vec<Bytes>,
+        chain: heapless::Vec<Bytes, 10>,
         /// Signature scheme used for CertificateVerify.
         verify_scheme: SignatureScheme,
     },

@@ -96,6 +96,7 @@ reqwest = { version = "0.13", default-features = false, features = ["charset", "
 aws-lc-rs = { version = "1" }
 serde = { version = "1", default-features = false }
 serde_json = "1"
+smallvec = { version = "2.0.0-alpha.12" }
 sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "3da582ad1dca5054ec8eda1c87b3b16ca079f47a" }
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }

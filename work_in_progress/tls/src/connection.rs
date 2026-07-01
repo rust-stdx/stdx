@@ -1,10 +1,4 @@
-use alloc::{
-    borrow::Cow,
-    boxed::Box,
-    collections::VecDeque,
-    sync::Arc,
-    vec::Vec,
-};
+use alloc::{borrow::Cow, boxed::Box, collections::VecDeque, sync::Arc, vec::Vec};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use heapless;
@@ -14,7 +8,10 @@ use crate::{
     MAX_KEY_EXCHANGE_PAIRS, MAX_SERVER_NAME_LENGTH, PSK_MAX_SIZE, SHARED_SECRET_MAX_SIZE,
     config::{ClientConfig, ClientHello, ReceivedCertificate, ServerConfig},
     crypto::{CertType, CipherSuite, KeyExchangeGroup, SignatureScheme},
-    errors::{CertificateChainFailure, CertificateParseFailure, CertificateValidationFailure, DecodeFailure, HandshakeFailure, InternalFailure},
+    errors::{
+        CertificateChainFailure, CertificateParseFailure, CertificateValidationFailure, DecodeFailure,
+        HandshakeFailure, InternalFailure,
+    },
     key_schedule::{KeySchedule, TlsKeys},
     message::*,
     record::{ContentType, RecordState},
@@ -89,7 +86,7 @@ pub(crate) struct HandshakeState {
     read_record: RecordState,
     read_buf: BytesMut,
     alpn_selected: Option<AlpnProtocol>,
-    cert_chain: Option<Vec<Bytes>>,
+    cert_chain: Option<heapless::Vec<Bytes, 10>>,
     negotiated_cert_type: CertType,
     handshake_payload: BytesMut,
     server_hello_hash: heapless::Vec<u8, MAX_HASH_SIZE>,
@@ -431,7 +428,7 @@ impl ClientConnection {
                 .map_err(|_| Error::InternalError(InternalFailure::TooManyKeyExchangeGroups))?;
         }
 
-        let mut exts: heapless::Vec<Extension, 12> = [
+        let mut exts: heapless::Vec<Extension<'static>, 12> = [
             ext_supported_versions(),
             ext_psk_key_exchange_modes(),
             ext_supported_groups(&supported_groups),
@@ -472,7 +469,7 @@ impl ClientConnection {
                     let zero_binder = [0u8; 48];
                     let zero_binder_slice = &zero_binder[..suite.hash_size()];
                     let partial_psk_ext = ext_pre_shared_key(&[(ticket.as_slice(), 0)], &[zero_binder_slice]);
-                    let mut partial_exts: heapless::Vec<Extension, 12> = heapless::Vec::new();
+                    let mut partial_exts: heapless::Vec<Extension<'static>, 12> = heapless::Vec::new();
                     for ext in exts.iter() {
                         let _ = partial_exts.push(ext.clone());
                     }
@@ -509,11 +506,14 @@ impl ClientConnection {
             config,
             state: ClientState::SentClientHello,
             connection_state: ConnectionState::Handshaking(hs),
-            server_name: server_name.map(|s| {
-                let mut n = heapless::String::new();
-                n.push_str(s).map_err(|_| Error::InternalError(InternalFailure::ServerNameTooLong))?;
-                Ok(n)
-            }).transpose()?,
+            server_name: server_name
+                .map(|s| {
+                    let mut n = heapless::String::new();
+                    n.push_str(s)
+                        .map_err(|_| Error::InternalError(InternalFailure::ServerNameTooLong))?;
+                    Ok(n)
+                })
+                .transpose()?,
             quic_secrets: None,
         })
     }
@@ -574,7 +574,7 @@ impl ClientConnection {
                 .map_err(|_| Error::InternalError(InternalFailure::TooManyKeyExchangeGroups))?;
         }
 
-        let mut exts: heapless::Vec<Extension, 12> = [
+        let mut exts: heapless::Vec<Extension<'static>, 12> = [
             ext_supported_versions(),
             ext_psk_key_exchange_modes(),
             ext_supported_groups(supported_groups),
@@ -609,11 +609,14 @@ impl ClientConnection {
             config,
             state: ClientState::SentClientHello,
             connection_state: ConnectionState::Handshaking(handshake_state),
-            server_name: server_name.map(|s| {
-                let mut n = heapless::String::new();
-                n.push_str(s).map_err(|_| Error::InternalError(InternalFailure::ServerNameTooLong))?;
-                Ok(n)
-            }).transpose()?,
+            server_name: server_name
+                .map(|s| {
+                    let mut n = heapless::String::new();
+                    n.push_str(s)
+                        .map_err(|_| Error::InternalError(InternalFailure::ServerNameTooLong))?;
+                    Ok(n)
+                })
+                .transpose()?,
             quic_secrets: None,
         })
     }
@@ -718,7 +721,7 @@ impl ClientConnection {
             }
         };
 
-        let sh = ServerHello::decode(payload)?;
+        let sh = ServerHello::decode(&payload)?;
         self.handshake_mut().transcript.extend_from_slice(&sh.raw);
         self.handshake_mut().cipher_suite = Some(sh.cipher_suite);
 
@@ -781,7 +784,9 @@ impl ClientConnection {
         let supported_groups = crypto_provider.supported_key_exchange_groups();
 
         if !supported_groups.contains(&hrr_group) {
-            return Err(Error::HandshakeFailed(HandshakeFailure::HrrRequestedGroupNotSupported(hrr_group)));
+            return Err(Error::HandshakeFailed(HandshakeFailure::HrrRequestedGroupNotSupported(
+                hrr_group,
+            )));
         }
 
         let quic_tp = match &self.connection_state {
@@ -812,7 +817,7 @@ impl ClientConnection {
             let _ = key_share_refs.push((*g, pk.as_slice()));
         }
 
-        let mut exts: heapless::Vec<Extension, 12> = [
+        let mut exts: heapless::Vec<Extension<'static>, 12> = [
             ext_supported_versions(),
             ext_psk_key_exchange_modes(),
             ext_supported_groups(supported_groups),
@@ -881,7 +886,7 @@ impl ClientConnection {
                 }
             }
         };
-        let ee = EncryptedExtensions::decode(payload)?;
+        let ee = EncryptedExtensions::decode(&payload)?;
         self.handshake_mut().transcript.extend_from_slice(&ee.raw);
 
         if let Some(ext) = find_extension(&ee.extensions, ExtensionType::ApplicationLayerProtocolNegotiation) {
@@ -920,13 +925,7 @@ impl ClientConnection {
         };
         let cert = Certificate::decode(payload)?;
         self.handshake_mut().transcript.extend_from_slice(&cert.raw);
-        self.handshake_mut().cert_chain = {
-            let mut chain = Vec::with_capacity(cert.entries.len());
-            for entry in cert.entries {
-                chain.push(entry.cert_data);
-            }
-            Some(chain)
-        };
+        self.handshake_mut().cert_chain = Some(cert.entries.into_iter().map(|entry| entry.cert_data).collect());
 
         self.state = ClientState::WaitCertificateVerify;
         Ok(true)
@@ -946,7 +945,7 @@ impl ClientConnection {
                 }
             }
         };
-        let cv = CertificateVerify::decode(payload)?;
+        let cv = CertificateVerify::decode(&payload)?;
         self.handshake_mut().signature_scheme = Some(cv.scheme);
         let transcript_len_before = self.handshake().transcript.len();
         self.handshake_mut().transcript.extend_from_slice(&cv.raw);
@@ -1038,7 +1037,7 @@ impl ClientConnection {
                 }
             }
         };
-        let fin = Finished::decode(payload)?;
+        let fin = Finished::decode(&payload)?;
 
         let suite = self.handshake().cipher_suite.unwrap();
         let crypto_provider = Arc::clone(&self.config.crypto);
@@ -1214,7 +1213,7 @@ impl ClientConnection {
     }
 
     async fn handle_new_session_ticket(&mut self, payload: Bytes) -> Result<(), Error> {
-        let nst = NewSessionTicket::decode(payload)?;
+        let nst = NewSessionTicket::decode(&payload)?;
         let suite = self.established().cipher_suite;
         let crypto_provider = &self.config.crypto;
         let res_master = &self.established().keys.resumption_master_secret;
@@ -1489,7 +1488,7 @@ impl ServerConnection {
             None => Ok(None),
         }
     }
-    async fn try_resolve_psk(&self, ch: &ClientHelloMsg) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>> {
+    async fn try_resolve_psk(&self, ch: &ClientHelloMsg<'_>) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>> {
         let psk_ext = find_extension(&ch.extensions, ExtensionType::PreSharedKey)?;
         let data = psk_ext.data.as_ref();
         if data.len() < 2 {
@@ -1526,7 +1525,7 @@ impl ServerConnection {
             }
         };
 
-        let ch = ClientHelloMsg::decode(payload)?;
+        let ch = ClientHelloMsg::decode(&payload)?;
         self.handshake_mut().transcript.extend_from_slice(&ch.raw);
 
         let sv_ext = find_extension(&ch.extensions, ExtensionType::SupportedVersions);
@@ -1617,7 +1616,9 @@ impl ServerConnection {
         let cert = self.config.cert_provider.provide(&client_hello).await?;
 
         if !sig_schemes.contains(&cert.scheme) {
-            return Err(Error::HandshakeFailed(HandshakeFailure::CertificateProviderSchemeNotOffered(cert.scheme)));
+            return Err(Error::HandshakeFailed(HandshakeFailure::CertificateProviderSchemeNotOffered(
+                cert.scheme,
+            )));
         }
 
         let selected_cert_type = if client_cert_types.contains(&CertType::RawPublicKey) {
@@ -1629,7 +1630,7 @@ impl ServerConnection {
         let mut random = [0u8; 32];
         crypto_provider.secure_random(&mut random);
 
-        let mut server_hello_exts: heapless::Vec<Extension, 6> =
+        let mut server_hello_exts: heapless::Vec<Extension<'static>, 6> =
             [ext_supported_versions_server(), ext_key_share_server(&kx_pub, group)].into();
         if psk_resolved.is_some() {
             let _ = server_hello_exts.push(ext_pre_shared_key_server(0));
@@ -1695,7 +1696,7 @@ impl ServerConnection {
         }
 
         // 2) EncryptedExtensions
-        let mut ee_exts: heapless::Vec<Extension, 2> = heapless::Vec::new();
+        let mut ee_exts: heapless::Vec<Extension<'static>, 2> = heapless::Vec::new();
         if client_cert_types.contains(&CertType::RawPublicKey) || client_cert_types.contains(&CertType::X509) {
             let _ = ee_exts.push(ext_server_cert_type_server(selected_cert_type));
         }
@@ -1796,13 +1797,7 @@ impl ServerConnection {
         };
         let cert = Certificate::decode(payload)?;
         self.handshake_mut().transcript.extend_from_slice(&cert.raw);
-        self.handshake_mut().cert_chain = {
-            let mut chain = Vec::with_capacity(cert.entries.len());
-            for e in cert.entries {
-                chain.push(e.cert_data);
-            }
-            Some(chain)
-        };
+        self.handshake_mut().cert_chain = Some(cert.entries.into_iter().map(|entry| entry.cert_data).collect());
         self.state = ServerState::WaitClientCertificateVerify;
         Ok(true)
     }
@@ -1818,7 +1813,7 @@ impl ServerConnection {
                 });
             }
         };
-        let cv = CertificateVerify::decode(payload)?;
+        let cv = CertificateVerify::decode(&payload)?;
         let chain = self
             .handshake_mut()
             .cert_chain
@@ -1829,8 +1824,8 @@ impl ServerConnection {
         }
         let spki_der = x509::extract_spki_from_cert(&chain[0])
             .map_err(|_| Error::DecodeError(DecodeFailure::CertificateParseError))?;
-        let pk =
-            x509::extract_key_from_spki(spki_der).map_err(|_| Error::DecodeError(DecodeFailure::CertificateKeyError))?;
+        let pk = x509::extract_key_from_spki(spki_der)
+            .map_err(|_| Error::DecodeError(DecodeFailure::CertificateKeyError))?;
         let transcript_len_before = self.handshake().transcript.len();
         self.handshake_mut().transcript.extend_from_slice(&cv.raw);
         let suite = self.handshake().cipher_suite.unwrap();
@@ -1858,7 +1853,7 @@ impl ServerConnection {
             }
         };
 
-        let fin = Finished::decode(payload)?;
+        let fin = Finished::decode(&payload)?;
 
         let suite = self.handshake().cipher_suite.unwrap();
         let crypto_provider = self.config.crypto_provider.clone();
@@ -1875,7 +1870,10 @@ impl ServerConnection {
         let (keys, resumption_secret, session_tickets, is_quic) = {
             let hs = self.handshake();
             let ks = hs.key_schedule.as_ref().unwrap();
-            let keys = hs.keys.as_ref().ok_or_else(|| Error::InternalError(InternalFailure::NoKeys))?;
+            let keys = hs
+                .keys
+                .as_ref()
+                .ok_or_else(|| Error::InternalError(InternalFailure::NoKeys))?;
             ks.verify_finished(&keys.client_finished_key, &transcript_hash, &fin.verify_data)?;
             let client_fin_hash = crypto_provider.hash(suite, &transcript);
             let res = ks.derive_resumption_secret(&client_fin_hash);
