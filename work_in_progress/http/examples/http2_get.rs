@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = ClientConfig::new(
         Arc::new(DefaultCryptoProvider::new()),
-        vec![bytes::Bytes::from_static(b"h2")],
+        [bytes::Bytes::from_static(b"h2")].into(),
         Arc::new(AcceptAll),
     );
     let connector = TlsConnector::new(config);

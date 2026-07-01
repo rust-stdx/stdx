@@ -1,4 +1,4 @@
-use alloc::{sync::Arc, vec::Vec};
+use alloc::sync::Arc;
 
 use bytes::Bytes;
 use tls::crypto::CryptoProvider;
@@ -19,7 +19,7 @@ pub struct Config {
     pub ack_delay_exponent: u8,
     pub active_connection_id_limit: u64,
     pub max_datagram_frame_size: u64,
-    pub alpn_protocols: Vec<Bytes>,
+    pub alpn_protocols: heapless::Vec<Bytes, 8>,
 
     /// TLS configuration.
     pub tls_config: TlsConfig,
@@ -61,7 +61,8 @@ impl Default for Config {
     fn default() -> Self {
         let provider = Arc::new(tls::crypto_default_provider::DefaultCryptoProvider::new());
         let validator = Arc::new(tls::default_validator::WebPkiValidator::with_default_roots(provider.clone()));
-        let alpn = vec![Bytes::from_static(b"h3")];
+        let mut alpn = heapless::Vec::new();
+        alpn.push(Bytes::from_static(b"h3")).unwrap();
         Self {
             initial_max_streams_bidi: 100,
             initial_max_streams_uni: 100,

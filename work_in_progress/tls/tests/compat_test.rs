@@ -81,7 +81,6 @@ async fn handshake_and_app_data_compat_test() {
     }
 
     let mut buf = vec![0u8; 65536];
-    let mut handshake_done = false;
     loop {
         let n = stream.read(&mut buf).await.unwrap();
         if n == 0 {
@@ -93,11 +92,9 @@ async fn handshake_and_app_data_compat_test() {
             stream.write_all(&data).await.unwrap();
         }
         if client.handshake_done() {
-            handshake_done = true;
             break;
         }
     }
-    assert!(handshake_done, "Handshake should succeed");
     eprintln!("Handshake succeeded. Cipher: {:?}", client.cipher_suite().unwrap());
 
     // Read application data from server
@@ -196,7 +193,6 @@ async fn x25519mlkem768_clienthello_accepted_by_rustls() {
     );
 
     let mut buf = Vec::new();
-    use std::io::Write;
     conn.write_tls(&mut buf).unwrap();
     assert!(!buf.is_empty(), "rustls produced no ServerHello");
 }

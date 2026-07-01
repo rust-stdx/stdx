@@ -247,13 +247,7 @@ impl ServerConfig {
 #[async_trait]
 pub trait SessionTicketStore: Send + Sync {
     /// Store a ticket and its associated PSK.
-    async fn put_ticket(
-        &self,
-        server_name: &str,
-        ticket: Vec<u8>,
-        psk: heapless::Vec<u8, PSK_MAX_SIZE>,
-        lifetime_s: u32,
-    );
+    async fn put_ticket(&self, server_name: &str, ticket: &[u8], psk: heapless::Vec<u8, PSK_MAX_SIZE>, lifetime_s: u32);
     /// Look up a PSK by ticket, if it exists.
     async fn get_psk(&self, ticket: &[u8]) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>>;
     /// Remove a ticket (e.g. after failed resumption).
@@ -266,10 +260,12 @@ pub trait SessionTicketStore: Send + Sync {
 /// single-process servers but NOT for multi-process or distributed
 /// deployments.
 ///
+/// Tickets that are longer than 64 bytes are ignored.
+///
 /// Available only when the `std` feature is enabled.
 #[cfg(feature = "std")]
 pub struct InMemorySessionTicketStore {
-    tickets: std::sync::Mutex<std::collections::HashMap<Vec<u8>, (heapless::Vec<u8, PSK_MAX_SIZE>, u64)>>,
+    tickets: std::sync::Mutex<std::collections::HashMap<heapless::Vec<u8, 64>, (heapless::Vec<u8, PSK_MAX_SIZE>, u64)>>,
     ticket_lifetime: u32,
 }
 
@@ -289,16 +285,18 @@ impl SessionTicketStore for InMemorySessionTicketStore {
     async fn put_ticket(
         &self,
         _server_name: &str,
-        ticket: Vec<u8>,
+        ticket: &[u8],
         psk: heapless::Vec<u8, PSK_MAX_SIZE>,
         _lifetime_s: u32,
     ) {
-        let expiry = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
-            .saturating_add(self.ticket_lifetime as u64);
-        self.tickets.lock().unwrap().insert(ticket, (psk, expiry));
+        if let Ok(ticket_key) = heapless::Vec::from_slice(&ticket) {
+            let expiry = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+                .saturating_add(self.ticket_lifetime as u64);
+            self.tickets.lock().unwrap().insert(ticket_key, (psk, expiry));
+        }
     }
 
     async fn get_psk(&self, ticket: &[u8]) -> Option<heapless::Vec<u8, PSK_MAX_SIZE>> {

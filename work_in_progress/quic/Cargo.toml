@@ -17,6 +17,7 @@ bytes = { workspace = true }
 constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto" }
 hashbrown = { workspace = true }
+heapless = { workspace = true }
 hex = { path = "../../hex" }
 thiserror = { path = "../../thiserror" }
 tls = { path = "../tls", default-features = false }

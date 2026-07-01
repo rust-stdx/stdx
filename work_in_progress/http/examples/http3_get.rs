@@ -10,7 +10,6 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 
 struct UdpTransport {
     socket: TokioUdpSocket,
-    epoch: std::time::Instant,
 }
 
 #[async_trait::async_trait]
@@ -43,10 +42,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     println!("Connecting to {server_name} at {addr}...");
     let mut config = Config::default();
-    config.alpn_protocols = vec![bytes::Bytes::from_static(b"h3")];
+    config.alpn_protocols = [bytes::Bytes::from_static(b"h3")].into();
+
     let transport = UdpTransport {
         socket: TokioUdpSocket::bind("0.0.0.0:0").await?,
-        epoch: std::time::Instant::now(),
     };
     let mut conn = quic::Connection::new(transport, config);
     conn.connect(addr, &server_name).await?;

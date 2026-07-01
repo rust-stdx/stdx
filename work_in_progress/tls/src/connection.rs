@@ -1610,7 +1610,7 @@ impl ServerConnection {
                 &ticket_nonce,
                 suite.hash_size(),
             );
-            store.put_ticket("", ticket.to_vec(), psk, ticket_lifetime).await;
+            store.put_ticket("", &ticket, psk, ticket_lifetime).await;
             let nst = encode_new_session_ticket(
                 ticket_lifetime,
                 u32::from_be_bytes(ticket_age_add),

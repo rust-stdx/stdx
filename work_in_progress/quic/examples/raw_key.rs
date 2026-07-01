@@ -120,7 +120,7 @@ impl CertificateValidator for PinnedKeyValidator {
             } => {
                 if *scheme != SignatureScheme::Ed25519 {
                     return Err(tls::Error::CertificateValidationFailed(
-                        tls::CertificateValidationFailure::Other(format!("expected Ed25519, got {scheme:?}")),
+                        tls::CertificateValidationFailure::Other(format!("expected Ed25519, got {scheme:?}").into()),
                     ));
                 }
                 if public_key.as_slice() == expected_pk {
@@ -143,7 +143,7 @@ impl CertificateValidator for PinnedKeyValidator {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(DefaultCryptoProvider::new());
-    let alpn = vec![bytes::Bytes::from_static(b"h3")];
+    let alpn: heapless::Vec<bytes::Bytes, _> = [bytes::Bytes::from_static(b"h3")].into();
 
     // ── Server config ───────────────────────────────────────────────────
     let server_cfg = ServerConfig::new(provider.clone(), alpn.clone(), Arc::new(StaticCertProvider));
@@ -154,8 +154,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // ── Client config ───────────────────────────────────────────────────
-    let client_cfg = ClientConfig::new(provider, alpn.clone(), Arc::new(PinnedKeyValidator))
-        .with_cert_types(vec![CertType::X509, CertType::RawPublicKey]);
+    let cert_types = [CertType::X509, CertType::RawPublicKey].into();
+    let client_cfg =
+        ClientConfig::new(provider, alpn.clone(), Arc::new(PinnedKeyValidator)).with_cert_types(cert_types);
     let client_quic_cfg = Config {
         tls_config: quic::config::TlsConfig::Client(client_cfg),
         alpn_protocols: alpn,

@@ -3,7 +3,7 @@
 //! Run: `cargo run --example connect -p quic -- example.com`
 
 use core::net::SocketAddr;
-use std::{net::ToSocketAddrs, time::Duration};
+use std::net::ToSocketAddrs;
 
 use quic::{Config, Instant, IoError, Transport};
 use tokio::net::UdpSocket as TokioUdpSocket;
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mut config = Config::default();
-    config.alpn_protocols = vec![bytes::Bytes::from_static(b"h3")];
+    config.alpn_protocols = [bytes::Bytes::from_static(b"h3")].into();
 
     let mut conn = quic::Connection::new(transport, config);
     match conn.connect(addr, &server_name).await {

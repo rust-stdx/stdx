@@ -1,24 +1,21 @@
-use alloc::{vec, vec::Vec};
-
 /// A QUIC Connection ID (0-20 bytes, RFC 9000 §5.1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ConnectionId {
-    bytes: Vec<u8>,
+    bytes: heapless::Vec<u8, 20>,
 }
 
 impl ConnectionId {
     /// Create from a slice (panics if length > 20).
     pub fn new(data: &[u8]) -> Self {
-        assert!(data.len() <= 20, "Connection ID length must be ≤ 20");
         Self {
-            bytes: data.to_vec(),
+            bytes: data.try_into().expect("Connection ID length must be <= 20"),
         }
     }
 
     /// Generate a random CID of `len` bytes.
     pub fn random(len: usize) -> Self {
         assert!(len <= 20, "Connection ID length must be ≤ 20");
-        let mut buf = vec![0u8; len];
+        let mut buf = heapless::Vec::new();
         crypto::random_fill(&mut buf);
         Self {
             bytes: buf,
