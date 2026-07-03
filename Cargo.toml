@@ -70,6 +70,7 @@ members = [
     "work_in_progress/pg_derive",
     "work_in_progress/quic",
     "work_in_progress/tls",
+    "work_in_progress/tls2",
     "work_in_progress/x509",
     "xxhash",
 ]

@@ -74,21 +74,30 @@ async fn handshake_and_app_data_compat_test() {
     let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port)).await.unwrap();
 
     let mut client = tls::ClientConnection::new(config, Some("localhost")).await.unwrap();
-    while let Some(data) = client.write_tls() {
-        stream.write_all(&data).await.unwrap();
-    }
+    let mut buf = [0u8; tls::MAX_RECORD_SIZE];
+    while {
+        let n = client.write_tls(&mut buf).unwrap();
+        if n > 0 {
+            stream.write_all(&buf[..n]).await.unwrap();
+        }
+        n > 0
+    } {}
 
-    let mut buf = vec![0u8; 65536];
+    let mut buf2 = vec![0u8; 65536];
     loop {
-        let n = stream.read(&mut buf).await.unwrap();
+        let n = stream.read(&mut buf2).await.unwrap();
         if n == 0 {
             panic!("connection closed during handshake");
         }
-        client.inject(&buf[..n]);
+        client.inject(&buf2[..n]);
         client.process().await.unwrap();
-        while let Some(data) = client.write_tls() {
-            stream.write_all(&data).await.unwrap();
-        }
+        while {
+            let n = client.write_tls(&mut buf).unwrap();
+            if n > 0 {
+                stream.write_all(&buf[..n]).await.unwrap();
+            }
+            n > 0
+        } {}
         if client.handshake_done() {
             break;
         }
@@ -104,9 +113,13 @@ async fn handshake_and_app_data_compat_test() {
         }
         client.inject(&buf[..n]);
         client.process().await.unwrap();
-        while let Some(data) = client.write_tls() {
-            stream.write_all(&data).await.unwrap();
-        }
+        while {
+            let n = client.write_tls(&mut buf).unwrap();
+            if n > 0 {
+                stream.write_all(&buf[..n]).await.unwrap();
+            }
+            n > 0
+        } {}
         while let Some(data) = client.read_app_data() {
             eprintln!("Client received app data: {:?}", &data[..]);
             assert_eq!(&data[..], b"HELLO FROM SERVER");
@@ -120,8 +133,8 @@ async fn handshake_and_app_data_compat_test() {
     barrier.wait();
 
     // Send application data to server
-    let app_data = client.encrypt_application_data(b"HELLO FROM CLIENT").unwrap();
-    stream.write_all(&app_data).await.unwrap();
+    let n = client.encrypt_application_data(b"HELLO FROM CLIENT", &mut buf).unwrap();
+    stream.write_all(&buf[..n]).await.unwrap();
 
     let _ = server_thread.join();
 }
@@ -178,9 +191,14 @@ async fn x25519mlkem768_clienthello_accepted_by_rustls() {
     let config = tls::config::ClientConfig::new(provider, heapless::Vec::new(), validator);
     let mut client = tls::ClientConnection::new(config, Some("localhost")).await.unwrap();
     let mut ch_bytes = Vec::new();
-    while let Some(data) = client.write_tls() {
-        ch_bytes.extend_from_slice(&data);
-    }
+    let mut buf = [0u8; tls::MAX_RECORD_SIZE];
+    while {
+        let n = client.write_tls(&mut buf).unwrap();
+        if n > 0 {
+            ch_bytes.extend_from_slice(&buf[..n]);
+        }
+        n > 0
+    } {}
 
     conn.read_tls(&mut &ch_bytes[..]).unwrap();
     let st = conn.process_new_packets();

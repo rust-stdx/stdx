@@ -3285,6 +3285,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tls2"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "heapless",
+ "tokio",
+ "x509",
+ "zeroize",
+]
+
+[[package]]
 name = "tokio"
 version = "1.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

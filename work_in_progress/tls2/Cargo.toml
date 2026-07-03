@@ -1,0 +1,27 @@
+[package]
+name = "tls2"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "tls.rs"
+
+[features]
+default = ["crypto-default-provider", "webpki-validator", "std", "tokio"]
+crypto-default-provider = ["dep:crypto", "crypto/random"]
+std = ["crypto/std"]
+tokio = ["dep:tokio", "std"]
+webpki-validator = ["dep:crypto"]
+zeroize = ["dep:zeroize", "crypto?/zeroize"]
+
+[dependencies]
+crypto = { path = "../../crypto", optional = true, default-features = false }
+heapless = { workspace = true }
+tokio = { workspace = true, optional = true }
+x509 = { path = "../x509", features = ["std"] }
+zeroize = { workspace = true, optional = true }
+
+
+[[example]]
+name = "tokio"
+required-features = ["tokio"]

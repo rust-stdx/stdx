@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub(crate) struct Http3Conn {
-    pub(crate) conn: Connection<UdpTransport>,
+    pub(crate) conn: std::sync::Arc<Connection>,
     #[allow(dead_code)]
     pub(crate) key: PoolKey,
     qpack_enc: qpack::QpackEncoder,
@@ -26,8 +26,19 @@ impl quic::Transport for UdpTransport {
         self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
 
-    async fn receive_from(&self, buf: &mut [u8]) -> Result<(usize, std::net::SocketAddr), IoError> {
-        self.socket.recv_from(buf).await.map_err(IoError::from)
+    async fn receive_from(
+        &self,
+        buf: &mut [u8],
+        deadline: Option<std::time::Duration>,
+    ) -> Result<(usize, std::net::SocketAddr), IoError> {
+        let recv = self.socket.recv_from(buf);
+        match deadline {
+            Some(d) => match tokio::time::timeout(d, recv).await {
+                Ok(result) => result.map_err(IoError::from),
+                Err(_) => Err(IoError::WouldBlock),
+            },
+            None => recv.await.map_err(IoError::from),
+        }
     }
 
     fn local_addr(&self) -> Result<std::net::SocketAddr, IoError> {
@@ -54,16 +65,27 @@ impl Http3Conn {
         let mut config = Config::default();
         config.alpn_protocols = vec![Bytes::from_static(b"h3")];
 
-        let mut conn = Connection::new(
+        let conn = Connection::connect(std::sync::Arc::new(
             UdpTransport {
                 socket: udp,
                 epoch: std::time::Instant::now(),
             },
             config,
-        );
-        conn.connect(remote_addr, host)
-            .await
-            .map_err(|e| Error::H3(format!("QUIC connect: {e:?}")))?;
+            remote_addr,
+            host,
+        ))
+        .await
+        .map_err(|e| Error::H3(format!("QUIC connect: {e:?}")))?;
+
+        // Spawn background poll task
+        let bg = conn.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Err(_) = bg.poll().await {
+                    break;
+                }
+            }
+        });
 
         // Open control stream
         let mut ctl = conn
@@ -75,8 +97,8 @@ impl Http3Conn {
         varint::encode(http3::CONTROL_STREAM_TYPE, &mut ctl_buf);
         ctl_buf.extend_from_slice(&frame::encode_frame(&frame::Frame::Settings(Vec::new())));
         ctl.send(&ctl_buf, false)
+            .await
             .map_err(|e| Error::H3(format!("send control: {e:?}")))?;
-        conn.poll().await.map_err(|e| Error::H3(format!("recv1: {e:?}")))?;
 
         // Open QPACK encoder stream
         let mut enc_stream = conn
@@ -89,8 +111,8 @@ impl Http3Conn {
         varint::encode(0x20, &mut enc_buf);
         enc_stream
             .send(&enc_buf, false)
+            .await
             .map_err(|e| Error::H3(format!("send qpack enc: {e:?}")))?;
-        conn.poll().await.map_err(|e| Error::H3(format!("recv2: {e:?}")))?;
 
         // Open QPACK decoder stream
         let mut dec_stream = conn
@@ -102,8 +124,8 @@ impl Http3Conn {
         varint::encode(http3::QPACK_DECODER_STREAM_TYPE, &mut dec_buf);
         dec_stream
             .send(&dec_buf, false)
+            .await
             .map_err(|e| Error::H3(format!("send qpack dec: {e:?}")))?;
-        conn.poll().await.map_err(|e| Error::H3(format!("recv3: {e:?}")))?;
 
         // Read server SETTINGS from control stream
         let mut server = conn
@@ -172,6 +194,7 @@ impl Http3Conn {
         let has_body = req.body.is_some();
         req_send
             .send(&frame::encode_frame(&frame::Frame::Headers(headers_encoded)), !has_body)
+            .await
             .map_err(|e| Error::H3(format!("send headers: {e:?}")))?;
 
         if let Some(mut body) = req.body {
@@ -181,6 +204,7 @@ impl Http3Conn {
                     Some(Ok(HttpFrame::Data(data))) => {
                         req_send
                             .send(&frame::encode_frame(&frame::Frame::Data(data.to_vec())), false)
+                            .await
                             .map_err(|e| Error::H3(format!("send data: {e:?}")))?;
                     }
                     Some(Ok(_)) => {}
@@ -188,6 +212,7 @@ impl Http3Conn {
                     None => {
                         req_send
                             .send(&Vec::new(), true)
+                            .await
                             .map_err(|e| Error::H3(format!("send fin: {e:?}")))?;
                         break;
                     }
