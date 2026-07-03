@@ -1,4 +1,7 @@
-//! Zero-allocation TLS
+//! Zero-allocation, `no_std` compatible TLS
+
+#![cfg(feature = "std")]
+extern crate alloc;
 
 mod client;
 mod crypto;
@@ -15,6 +18,7 @@ pub mod crypto_default_provider;
 pub use client::*;
 pub use crypto::*;
 pub use errors::*;
+
 /// The maximum size, in bytes, of a hash
 pub const MAX_HASH_SIZE: usize = 48;
 pub const AEAD_MAX_KEY_SIZE: usize = 32;
@@ -31,3 +35,6 @@ pub const SIGNATURE_MAX_SIZE: usize = 256;
 /// Maximum size of a fully framed TLS record (5-byte header + payload + padding + tag).
 /// 5 + 16384 + 1 + 256 + 16 = 16662.
 pub const MAX_RECORD_SIZE: usize = 16662;
+
+/// Maximum number of certificates allowed in a chain.
+pub const MAX_CERTS: usize = 10;

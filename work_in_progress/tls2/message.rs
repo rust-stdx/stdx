@@ -1,4 +1,7 @@
-use crate::{CipherSuite, CryptoProvider, KeyExchangeGroup, SignatureScheme, errors::Error};
+use crate::{
+    CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, ParsedCertificate, ReceivedCertificate, SignatureScheme,
+    errors::Error,
+};
 
 // ── Wire format helpers ──────────────────────────────────────────────────
 
@@ -197,6 +200,7 @@ pub fn encode_client_hello(
     alpn_protocols: &[&[u8]],
     supported_groups: &[KeyExchangeGroup],
     signature_schemes: &[SignatureScheme],
+    cert_types: &[CertType],
 ) -> Result<usize, Error> {
     let body_start = *offset;
 
@@ -334,6 +338,21 @@ pub fn encode_client_hello(
         buf[alpn_start + 2..alpn_start + 4].copy_from_slice(&alpn_data_len.to_be_bytes());
     }
 
+    // 7. ServerCertificateType (RFC 7250)
+    if cert_types.contains(&CertType::RawPublicKey) || cert_types.contains(&CertType::X509) {
+        let ct_start = *offset;
+        *offset += 4;
+        buf[*offset] = cert_types.len() as u8;
+        *offset += 1;
+        for ct in cert_types {
+            buf[*offset] = *ct as u8;
+            *offset += 1;
+        }
+        let ct_data_len = (*offset - ct_start - 4) as u16;
+        buf[ct_start..ct_start + 2].copy_from_slice(&(ExtensionType::ServerCertificateType as u16).to_be_bytes());
+        buf[ct_start + 2..ct_start + 4].copy_from_slice(&ct_data_len.to_be_bytes());
+    }
+
     // Fill total extensions length
     let ext_total = (*offset - ext_total_start - 2) as u16;
     buf[ext_total_start..ext_total_start + 2].copy_from_slice(&ext_total.to_be_bytes());
@@ -402,7 +421,8 @@ pub fn decode_server_hello<'a>(body: &'a [u8]) -> Result<ServerHelloData<'a>, Er
                     return Err(Error::DecodeError);
                 }
                 let group_bytes = [ext_data[ext_off], ext_data[ext_off + 1]];
-                key_share_group = Some(KeyExchangeGroup::from_wire(group_bytes).ok_or(Error::UnsupportedKeyExchangeGroup)?);
+                key_share_group =
+                    Some(KeyExchangeGroup::from_wire(group_bytes).ok_or(Error::UnsupportedKeyExchangeGroup)?);
                 key_share_public = &ext_data[ext_off + 4..ext_off + ext_len];
             }
         }
@@ -421,11 +441,14 @@ pub fn decode_server_hello<'a>(body: &'a [u8]) -> Result<ServerHelloData<'a>, Er
 
 // ── EncryptedExtensions decoding ─────────────────────────────────────────
 
-/// Decode EncryptedExtensions to extract the selected ALPN protocol.
-pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<Option<&'a [u8]>, Error> {
+/// Decode EncryptedExtensions, returning `(alpn_protocol, server_cert_type)`.
+pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<(Option<&'a [u8]>, Option<CertType>), Error> {
     let mut off = 0;
     let ext_data = read_slice_u16(body, &mut off)?;
     let mut ext_off = 0;
+
+    let mut alpn = None;
+    let mut cert_type = None;
 
     while ext_off + 4 <= ext_data.len() {
         let ext_type = read_u16(ext_data, &mut ext_off);
@@ -436,7 +459,6 @@ pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<Option<&'a [u8]
 
         match ExtensionType::from_u16(ext_type) {
             Some(ExtensionType::ApplicationLayerProtocolNegotiation) => {
-                // ALPN: protocol_name_list length(2) + for each: length(1) + name
                 let alpn_body = &ext_data[ext_off..ext_off + ext_len];
                 if alpn_body.len() < 3 {
                     return Err(Error::DecodeError);
@@ -449,13 +471,18 @@ pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<Option<&'a [u8]
                 if 3 + name_len > alpn_body.len() {
                     return Err(Error::DecodeError);
                 }
-                return Ok(Some(&alpn_body[3..3 + name_len]));
+                alpn = Some(&alpn_body[3..3 + name_len]);
+            }
+            Some(ExtensionType::ServerCertificateType) => {
+                if ext_len >= 1 {
+                    cert_type = CertType::from_u8(ext_data[ext_off]);
+                }
             }
             _ => {}
         }
         ext_off += ext_len;
     }
-    Ok(None)
+    Ok((alpn, cert_type))
 }
 
 // ── Certificate decoding ─────────────────────────────────────────────────
@@ -503,17 +530,17 @@ pub fn decode_server_hello_extensions<'a>(ext_data: &'a [u8]) -> Result<(KeyExch
     }
     Ok((kx_group.ok_or(Error::DecodeError)?, kx_public))
 }
-/// Decode Certificate message body, collecting cert DER slices.
-/// Returns the first (end-entity) certificate's DER data.
-const MAX_CERTS: usize = 6;
-pub fn decode_certificate<'a>(body: &'a [u8]) -> Result<&'a [u8], Error> {
+/// Decode Certificate message body.
+///
+/// For `X509` returns all certificate DERs in a chain. For `RawPublicKey`
+/// extracts the SPKI from the first (and only) entry and returns the raw
+/// key bytes.
+pub fn decode_certificate<'a>(body: &'a [u8], cert_type: CertType) -> Result<ReceivedCertificate<'a>, Error> {
     let mut off = 0;
 
-    // request_context (TLS 1.3: 1-byte length + context, usually empty)
     let ctx_len = read_u8(body, &mut off) as usize;
     off += ctx_len;
 
-    // certificate_list: 3-byte length + entries
     if off + 3 > body.len() {
         return Err(Error::DecodeError);
     }
@@ -523,32 +550,57 @@ pub fn decode_certificate<'a>(body: &'a [u8]) -> Result<&'a [u8], Error> {
     }
 
     let list_end = off + list_len;
-    let mut cert_count = 0;
-    let mut end_entity_der = None;
 
-    while off < list_end {
-        if cert_count >= MAX_CERTS {
-            break;
-        }
-        // cert_data: 3-byte length + DER
-        let cert_len = read_u24(body, &mut off) as usize;
-        if off + cert_len > list_end {
-            return Err(Error::DecodeError);
-        }
-        let cert_der = &body[off..off + cert_len];
-        off += cert_len;
+    match cert_type {
+        CertType::X509 => {
+            let mut chain = heapless::Vec::new();
+            while off < list_end {
+                let cert_len = read_u24(body, &mut off) as usize;
+                if off + cert_len > list_end {
+                    return Err(Error::DecodeError);
+                }
+                let cert_der = &body[off..off + cert_len];
+                off += cert_len;
 
-        // extensions: 2-byte length (skip for now)
-        let ext_len = read_u16(body, &mut off) as usize;
-        off += ext_len;
+                let ext_len = read_u16(body, &mut off) as usize;
+                off += ext_len;
 
-        if end_entity_der.is_none() {
-            end_entity_der = Some(cert_der);
+                let parsed = ParsedCertificate::from_der(cert_der)?;
+                chain.push(parsed).map_err(|_| Error::DecodeError)?;
+            }
+            if chain.is_empty() {
+                return Err(Error::DecodeError);
+            }
+            Ok(ReceivedCertificate::X509 {
+                chain,
+            })
         }
-        cert_count += 1;
+        CertType::RawPublicKey => {
+            // RFC 7250 §3: the certificate_list contains a single entry
+            // whose cert_data is the SubjectPublicKeyInfo DER.
+            if off >= list_end {
+                return Err(Error::CertificateEmptyRawPublicKey);
+            }
+            let pk_len = read_u24(body, &mut off) as usize;
+            if off + pk_len > list_end {
+                return Err(Error::DecodeError);
+            }
+            let spki_der = &body[off..off + pk_len];
+            off += pk_len;
+
+            // Skip extensions.
+            let ext_len = read_u16(body, &mut off) as usize;
+            off += ext_len;
+
+            let public_key = x509::extract_key_from_spki(spki_der).map_err(|_| Error::DecodeError)?;
+            // Scheme will be determined by the caller via detect_key_scheme.
+            // Use Ed25519 as a placeholder (overwritten by probe).
+            Ok(ReceivedCertificate::RawPublicKey {
+                public_key,
+                scheme: SignatureScheme::Ed25519,
+            })
+        }
     }
-
-    end_entity_der.ok_or(Error::DecodeError)
 }
 
 // ── CertificateVerify decoding ───────────────────────────────────────────

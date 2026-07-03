@@ -1,5 +1,6 @@
 use crate::{
-    CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeSecretKey, SignatureScheme,
+    CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, KeyExchangeSecretKey, ReceivedCertificate,
+    SignatureScheme,
     errors::Error,
     key_schedule, message,
     record::{self, ContentType, RecordHeader, decrypt_record, encrypt_record},
@@ -8,8 +9,8 @@ use crate::{
 /// Configuration for a TLS 1.3 client connection.
 ///
 /// Created via [`ClientConfig::new`] with a [`CryptoProvider`]. The provider
-/// supplies all cryptographic primitives (AEAD, key exchange, signatures,
-/// certificate validation).
+/// supplies all cryptographic primitives (AEAD, key exchange, signatures)
+/// and certificate validation.
 ///
 /// By default only X.509 certificates are negotiated. Call
 /// [`with_certificate_types`][Self::with_certificate_types] to also accept
@@ -59,7 +60,7 @@ impl<C: CryptoProvider> ClientConfig<C> {
 ///
 /// The caller is responsible for all network I/O. Use [`receive_buffer`](Self::receive_buffer)
 /// and [`commit_received`](Self::commit_received) to feed data in, and
-/// [`outgoing_hadnshake_data`](Self::outgoing_hadnshake_data) to extract data to send.
+/// [`outgoing_data`](Self::outgoing_data) to extract data to send.
 ///
 /// # Panics
 ///
@@ -74,9 +75,13 @@ pub struct Client<'a, C: CryptoProvider> {
     pub(crate) receive_decoded: usize,
     pub(crate) receive_pending: usize,
     pub(crate) out_len: usize,
+    pub(crate) send_consumed: usize,
 
     pub(crate) app_data_offset: usize,
     pub(crate) app_data_decrypted_len: usize,
+    pub(crate) app_data_consumed: usize,
+    pub(crate) key_update_response: heapless::Vec<u8, 256>,
+    pub(crate) key_update_sent: usize,
     pub(crate) ticket_offset: usize,
     pub(crate) ticket_len: usize,
 
@@ -89,6 +94,7 @@ pub struct Client<'a, C: CryptoProvider> {
     // ── Negotiated ──
     pub(crate) ciphersuite: Option<CipherSuite>,
     pub(crate) alpn: Option<([u8; 255], usize)>,
+    pub(crate) negotiated_cert_type: CertType,
 
     // ── Key exchange ──
     pub(crate) key_exchange_group: KeyExchangeGroup,
@@ -111,6 +117,7 @@ pub struct Client<'a, C: CryptoProvider> {
     pub(crate) server_random: [u8; 32],
     pub(crate) server_public_key: heapless::Vec<u8, 294>,
     pub(crate) server_signature_scheme: Option<SignatureScheme>,
+    pub(crate) server_name: heapless::Vec<u8, 256>,
     pub(crate) transcript_bytes: heapless::Vec<u8, 8192>,
     pub(crate) resumption_secret: [u8; 48],
 }
@@ -174,8 +181,12 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
             receive_decoded: 0,
             receive_pending: 0,
             out_len: 0,
+            send_consumed: 0,
             app_data_offset: 0,
             app_data_decrypted_len: 0,
+            app_data_consumed: 0,
+            key_update_response: heapless::Vec::new(),
+            key_update_sent: 0,
             ticket_offset: 0,
             ticket_len: 0,
             phase: Phase::ClientHello,
@@ -184,6 +195,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
             close_sent: false,
             ciphersuite: None,
             alpn: None,
+            negotiated_cert_type: CertType::X509,
             key_exchange_group: C::KEY_EXCHANGE_GROUPS
                 .first()
                 .copied()
@@ -202,6 +214,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
             server_random: [0u8; 32],
             server_public_key: heapless::Vec::new(),
             server_signature_scheme: None,
+            server_name: heapless::Vec::new(),
             transcript_bytes: heapless::Vec::new(),
             resumption_secret: [0u8; 48],
         }
@@ -214,11 +227,11 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
         self.ciphersuite.map_or(16, |s| s.key_size())
     }
     fn transcript_hash(&self, suite: CipherSuite, out: &mut [u8]) -> Result<(), Error> {
-        let p = &self.config.crypto_provider;
+        let crypto_provider = &self.config.crypto_provider;
         if self.transcript_bytes.is_empty() {
-            p.hash(suite, &[], out)?;
+            crypto_provider.hash(suite, &[], out)?;
         } else {
-            p.hash(suite, &self.transcript_bytes, out)?;
+            crypto_provider.hash(suite, &self.transcript_bytes, out)?;
         }
         Ok(())
     }
@@ -245,7 +258,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
     /// `b"h2"`, `b"http/1.1"`).
     ///
     /// On success returns [`Send`](ClientHandshakeEvent::Send) — the caller
-    /// should transmit [`outgoing_hadnshake_data`](Self::outgoing_hadnshake_data)
+    /// should transmit [`outgoing_data`](Self::outgoing_data)
     /// over the network and then call [`continue_handshake`](Self::continue_handshake).
     ///
     /// # Errors
@@ -257,12 +270,19 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
         server_name: Option<&str>,
         alpn_protocols: &[&[u8]],
     ) -> Result<ClientHandshakeEvent, Error> {
-        let p = &self.config.crypto_provider;
-        p.secure_random(&mut self.client_random);
+        let crypto_provider = &self.config.crypto_provider;
+        crypto_provider.secure_random(&mut self.client_random);
 
         let group = self.key_exchange_group;
-        let (secret, public) = p.key_exchange_generate_keypair(group)?;
+        let (secret, public) = crypto_provider.key_exchange_generate_keypair(group)?;
         self.key_exchange_secret[..secret.bytes().len()].copy_from_slice(secret.bytes());
+
+        self.server_name.clear();
+        if let Some(name) = server_name {
+            self.server_name
+                .extend_from_slice(name.as_bytes())
+                .map_err(|_| Error::InvalidConfiguration)?;
+        }
 
         // Write TLS record header: placeholder (5 bytes), filled after encoding
         let mut off = 0;
@@ -283,6 +303,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
             alpn_protocols,
             C::KEY_EXCHANGE_GROUPS,
             C::SIGNATURE_SCHEMES,
+            &self.config.supported_certificate_types,
         )?;
 
         // Fill record header length
@@ -301,7 +322,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
     ///
     /// 1. Inspect the returned event.
     /// 2. If [`Send`](ClientHandshakeEvent::Send): transmit
-    ///    [`outgoing_hadnshake_data`](Self::outgoing_hadnshake_data) over the network.
+    ///    [`outgoing_data`](Self::outgoing_data) over the network.
     /// 3. If [`Receive`](ClientHandshakeEvent::Receive): read data from the
     ///    network into [`receive_buffer`](Self::receive_buffer), then call
     ///    [`commit_received`](Self::commit_received).
@@ -333,6 +354,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                 self.keys.write_seq = 0;
                 self.phase = Phase::ApplicationData;
                 self.opened = true;
+                self.clear_send_buffer();
                 Ok(ClientHandshakeEvent::Done {
                     ciphersuite: self.ciphersuite.unwrap(),
                     tls_version: 0x0304,
@@ -356,16 +378,45 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
     /// [`encrypt`](Self::encrypt) or after
     /// [`Send`](ClientHandshakeEvent::Send) from the handshake, this returns
     /// the contents of the send buffer.
-    pub fn outgoing_hadnshake_data(&self) -> &[u8] {
-        &self.send_buffer[..self.out_len]
+    pub fn outgoing_data(&self) -> &[u8] {
+        &self.send_buffer[self.send_consumed..self.out_len]
+    }
+
+    /// Advance the sent position within the send buffer.
+    ///
+    /// Call this after transmitting `n` bytes from the slice returned by
+    /// [`outgoing_data`](Self::outgoing_data).  The send buffer is reset
+    /// automatically once all bytes have been sent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `n` exceeds the remaining unsent length.
+    pub fn commit_sent(&mut self, n: usize) {
+        assert!(n <= self.out_len - self.send_consumed);
+        self.send_consumed += n;
+        if self.send_consumed == self.out_len {
+            self.send_consumed = 0;
+            self.out_len = 0;
+        }
+    }
+
+    /// Discard any data in the send buffer without sending it.
+    ///
+    /// Useful after the handshake to clear handshake messages from the
+    /// buffer without transmitting them again.
+    #[inline]
+    fn clear_send_buffer(&mut self) {
+        self.send_consumed = 0;
+        self.out_len = 0;
     }
 
     // ── Application data ──
     /// Encrypt application data and write the resulting TLS record into the
     /// send buffer.
     ///
-    /// The encrypted record is available via
-    /// [`outgoing_hadnshake_data`](Self::outgoing_hadnshake_data).
+    /// Returns the number of plaintext bytes written (always equal to
+    /// `data.len()`).  The encrypted record is available via
+    /// [`outgoing_data`](Self::outgoing_data).
     ///
     /// # Panics
     ///
@@ -376,7 +427,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
     ///
     /// Returns [`Error::InsufficientBuffer`] if the send buffer is too small
     /// for the encrypted record.
-    pub fn encrypt(&mut self, data: &[u8]) -> Result<(), Error> {
+    pub fn encrypt(&mut self, data: &[u8]) -> Result<usize, Error> {
         let suite = self.ciphersuite.unwrap();
         let ksz = suite.key_size();
         let p = &self.config.crypto_provider;
@@ -392,7 +443,8 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
         )?;
         self.keys.write_seq += 1;
         self.out_len = total;
-        Ok(())
+        self.send_consumed = 0;
+        Ok(data.len())
     }
 
     /// Decrypt one or more TLS records from the receive buffer.
@@ -411,9 +463,15 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
     /// alert.  Returns [`Error::AeadError`] if record decryption fails.
     pub fn decrypt(&mut self) -> Result<ClientApplicationDataEvent, Error> {
         let suite = self.ciphersuite.unwrap();
-        let hs = suite.hash_size();
-        let ksz = suite.key_size();
-        let p = &self.config.crypto_provider;
+        let hash_size = suite.hash_size();
+        let key_size = suite.key_size();
+        let crypto_provider = &self.config.crypto_provider;
+
+        // Don't process new records while the caller still has unconsumed
+        // application data from the previous record.
+        if self.app_data_consumed < self.app_data_decrypted_len {
+            return Ok(ClientApplicationDataEvent::AppData);
+        }
 
         loop {
             let buf_end = self.receive_decoded + self.receive_pending;
@@ -431,9 +489,9 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                     let body_start = self.receive_decoded + RecordHeader::SIZE;
                     let receive_base = self.receive_buffer.as_ptr() as usize;
                     let (inner_type, payload) = decrypt_record(
-                        p,
+                        crypto_provider,
                         suite,
-                        &self.keys.read_key[..ksz],
+                        &self.keys.read_key[..key_size],
                         &self.keys.read_iv,
                         self.keys.read_seq,
                         &header,
@@ -448,6 +506,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                             let off = payload.as_ptr() as usize - receive_base;
                             self.app_data_offset = off;
                             self.app_data_decrypted_len = payload.len();
+                            self.app_data_consumed = 0;
                             return Ok(ClientApplicationDataEvent::AppData);
                         }
                         ContentType::Alert => {
@@ -466,11 +525,11 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                     let ticket = message::decode_new_session_ticket(msg_body)?;
                                     let mut psk = [0u8; 48];
                                     key_schedule::derive_ticket_psk(
-                                        p,
+                                        crypto_provider,
                                         suite,
-                                        &self.resumption_secret[..hs],
+                                        &self.resumption_secret[..hash_size],
                                         ticket.nonce,
-                                        &mut psk[..hs],
+                                        &mut psk[..hash_size],
                                     )?;
                                     self.ticket_offset = ticket.ticket.as_ptr() as usize - receive_base;
                                     self.ticket_len = ticket.ticket.len();
@@ -484,32 +543,32 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                     let _ = message::decode_key_update(msg_body)?;
                                     let mut nr = [0u8; 48];
                                     key_schedule::key_update_secret(
-                                        p,
+                                        crypto_provider,
                                         suite,
-                                        &self.keys.read_traffic_secret[..hs],
-                                        &mut nr[..hs],
+                                        &self.keys.read_traffic_secret[..hash_size],
+                                        &mut nr[..hash_size],
                                     )?;
-                                    self.keys.read_traffic_secret[..hs].copy_from_slice(&nr[..hs]);
+                                    self.keys.read_traffic_secret[..hash_size].copy_from_slice(&nr[..hash_size]);
                                     key_schedule::derive_traffic_keys(
-                                        p,
+                                        crypto_provider,
                                         suite,
-                                        &nr[..hs],
+                                        &nr[..hash_size],
                                         &mut self.keys.read_key,
                                         &mut self.keys.read_iv,
                                     )?;
                                     self.keys.read_seq = 0;
                                     let mut nw = [0u8; 48];
                                     key_schedule::key_update_secret(
-                                        p,
+                                        crypto_provider,
                                         suite,
-                                        &self.keys.write_traffic_secret[..hs],
-                                        &mut nw[..hs],
+                                        &self.keys.write_traffic_secret[..hash_size],
+                                        &mut nw[..hash_size],
                                     )?;
-                                    self.keys.write_traffic_secret[..hs].copy_from_slice(&nw[..hs]);
+                                    self.keys.write_traffic_secret[..hash_size].copy_from_slice(&nw[..hash_size]);
                                     key_schedule::derive_traffic_keys(
-                                        p,
+                                        crypto_provider,
                                         suite,
-                                        &nw[..hs],
+                                        &nw[..hash_size],
                                         &mut self.keys.write_key,
                                         &mut self.keys.write_iv,
                                     )?;
@@ -521,18 +580,22 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                     message::put_u24(&mut ku, &mut ko, 1);
                                     ku[ko] = 0;
                                     ko += 1;
+                                    let mut resp_buf = [0u8; 256];
                                     let te = encrypt_record(
-                                        p,
+                                        crypto_provider,
                                         suite,
-                                        &self.keys.write_key[..ksz],
+                                        &self.keys.write_key[..key_size],
                                         &self.keys.write_iv,
                                         self.keys.write_seq,
                                         ContentType::Handshake,
                                         &ku[..ko],
-                                        self.send_buffer,
+                                        &mut resp_buf,
                                     )?;
                                     self.keys.write_seq += 1;
-                                    self.out_len = te;
+                                    self.key_update_response.clear();
+                                    self.key_update_response
+                                        .extend_from_slice(&resp_buf[..te])
+                                        .map_err(|_| Error::InsufficientBuffer)?;
                                     return Ok(ClientApplicationDataEvent::KeyUpdate);
                                 }
                                 _ => continue,
@@ -562,8 +625,56 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
     /// Get the last decrypted application data (after
     /// [`decrypt`](Self::decrypt) returned
     /// [`AppData`](ClientApplicationDataEvent::AppData)).
+    ///
+    /// Returns only the unconsumed portion of the data.  Advance the
+    /// consumed position with [`commit_app_data`](Self::commit_app_data)
+    /// so that subsequent calls return the remainder.
     pub fn received_app_data(&self) -> &[u8] {
-        &self.receive_buffer[self.app_data_offset..self.app_data_offset + self.app_data_decrypted_len]
+        &self.receive_buffer
+            [self.app_data_offset + self.app_data_consumed..self.app_data_offset + self.app_data_decrypted_len]
+    }
+
+    /// Advance the consumed position within the last decrypted record.
+    ///
+    /// Call this after reading `n` bytes from the slice returned by
+    /// [`received_app_data`](Self::received_app_data).  The next call to
+    /// [`decrypt`](Self::decrypt) will not process new records until all
+    /// data from the current record has been consumed (i.e. the total
+    /// consumed equals the record length).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `n` exceeds the remaining unconsumed length.
+    pub fn commit_app_data(&mut self, n: usize) {
+        assert!(n <= self.app_data_decrypted_len - self.app_data_consumed);
+        self.app_data_consumed += n;
+    }
+
+    /// Return the unsent portion of the pending KeyUpdate response, if any.
+    ///
+    /// The caller should transmit this data over the network and then call
+    /// [`commit_key_update_data`](Self::commit_key_update_data) with the
+    /// number of bytes successfully sent.
+    pub fn outgoing_key_update_data(&self) -> &[u8] {
+        &self.key_update_response[self.key_update_sent..]
+    }
+
+    /// Advance the sent position within the pending KeyUpdate response.
+    ///
+    /// Call this after transmitting `n` bytes from the slice returned by
+    /// [`outgoing_key_update_data`](Self::outgoing_key_update_data).  The
+    /// response is cleared automatically once all bytes have been sent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `n` exceeds the remaining unsent length.
+    pub fn commit_key_update_data(&mut self, n: usize) {
+        assert!(n <= self.key_update_response.len() - self.key_update_sent);
+        self.key_update_sent += n;
+        if self.key_update_sent == self.key_update_response.len() {
+            self.key_update_response.clear();
+            self.key_update_sent = 0;
+        }
     }
 
     /// Get the raw ticket bytes from the last NewSessionTicket (after
@@ -575,17 +686,15 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
 
     /// Send a close_notify alert to the peer.
     ///
-    /// The encrypted alert is written into the send buffer; the caller
-    /// should transmit [`outgoing_hadnshake_data`](Self::outgoing_hadnshake_data)
-    /// and then close the underlying transport.
-    pub fn close(&mut self) -> Result<(), Error> {
+    /// The encrypted alert is returned.
+    pub fn close(&mut self) -> Result<&[u8], Error> {
         let suite = self.ciphersuite.unwrap();
-        let ksz = suite.key_size();
-        let p = &self.config.crypto_provider;
+        let key_size = suite.key_size();
+        let crypto_provider = &self.config.crypto_provider;
         let total = encrypt_record(
-            p,
+            crypto_provider,
             suite,
-            &self.keys.write_key[..ksz],
+            &self.keys.write_key[..key_size],
             &self.keys.write_iv,
             self.keys.write_seq,
             ContentType::Alert,
@@ -594,8 +703,9 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
         )?;
         self.keys.write_seq += 1;
         self.out_len = total;
+        self.send_consumed = 0;
         self.close_sent = true;
-        Ok(())
+        Ok(self.outgoing_data())
     }
 
     pub fn is_established(&self) -> bool {
@@ -616,7 +726,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
 // ── Internal handshake processing ──
 
 impl<'a, C: CryptoProvider> Client<'a, C> {
-    fn process_server_hello(&mut self    ) -> Result<ClientHandshakeEvent, Error> {
+    fn process_server_hello(&mut self) -> Result<ClientHandshakeEvent, Error> {
         let buf_end = self.receive_decoded + self.receive_pending;
         let buf = &self.receive_buffer[self.receive_decoded..buf_end];
         if buf.len() < RecordHeader::SIZE {
@@ -644,11 +754,11 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                 self.ciphersuite = Some(sh.cipher_suite);
                 self.key_exchange_group = sh.key_share_group;
                 let suite = sh.cipher_suite;
-                let hs = suite.hash_size();
-                let ksz = suite.key_size();
-                let p = &self.config.crypto_provider;
+                let hash_size = suite.hash_size();
+                let key_size = suite.key_size();
+                let crypto_provider = &self.config.crypto_provider;
 
-                let shared = p.key_exchange(
+                let shared = crypto_provider.key_exchange(
                     &KeyExchangeSecretKey::new(sh.key_share_group, &self.key_exchange_secret[..32]),
                     sh.key_share_public,
                 )?;
@@ -656,62 +766,83 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                 let ch_len = self.out_len.checked_sub(5).unwrap_or(0);
                 if ch_len > 0 {
                     let ch_msg = &self.send_buffer[5..5 + ch_len];
-                    self.transcript_bytes.extend_from_slice(ch_msg).map_err(|_| Error::CryptoError)?;
+                    self.transcript_bytes
+                        .extend_from_slice(ch_msg)
+                        .map_err(|_| Error::CryptoError)?;
                 }
 
                 let blen = body.len().min(16384usize.saturating_sub(self.transcript_bytes.len()));
-                self.transcript_bytes.extend_from_slice(&body[..blen]).map_err(|_| Error::CryptoError)?;
+                self.transcript_bytes
+                    .extend_from_slice(&body[..blen])
+                    .map_err(|_| Error::CryptoError)?;
 
                 let mut th = [0u8; 48];
-                self.transcript_hash(suite, &mut th[..hs])?;
+                self.transcript_hash(suite, &mut th[..hash_size])?;
 
-                let z: &[u8] = &[0u8; 48][..hs];
+                let z: &[u8] = &[0u8; 48][..hash_size];
                 let mut es = [0u8; 48];
-                p.hkdf_extract(suite, z, z, &mut es[..hs])?;
+                crypto_provider.hkdf_extract(&mut es[..hash_size], suite, z, z)?;
 
                 let mut empty_hash = [0u8; 48];
-                p.hash(suite, &[], &mut empty_hash[..hs])?;
+                crypto_provider.hash(suite, &[], &mut empty_hash[..hash_size])?;
 
                 let mut d = [0u8; 48];
-                key_schedule::derive_secret(p, suite, &es[..hs], b"derived", &empty_hash[..hs], &mut d[..hs])?;
+                key_schedule::derive_secret(
+                    crypto_provider,
+                    suite,
+                    &es[..hash_size],
+                    b"derived",
+                    &empty_hash[..hash_size],
+                    &mut d[..hash_size],
+                )?;
 
-                p.hkdf_extract(suite, &d[..hs], &shared, &mut self.keys.secret[..hs])?;
+                crypto_provider.hkdf_extract(&mut self.keys.secret[..hash_size], suite, &d[..hash_size], &shared)?;
 
                 let mut ch = [0u8; 48];
                 let mut shs = [0u8; 48];
                 key_schedule::derive_secret(
-                    p,
+                    crypto_provider,
                     suite,
-                    &self.keys.secret[..hs],
+                    &self.keys.secret[..hash_size],
                     b"c hs traffic",
-                    &th[..hs],
-                    &mut ch[..hs],
+                    &th[..hash_size],
+                    &mut ch[..hash_size],
                 )?;
                 key_schedule::derive_secret(
-                    p,
+                    crypto_provider,
                     suite,
-                    &self.keys.secret[..hs],
+                    &self.keys.secret[..hash_size],
                     b"s hs traffic",
-                    &th[..hs],
-                    &mut shs[..hs],
+                    &th[..hash_size],
+                    &mut shs[..hash_size],
                 )?;
                 key_schedule::derive_traffic_keys(
-                    p,
+                    crypto_provider,
                     suite,
-                    &ch[..hs],
-                    &mut self.keys.write_key[..ksz],
+                    &ch[..hash_size],
+                    &mut self.keys.write_key[..key_size],
                     &mut self.keys.write_iv,
                 )?;
                 key_schedule::derive_traffic_keys(
-                    p,
+                    crypto_provider,
                     suite,
-                    &shs[..hs],
-                    &mut self.keys.read_key[..ksz],
+                    &shs[..hash_size],
+                    &mut self.keys.read_key[..key_size],
                     &mut self.keys.read_iv,
                 )?;
-                self.keys.read_traffic_secret[..hs].copy_from_slice(&shs[..hs]);
-                key_schedule::derive_finished_key(p, suite, &ch[..hs], &mut self.handshake_client_finished_key[..hs])?;
-                key_schedule::derive_finished_key(p, suite, &shs[..hs], &mut self.handshake_server_finished_key[..hs])?;
+                self.keys.read_traffic_secret[..hash_size].copy_from_slice(&shs[..hash_size]);
+                key_schedule::derive_finished_key(
+                    crypto_provider,
+                    suite,
+                    &ch[..hash_size],
+                    &mut self.handshake_client_finished_key[..hash_size],
+                )?;
+                key_schedule::derive_finished_key(
+                    crypto_provider,
+                    suite,
+                    &shs[..hash_size],
+                    &mut self.handshake_server_finished_key[..hash_size],
+                )?;
 
                 self.receive_decoded += total;
                 self.receive_pending -= total;
@@ -754,7 +885,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
         let suite = self.ciphersuite.unwrap();
         let hs = suite.hash_size();
         let ksz = suite.key_size();
-        let p = &self.config.crypto_provider;
+        let crypto_provider = &self.config.crypto_provider;
 
         loop {
             let len = self.receive_pending;
@@ -778,7 +909,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                     let bs = start + RecordHeader::SIZE;
                     let body_len = header.length as usize;
                     let (inner_type, payload) = decrypt_record(
-                        p,
+                        crypto_provider,
                         suite,
                         &self.keys.read_key[..ksz],
                         &self.keys.read_iv,
@@ -804,23 +935,33 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
 
                                 match msg_type {
                                     message::HandshakeType::EncryptedExtensions => {
-                                        self.transcript_bytes.extend_from_slice(frame_bytes).map_err(|_| Error::CryptoError)?;
-                                        if let Some(proto) = message::decode_encrypted_extensions(msg_body)? {
+                                        self.transcript_bytes
+                                            .extend_from_slice(frame_bytes)
+                                            .map_err(|_| Error::CryptoError)?;
+                                        let (alpn_proto, cert_type) = message::decode_encrypted_extensions(msg_body)?;
+                                        if let Some(proto) = alpn_proto {
                                             let mut b = [0u8; 255];
                                             let l = proto.len().min(255);
                                             b[..l].copy_from_slice(&proto[..l]);
                                             self.alpn = Some((b, l));
                                         }
+                                        if let Some(ct) = cert_type {
+                                            self.negotiated_cert_type = ct;
+                                        }
                                     }
                                     message::HandshakeType::Certificate => {
-                                        self.transcript_bytes.extend_from_slice(frame_bytes).map_err(|_| Error::CryptoError)?;
-                                        let der = message::decode_certificate(msg_body)?;
-                                        let mut pk = [0u8; 294];
-                                        let (scheme, kl) = p.validate_cert_chain(&[der], None, &mut pk)?;
-                                        self.server_public_key.clear();
-                                        self.server_public_key
-                                            .extend_from_slice(&pk[..kl])
-                                            .map_err(|_| Error::InvalidCertificate)?;
+                                        self.transcript_bytes
+                                            .extend_from_slice(frame_bytes)
+                                            .map_err(|_| Error::CryptoError)?;
+                                        let cert = message::decode_certificate(msg_body, self.negotiated_cert_type)?;
+                                        let server_name = if !self.server_name.is_empty() {
+                                            core::str::from_utf8(&self.server_name).ok()
+                                        } else {
+                                            None
+                                        };
+                                        crypto_provider.verify_certificate(&cert, server_name)?;
+                                        let (scheme, pk_vec) = extract_ee_key(&cert)?;
+                                        self.server_public_key = pk_vec;
                                         self.server_signature_scheme = Some(scheme);
                                     }
                                     message::HandshakeType::CertificateVerify => {
@@ -836,8 +977,15 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                         so += ctx.len();
                                         s[so..so + hs].copy_from_slice(&th[..hs]);
                                         so += hs;
-                                        p.verify(cv.scheme, &self.server_public_key, &s[..so], cv.signature)?;
-                                        self.transcript_bytes.extend_from_slice(frame_bytes).map_err(|_| Error::CryptoError)?;
+                                        crypto_provider.verify(
+                                            cv.scheme,
+                                            &self.server_public_key,
+                                            &s[..so],
+                                            cv.signature,
+                                        )?;
+                                        self.transcript_bytes
+                                            .extend_from_slice(frame_bytes)
+                                            .map_err(|_| Error::CryptoError)?;
                                     }
                                     message::HandshakeType::Finished => {
                                         let mut th = [0u8; 48];
@@ -845,7 +993,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                         let vd = message::decode_finished(msg_body)?;
                                         let mut exp = [0u8; 48];
                                         key_schedule::compute_finished(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.handshake_server_finished_key[..hs],
                                             &th[..hs],
@@ -855,16 +1003,18 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                             return Err(Error::TranscriptMismatch);
                                         }
 
-                                        self.transcript_bytes.extend_from_slice(frame_bytes).map_err(|_| Error::CryptoError)?;
+                                        self.transcript_bytes
+                                            .extend_from_slice(frame_bytes)
+                                            .map_err(|_| Error::CryptoError)?;
 
                                         let mut th2 = [0u8; 48];
                                         self.transcript_hash(suite, &mut th2[..hs])?;
 
                                         let mut eh = [0u8; 48];
-                                        p.hash(suite, &[], &mut eh[..hs])?;
+                                        crypto_provider.hash(suite, &[], &mut eh[..hs])?;
                                         let mut d = [0u8; 48];
                                         key_schedule::derive_secret(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.keys.secret[..hs],
                                             b"derived",
@@ -872,12 +1022,17 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                             &mut d[..hs],
                                         )?;
                                         let z: &[u8] = &[0u8; 48][..hs];
-                                        p.hkdf_extract(suite, &d[..hs], z, &mut self.keys.secret[..hs])?;
+                                        crypto_provider.hkdf_extract(
+                                            &mut self.keys.secret[..hs],
+                                            suite,
+                                            &d[..hs],
+                                            z,
+                                        )?;
 
                                         let mut ca = [0u8; 48];
                                         let mut sa = [0u8; 48];
                                         key_schedule::derive_secret(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.keys.secret[..hs],
                                             b"c ap traffic",
@@ -885,7 +1040,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                             &mut ca[..hs],
                                         )?;
                                         key_schedule::derive_secret(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.keys.secret[..hs],
                                             b"s ap traffic",
@@ -893,14 +1048,14 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                             &mut sa[..hs],
                                         )?;
                                         key_schedule::derive_traffic_keys(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &ca[..hs],
                                             &mut self.app_write_key[..ksz],
                                             &mut self.app_write_iv,
                                         )?;
                                         key_schedule::derive_traffic_keys(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &sa[..hs],
                                             &mut self.app_read_key[..ksz],
@@ -911,7 +1066,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
 
                                         let mut fv = [0u8; 48];
                                         key_schedule::compute_finished(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.handshake_client_finished_key[..hs],
                                             &th2[..hs],
@@ -928,7 +1083,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                         fm[fo..fo + hs].copy_from_slice(&fv[..hs]);
                                         fo += hs;
                                         let te = encrypt_record(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.keys.write_key[..ksz],
                                             &self.keys.write_iv,
@@ -939,10 +1094,11 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
                                         )?;
                                         self.keys.write_seq += 1;
                                         self.out_len = te;
+                                        self.send_consumed = 0;
 
                                         let mut rs = [0u8; 48];
                                         key_schedule::derive_secret(
-                                            p,
+                                            crypto_provider,
                                             suite,
                                             &self.keys.secret[..hs],
                                             b"res master",
@@ -986,7 +1142,7 @@ impl<'a, C: CryptoProvider> Client<'a, C> {
 /// [`continue_handshake`](Client::continue_handshake).
 pub enum ClientHandshakeEvent {
     /// The caller should transmit
-    /// [`outgoing_hadnshake_data`](Client::outgoing_hadnshake_data) over the
+    /// [`outgoing_data`](Client::outgoing_data) over the
     /// network, then call [`continue_handshake`](Client::continue_handshake).
     Send,
     /// The caller should read data from the network into
@@ -1025,7 +1181,45 @@ pub enum ClientApplicationDataEvent {
         age_add: u32,
     },
     /// A KeyUpdate was processed.  The caller should flush
-    /// [`outgoing_hadnshake_data`](Client::outgoing_hadnshake_data) before
+    /// [`outgoing_data`](Client::outgoing_data) before
     /// reading more data.
     KeyUpdate,
+}
+
+/// Extract the EE public key from a [`ReceivedCertificate`] and determine
+/// its [`SignatureScheme`] by probing the key length.
+///
+/// For `RawPublicKey` the scheme is taken directly from the enum.
+/// For `X509` the public key is already parsed in the `ParsedCertificate`.
+fn extract_ee_key(cert: &ReceivedCertificate) -> Result<(SignatureScheme, heapless::Vec<u8, 294>), Error> {
+    match cert {
+        ReceivedCertificate::RawPublicKey {
+            public_key,
+            scheme,
+        } => {
+            let mut pk = heapless::Vec::new();
+            pk.extend_from_slice(public_key)
+                .map_err(|_| Error::CertificateParseFailed)?;
+            Ok((*scheme, pk))
+        }
+        ReceivedCertificate::X509 {
+            chain,
+        } => {
+            let ee = chain.first().ok_or(Error::CertificateEmptyChain)?;
+            detect_key_scheme(ee.public_key)
+        }
+    }
+}
+
+fn detect_key_scheme(key: &[u8]) -> Result<(SignatureScheme, heapless::Vec<u8, 294>), Error> {
+    let mut pk = heapless::Vec::new();
+    pk.extend_from_slice(key).map_err(|_| Error::CertificateParseFailed)?;
+    let scheme = match key.len() {
+        65 => SignatureScheme::EcdsaP256Sha256,
+        97 => SignatureScheme::EcdsaP384Sha384,
+        32 => SignatureScheme::Ed25519,
+        _ if key.len() <= 294 => SignatureScheme::RsaPkcs1Sha256,
+        _ => return Err(Error::CertificateParseFailed),
+    };
+    Ok((scheme, pk))
 }

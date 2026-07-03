@@ -9,9 +9,9 @@ path = "tls.rs"
 [features]
 default = ["crypto-default-provider", "webpki-validator", "std", "tokio"]
 crypto-default-provider = ["dep:crypto", "crypto/random"]
-std = ["crypto/std"]
-tokio = ["dep:tokio", "std"]
+std = ["crypto/std", "x509/std"]
 webpki-validator = ["dep:crypto"]
+tokio = ["dep:tokio", "std"]
 zeroize = ["dep:zeroize", "crypto?/zeroize"]
 
 [dependencies]

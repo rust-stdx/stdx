@@ -540,6 +540,51 @@ pub fn extract_signature_algorithm_oid(cert_der: &[u8]) -> Result<&[u8], Error> 
     Ok(oid.value)
 }
 
+/// Extract the raw TBSCertificate bytes (tag + length + value) from a
+/// DER-encoded X.509 certificate.
+///
+/// This is the portion of the certificate that is covered by the signature.
+pub fn extract_tbs_cert(cert_der: &[u8]) -> Result<&[u8], Error> {
+    let cert = read_tlv(cert_der)?;
+    if cert.tag != 0x30 {
+        return Err(Error::InvalidCertificate);
+    }
+    let tbs = read_tlv(cert.value)?;
+    if tbs.tag != 0x30 {
+        return Err(Error::InvalidCertificate);
+    }
+    Ok(tbs.raw)
+}
+
+/// Extract the signature value from a DER-encoded X.509 certificate.
+///
+/// Returns the raw signature bytes (the content of the BIT STRING, with the
+/// leading unused-bits byte stripped).
+pub fn extract_signature_value(cert_der: &[u8]) -> Result<&[u8], Error> {
+    let cert = read_tlv(cert_der)?;
+    if cert.tag != 0x30 {
+        return Err(Error::InvalidCertificate);
+    }
+    let tbs = read_tlv(cert.value)?;
+    if tbs.tag != 0x30 {
+        return Err(Error::InvalidCertificate);
+    }
+    let after_tbs = &cert.value[tbs.raw.len()..];
+    let sig_alg = read_tlv(after_tbs)?;
+    if sig_alg.tag != 0x30 {
+        return Err(Error::InvalidCertificate);
+    }
+    let after_sig_alg = &after_tbs[sig_alg.raw.len()..];
+    let sig = read_tlv(after_sig_alg)?;
+    if sig.tag != 0x03 {
+        return Err(Error::InvalidCertificate);
+    }
+    if sig.value.is_empty() {
+        return Err(Error::InvalidCertificate);
+    }
+    Ok(&sig.value[1..])
+}
+
 // ── SAN (Subject Alternative Name) ─────────────────────────────────────────
 
 /// Parse DNS names from the Subject Alternative Name extension.
@@ -565,6 +610,60 @@ pub fn parse_san_dns_names(cert_der: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
         }
     }
     Ok(dns_names)
+}
+
+/// Check whether any SAN dNSName matches the given server name, without
+/// allocating.
+///
+/// Supports wildcard DNS names (`*.example.com`). Returns `Ok(true)` on
+/// match, `Ok(false)` on no match (or missing SAN extension), `Err` on
+/// parse failure.
+pub fn check_san_dns_name(cert_der: &[u8], server_name: &str) -> Result<bool, Error> {
+    let san_value = match find_extension(cert_der, OID_SAN) {
+        Some(v) => v,
+        None => return Ok(false),
+    };
+    let general_names = read_tlv(san_value)?;
+    if general_names.tag != 0x30 {
+        return Err(Error::InvalidExtension);
+    }
+    let mut offset = 0;
+    while offset < general_names.value.len() {
+        if general_names.value[offset] == 0x82 {
+            let dns = read_tlv(&general_names.value[offset..])?;
+            if dns_name_matches(dns.value, server_name) {
+                return Ok(true);
+            }
+            offset += dns.raw.len();
+        } else {
+            skip_tlv(general_names.value, &mut offset)?;
+        }
+    }
+    Ok(false)
+}
+
+fn dns_name_matches(san_entry: &[u8], server_name: &str) -> bool {
+    let Ok(san_str) = core::str::from_utf8(san_entry) else {
+        return false;
+    };
+    server_name_matches_wildcard(san_str, server_name)
+}
+
+fn server_name_matches_wildcard(dns_name: &str, server_name: &str) -> bool {
+    let dns_name = dns_name.to_ascii_lowercase();
+    let server_name = server_name.to_ascii_lowercase();
+
+    if let Some(rest) = dns_name.strip_prefix("*.") {
+        let Some(dot_pos) = server_name.find('.') else {
+            return false;
+        };
+        let suffix = &server_name[dot_pos..];
+        rest.eq_ignore_ascii_case(suffix)
+            && !server_name[..dot_pos].is_empty()
+            && server_name[dot_pos + 1..].contains('.') == rest.contains('.')
+    } else {
+        dns_name == server_name
+    }
 }
 
 // ── Key Usage ──────────────────────────────────────────────────────────────

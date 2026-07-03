@@ -12,7 +12,7 @@ pub fn hkdf_expand_label(
     context: &[u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
-    provider.hkdf_expand_label(suite, secret, label, context, out)
+    provider.hkdf_expand_label(out, suite, secret, label, context)
 }
 
 /// Derive-Secret as defined in RFC 8446 §7.1.
