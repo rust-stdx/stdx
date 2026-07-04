@@ -1,5 +1,7 @@
 //! Zero-allocation, `no_std` compatible TLS
+//!
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg(feature = "std")]
 extern crate alloc;
 
@@ -9,6 +11,12 @@ mod errors;
 pub mod key_schedule;
 mod message;
 mod record;
+
+#[cfg(feature = "std")]
+mod certificates;
+
+#[cfg(feature = "std")]
+pub use certificates::*;
 
 #[cfg(feature = "crypto-default-provider")]
 pub mod crypto_default_provider;

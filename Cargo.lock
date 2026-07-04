@@ -3288,6 +3288,7 @@ dependencies = [
 name = "tls2"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "crypto",
  "heapless",
  "tokio",
