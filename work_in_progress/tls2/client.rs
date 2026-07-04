@@ -1,5 +1,7 @@
 use core::ops::{Deref, DerefMut};
 
+use heapless::Vec;
+
 use crate::{
     ALPN_PROTOCOL_MAX_SIZE, CertType, CipherSuite, CryptoProvider, Hash, KEY_EXCHANGE_MAX_GROUPS, KeyExchangeGroup,
     KeyExchangePublicKey, KeyExchangeSecretKey, PSK_MAX_SIZE, ReceivedCertificate, SIGNING_PUBLIC_KEY_MAX_SIZE,
@@ -282,25 +284,74 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
         self.send_buffer[0] = ContentType::Handshake as u8;
         self.send_buffer[1] = 0x03;
         self.send_buffer[2] = 0x03;
-        let mut offset = 5; // handshake message starts after record header
+        let offset = 5; // handshake message starts after record header
 
-        message::encode_client_hello(
-            &mut self.send_buffer,
-            &mut offset,
+        let mut extensions: Vec<message::Extension, 7> = Vec::new();
+
+        if let Some(name) = server_name {
+            extensions
+                .push(message::Extension::ServerName {
+                    host_name: name,
+                })
+                .unwrap();
+        }
+
+        if !key_exchange_public_keys.is_empty() {
+            extensions
+                .push(message::Extension::SupportedGroups {
+                    key_share_entries: &key_exchange_public_keys,
+                })
+                .unwrap();
+        }
+
+        if !C::SIGNATURE_SCHEMES.is_empty() {
+            extensions
+                .push(message::Extension::SignatureAlgorithms {
+                    schemes: C::SIGNATURE_SCHEMES,
+                })
+                .unwrap();
+        }
+
+        if !alpn_protocols.is_empty() {
+            extensions
+                .push(message::Extension::ApplicationLayerProtocolNegotiation {
+                    protocols: alpn_protocols,
+                })
+                .unwrap();
+        }
+
+        if self.config.supported_certificate_types.len() > 1
+            || self
+                .config
+                .supported_certificate_types
+                .first()
+                .map_or(false, |t| *t != CertType::X509)
+        {
+            extensions
+                .push(message::Extension::ServerCertificateType {
+                    types: &self.config.supported_certificate_types,
+                })
+                .unwrap();
+        }
+
+        extensions.push(message::Extension::SupportedVersions).unwrap();
+        extensions
+            .push(message::Extension::KeyShare {
+                entries: &key_exchange_public_keys,
+            })
+            .unwrap();
+
+        let written = message::encode_client_hello(
+            &mut self.send_buffer[offset..],
             &client_random,
             &[],
             C::CIPHER_SUITES,
-            &key_exchange_public_keys,
-            server_name,
-            alpn_protocols,
-            C::SIGNATURE_SCHEMES,
-            &self.config.supported_certificate_types,
+            &extensions,
         )?;
 
         // Fill record header length
-        let body_len = (offset - 5) as u16;
-        self.send_buffer[3..5].copy_from_slice(&body_len.to_be_bytes());
-        self.out_len = offset;
+        self.send_buffer[3..5].copy_from_slice(&(written as u16).to_be_bytes());
+        self.out_len = offset + written;
         self.phase = Phase::ServerHello;
         Ok(ClientHandshakeEvent::Send)
     }
@@ -554,7 +605,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
                                         let mut frame_offset = 0;
                                         key_update_frame[frame_offset] = message::HandshakeType::KeyUpdate as u8;
                                         frame_offset += 1;
-                                        message::put_u24(&mut key_update_frame, &mut frame_offset, 1);
+                                        frame_offset += message::put_u24(&mut key_update_frame[frame_offset..], 1);
                                         key_update_frame[frame_offset] = 0;
                                         frame_offset += 1;
                                         let mut resp_buf = [0u8; 256];
@@ -1066,9 +1117,8 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
                                         )?;
                                         let mut finished_frame = [0u8; 64];
                                         let mut finished_frame_offset = 0;
-                                        message::encode_handshake_frame(
-                                            &mut finished_frame,
-                                            &mut finished_frame_offset,
+                                        finished_frame_offset += message::encode_handshake_frame(
+                                            &mut finished_frame[finished_frame_offset..],
                                             message::HandshakeType::Finished,
                                             hash_size,
                                         );

@@ -6,31 +6,32 @@ use crate::{
 // ── Wire format helpers ──────────────────────────────────────────────────
 
 #[inline]
-pub fn put_u16(buf: &mut [u8], offset: &mut usize, v: u16) {
-    buf[*offset..*offset + 2].copy_from_slice(&v.to_be_bytes());
-    *offset += 2;
+pub fn put_u16(buf: &mut [u8], v: u16) -> usize {
+    buf[..2].copy_from_slice(&v.to_be_bytes());
+    2
 }
 
 #[inline]
-pub fn put_u24(buf: &mut [u8], offset: &mut usize, v: u32) {
+pub fn put_u24(buf: &mut [u8], v: u32) -> usize {
     let bytes = v.to_be_bytes();
-    buf[*offset..*offset + 3].copy_from_slice(&bytes[1..]);
-    *offset += 3;
+    buf[..3].copy_from_slice(&bytes[1..]);
+    3
 }
 
 #[inline]
-pub fn put_slice_u8(buf: &mut [u8], offset: &mut usize, data: &[u8]) {
-    buf[*offset] = data.len() as u8;
-    *offset += 1;
-    buf[*offset..*offset + data.len()].copy_from_slice(data);
-    *offset += data.len();
+pub fn put_slice_u8(buf: &mut [u8], data: &[u8]) -> usize {
+    let n = data.len();
+    buf[0] = n as u8;
+    buf[1..1 + n].copy_from_slice(data);
+    1 + n
 }
 
 #[inline]
-pub fn put_slice_u16(buf: &mut [u8], offset: &mut usize, data: &[u8]) {
-    put_u16(buf, offset, data.len() as u16);
-    buf[*offset..*offset + data.len()].copy_from_slice(data);
-    *offset += data.len();
+pub fn put_slice_u16(buf: &mut [u8], data: &[u8]) -> usize {
+    let n = data.len();
+    buf[..2].copy_from_slice(&(n as u16).to_be_bytes());
+    buf[2..2 + n].copy_from_slice(data);
+    2 + n
 }
 
 #[inline]
@@ -114,11 +115,10 @@ impl HandshakeType {
     }
 }
 
-/// Encode a handshake header: type(1) + length(3).
-pub fn encode_handshake_frame<'a>(buf: &'a mut [u8], offset: &mut usize, msg_type: HandshakeType, body_len: usize) {
-    buf[*offset] = msg_type as u8;
-    *offset += 1;
-    put_u24(buf, offset, body_len as u32);
+/// Encode a handshake header: type(1) + length(3). Returns bytes written.
+pub fn encode_handshake_frame(buf: &mut [u8], msg_type: HandshakeType, body_len: usize) -> usize {
+    buf[0] = msg_type as u8;
+    1 + put_u24(&mut buf[1..], body_len as u32)
 }
 
 /// Decode a handshake header, returning the type and body slice.
@@ -168,182 +168,188 @@ impl ExtensionType {
 
 // ── ClientHello encoding ─────────────────────────────────────────────────
 
-/// Encode a ClientHello message into `buf` starting at `offset`.
-/// `key_share_entries` may contain one entry per supported group.
+/// A single TLS extension to include in a ClientHello.
+///
+/// Each variant carries the data needed to encode its payload, all through
+/// borrowed references — zero allocations.
+#[derive(Clone, Copy, Debug)]
+pub enum Extension<'a> {
+    ServerName {
+        host_name: &'a str,
+    },
+    SupportedGroups {
+        key_share_entries: &'a [KeyExchangePublicKey],
+    },
+    SignatureAlgorithms {
+        schemes: &'a [SignatureScheme],
+    },
+    ApplicationLayerProtocolNegotiation {
+        protocols: &'a [&'a [u8]],
+    },
+    ServerCertificateType {
+        types: &'a [CertType],
+    },
+    SupportedVersions,
+    KeyShare {
+        entries: &'a [KeyExchangePublicKey],
+    },
+}
+
+/// Write type(2) + length(2) around a payload, then back-patch the data
+/// length. Returns total extension bytes written (4 + payload).
+fn encode_extension_with_type(
+    buf: &mut [u8],
+    ext_type: ExtensionType,
+    payload: impl FnOnce(&mut [u8]) -> usize,
+) -> usize {
+    let data_len = payload(&mut buf[4..]);
+    buf[..2].copy_from_slice(&(ext_type as u16).to_be_bytes());
+    buf[2..4].copy_from_slice(&(data_len as u16).to_be_bytes());
+    4 + data_len
+}
+
+/// Encode a single extension into `buf`. Returns bytes written.
+fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
+    match ext {
+        Extension::ServerName {
+            host_name,
+        } => {
+            encode_extension_with_type(buf, ExtensionType::ServerName, |b| {
+                let name_bytes = host_name.as_bytes();
+                let mut p = 0;
+                p += put_u16(&mut b[p..], 3 + name_bytes.len() as u16);
+                b[p] = 0; // host_name type
+                p += 1;
+                p += put_slice_u16(&mut b[p..], name_bytes);
+                p
+            })
+        }
+        Extension::SupportedGroups {
+            key_share_entries,
+        } => encode_extension_with_type(buf, ExtensionType::SupportedGroups, |b| {
+            let mut p = 2;
+            for ks in *key_share_entries {
+                let wire = ks.group().to_wire();
+                b[p..p + 2].copy_from_slice(&wire);
+                p += 2;
+            }
+            let list_len = (p - 2) as u16;
+            b[..2].copy_from_slice(&list_len.to_be_bytes());
+            p
+        }),
+        Extension::SignatureAlgorithms {
+            schemes,
+        } => encode_extension_with_type(buf, ExtensionType::SignatureAlgorithms, |b| {
+            let mut p = 2;
+            for s in *schemes {
+                let wire = s.to_wire();
+                b[p..p + 2].copy_from_slice(&wire);
+                p += 2;
+            }
+            let list_len = (p - 2) as u16;
+            b[..2].copy_from_slice(&list_len.to_be_bytes());
+            p
+        }),
+        Extension::ApplicationLayerProtocolNegotiation {
+            protocols,
+        } => encode_extension_with_type(buf, ExtensionType::ApplicationLayerProtocolNegotiation, |b| {
+            let mut p = 2;
+            for proto in *protocols {
+                p += put_slice_u8(&mut b[p..], proto);
+            }
+            let list_len = (p - 2) as u16;
+            b[..2].copy_from_slice(&list_len.to_be_bytes());
+            p
+        }),
+        Extension::ServerCertificateType {
+            types,
+        } => encode_extension_with_type(buf, ExtensionType::ServerCertificateType, |b| {
+            b[0] = types.len() as u8;
+            let mut p = 1;
+            for ct in *types {
+                b[p] = *ct as u8;
+                p += 1;
+            }
+            p
+        }),
+        Extension::SupportedVersions => encode_extension_with_type(buf, ExtensionType::SupportedVersions, |b| {
+            b[0] = 2;
+            b[1..3].copy_from_slice(&[0x03, 0x04]);
+            3
+        }),
+        Extension::KeyShare {
+            entries,
+        } => encode_extension_with_type(buf, ExtensionType::KeyShare, |b| {
+            let mut p = 2;
+            for ks in *entries {
+                let wire = ks.group().to_wire();
+                b[p..p + 2].copy_from_slice(&wire);
+                p += 2;
+                p += put_slice_u16(&mut b[p..], ks.bytes());
+            }
+            let list_len = (p - 2) as u16;
+            b[..2].copy_from_slice(&list_len.to_be_bytes());
+            p
+        }),
+    }
+}
+
+/// Encode a ClientHello message into `buf`.
 pub fn encode_client_hello(
     buf: &mut [u8],
-    offset: &mut usize,
     random: &[u8; 32],
     session_id: &[u8],
     cipher_suites: &[CipherSuite],
-    key_share_entries: &[KeyExchangePublicKey],
-    server_name: Option<&str>,
-    alpn_protocols: &[&[u8]],
-    signature_schemes: &[SignatureScheme],
-    cert_types: &[CertType],
+    extensions: &[Extension<'_>],
 ) -> Result<usize, Error> {
-    let body_start = *offset;
+    let mut pos = 0;
 
     // Handshake header placeholder (4 bytes)
-    buf[*offset] = HandshakeType::ClientHello as u8;
-    *offset += 1;
-    let len_pos = *offset; // save position for body length
-    *offset += 3;
+    buf[pos] = HandshakeType::ClientHello as u8;
+    pos += 1;
+    let len_pos = pos;
+    pos += 3;
 
     // legacy_version = 0x0303
-    put_u16(buf, offset, 0x0303);
+    pos += put_u16(&mut buf[pos..], 0x0303);
 
     // random
-    buf[*offset..*offset + 32].copy_from_slice(random);
-    *offset += 32;
+    buf[pos..pos + 32].copy_from_slice(random);
+    pos += 32;
 
     // legacy_session_id
-    put_slice_u8(buf, offset, session_id);
+    pos += put_slice_u8(&mut buf[pos..], session_id);
 
     // cipher_suites (2-byte length + 2 bytes per suite)
-    let cs_start = *offset;
-    *offset += 2;
+    let cs_start = pos;
+    pos += 2;
     for cs in cipher_suites {
-        buf[*offset..*offset + 2].copy_from_slice(&cs.to_wire());
-        *offset += 2;
+        buf[pos..pos + 2].copy_from_slice(&cs.to_wire());
+        pos += 2;
     }
-    let cs_len = (*offset - cs_start - 2) as u16;
+    let cs_len = (pos - cs_start - 2) as u16;
     buf[cs_start..cs_start + 2].copy_from_slice(&cs_len.to_be_bytes());
 
     // legacy_compression_methods (null only: length 1, method 0)
-    buf[*offset] = 1;
-    *offset += 1;
-    buf[*offset] = 0;
-    *offset += 1;
+    buf[pos] = 1;
+    pos += 1;
+    buf[pos] = 0;
+    pos += 1;
 
     // ── Extensions ──
-    // Order matters: BoringSSL (Google CDN) requires SupportedVersions
-    // to be one of the last extensions (before KeyShare).
-    let ext_total_start = *offset;
-    *offset += 2; // placeholder for total extensions length
-
-    // 1. ServerName (SNI)
-    if let Some(name) = server_name {
-        let sn_start = *offset;
-        *offset += 4; // placeholder
-        let name_bytes = name.as_bytes();
-        // ServerNameList: length(2) + ServerName: type(1) + length(2) + name
-        let host_len = name_bytes.len() as u16;
-        let list_len = 3 + host_len; // type(1) + length(2) + name
-        put_u16(buf, offset, list_len);
-        buf[*offset] = 0; // host_name type
-        *offset += 1;
-        put_slice_u16(buf, offset, name_bytes);
-        let sn_data_len = (*offset - sn_start - 4) as u16;
-        buf[sn_start..sn_start + 2].copy_from_slice(&(ExtensionType::ServerName as u16).to_be_bytes());
-        buf[sn_start + 2..sn_start + 4].copy_from_slice(&sn_data_len.to_be_bytes());
+    let ext_start = pos;
+    pos += 2; // placeholder for total extensions length
+    for ext in extensions {
+        pos += encode_extension(&mut buf[pos..], ext);
     }
-
-    // 2. SupportedGroups (NamedGroups) — derived from key_share entries
-    if !key_share_entries.is_empty() {
-        let sg_start = *offset;
-        *offset += 4;
-        let list_len_pos = *offset;
-        *offset += 2;
-        for key_share in key_share_entries {
-            buf[*offset..*offset + 2].copy_from_slice(&key_share.group().to_wire());
-            *offset += 2;
-        }
-        let list_len = (*offset - list_len_pos - 2) as u16;
-        buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
-        let sg_len = (*offset - sg_start - 4) as u16;
-        buf[sg_start..sg_start + 2].copy_from_slice(&(ExtensionType::SupportedGroups as u16).to_be_bytes());
-        buf[sg_start + 2..sg_start + 4].copy_from_slice(&sg_len.to_be_bytes());
-    }
-
-    // 3. SignatureAlgorithms
-    if !signature_schemes.is_empty() {
-        let sa_start = *offset;
-        *offset += 4;
-        let list_len_pos = *offset;
-        *offset += 2;
-        for s in signature_schemes {
-            buf[*offset..*offset + 2].copy_from_slice(&s.to_wire());
-            *offset += 2;
-        }
-        let list_len = (*offset - list_len_pos - 2) as u16;
-        buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
-        let ext_len = (*offset - sa_start - 4) as u16;
-        buf[sa_start..sa_start + 2].copy_from_slice(&(ExtensionType::SignatureAlgorithms as u16).to_be_bytes());
-        buf[sa_start + 2..sa_start + 4].copy_from_slice(&ext_len.to_be_bytes());
-    }
-
-    // 4. ALPN
-    if !alpn_protocols.is_empty() {
-        let alpn_start = *offset;
-        *offset += 4;
-        // ALPN: protocol_name_list length(2) + for each: name length(1) + name
-        let alpn_body_start = *offset;
-        *offset += 2;
-        for p in alpn_protocols {
-            put_slice_u8(buf, offset, p);
-        }
-        let alpn_list_len = (*offset - alpn_body_start - 2) as u16;
-        buf[alpn_body_start..alpn_body_start + 2].copy_from_slice(&alpn_list_len.to_be_bytes());
-        let alpn_data_len = (*offset - alpn_start - 4) as u16;
-        buf[alpn_start..alpn_start + 2]
-            .copy_from_slice(&(ExtensionType::ApplicationLayerProtocolNegotiation as u16).to_be_bytes());
-        buf[alpn_start + 2..alpn_start + 4].copy_from_slice(&alpn_data_len.to_be_bytes());
-    }
-
-    // 5. ServerCertificateType (RFC 7250)
-    // Only send when the client explicitly configures non-default types.
-    if cert_types.len() > 1 || cert_types.first().map_or(false, |t| *t != CertType::X509) {
-        let ct_start = *offset;
-        *offset += 4;
-        buf[*offset] = cert_types.len() as u8;
-        *offset += 1;
-        for ct in cert_types {
-            buf[*offset] = *ct as u8;
-            *offset += 1;
-        }
-        let ct_data_len = (*offset - ct_start - 4) as u16;
-        buf[ct_start..ct_start + 2].copy_from_slice(&(ExtensionType::ServerCertificateType as u16).to_be_bytes());
-        buf[ct_start + 2..ct_start + 4].copy_from_slice(&ct_data_len.to_be_bytes());
-    }
-
-    // 6. SupportedVersions — placed late so BoringSSL accepts the ClientHello
-    let sv_start = *offset;
-    *offset += 4;
-    buf[*offset] = 2; // supported_versions length in bytes
-    *offset += 1;
-    buf[*offset..*offset + 2].copy_from_slice(&[0x03, 0x04]); // TLS 1.3 = 0x0304
-    *offset += 2;
-    let sv_len = (*offset - sv_start - 4) as u16;
-    buf[sv_start..sv_start + 2].copy_from_slice(&(ExtensionType::SupportedVersions as u16).to_be_bytes());
-    buf[sv_start + 2..sv_start + 4].copy_from_slice(&sv_len.to_be_bytes());
-
-    // 7. KeyShare — placed last (BoringSSL expects KeyShare after SupportedVersions)
-    let ks_start = *offset;
-    *offset += 4; // placeholder for ext_type + data length
-    let list_len_pos = *offset;
-    *offset += 2; // placeholder for client_shares length
-    for key_share in key_share_entries {
-        buf[*offset..*offset + 2].copy_from_slice(&key_share.group().to_wire());
-        *offset += 2;
-        put_slice_u16(buf, offset, key_share.bytes());
-    }
-    let list_len = (*offset - list_len_pos - 2) as u16;
-    buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
-    let ks_len = (*offset - ks_start - 4) as u16;
-    buf[ks_start..ks_start + 2].copy_from_slice(&(ExtensionType::KeyShare as u16).to_be_bytes());
-    buf[ks_start + 2..ks_start + 4].copy_from_slice(&ks_len.to_be_bytes());
-
-    // Fill total extensions length
-    let ext_total = (*offset - ext_total_start - 2) as u16;
-    buf[ext_total_start..ext_total_start + 2].copy_from_slice(&ext_total.to_be_bytes());
+    let ext_total = (pos - ext_start - 2) as u16;
+    buf[ext_start..ext_start + 2].copy_from_slice(&ext_total.to_be_bytes());
 
     // Fill handshake body length
-    let body_len = (*offset - body_start - 4) as u32;
-    let len_bytes = body_len.to_be_bytes();
-    buf[len_pos..len_pos + 3].copy_from_slice(&len_bytes[1..]);
+    let body_len = (pos - len_pos - 3) as u32;
+    buf[len_pos..len_pos + 3].copy_from_slice(&body_len.to_be_bytes()[1..]);
 
-    Ok(*offset - body_start)
+    Ok(pos)
 }
 
 // ── ServerHello decoding ─────────────────────────────────────────────────

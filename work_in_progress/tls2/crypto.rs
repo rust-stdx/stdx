@@ -400,6 +400,7 @@ impl KeyExchangeSecretKey {
     }
 }
 
+#[derive(Debug)]
 pub struct KeyExchangePublicKey {
     bytes: Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE>,
     group: KeyExchangeGroup,
