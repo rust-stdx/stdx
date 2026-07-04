@@ -286,11 +286,11 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
         self.send_buffer[2] = 0x03;
         let offset = 5; // handshake message starts after record header
 
-        let mut extensions: Vec<message::Extension, 7> = Vec::new();
+        let mut extensions: Vec<message::ClientExtension, 7> = Vec::new();
 
         if let Some(name) = server_name {
             extensions
-                .push(message::Extension::ServerName {
+                .push(message::ClientExtension::ServerName {
                     host_name: name,
                 })
                 .unwrap();
@@ -298,7 +298,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
 
         if !key_exchange_public_keys.is_empty() {
             extensions
-                .push(message::Extension::SupportedGroups {
+                .push(message::ClientExtension::SupportedGroups {
                     key_share_entries: &key_exchange_public_keys,
                 })
                 .unwrap();
@@ -306,7 +306,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
 
         if !C::SIGNATURE_SCHEMES.is_empty() {
             extensions
-                .push(message::Extension::SignatureAlgorithms {
+                .push(message::ClientExtension::SignatureAlgorithms {
                     schemes: C::SIGNATURE_SCHEMES,
                 })
                 .unwrap();
@@ -314,7 +314,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
 
         if !alpn_protocols.is_empty() {
             extensions
-                .push(message::Extension::ApplicationLayerProtocolNegotiation {
+                .push(message::ClientExtension::ApplicationLayerProtocolNegotiation {
                     protocols: alpn_protocols,
                 })
                 .unwrap();
@@ -328,15 +328,15 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
                 .map_or(false, |t| *t != CertType::X509)
         {
             extensions
-                .push(message::Extension::ServerCertificateType {
+                .push(message::ClientExtension::ServerCertificateType {
                     types: &self.config.supported_certificate_types,
                 })
                 .unwrap();
         }
 
-        extensions.push(message::Extension::SupportedVersions).unwrap();
+        extensions.push(message::ClientExtension::SupportedVersions).unwrap();
         extensions
-            .push(message::Extension::KeyShare {
+            .push(message::ClientExtension::KeyShare {
                 entries: &key_exchange_public_keys,
             })
             .unwrap();
@@ -973,15 +973,21 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
                                             crypto_provider.hash_update(&mut state, frame_bytes);
                                             self.hash_state = Some(state);
                                         }
-                                        let (alpn_proto, cert_type) = message::decode_encrypted_extensions(msg_body)?;
-                                        if let Some(proto) = alpn_proto {
-                                            let mut alpn_buffer = heapless::Vec::new();
-                                            let alpn_length = proto.len().min(ALPN_PROTOCOL_MAX_SIZE);
-                                            let _ = alpn_buffer.extend_from_slice(&proto[..alpn_length]);
-                                            self.alpn = Some(alpn_buffer);
-                                        }
-                                        if let Some(ct) = cert_type {
-                                            self.negotiated_cert_type = ct;
+                                        let dec_exts = message::decode_encrypted_extensions(msg_body)?;
+                                        for extension in &dec_exts {
+                                            match extension {
+                                                message::DecryptedExtension::ApplicationLayerProtocolNegotiation(
+                                                    proto,
+                                                ) => {
+                                                    let mut alpn_buffer = heapless::Vec::new();
+                                                    let alpn_length = proto.len().min(ALPN_PROTOCOL_MAX_SIZE);
+                                                    let _ = alpn_buffer.extend_from_slice(&proto[..alpn_length]);
+                                                    self.alpn = Some(alpn_buffer);
+                                                }
+                                                message::DecryptedExtension::ServerCertificateType(ct) => {
+                                                    self.negotiated_cert_type = *ct;
+                                                }
+                                            }
                                         }
                                     }
                                     message::HandshakeType::Certificate => {

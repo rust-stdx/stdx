@@ -116,6 +116,7 @@ impl HandshakeType {
 }
 
 /// Encode a handshake header: type(1) + length(3). Returns bytes written.
+#[inline]
 pub fn encode_handshake_frame(buf: &mut [u8], msg_type: HandshakeType, body_len: usize) -> usize {
     buf[0] = msg_type as u8;
     1 + put_u24(&mut buf[1..], body_len as u32)
@@ -173,7 +174,7 @@ impl ExtensionType {
 /// Each variant carries the data needed to encode its payload, all through
 /// borrowed references — zero allocations.
 #[derive(Clone, Copy, Debug)]
-pub enum Extension<'a> {
+pub enum ClientExtension<'a> {
     ServerName {
         host_name: &'a str,
     },
@@ -197,6 +198,7 @@ pub enum Extension<'a> {
 
 /// Write type(2) + length(2) around a payload, then back-patch the data
 /// length. Returns total extension bytes written (4 + payload).
+#[inline]
 fn encode_extension_with_type(
     buf: &mut [u8],
     ext_type: ExtensionType,
@@ -209,9 +211,9 @@ fn encode_extension_with_type(
 }
 
 /// Encode a single extension into `buf`. Returns bytes written.
-fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
+fn encode_client_extension(buf: &mut [u8], ext: &ClientExtension<'_>) -> usize {
     match ext {
-        Extension::ServerName {
+        ClientExtension::ServerName {
             host_name,
         } => {
             encode_extension_with_type(buf, ExtensionType::ServerName, |b| {
@@ -224,7 +226,7 @@ fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
                 p
             })
         }
-        Extension::SupportedGroups {
+        ClientExtension::SupportedGroups {
             key_share_entries,
         } => encode_extension_with_type(buf, ExtensionType::SupportedGroups, |b| {
             let mut p = 2;
@@ -237,7 +239,7 @@ fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
             b[..2].copy_from_slice(&list_len.to_be_bytes());
             p
         }),
-        Extension::SignatureAlgorithms {
+        ClientExtension::SignatureAlgorithms {
             schemes,
         } => encode_extension_with_type(buf, ExtensionType::SignatureAlgorithms, |b| {
             let mut p = 2;
@@ -250,7 +252,7 @@ fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
             b[..2].copy_from_slice(&list_len.to_be_bytes());
             p
         }),
-        Extension::ApplicationLayerProtocolNegotiation {
+        ClientExtension::ApplicationLayerProtocolNegotiation {
             protocols,
         } => encode_extension_with_type(buf, ExtensionType::ApplicationLayerProtocolNegotiation, |b| {
             let mut p = 2;
@@ -261,7 +263,7 @@ fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
             b[..2].copy_from_slice(&list_len.to_be_bytes());
             p
         }),
-        Extension::ServerCertificateType {
+        ClientExtension::ServerCertificateType {
             types,
         } => encode_extension_with_type(buf, ExtensionType::ServerCertificateType, |b| {
             b[0] = types.len() as u8;
@@ -272,12 +274,12 @@ fn encode_extension(buf: &mut [u8], ext: &Extension<'_>) -> usize {
             }
             p
         }),
-        Extension::SupportedVersions => encode_extension_with_type(buf, ExtensionType::SupportedVersions, |b| {
+        ClientExtension::SupportedVersions => encode_extension_with_type(buf, ExtensionType::SupportedVersions, |b| {
             b[0] = 2;
             b[1..3].copy_from_slice(&[0x03, 0x04]);
             3
         }),
-        Extension::KeyShare {
+        ClientExtension::KeyShare {
             entries,
         } => encode_extension_with_type(buf, ExtensionType::KeyShare, |b| {
             let mut p = 2;
@@ -300,7 +302,7 @@ pub fn encode_client_hello(
     random: &[u8; 32],
     session_id: &[u8],
     cipher_suites: &[CipherSuite],
-    extensions: &[Extension<'_>],
+    extensions: &[ClientExtension<'_>],
 ) -> Result<usize, Error> {
     let mut pos = 0;
 
@@ -340,7 +342,7 @@ pub fn encode_client_hello(
     let ext_start = pos;
     pos += 2; // placeholder for total extensions length
     for ext in extensions {
-        pos += encode_extension(&mut buf[pos..], ext);
+        pos += encode_client_extension(&mut buf[pos..], ext);
     }
     let ext_total = (pos - ext_start - 2) as u16;
     buf[ext_start..ext_start + 2].copy_from_slice(&ext_total.to_be_bytes());
@@ -425,14 +427,18 @@ pub fn decode_server_hello<'a>(body: &'a [u8]) -> Result<ServerHelloData<'a>, Er
 
 // ── EncryptedExtensions decoding ─────────────────────────────────────────
 
-/// Decode EncryptedExtensions, returning `(alpn_protocol, server_cert_type)`.
-pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<(Option<&'a [u8]>, Option<CertType>), Error> {
+/// A single parsed extension from an EncryptedExtensions message.
+pub enum DecryptedExtension<'a> {
+    ApplicationLayerProtocolNegotiation(&'a [u8]),
+    ServerCertificateType(CertType),
+}
+
+/// Decode EncryptedExtensions, returning the list of parsed extensions.
+pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<heapless::Vec<DecryptedExtension<'a>, 4>, Error> {
     let mut off = 0;
     let ext_data = read_slice_u16(body, &mut off)?;
     let mut ext_off = 0;
-
-    let mut alpn = None;
-    let mut cert_type = None;
+    let mut exts = heapless::Vec::new();
 
     while ext_off + 4 <= ext_data.len() {
         let ext_type = read_u16(ext_data, &mut ext_off);
@@ -455,18 +461,22 @@ pub fn decode_encrypted_extensions<'a>(body: &'a [u8]) -> Result<(Option<&'a [u8
                 if 3 + name_len > alpn_body.len() {
                     return Err(Error::DecodeError);
                 }
-                alpn = Some(&alpn_body[3..3 + name_len]);
+                let _ = exts.push(DecryptedExtension::ApplicationLayerProtocolNegotiation(
+                    &alpn_body[3..3 + name_len],
+                ));
             }
             Some(ExtensionType::ServerCertificateType) => {
                 if ext_len >= 1 {
-                    cert_type = CertType::from_u8(ext_data[ext_off]);
+                    if let Some(ct) = CertType::from_u8(ext_data[ext_off]) {
+                        let _ = exts.push(DecryptedExtension::ServerCertificateType(ct));
+                    }
                 }
             }
             _ => {}
         }
         ext_off += ext_len;
     }
-    Ok((alpn, cert_type))
+    Ok(exts)
 }
 
 // ── Certificate decoding ─────────────────────────────────────────────────
