@@ -1,4 +1,4 @@
-use crate::{CipherSuite, CryptoProvider, errors::Error};
+use crate::{CipherSuite, CryptoProvider, Hash, errors::Error};
 
 /// HKDF-Expand-Label as defined in RFC 8446 §7.1.
 ///
@@ -7,7 +7,7 @@ use crate::{CipherSuite, CryptoProvider, errors::Error};
 pub fn hkdf_expand_label(
     provider: &impl CryptoProvider,
     suite: CipherSuite,
-    secret: &[u8],
+    secret: &Hash,
     label: &[u8],
     context: &[u8],
     out: &mut [u8],
@@ -22,29 +22,33 @@ pub fn hkdf_expand_label(
 pub fn derive_secret(
     provider: &impl CryptoProvider,
     suite: CipherSuite,
-    secret: &[u8],
+    secret: &Hash,
     label: &[u8],
-    transcript_hash: &[u8],
-    out: &mut [u8],
-) -> Result<(), Error> {
-    hkdf_expand_label(provider, suite, secret, label, transcript_hash, out)
+    transcript_hash: &Hash,
+) -> Result<Hash, Error> {
+    let hash_size = suite.hash_size();
+    let mut out = Hash::new_zeroed(hash_size as u8);
+    hkdf_expand_label(provider, suite, secret, label, transcript_hash, &mut *out)?;
+    Ok(out)
 }
 
 /// Derive handshake traffic keys from a traffic secret.
 ///
 /// Derives key = HKDF-Expand-Label(secret, "key", "", Nkey)
 /// Derives iv  = HKDF-Expand-Label(secret, "iv", "", 12)
-pub fn derive_traffic_keys(
-    provider: &impl CryptoProvider,
+/// Returns the AEAD key and IV directly.
+pub fn derive_traffic_keys<C: CryptoProvider + ?Sized>(
+    provider: &C,
     suite: CipherSuite,
-    traffic_secret: &[u8],
-    key_out: &mut [u8],
-    iv_out: &mut [u8; 12],
-) -> Result<(), Error> {
+    traffic_secret: &Hash,
+) -> Result<(C::AeadKey, [u8; 12]), Error> {
     let key_size = suite.key_size();
-
+    let mut key_out = [0u8; 32];
+    let mut iv_out = [0u8; 12];
     hkdf_expand_label(provider, suite, traffic_secret, b"key", b"", &mut key_out[..key_size])?;
-    hkdf_expand_label(provider, suite, traffic_secret, b"iv", b"", iv_out)
+    hkdf_expand_label(provider, suite, traffic_secret, b"iv", b"", &mut iv_out)?;
+    let key = provider.new_aead_key(suite, &key_out[..key_size]);
+    Ok((key, iv_out))
 }
 
 /// Derive the Finished key from a traffic secret.
@@ -53,11 +57,12 @@ pub fn derive_traffic_keys(
 pub fn derive_finished_key(
     provider: &impl CryptoProvider,
     suite: CipherSuite,
-    traffic_secret: &[u8],
-    out: &mut [u8],
-) -> Result<(), Error> {
+    traffic_secret: &Hash,
+) -> Result<Hash, Error> {
     let hash_size = suite.hash_size();
-    hkdf_expand_label(provider, suite, traffic_secret, b"finished", b"", &mut out[..hash_size])
+    let mut out = Hash::new_zeroed(hash_size as u8);
+    hkdf_expand_label(provider, suite, traffic_secret, b"finished", b"", &mut *out)?;
+    Ok(out)
 }
 
 /// Compute the TLS 1.3 Finished verify_data.
@@ -66,12 +71,10 @@ pub fn derive_finished_key(
 pub fn compute_finished(
     provider: &impl CryptoProvider,
     suite: CipherSuite,
-    finished_key: &[u8],
-    transcript_hash: &[u8],
-    out: &mut [u8],
-) -> Result<(), Error> {
-    let hash_size = suite.hash_size();
-    provider.hmac(suite, finished_key, transcript_hash, &mut out[..hash_size])
+    finished_key: &Hash,
+    transcript_hash: &Hash,
+) -> Result<Hash, Error> {
+    provider.hmac(suite, finished_key, transcript_hash)
 }
 
 /// Derive the PSK for a NewSessionTicket.
@@ -80,34 +83,24 @@ pub fn compute_finished(
 pub fn derive_ticket_psk(
     provider: &impl CryptoProvider,
     suite: CipherSuite,
-    resumption_secret: &[u8],
+    resumption_secret: &Hash,
     ticket_nonce: &[u8],
-    out: &mut [u8],
-) -> Result<(), Error> {
+) -> Result<Hash, Error> {
     let hash_size = suite.hash_size();
-    hkdf_expand_label(
-        provider,
-        suite,
-        resumption_secret,
-        b"resumption",
-        ticket_nonce,
-        &mut out[..hash_size],
-    )
+    let mut out = Hash::new_zeroed(hash_size as u8);
+    hkdf_expand_label(provider, suite, resumption_secret, b"resumption", ticket_nonce, &mut *out)?;
+    Ok(out)
 }
 
 /// KeyUpdate: new_secret = HKDF-Expand-Label(old_traffic_secret, "traffic upd", "", Hash.length)
-pub fn key_update_secret(
-    provider: &impl CryptoProvider,
-    suite: CipherSuite,
-    old_secret: &[u8],
-    new_out: &mut [u8],
-) -> Result<(), Error> {
+pub fn key_update_secret(provider: &impl CryptoProvider, suite: CipherSuite, old_secret: &Hash) -> Result<Hash, Error> {
     let hash_size = suite.hash_size();
-    hkdf_expand_label(provider, suite, old_secret, b"traffic upd", b"", &mut new_out[..hash_size])
+    let mut out = Hash::new_zeroed(hash_size as u8);
+    hkdf_expand_label(provider, suite, old_secret, b"traffic upd", b"", &mut *out)?;
+    Ok(out)
 }
 
 /// Compute the transcript hash of an empty string: Hash("").
-pub fn compute_empty_hash(provider: &impl CryptoProvider, suite: CipherSuite, out: &mut [u8]) -> Result<(), Error> {
-    let hash_size = suite.hash_size();
-    provider.hash(suite, &[], &mut out[..hash_size])
+pub fn compute_empty_hash(provider: &impl CryptoProvider, suite: CipherSuite) -> Result<Hash, Error> {
+    provider.hash(suite, &[])
 }

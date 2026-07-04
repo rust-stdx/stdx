@@ -1,19 +1,20 @@
 use crypto::{
-    Aead as _, Hasher,
+    Aead as CryptoAead, Hasher as CryptoHasher,
     aes::{Aes128Gcm, Aes256Gcm},
     chacha::ChaCha20Poly1305,
     curve25519::x25519,
     hkdf,
     hmac::Hmac,
+    mlkem::{CIPHERTEXT_SIZE_768, generate_keypair_768_derand},
     random_fill,
     sha2::{Sha256, Sha384},
 };
 use heapless::Vec;
 
 use crate::{
-    CipherSuite, CryptoProvider, KEY_EXCHANGE_SHARED_SECRET_MAX_SIZE, KeyExchangeGroup, KeyExchangePublicKey,
-    KeyExchangeSecretKey, ParsedCertificate, ReceivedCertificate, RootCa, SIGNATURE_MAX_SIZE, SignatureScheme,
-    errors::Error,
+    CipherSuite, CryptoProvider, Hash, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, KEY_EXCHANGE_SECRET_KEY_MAX_SIZE,
+    KEY_EXCHANGE_SHARED_SECRET_MAX_SIZE, KeyExchangeGroup, KeyExchangePublicKey, KeyExchangeSecretKey,
+    ParsedCertificate, ReceivedCertificate, RootCa, SIGNATURE_MAX_SIZE, SignatureScheme, errors::Error,
 };
 
 /// Default crypto provider backed by the `crypto` crate.
@@ -43,6 +44,27 @@ use crate::{
 #[derive(Clone)]
 pub struct DefaultCryptoProvider {
     roots: Option<alloc::vec::Vec<RootCa>>,
+}
+
+/// Incremental hash state for the default provider.
+///
+/// Wraps either SHA-256 (32-bit state) or SHA-384 (64-bit state) depending
+/// on the negotiated cipher suite.
+#[derive(Clone)]
+pub enum Hasher {
+    Sha256(crypto::sha2::Sha256),
+    Sha384(crypto::sha2::Sha384),
+}
+
+/// Cached AEAD key for the default provider.
+///
+/// Wraps the expanded cipher state for AES-128-GCM, AES-256-GCM, or
+/// ChaCha20-Poly1305 so key expansion happens only once.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub enum AeadKey {
+    Aes128Gcm(Aes128Gcm),
+    Aes256Gcm(Aes256Gcm),
+    ChaCha20Poly1305(ChaCha20Poly1305),
 }
 
 impl DefaultCryptoProvider {
@@ -90,7 +112,7 @@ impl CryptoProvider for DefaultCryptoProvider {
         CipherSuite::TlsChaCha20Poly1305Sha256,
         CipherSuite::TlsAes256GcmSha384,
     ];
-    const KEY_EXCHANGE_GROUPS: &[KeyExchangeGroup] = &[KeyExchangeGroup::X25519];
+    const KEY_EXCHANGE_GROUPS: &[KeyExchangeGroup] = &[KeyExchangeGroup::X25519MlKem768, KeyExchangeGroup::X25519];
     const SIGNATURE_SCHEMES: &[SignatureScheme] = &[
         SignatureScheme::Ed25519,
         SignatureScheme::EcdsaP256Sha256,
@@ -99,181 +121,150 @@ impl CryptoProvider for DefaultCryptoProvider {
         SignatureScheme::RsaPkcs1Sha256,
     ];
 
+    type Hasher = Hasher;
+    type AeadKey = AeadKey;
+
+    fn new_aead_key(&self, suite: CipherSuite, key: &[u8]) -> Self::AeadKey {
+        match suite {
+            CipherSuite::TlsAes128GcmSha256 => AeadKey::Aes128Gcm(Aes128Gcm::new(key.try_into().unwrap())),
+            CipherSuite::TlsAes256GcmSha384 => AeadKey::Aes256Gcm(Aes256Gcm::new(key.try_into().unwrap())),
+            CipherSuite::TlsChaCha20Poly1305Sha256 => {
+                AeadKey::ChaCha20Poly1305(ChaCha20Poly1305::new(key.try_into().unwrap()))
+            }
+        }
+    }
+
+    fn new_hash(&self, suite: CipherSuite) -> Self::Hasher {
+        match suite {
+            CipherSuite::TlsAes128GcmSha256 | CipherSuite::TlsChaCha20Poly1305Sha256 => {
+                Hasher::Sha256(<Sha256 as CryptoHasher>::new())
+            }
+            CipherSuite::TlsAes256GcmSha384 => Hasher::Sha384(<Sha384 as CryptoHasher>::new()),
+        }
+    }
+
+    fn hash_update(&self, state: &mut Self::Hasher, data: &[u8]) {
+        match state {
+            Hasher::Sha256(s) => s.update(data),
+            Hasher::Sha384(s) => s.update(data),
+        }
+    }
+
+    fn hash_finalize(&self, state: Self::Hasher) -> Result<Hash, Error> {
+        match state {
+            Hasher::Sha256(s) => {
+                let h = s.sum();
+                Ok(Hash::from_slice(h.as_ref()))
+            }
+            Hasher::Sha384(s) => {
+                let h = s.sum();
+                Ok(Hash::from_slice(h.as_ref()))
+            }
+        }
+    }
+
     fn secure_random(&self, buf: &mut [u8]) {
         random_fill(buf);
     }
 
-    fn hash(&self, suite: CipherSuite, data: &[u8], out: &mut [u8]) -> Result<(), Error> {
+    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Result<Hash, Error> {
         match suite {
             CipherSuite::TlsAes128GcmSha256 | CipherSuite::TlsChaCha20Poly1305Sha256 => {
-                let h = Sha256::hash(data);
-                out[..Sha256::OUTPUT_SIZE].copy_from_slice(h.as_ref());
+                Ok(Hash::from_slice(Sha256::hash(data).as_ref()))
             }
-            CipherSuite::TlsAes256GcmSha384 => {
-                let h = Sha384::hash(data);
-                out[..Sha384::OUTPUT_SIZE].copy_from_slice(h.as_ref());
-            }
+            CipherSuite::TlsAes256GcmSha384 => Ok(Hash::from_slice(Sha384::hash(data).as_ref())),
         }
-        Ok(())
     }
 
-    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8], out: &mut [u8]) -> Result<(), Error> {
+    fn hmac(&self, suite: CipherSuite, key: &Hash, data: &[u8]) -> Result<Hash, Error> {
         match suite {
             CipherSuite::TlsAes128GcmSha256 | CipherSuite::TlsChaCha20Poly1305Sha256 => {
-                let h = Hmac::<Sha256>::mac(key, data);
-                out[..Sha256::OUTPUT_SIZE].copy_from_slice(h.as_ref());
+                Ok(Hash::from_slice(Hmac::<Sha256>::mac(key, data).as_ref()))
             }
-            CipherSuite::TlsAes256GcmSha384 => {
-                let h = Hmac::<Sha384>::mac(key, data);
-                out[..Sha384::OUTPUT_SIZE].copy_from_slice(h.as_ref());
-            }
+            CipherSuite::TlsAes256GcmSha384 => Ok(Hash::from_slice(Hmac::<Sha384>::mac(key, data).as_ref())),
         }
-        Ok(())
     }
 
-    fn hkdf_extract(&self, out: &mut [u8], suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Result<(), Error> {
+    fn hkdf_extract(&self, suite: CipherSuite, salt: &Hash, ikm: &[u8]) -> Result<Hash, Error> {
         match suite {
             CipherSuite::TlsAes128GcmSha256 | CipherSuite::TlsChaCha20Poly1305Sha256 => {
-                let h = hkdf::extract::<Sha256>(Some(salt), ikm);
-                out[..Sha256::OUTPUT_SIZE].copy_from_slice(h.as_ref());
+                Ok(Hash::from_slice(hkdf::extract::<Sha256>(Some(salt), ikm).as_ref()))
             }
-            CipherSuite::TlsAes256GcmSha384 => {
-                let h = hkdf::extract::<Sha384>(Some(salt), ikm);
-                out[..Sha384::OUTPUT_SIZE].copy_from_slice(h.as_ref());
-            }
+            CipherSuite::TlsAes256GcmSha384 => Ok(Hash::from_slice(hkdf::extract::<Sha384>(Some(salt), ikm).as_ref())),
         }
-        Ok(())
     }
 
     fn hkdf_expand_label(
         &self,
         out: &mut [u8],
         suite: CipherSuite,
-        secret: &[u8],
+        secret: &Hash,
         label: &[u8],
         context: &[u8],
     ) -> Result<(), Error> {
         let len = out.len();
         let hkdf_label = build_hkdf_label(label, context, len);
         match suite {
-            CipherSuite::TlsAes128GcmSha256 | CipherSuite::TlsChaCha20Poly1305Sha256 => match len {
-                12 => {
-                    let a = hkdf::expand::<Sha256, 12>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                16 => {
-                    let a = hkdf::expand::<Sha256, 16>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                32 => {
-                    let a = hkdf::expand::<Sha256, 32>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                48 => {
-                    let a = hkdf::expand::<Sha256, 48>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                _ => return Err(Error::CryptoError),
-            },
-            CipherSuite::TlsAes256GcmSha384 => match len {
-                12 => {
-                    let a = hkdf::expand::<Sha384, 12>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                16 => {
-                    let a = hkdf::expand::<Sha384, 16>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                32 => {
-                    let a = hkdf::expand::<Sha384, 32>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                48 => {
-                    let a = hkdf::expand::<Sha384, 48>(secret, &hkdf_label).unwrap();
-                    out.copy_from_slice(&a);
-                }
-                _ => return Err(Error::CryptoError),
-            },
+            CipherSuite::TlsAes128GcmSha256 | CipherSuite::TlsChaCha20Poly1305Sha256 => {
+                hkdf::expand::<Sha256>(out, secret, &hkdf_label).unwrap();
+            }
+            CipherSuite::TlsAes256GcmSha384 => {
+                hkdf::expand::<Sha384>(out, secret, &hkdf_label).unwrap();
+            }
         }
         Ok(())
     }
 
     fn aead_encrypt(
         &self,
-        suite: CipherSuite,
-        key: &[u8],
+        key: &Self::AeadKey,
         nonce: &[u8],
         aad: &[u8],
         data: &mut [u8],
         plaintext_len: usize,
     ) -> Result<usize, Error> {
-        match suite {
-            CipherSuite::TlsAes128GcmSha256 => {
-                let k: &[u8; 16] = key.try_into().map_err(|_| Error::CryptoError)?;
-                let cipher = Aes128Gcm::new(k);
+        let total = plaintext_len + 16;
+        match key {
+            AeadKey::Aes128Gcm(cipher) => {
                 let tag = cipher.encrypt_in_place(&mut data[..plaintext_len], nonce, aad);
-                let total = plaintext_len + 16;
                 data[plaintext_len..total].copy_from_slice(tag.as_ref());
-                Ok(total)
             }
-            CipherSuite::TlsAes256GcmSha384 => {
-                let k: &[u8; 32] = key.try_into().map_err(|_| Error::CryptoError)?;
-                let cipher = Aes256Gcm::new(k);
+            AeadKey::Aes256Gcm(cipher) => {
                 let tag = cipher.encrypt_in_place(&mut data[..plaintext_len], nonce, aad);
-                let total = plaintext_len + 16;
                 data[plaintext_len..total].copy_from_slice(tag.as_ref());
-                Ok(total)
             }
-            CipherSuite::TlsChaCha20Poly1305Sha256 => {
-                let k: &[u8; 32] = key.try_into().map_err(|_| Error::CryptoError)?;
-                let cipher = ChaCha20Poly1305::new(k);
+            AeadKey::ChaCha20Poly1305(cipher) => {
                 let tag = cipher.encrypt_in_place(&mut data[..plaintext_len], nonce, aad);
-                let total = plaintext_len + 16;
                 data[plaintext_len..total].copy_from_slice(tag.as_ref());
-                Ok(total)
             }
         }
+        Ok(total)
     }
 
-    fn aead_decrypt(
-        &self,
-        suite: CipherSuite,
-        key: &[u8],
-        nonce: &[u8],
-        aad: &[u8],
-        data: &mut [u8],
-    ) -> Result<usize, Error> {
+    fn aead_decrypt(&self, key: &Self::AeadKey, nonce: &[u8], aad: &[u8], data: &mut [u8]) -> Result<usize, Error> {
         if data.len() < 16 {
             return Err(Error::AeadError);
         }
         let ct_len = data.len() - 16;
         let (ct, tag) = data.split_at_mut(ct_len);
-        match suite {
-            CipherSuite::TlsAes128GcmSha256 => {
-                let k: &[u8; 16] = key.try_into().map_err(|_| Error::CryptoError)?;
-                let cipher = Aes128Gcm::new(k);
+        match key {
+            AeadKey::Aes128Gcm(cipher) => {
                 cipher
                     .decrypt_in_place(ct, nonce, aad, tag)
                     .map_err(|_| Error::AeadError)?;
-                Ok(ct_len)
             }
-            CipherSuite::TlsAes256GcmSha384 => {
-                let k: &[u8; 32] = key.try_into().map_err(|_| Error::CryptoError)?;
-                let cipher = Aes256Gcm::new(k);
+            AeadKey::Aes256Gcm(cipher) => {
                 cipher
                     .decrypt_in_place(ct, nonce, aad, tag)
                     .map_err(|_| Error::AeadError)?;
-                Ok(ct_len)
             }
-            CipherSuite::TlsChaCha20Poly1305Sha256 => {
-                let k: &[u8; 32] = key.try_into().map_err(|_| Error::CryptoError)?;
-                let cipher = ChaCha20Poly1305::new(k);
+            AeadKey::ChaCha20Poly1305(cipher) => {
                 cipher
                     .decrypt_in_place(ct, nonce, aad, tag)
                     .map_err(|_| Error::AeadError)?;
-                Ok(ct_len)
             }
         }
+        Ok(ct_len)
     }
 
     fn key_exchange_generate_keypair(
@@ -289,7 +280,30 @@ impl CryptoProvider for DefaultCryptoProvider {
                     KeyExchangePublicKey::new(group, &pk.to_bytes()),
                 ))
             }
-            _ => Err(Error::CryptoError),
+            KeyExchangeGroup::X25519MlKem768 => {
+                // for X25519MlKem768 we keep the same order as for the public keys and shared secret:
+                // first the ml_kem seed (64 bytes) and then the x25519 seed (32 bytes)
+                let mut seeds = [0u8; KEY_EXCHANGE_SECRET_KEY_MAX_SIZE];
+                self.secure_random(&mut seeds);
+
+                let (_, mlkem_pk) =
+                    generate_keypair_768_derand(&seeds[..64].try_into().map_err(|_| Error::CryptoError)?);
+                let x25519_sk =
+                    x25519::SecretKey::from_bytes(&seeds[64..96].try_into().map_err(|_| Error::CryptoError)?);
+                let x25519_pk = x25519_sk.public_key();
+
+                let mut pub_bytes: Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE> = Vec::new();
+                pub_bytes
+                    .extend_from_slice(&mlkem_pk.to_bytes())
+                    .map_err(|_| Error::CryptoError)?;
+                pub_bytes
+                    .extend_from_slice(&x25519_pk.to_bytes())
+                    .map_err(|_| Error::CryptoError)?;
+                Ok((
+                    KeyExchangeSecretKey::new(group, &seeds),
+                    KeyExchangePublicKey::new(group, &pub_bytes),
+                ))
+            }
         }
     }
 
@@ -309,6 +323,33 @@ impl CryptoProvider for DefaultCryptoProvider {
                 out.extend_from_slice(&ss).unwrap();
                 Ok(out)
             }
+            KeyExchangeGroup::X25519MlKem768 => {
+                let seeds: &[u8; KEY_EXCHANGE_SECRET_KEY_MAX_SIZE] =
+                    secret.bytes().try_into().map_err(|_| Error::CryptoError)?;
+
+                let (mlkem_sk, _) =
+                    generate_keypair_768_derand(&seeds[..64].try_into().map_err(|_| Error::CryptoError)?);
+                let x25519_sk =
+                    x25519::SecretKey::from_bytes(&seeds[64..96].try_into().map_err(|_| Error::CryptoError)?);
+
+                let mlkem_ct: &[u8; CIPHERTEXT_SIZE_768] = peer_public
+                    .get(..CIPHERTEXT_SIZE_768)
+                    .and_then(|s| s.try_into().ok())
+                    .ok_or(Error::CryptoError)?;
+                let peer_x25519_pk = x25519::PublicKey::from_bytes(
+                    &peer_public[CIPHERTEXT_SIZE_768..]
+                        .try_into()
+                        .map_err(|_| Error::CryptoError)?,
+                );
+                let shared_secret_mlkem = mlkem_sk.decapsulate(mlkem_ct).map_err(|_| Error::CryptoError)?;
+                let shared_secret_x25519 = x25519_sk.ecdh(&peer_x25519_pk);
+                let mut out = Vec::new();
+                out.extend_from_slice(&shared_secret_mlkem)
+                    .map_err(|_| Error::CryptoError)?;
+                out.extend_from_slice(&shared_secret_x25519)
+                    .map_err(|_| Error::CryptoError)?;
+                Ok(out)
+            }
             _ => Err(Error::CryptoError),
         }
     }
@@ -318,23 +359,15 @@ impl CryptoProvider for DefaultCryptoProvider {
         scheme: SignatureScheme,
         secret_key: &[u8],
         data: &[u8],
-        sig_out: &mut [u8],
     ) -> Result<Vec<u8, SIGNATURE_MAX_SIZE>, Error> {
         match scheme {
             SignatureScheme::Ed25519 => {
                 let seed: &[u8; 32] = secret_key.try_into().map_err(|_| Error::CryptoError)?;
-                let sk = crypto::curve25519::ed25519::SecretKey::from_bytes(seed);
-                let sig = sk.sign(data);
-                sig_out[..64].copy_from_slice(&sig);
-                let mut v = Vec::new();
-                v.extend_from_slice(&sig).unwrap();
-                Ok(v)
+                let secret_key = crypto::curve25519::ed25519::SecretKey::from_bytes(seed);
+                let signature = secret_key.sign(data);
+                Ok(Vec::from_slice(&signature).unwrap())
             }
-            _ => {
-                let mut v = Vec::new();
-                v.extend_from_slice(sig_out).unwrap();
-                Ok(v)
-            }
+            _ => Err(Error::CryptoError),
         }
     }
 
@@ -626,21 +659,6 @@ fn build_hkdf_label(label: &[u8], context: &[u8], out_len: usize) -> Vec<u8, 130
     buf
 }
 
-fn trim_leading_zeros(bytes: &[u8]) -> Vec<u8, 128> {
-    let pos = bytes.iter().position(|&b| b != 0).unwrap_or(bytes.len());
-    let trimmed = &bytes[pos..];
-    let mut out = Vec::new();
-    if trimmed.is_empty() {
-        out.push(0).unwrap();
-    } else if trimmed[0] & 0x80 != 0 {
-        out.push(0).unwrap();
-        out.extend_from_slice(trimmed).unwrap();
-    } else {
-        out.extend_from_slice(trimmed).unwrap();
-    }
-    out
-}
-
 fn normalize_scalar(bytes: &[u8]) -> [u8; 32] {
     let mut out = [0u8; 32];
     let start = bytes.len().saturating_sub(32);
@@ -719,4 +737,52 @@ fn der_to_raw_p384_signature(der: &[u8]) -> Result<[u8; 96], Error> {
     sig[..48].copy_from_slice(&r);
     sig[48..].copy_from_slice(&s);
     Ok(sig)
+}
+
+#[cfg(test)]
+mod tests {
+    use crypto::{
+        curve25519::x25519,
+        mlkem::{PUBLIC_KEY_SIZE_768, PublicKey768},
+    };
+
+    use super::*;
+
+    #[test]
+    fn x25519_mlkem768_key_exchange() {
+        let provider = DefaultCryptoProvider::new();
+        let group = KeyExchangeGroup::X25519MlKem768;
+
+        // ── Client side: generate keypair, send ClientHello ──
+        let (client_secret, client_public) = provider.key_exchange_generate_keypair(group).unwrap();
+        assert_eq!(client_public.bytes().len(), 1216, "client key share must be 1216 bytes");
+
+        // ── Server side: parse client's share, encapsulate ──
+        let client_mlkem_pk =
+            PublicKey768::from_bytes(client_public.bytes()[..PUBLIC_KEY_SIZE_768].try_into().unwrap());
+        let (server_ct, server_mlkem_ss) = client_mlkem_pk.encapsulate();
+
+        let server_x25519_sk = x25519::SecretKey::generate();
+        let server_x25519_pk = server_x25519_sk.public_key();
+        let server_x25519_ss = server_x25519_sk.ecdh(&x25519::PublicKey::from_bytes(
+            &client_public.bytes()[PUBLIC_KEY_SIZE_768..].try_into().unwrap(),
+        ));
+        let server_ss_full: [u8; 64] = {
+            let mut s = [0u8; 64];
+            s[..32].copy_from_slice(&server_mlkem_ss);
+            s[32..].copy_from_slice(&server_x25519_ss);
+            s
+        };
+
+        // Build server's key share (1120 bytes: ct + X25519 pk)
+        let mut server_share: Vec<u8, KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE> = Vec::new();
+        server_share.extend_from_slice(&server_ct).unwrap();
+        server_share.extend_from_slice(&server_x25519_pk.to_bytes()).unwrap();
+        assert_eq!(server_share.len(), 1120, "server key share must be 1120 bytes");
+
+        // ── Client side: compute shared secret from server's response ──
+        let client_ss = provider.key_exchange(&client_secret, &server_share).unwrap();
+        assert_eq!(client_ss.len(), 64, "shared secret must be 64 bytes");
+        assert_eq!(&client_ss[..], &server_ss_full, "shared secrets must match");
+    }
 }

@@ -1,6 +1,6 @@
 use crate::{
-    CertType, CipherSuite, CryptoProvider, KeyExchangeGroup, ParsedCertificate, ReceivedCertificate, SignatureScheme,
-    errors::Error,
+    CertType, CipherSuite, KeyExchangeGroup, KeyExchangePublicKey, ParsedCertificate, ReceivedCertificate,
+    SignatureScheme, errors::Error,
 };
 
 // ── Wire format helpers ──────────────────────────────────────────────────
@@ -29,13 +29,6 @@ pub fn put_slice_u8(buf: &mut [u8], offset: &mut usize, data: &[u8]) {
 #[inline]
 pub fn put_slice_u16(buf: &mut [u8], offset: &mut usize, data: &[u8]) {
     put_u16(buf, offset, data.len() as u16);
-    buf[*offset..*offset + data.len()].copy_from_slice(data);
-    *offset += data.len();
-}
-
-#[inline]
-pub fn put_slice_u24(buf: &mut [u8], offset: &mut usize, data: &[u8]) {
-    put_u24(buf, offset, data.len() as u32);
     buf[*offset..*offset + data.len()].copy_from_slice(data);
     *offset += data.len();
 }
@@ -80,17 +73,6 @@ pub fn read_slice_u8<'a>(data: &'a [u8], offset: &mut usize) -> Result<&'a [u8],
 #[inline]
 pub fn read_slice_u16<'a>(data: &'a [u8], offset: &mut usize) -> Result<&'a [u8], Error> {
     let len = read_u16(data, offset) as usize;
-    if *offset + len > data.len() {
-        return Err(Error::DecodeError);
-    }
-    let slice = &data[*offset..*offset + len];
-    *offset += len;
-    Ok(slice)
-}
-
-#[inline]
-pub fn read_slice_u24<'a>(data: &'a [u8], offset: &mut usize) -> Result<&'a [u8], Error> {
-    let len = read_u24(data, offset) as usize;
     if *offset + len > data.len() {
         return Err(Error::DecodeError);
     }
@@ -187,18 +169,16 @@ impl ExtensionType {
 // ── ClientHello encoding ─────────────────────────────────────────────────
 
 /// Encode a ClientHello message into `buf` starting at `offset`.
-/// Returns the number of bytes written.
+/// `key_share_entries` may contain one entry per supported group.
 pub fn encode_client_hello(
     buf: &mut [u8],
     offset: &mut usize,
     random: &[u8; 32],
     session_id: &[u8],
     cipher_suites: &[CipherSuite],
-    key_share_group: KeyExchangeGroup,
-    key_share_public: &[u8],
+    key_share_entries: &[KeyExchangePublicKey],
     server_name: Option<&str>,
     alpn_protocols: &[&[u8]],
-    supported_groups: &[KeyExchangeGroup],
     signature_schemes: &[SignatureScheme],
     cert_types: &[CertType],
 ) -> Result<usize, Error> {
@@ -237,73 +217,12 @@ pub fn encode_client_hello(
     *offset += 1;
 
     // ── Extensions ──
+    // Order matters: BoringSSL (Google CDN) requires SupportedVersions
+    // to be one of the last extensions (before KeyShare).
     let ext_total_start = *offset;
     *offset += 2; // placeholder for total extensions length
 
-    // 1. KeyShare
-    let ks_start = *offset;
-    *offset += 4; // placeholder for ext_type + data length
-    let list_len_pos = *offset;
-    *offset += 2; // placeholder for client_shares length
-    buf[*offset..*offset + 2].copy_from_slice(&key_share_group.to_wire());
-    *offset += 2;
-    put_slice_u16(buf, offset, key_share_public);
-    let list_len = (*offset - list_len_pos - 2) as u16;
-    buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
-    let ks_len = (*offset - ks_start - 4) as u16;
-    buf[ks_start..ks_start + 2].copy_from_slice(&(ExtensionType::KeyShare as u16).to_be_bytes());
-    buf[ks_start + 2..ks_start + 4].copy_from_slice(&ks_len.to_be_bytes());
-
-    // 2. SupportedVersions (0x002B)
-    let sv_start = *offset;
-    *offset += 4;
-    buf[*offset] = 2; // supported_versions length in bytes
-    *offset += 1;
-    buf[*offset..*offset + 2].copy_from_slice(&[0x03, 0x04]); // TLS 1.3 = 0x0304
-    *offset += 2;
-    let sv_len = (*offset - sv_start - 4) as u16;
-    buf[sv_start..sv_start + 2].copy_from_slice(&(ExtensionType::SupportedVersions as u16).to_be_bytes());
-    buf[sv_start + 2..sv_start + 4].copy_from_slice(&sv_len.to_be_bytes());
-
-    // 3. SupportedGroups (NamedGroups)
-    if !supported_groups.is_empty() {
-        let sg_start = *offset;
-        *offset += 4;
-        let list_len_pos = *offset;
-        *offset += 2;
-        for g in supported_groups {
-            buf[*offset..*offset + 2].copy_from_slice(&g.to_wire());
-            *offset += 2;
-        }
-        let list_len = (*offset - list_len_pos - 2) as u16;
-        buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
-        let sg_len = (*offset - sg_start - 4) as u16;
-        buf[sg_start..sg_start + 2].copy_from_slice(&(ExtensionType::SupportedGroups as u16).to_be_bytes());
-        buf[sg_start + 2..sg_start + 4].copy_from_slice(&sg_len.to_be_bytes());
-    }
-
-    // 4. SignatureAlgorithms
-    if !signature_schemes.is_empty() {
-        let sa_start = *offset;
-        *offset += 4;
-        let list_len_pos = *offset;
-        *offset += 2;
-        for s in signature_schemes {
-            buf[*offset..*offset + 2].copy_from_slice(&s.to_wire());
-            *offset += 2;
-        }
-        let list_len = (*offset - list_len_pos - 2) as u16;
-        buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
-        let ext_len = (*offset - sa_start - 4) as u16;
-        buf[sa_start..sa_start + 2].copy_from_slice(&(ExtensionType::SignatureAlgorithms as u16).to_be_bytes());
-        buf[sa_start + 2..sa_start + 4].copy_from_slice(&ext_len.to_be_bytes());
-    }
-
-    // Actually the sig_algs building is getting complex with forward references.
-    // Let me use a simpler approach: skip it for now, the handshake will work
-    // without signature_algorithms extension for basic connections.
-
-    // 5. ServerName (SNI)
+    // 1. ServerName (SNI)
     if let Some(name) = server_name {
         let sn_start = *offset;
         *offset += 4; // placeholder
@@ -320,7 +239,41 @@ pub fn encode_client_hello(
         buf[sn_start + 2..sn_start + 4].copy_from_slice(&sn_data_len.to_be_bytes());
     }
 
-    // 6. ALPN
+    // 2. SupportedGroups (NamedGroups) — derived from key_share entries
+    if !key_share_entries.is_empty() {
+        let sg_start = *offset;
+        *offset += 4;
+        let list_len_pos = *offset;
+        *offset += 2;
+        for key_share in key_share_entries {
+            buf[*offset..*offset + 2].copy_from_slice(&key_share.group().to_wire());
+            *offset += 2;
+        }
+        let list_len = (*offset - list_len_pos - 2) as u16;
+        buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
+        let sg_len = (*offset - sg_start - 4) as u16;
+        buf[sg_start..sg_start + 2].copy_from_slice(&(ExtensionType::SupportedGroups as u16).to_be_bytes());
+        buf[sg_start + 2..sg_start + 4].copy_from_slice(&sg_len.to_be_bytes());
+    }
+
+    // 3. SignatureAlgorithms
+    if !signature_schemes.is_empty() {
+        let sa_start = *offset;
+        *offset += 4;
+        let list_len_pos = *offset;
+        *offset += 2;
+        for s in signature_schemes {
+            buf[*offset..*offset + 2].copy_from_slice(&s.to_wire());
+            *offset += 2;
+        }
+        let list_len = (*offset - list_len_pos - 2) as u16;
+        buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
+        let ext_len = (*offset - sa_start - 4) as u16;
+        buf[sa_start..sa_start + 2].copy_from_slice(&(ExtensionType::SignatureAlgorithms as u16).to_be_bytes());
+        buf[sa_start + 2..sa_start + 4].copy_from_slice(&ext_len.to_be_bytes());
+    }
+
+    // 4. ALPN
     if !alpn_protocols.is_empty() {
         let alpn_start = *offset;
         *offset += 4;
@@ -338,8 +291,9 @@ pub fn encode_client_hello(
         buf[alpn_start + 2..alpn_start + 4].copy_from_slice(&alpn_data_len.to_be_bytes());
     }
 
-    // 7. ServerCertificateType (RFC 7250)
-    if cert_types.contains(&CertType::RawPublicKey) || cert_types.contains(&CertType::X509) {
+    // 5. ServerCertificateType (RFC 7250)
+    // Only send when the client explicitly configures non-default types.
+    if cert_types.len() > 1 || cert_types.first().map_or(false, |t| *t != CertType::X509) {
         let ct_start = *offset;
         *offset += 4;
         buf[*offset] = cert_types.len() as u8;
@@ -352,6 +306,33 @@ pub fn encode_client_hello(
         buf[ct_start..ct_start + 2].copy_from_slice(&(ExtensionType::ServerCertificateType as u16).to_be_bytes());
         buf[ct_start + 2..ct_start + 4].copy_from_slice(&ct_data_len.to_be_bytes());
     }
+
+    // 6. SupportedVersions — placed late so BoringSSL accepts the ClientHello
+    let sv_start = *offset;
+    *offset += 4;
+    buf[*offset] = 2; // supported_versions length in bytes
+    *offset += 1;
+    buf[*offset..*offset + 2].copy_from_slice(&[0x03, 0x04]); // TLS 1.3 = 0x0304
+    *offset += 2;
+    let sv_len = (*offset - sv_start - 4) as u16;
+    buf[sv_start..sv_start + 2].copy_from_slice(&(ExtensionType::SupportedVersions as u16).to_be_bytes());
+    buf[sv_start + 2..sv_start + 4].copy_from_slice(&sv_len.to_be_bytes());
+
+    // 7. KeyShare — placed last (BoringSSL expects KeyShare after SupportedVersions)
+    let ks_start = *offset;
+    *offset += 4; // placeholder for ext_type + data length
+    let list_len_pos = *offset;
+    *offset += 2; // placeholder for client_shares length
+    for key_share in key_share_entries {
+        buf[*offset..*offset + 2].copy_from_slice(&key_share.group().to_wire());
+        *offset += 2;
+        put_slice_u16(buf, offset, key_share.bytes());
+    }
+    let list_len = (*offset - list_len_pos - 2) as u16;
+    buf[list_len_pos..list_len_pos + 2].copy_from_slice(&list_len.to_be_bytes());
+    let ks_len = (*offset - ks_start - 4) as u16;
+    buf[ks_start..ks_start + 2].copy_from_slice(&(ExtensionType::KeyShare as u16).to_be_bytes());
+    buf[ks_start + 2..ks_start + 4].copy_from_slice(&ks_len.to_be_bytes());
 
     // Fill total extensions length
     let ext_total = (*offset - ext_total_start - 2) as u16;
@@ -415,11 +396,8 @@ pub fn decode_server_hello<'a>(body: &'a [u8]) -> Result<ServerHelloData<'a>, Er
             return Err(Error::DecodeError);
         }
 
-        if let Some(et) = ExtensionType::from_u16(ext_type) {
-            if let ExtensionType::KeyShare = et {
-                if ext_len < 4 {
-                    return Err(Error::DecodeError);
-                }
+        if let Some(ExtensionType::KeyShare) = ExtensionType::from_u16(ext_type) {
+            if ext_len >= 4 {
                 let group_bytes = [ext_data[ext_off], ext_data[ext_off + 1]];
                 key_share_group =
                     Some(KeyExchangeGroup::from_wire(group_bytes).ok_or(Error::UnsupportedKeyExchangeGroup)?);
@@ -502,7 +480,7 @@ pub fn decode_extensions<'a>(data: &'a [u8], offset: &mut usize) -> Result<(u16,
 }
 
 /// Skip through extensions, looking for specific types.
-/// Returns the selected ALPN protocol if the ALPN extension was found.  
+/// Returns the selected ALPN protocol if the ALPN extension was found.
 pub fn decode_server_hello_extensions<'a>(ext_data: &'a [u8]) -> Result<(KeyExchangeGroup, &'a [u8]), Error> {
     let mut ext_off = 0;
     let mut kx_group = None;
@@ -530,6 +508,7 @@ pub fn decode_server_hello_extensions<'a>(ext_data: &'a [u8]) -> Result<(KeyExch
     }
     Ok((kx_group.ok_or(Error::DecodeError)?, kx_public))
 }
+
 /// Decode Certificate message body.
 ///
 /// For `X509` returns all certificate DERs in a chain. For `RawPublicKey`
@@ -674,37 +653,4 @@ pub fn decode_key_update(body: &[u8]) -> Result<u8, Error> {
         return Err(Error::DecodeError);
     }
     Ok(body[0])
-}
-
-// ── Finished computation helpers ─────────────────────────────────────────
-
-/// Compute the TLS 1.3 transcript hash up to current state.
-/// Hash(prev_hash || handshake_msg) is computed by hashing the concatenation.
-pub fn append_to_transcript(
-    provider: &impl CryptoProvider,
-    suite: CipherSuite,
-    transcript: &mut [u8; 48],
-    transcript_init: &mut bool,
-    handshake_msg: &[u8],
-) -> Result<(), Error> {
-    let hash_size = suite.hash_size();
-
-    if !*transcript_init {
-        // Hash("") initial transcript
-        provider.hash(suite, &[], &mut transcript[..hash_size])?;
-        *transcript_init = true;
-    }
-
-    // Hash(transcript || message)
-    // We need to concatenate transcript with the new message and hash.
-    let mut combined = [0u8; 48 + 16384];
-    combined[..hash_size].copy_from_slice(&transcript[..hash_size]);
-    combined[hash_size..hash_size + handshake_msg.len()].copy_from_slice(handshake_msg);
-    provider.hash(
-        suite,
-        &combined[..hash_size + handshake_msg.len()],
-        &mut transcript[..hash_size],
-    )?;
-
-    Ok(())
 }

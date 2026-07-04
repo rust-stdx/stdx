@@ -21,7 +21,8 @@ mod tests {
         d_hkdf.extend_from_slice(d_label);
         d_hkdf.push(empty_hash.len() as u8);
         d_hkdf.extend_from_slice(&empty_hash);
-        let derived: [u8; 32] = hkdf::expand::<Sha256, 32>(early.as_ref(), &d_hkdf).unwrap();
+        let mut derived = [0u8; 32];
+        hkdf::expand::<Sha256>(&mut derived, early.as_ref(), &d_hkdf).unwrap();
 
         // Simulate a shared secret and transcript
         let shared = [0xab; 32];
@@ -35,7 +36,8 @@ mod tests {
         c_hkdf.extend_from_slice(c_label);
         c_hkdf.push(transcript.len() as u8);
         c_hkdf.extend_from_slice(&transcript);
-        let c_hs: [u8; 32] = hkdf::expand::<Sha256, 32>(hs.as_ref(), &c_hkdf).unwrap();
+        let mut c_hs = [0u8; 32];
+        hkdf::expand::<Sha256>(&mut c_hs, hs.as_ref(), &c_hkdf).unwrap();
 
         let key_label = b"tls13 key";
         let mut key_hkdf = Vec::new();
@@ -43,7 +45,8 @@ mod tests {
         key_hkdf.push(key_label.len() as u8);
         key_hkdf.extend_from_slice(key_label);
         key_hkdf.push(0u8);
-        let key: [u8; 16] = hkdf::expand::<Sha256, 16>(&c_hs, &key_hkdf).unwrap();
+        let mut key = [0u8; 16];
+        hkdf::expand::<Sha256>(&mut key, &c_hs, &key_hkdf).unwrap();
 
         let iv_label = b"tls13 iv";
         let mut iv_hkdf = Vec::new();
@@ -51,7 +54,8 @@ mod tests {
         iv_hkdf.push(iv_label.len() as u8);
         iv_hkdf.extend_from_slice(iv_label);
         iv_hkdf.push(0u8);
-        let iv: [u8; 12] = hkdf::expand::<Sha256, 12>(&c_hs, &iv_hkdf).unwrap();
+        let mut iv = [0u8; 12];
+        hkdf::expand::<Sha256>(&mut iv, &c_hs, &iv_hkdf).unwrap();
 
         // Now test AEAD encrypt/decrypt using the Aes128Gcm from the crypto crate
         let plaintext = b"This is a test message for AEAD";
@@ -79,30 +83,20 @@ mod tests {
 
         let provider = DefaultCryptoProvider::new();
         let suite = CipherSuite::TlsAes128GcmSha256;
-        let hs2 = suite.hash_size();
-        let ksz2 = suite.key_size();
 
-        let mut our_key = [0u8; 32];
-        let mut our_iv = [0u8; 12];
-        key_schedule::derive_traffic_keys(&provider, suite, &c_hs, &mut our_key[..ksz2], &mut our_iv).unwrap();
+        let (aead_key, _our_iv) =
+            key_schedule::derive_traffic_keys(&provider, suite, &tls2::Hash::from_slice(&c_hs)).unwrap();
 
         // Encrypt with our provider
         let mut enc_buf = [0u8; 256];
         enc_buf[..plaintext.len()].copy_from_slice(plaintext);
         let enc_total = provider
-            .aead_encrypt(
-                suite,
-                &our_key[..ksz2],
-                &nonce,
-                &aad,
-                &mut enc_buf[..plaintext.len() + 16],
-                plaintext.len(),
-            )
+            .aead_encrypt(&aead_key, &nonce, &aad, &mut enc_buf[..plaintext.len() + 16], plaintext.len())
             .unwrap();
 
         // Decrypt with our provider
         let pt_len = provider
-            .aead_decrypt(suite, &our_key[..ksz2], &nonce, &aad, &mut enc_buf[..enc_total])
+            .aead_decrypt(&aead_key, &nonce, &aad, &mut enc_buf[..enc_total])
             .unwrap();
         assert_eq!(pt_len, plaintext.len());
         assert_eq!(&enc_buf[..pt_len], plaintext);

@@ -1,4 +1,4 @@
-use crate::{CipherSuite, CryptoProvider, MAX_RECORD_SIZE, errors::Error};
+use crate::{CryptoProvider, MAX_RECORD_SIZE, errors::Error};
 
 /// TLS record content types (RFC 8446 §5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,15 +94,14 @@ pub fn try_read_record(buf: &[u8], len: usize) -> Result<Option<(RecordHeader, &
 ///
 /// `write_buf` must have enough space for the full record (5 + plaintext_len + 1 + tag_size).
 /// Returns the total record length.
-pub fn encrypt_record<'a>(
-    provider: &impl CryptoProvider,
-    suite: CipherSuite,
-    key: &[u8],
+pub fn encrypt_record<P: CryptoProvider>(
+    provider: &P,
+    key: &P::AeadKey,
     iv: &[u8; 12],
     seq: u64,
     inner_content_type: ContentType,
     plaintext: &[u8],
-    write_buf: &'a mut [u8],
+    write_buf: &mut [u8],
 ) -> Result<usize, Error> {
     let tag_size = 16;
     let inner_len = plaintext.len() + 1;
@@ -122,7 +121,7 @@ pub fn encrypt_record<'a>(
 
     // Encrypt in place (split to avoid overlapping borrows)
     let (aad, data) = write_buf[..total].split_at_mut(5);
-    let data_len = provider.aead_encrypt(suite, key, &nonce, aad, data, inner_len)?;
+    let data_len = provider.aead_encrypt(key, &nonce, aad, data, inner_len)?;
 
     Ok(5 + data_len)
 }
@@ -131,10 +130,9 @@ pub fn encrypt_record<'a>(
 ///
 /// `body` is the record payload (ciphertext + tag).
 /// Returns the inner content type and the decrypted payload slice.
-pub fn decrypt_record<'a>(
-    provider: &impl CryptoProvider,
-    suite: CipherSuite,
-    key: &[u8],
+pub fn decrypt_record<'a, P: CryptoProvider>(
+    provider: &P,
+    key: &P::AeadKey,
     iv: &[u8; 12],
     seq: u64,
     header: &RecordHeader,
@@ -142,7 +140,7 @@ pub fn decrypt_record<'a>(
 ) -> Result<(ContentType, &'a mut [u8]), Error> {
     let nonce = build_nonce(iv, seq);
     let aad = header.aad();
-    let plaintext_len = provider.aead_decrypt(suite, key, &nonce, &aad, body)?;
+    let plaintext_len = provider.aead_decrypt(key, &nonce, &aad, body)?;
 
     if plaintext_len == 0 {
         return Err(Error::DecodeError);

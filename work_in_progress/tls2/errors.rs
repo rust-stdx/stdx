@@ -13,12 +13,14 @@ pub enum Error {
     },
     ConnectionClosed,
 
-    // ── Decode ──
+    // ── Decode / Encode ──
     DecodeError,
+    EncodeError,
     UnsupportedCipherSuite,
     UnsupportedKeyExchangeGroup,
 
     // ── Handshake ──
+    HandshakeDone,
     UnexpectedMessage,
     HandshakeFailure,
     HandshakeAborted {

@@ -272,25 +272,9 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn hkdf_expand(&self, suite: CipherSuite, prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_SIZE> {
         fn expand_inner<H: Hasher>(prk: &[u8], info: &[u8], length: usize) -> Vec<u8, MAX_HASH_SIZE> {
             let mut out = Vec::new();
-            match length {
-                12 => {
-                    let arr = hkdf::expand::<H, 12>(prk, info).unwrap();
-                    out.extend_from_slice(&arr).unwrap();
-                }
-                16 => {
-                    let arr = hkdf::expand::<H, 16>(prk, info).unwrap();
-                    out.extend_from_slice(&arr).unwrap();
-                }
-                32 => {
-                    let arr = hkdf::expand::<H, 32>(prk, info).unwrap();
-                    out.extend_from_slice(&arr).unwrap();
-                }
-                48 => {
-                    let arr = hkdf::expand::<H, 48>(prk, info).unwrap();
-                    out.extend_from_slice(&arr).unwrap();
-                }
-                _ => unreachable!("hkdf_expand: unsupported output length {length}"),
-            }
+            let mut buf = [0u8; 48];
+            hkdf::expand::<H>(&mut buf[..length], prk, info).unwrap();
+            out.extend_from_slice(&buf[..length]).unwrap();
             out
         }
         match suite {

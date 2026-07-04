@@ -1,9 +1,78 @@
+use core::ops::{Deref, DerefMut};
+
 use heapless::Vec;
 
 use crate::{
     KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, KEY_EXCHANGE_SECRET_KEY_MAX_SIZE, KEY_EXCHANGE_SHARED_SECRET_MAX_SIZE, MAX_CERTS,
-    SIGNATURE_MAX_SIZE, errors::Error,
+    MAX_HASH_SIZE, SIGNATURE_MAX_SIZE, errors::Error,
 };
+
+/// A fixed-capacity byte buffer for cryptographic hash outputs.
+///
+/// Stores up to 48 bytes (enough for SHA-384) and tracks how many are active
+/// (`len`).  `Deref`/`DerefMut` yield a `&[u8]`/`&mut [u8]` of exactly `len`
+/// bytes.
+#[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub struct Hash {
+    buf: [u8; Self::MAX_LEN],
+    len: u8,
+}
+
+impl Hash {
+    pub const MAX_LEN: usize = MAX_HASH_SIZE;
+
+    pub fn new_zeroed(len: u8) -> Self {
+        assert!((len as usize) <= Self::MAX_LEN);
+        Self {
+            buf: [0u8; Self::MAX_LEN],
+            len,
+        }
+    }
+
+    pub fn from_slice(data: &[u8]) -> Self {
+        assert!(data.len() <= Self::MAX_LEN);
+        let mut buf = [0u8; Self::MAX_LEN];
+        buf[..data.len()].copy_from_slice(data);
+        Self {
+            buf,
+            len: data.len() as u8,
+        }
+    }
+
+    pub const fn zeroed() -> Self {
+        Self {
+            buf: [0u8; Self::MAX_LEN],
+            len: 0,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn clear(&mut self) {
+        self.buf = [0u8; Self::MAX_LEN];
+        self.len = 0;
+    }
+}
+
+impl Deref for Hash {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.buf[..self.len as usize]
+    }
+}
+
+impl DerefMut for Hash {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.buf[..self.len as usize]
+    }
+}
 
 /// A pre-parsed X.509 certificate with all commonly accessed fields
 /// extracted in a single DER walk.
@@ -74,39 +143,53 @@ pub trait CryptoProvider: Clone {
     const KEY_EXCHANGE_GROUPS: &[KeyExchangeGroup];
     const SIGNATURE_SCHEMES: &[SignatureScheme];
 
+    /// Opaque incremental hash state, must be Clone for transcript checkpointing.
+    type Hasher: Clone + Unpin;
+
+    /// A distinct type is used to avoid computation for ench encrypt / decrypt operation for some
+    /// ciphers (e.g. AES key expanding)
+    type AeadKey: Unpin;
+
     fn secure_random(&self, buf: &mut [u8]);
 
-    // Hash / HMAC / HKDF (write into caller-provided output buffer)
-    fn hash(&self, suite: CipherSuite, data: &[u8], out: &mut [u8]) -> Result<(), Error>;
-    fn hmac(&self, suite: CipherSuite, key: &[u8], data: &[u8], out: &mut [u8]) -> Result<(), Error>;
-    fn hkdf_extract(&self, out: &mut [u8], suite: CipherSuite, salt: &[u8], ikm: &[u8]) -> Result<(), Error>;
+    // Hash / HMAC / HKDF
+
+    /// Create a new incremental hash state for the given suite.
+    fn new_hash(&self, suite: CipherSuite) -> Self::Hasher;
+    /// Absorb data into the hash state.
+    fn hash_update(&self, state: &mut Self::Hasher, data: &[u8]);
+    /// Finalize the hash and write the digest into `out`. Consumes the state.
+    fn hash_finalize(&self, state: Self::Hasher) -> Result<Hash, Error>;
+
+    /// One-shot hash (default implementation uses the incremental API).
+    fn hash(&self, suite: CipherSuite, data: &[u8]) -> Result<Hash, Error> {
+        let mut state = self.new_hash(suite);
+        self.hash_update(&mut state, data);
+        self.hash_finalize(state)
+    }
+
+    fn hmac(&self, suite: CipherSuite, key: &Hash, data: &[u8]) -> Result<Hash, Error>;
+    fn hkdf_extract(&self, suite: CipherSuite, salt: &Hash, ikm: &[u8]) -> Result<Hash, Error>;
     fn hkdf_expand_label(
         &self,
         out: &mut [u8],
         suite: CipherSuite,
-        secret: &[u8],
+        secret: &Hash,
         label: &[u8],
         context: &[u8],
     ) -> Result<(), Error>;
 
-    // AEAD (stateless, key expanded internally per call)
+    // AEAD
+    fn new_aead_key(&self, suite: CipherSuite, key: &[u8]) -> Self::AeadKey;
     fn aead_encrypt(
         &self,
-        suite: CipherSuite,
-        key: &[u8],
+        key: &Self::AeadKey,
         nonce: &[u8],
         aad: &[u8],
         data: &mut [u8],
         plaintext_len: usize,
     ) -> Result<usize, Error>;
-    fn aead_decrypt(
-        &self,
-        suite: CipherSuite,
-        key: &[u8],
-        nonce: &[u8],
-        aad: &[u8],
-        data: &mut [u8],
-    ) -> Result<usize, Error>;
+    fn aead_decrypt(&self, key: &Self::AeadKey, nonce: &[u8], aad: &[u8], data: &mut [u8]) -> Result<usize, Error>;
 
     // Key exchange
     fn key_exchange_generate_keypair(
@@ -125,7 +208,6 @@ pub trait CryptoProvider: Clone {
         scheme: SignatureScheme,
         secret_key: &[u8],
         data: &[u8],
-        sig_out: &mut [u8],
     ) -> Result<Vec<u8, SIGNATURE_MAX_SIZE>, Error>;
     fn verify(&self, scheme: SignatureScheme, public_key: &[u8], data: &[u8], signature: &[u8]) -> Result<(), Error>;
 
@@ -251,7 +333,7 @@ pub enum KeyExchangeGroup {
     /// X25519 (ECDHE with Curve25519)
     X25519,
     /// X25519MLKEM768 — post-quantum hybrid (X25519 ECDHE + ML-KEM-768 KEM).
-    /// draft-ietf-tls-hybrid-design
+    /// draft-ietf-tls-ecdhe-mlkem
     X25519MlKem768,
 }
 
