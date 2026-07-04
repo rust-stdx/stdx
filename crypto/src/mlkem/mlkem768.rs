@@ -45,7 +45,7 @@ pub fn generate_keypair_768() -> (SecretKey768, PublicKey768) {
 }
 
 #[inline]
-pub(crate) fn generate_keypair_768_derand(coins: &[u8; 64]) -> (SecretKey768, PublicKey768) {
+pub fn generate_keypair_768_derand(coins: &[u8; 64]) -> (SecretKey768, PublicKey768) {
     SecretKey768::generate_derand(coins)
 }
 
@@ -66,7 +66,7 @@ impl SecretKey768 {
         Self::generate_derand(&coins)
     }
 
-    pub(crate) fn generate_derand(coins: &[u8; 64]) -> (Self, PublicKey768) {
+    pub fn generate_derand(coins: &[u8; 64]) -> (Self, PublicKey768) {
         let (sk_bytes, pk_bytes) =
             crypto_kem_keypair_derand::<3, SECRET_KEY_SIZE_768, PUBLIC_KEY_SIZE_768>(&ML_KEM_768, coins);
         (

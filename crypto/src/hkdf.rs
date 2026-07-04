@@ -24,6 +24,9 @@ pub fn extract<H: Hasher>(salt: Option<&[u8]>, ikm: &[u8]) -> Hash {
 /// HKDF expand step: `OKM = T(1) || T(2) || ...`, where
 /// `T(i) = HMAC-Hash(PRK, T(i-1) || info || i)`.
 ///
+/// The output is written into `okm`. The length of the output is determined by
+/// `okm.len()`.
+///
 /// # Example
 ///
 /// ```ignore
@@ -31,24 +34,26 @@ pub fn extract<H: Hasher>(salt: Option<&[u8]>, ikm: &[u8]) -> Hash {
 /// use crypto::sha2::Sha256;
 ///
 /// let prk = hkdf::extract::<Sha256>(Some(b"salt"), b"input key material");
-/// let okm: [u8; 32] = hkdf::expand::<Sha256, 32>(&prk, b"context info").unwrap();
+/// let mut okm = [0u8; 32];
+/// hkdf::expand::<Sha256>(&mut okm, &prk, b"context info").unwrap();
 /// ```
 ///
 /// # Error
 ///
-/// Returns an error if `N > 255 * H::OUTPUT_SIZE` or if `prk.len() < H::OUTPUT_SIZE`.
-pub fn expand<H: Hasher, const N: usize>(prk: &[u8], info: &[u8]) -> Result<[u8; N], HkdfError> {
+/// Returns an error if `okm.len() > 255 * H::OUTPUT_SIZE` or if `prk.len() < H::OUTPUT_SIZE`.
+pub fn expand<H: Hasher>(okm: &mut [u8], prk: &[u8], info: &[u8]) -> Result<(), HkdfError> {
+    let n = okm.len();
+
     if prk.len() < H::OUTPUT_SIZE {
         return Err(HkdfError::PrkIsTooShort(H::OUTPUT_SIZE));
     }
 
-    if N > 255 * H::OUTPUT_SIZE {
+    if n > 255 * H::OUTPUT_SIZE {
         return Err(HkdfError::OutputIsTooLong);
     }
 
-    let mut okm = [0u8; N];
-    if N == 0 {
-        return Ok(okm);
+    if n == 0 {
+        return Ok(());
     }
 
     let mut t = [0u8; 64];
@@ -56,14 +61,14 @@ pub fn expand<H: Hasher, const N: usize>(prk: &[u8], info: &[u8]) -> Result<[u8;
     let mut offset = 0usize;
     let mut counter = 1u8;
 
-    while offset < N {
+    while offset < n {
         let mut mac = Hmac::<H>::new(&prk[..H::OUTPUT_SIZE]);
         mac.update(&t[..t_len]);
         mac.update(info);
         mac.update(&[counter]);
         let block = mac.finalize();
         let block_bytes = block.as_ref();
-        let chunk_len = (N - offset).min(H::OUTPUT_SIZE);
+        let chunk_len = (n - offset).min(H::OUTPUT_SIZE);
         okm[offset..offset + chunk_len].copy_from_slice(&block_bytes[..chunk_len]);
         t[..H::OUTPUT_SIZE].copy_from_slice(block_bytes);
         t_len = H::OUTPUT_SIZE;
@@ -71,7 +76,7 @@ pub fn expand<H: Hasher, const N: usize>(prk: &[u8], info: &[u8]) -> Result<[u8;
         counter = counter.wrapping_add(1);
     }
 
-    return Ok(okm);
+    Ok(())
 }
 
 /// One-shot HKDF: extract-then-expand in a single call.
@@ -98,7 +103,9 @@ pub fn derive_key<H: Hasher, const N: usize>(
     salt: Option<&[u8]>,
 ) -> Result<[u8; N], HkdfError> {
     let prk = extract::<H>(salt, ikm);
-    return expand::<H, N>(prk.as_ref(), info);
+    let mut okm = [0u8; N];
+    expand::<H>(&mut okm, prk.as_ref(), info)?;
+    Ok(okm)
 }
 
 #[cfg(test)]
@@ -212,12 +219,13 @@ mod tests {
             let prk = extract::<Sha256>(salt.as_deref(), &ikm);
             assert_eq!(prk.as_ref(), expected_prk.as_slice(), "vector {} PRK", i);
 
-            let okm = match expected_okm.len() {
-                42 => expand::<Sha256, 42>(prk.as_ref(), &info).unwrap().to_vec(),
-                82 => expand::<Sha256, 82>(prk.as_ref(), &info).unwrap().to_vec(),
+            let mut buf = [0u8; 82];
+            match expected_okm.len() {
+                42 => expand::<Sha256>(&mut buf[..42], prk.as_ref(), &info).unwrap(),
+                82 => expand::<Sha256>(&mut buf[..82], prk.as_ref(), &info).unwrap(),
                 _ => unreachable!(),
             };
-            assert_eq!(okm, expected_okm, "vector {} OKM", i);
+            assert_eq!(&buf[..expected_okm.len()], expected_okm, "vector {} OKM", i);
 
             let derived = match expected_okm.len() {
                 42 => derive_key::<Sha256, 42>(&ikm, &info, salt.as_deref()).unwrap().to_vec(),
@@ -240,12 +248,13 @@ mod tests {
             let prk = extract::<Sha512>(salt.as_deref(), &ikm);
             assert_eq!(prk.as_ref(), expected_prk.as_slice(), "vector {} PRK", i);
 
-            let okm = match expected_okm.len() {
-                42 => expand::<Sha512, 42>(prk.as_ref(), &info).unwrap().to_vec(),
-                82 => expand::<Sha512, 82>(prk.as_ref(), &info).unwrap().to_vec(),
+            let mut buf = [0u8; 82];
+            match expected_okm.len() {
+                42 => expand::<Sha512>(&mut buf[..42], prk.as_ref(), &info).unwrap(),
+                82 => expand::<Sha512>(&mut buf[..82], prk.as_ref(), &info).unwrap(),
                 _ => unreachable!(),
             };
-            assert_eq!(okm, expected_okm, "vector {} OKM", i);
+            assert_eq!(&buf[..expected_okm.len()], expected_okm, "vector {} OKM", i);
 
             let derived = match expected_okm.len() {
                 42 => derive_key::<Sha512, 42>(&ikm, &info, salt.as_deref()).unwrap().to_vec(),
@@ -259,21 +268,23 @@ mod tests {
     #[test]
     fn hkdf_zero_length_output() {
         let prk = [0u8; 32];
-        assert_eq!(expand::<Sha256, 0>(&prk, b"").unwrap(), [] as [u8; 0]);
+        let mut buf = [0u8; 0];
+        assert_eq!(expand::<Sha256>(&mut buf, &prk, b""), Ok(()));
         assert_eq!(derive_key::<Sha256, 0>(b"ikm", b"info", None).unwrap(), [] as [u8; 0]);
     }
 
     #[test]
     fn hkdf_expand_panics_when_output_is_too_large() {
         let prk = [0u8; 32];
-        const N: usize = Sha256::BLOCK_SIZE * 300;
-        assert_eq!(expand::<Sha256, N>(&prk, b""), Err(HkdfError::OutputIsTooLong));
+        let mut buf = vec![0u8; Sha256::BLOCK_SIZE * 300];
+        assert_eq!(expand::<Sha256>(&mut buf, &prk, b""), Err(HkdfError::OutputIsTooLong));
     }
 
     #[test]
     fn hkdf_expand_panics_when_prk_is_too_short() {
+        let mut buf = [0u8; 32];
         assert_eq!(
-            expand::<Sha256, 32>(&[0u8; 31], b""),
+            expand::<Sha256>(&mut buf, &[0u8; 31], b""),
             Err(HkdfError::PrkIsTooShort(Sha256::OUTPUT_SIZE))
         );
     }

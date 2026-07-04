@@ -86,15 +86,15 @@ impl<const N: usize, const L: usize> From<&[u8; L]> for Bytes<N> {
 impl<const N: usize> PartialEq for Bytes<N> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        constant_time_eq(self.as_ref(), other.as_ref())
+        constant_time_eq(&self, &other)
     }
 }
 
 impl<const N: usize> Eq for Bytes<N> {}
 
-impl<const N: usize> AsRef<[u8]> for Bytes<N> {
-    #[inline]
-    fn as_ref(&self) -> &[u8] {
+impl<const N: usize> core::ops::Deref for Bytes<N> {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
         &self.bytes[..self.length as usize]
     }
 }
@@ -127,6 +127,13 @@ macro_rules! impl_bytes {
             #[inline]
             fn as_ref(&self) -> &[u8] {
                 self.0.as_ref()
+            }
+        }
+
+        impl core::ops::Deref for $name {
+            type Target = [u8];
+            fn deref(&self) -> &[u8] {
+                &self.0
             }
         }
 

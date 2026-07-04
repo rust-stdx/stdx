@@ -27,6 +27,7 @@ pub(crate) const MAX_GCM_LEN: usize = (u32::MAX as usize - 1) * 16;
 #[cfg(not(target_pointer_width = "64"))]
 pub(crate) const MAX_GCM_LEN: usize = usize::MAX;
 
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Gcm {
     pub(crate) key: [u8; 32],
     /// x86_64 AES-NI round keys (precomputed in `new()`).

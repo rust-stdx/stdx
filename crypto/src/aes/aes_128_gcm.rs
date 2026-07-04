@@ -5,6 +5,7 @@ use super::{
 use crate::{Aead, AeadError, Hash};
 
 /// AES-128-GCM authenticated cipher.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Gcm {
     key: [u8; 16],
     round_keys: [[u8; 16]; 11],
