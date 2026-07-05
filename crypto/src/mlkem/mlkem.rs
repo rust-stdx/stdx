@@ -1096,7 +1096,7 @@ mod tests {
             let dec = decompressed.coeffs[i] as i32;
             // Maximum rounding error for d-bit compression: Q / (2^(d+1))
             // For 4 bits: Q/32 ≈ 104
-            let error = ((orig - dec).rem_euclid(Q as i32)).min(((dec - orig).rem_euclid(Q as i32)));
+            let error = ((orig - dec).rem_euclid(Q as i32)).min((dec - orig).rem_euclid(Q as i32));
             assert!(
                 error <= Q as i32 / 32 + 1,
                 "4-bit compress/decompress error too large at index {i}: orig={orig}, dec={dec}, error={error}"
@@ -1118,7 +1118,7 @@ mod tests {
         for i in 0..N {
             let orig = poly.coeffs[i] as i32;
             let dec = decompressed.coeffs[i] as i32;
-            let error = ((orig - dec).rem_euclid(Q as i32)).min(((dec - orig).rem_euclid(Q as i32)));
+            let error = ((orig - dec).rem_euclid(Q as i32)).min((dec - orig).rem_euclid(Q as i32));
             assert!(
                 error <= Q as i32 / 64 + 1,
                 "5-bit compress/decompress error too large at index {i}: orig={orig}, dec={dec}, error={error}"
@@ -1142,7 +1142,7 @@ mod tests {
             for i in 0..N {
                 let orig = pv.vec[k].coeffs[i] as i32;
                 let dec = decompressed.vec[k].coeffs[i] as i32;
-                let error = ((orig - dec).rem_euclid(Q as i32)).min(((dec - orig).rem_euclid(Q as i32)));
+                let error = ((orig - dec).rem_euclid(Q as i32)).min((dec - orig).rem_euclid(Q as i32));
                 assert!(
                     error <= Q as i32 / 2048 + 1,
                     "10-bit compress/decompress error at [{k}][{i}]: orig={orig}, dec={dec}, error={error}"
@@ -1167,7 +1167,7 @@ mod tests {
             for i in 0..N {
                 let orig = pv.vec[k].coeffs[i] as i32;
                 let dec = decompressed.vec[k].coeffs[i] as i32;
-                let error = ((orig - dec).rem_euclid(Q as i32)).min(((dec - orig).rem_euclid(Q as i32)));
+                let error = ((orig - dec).rem_euclid(Q as i32)).min((dec - orig).rem_euclid(Q as i32));
                 assert!(
                     error <= Q as i32 / 4096 + 1,
                     "11-bit compress/decompress error at [{k}][{i}]: orig={orig}, dec={dec}, error={error}"

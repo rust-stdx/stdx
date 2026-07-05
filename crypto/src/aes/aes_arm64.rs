@@ -17,11 +17,12 @@
 /// eliminating key expansion and H derivation from every call.
 use core::arch::aarch64::*;
 
-pub(crate) type RoundKeysArm = [uint8x16_t; 15];
-
+/// Const generic AES encrypt block for AES-128 (N=11) and AES-256 (N=15).
 #[target_feature(enable = "aes,neon")]
 #[inline]
-pub(crate) unsafe fn aes_encrypt_block(rk: &RoundKeysArm, block: uint8x16_t) -> uint8x16_t {
+pub(crate) unsafe fn aes_encrypt_block<const N: usize>(rk: &[uint8x16_t; N], block: uint8x16_t) -> uint8x16_t {
+    const { assert!(N == 11 || N == 15) };
+
     let zero = vdupq_n_u8(0);
 
     let mut b = veorq_u8(block, rk[0]);
@@ -43,16 +44,23 @@ pub(crate) unsafe fn aes_encrypt_block(rk: &RoundKeysArm, block: uint8x16_t) -> 
     b = veorq_u8(b, rk[8]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
     b = veorq_u8(b, rk[9]);
-    b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[10]);
-    b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[11]);
-    b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[12]);
-    b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[13]);
-    b = vaeseq_u8(b, zero);
-    veorq_u8(b, rk[14])
+
+    if N == 15 {
+        let p = rk.as_ptr();
+        b = vaesmcq_u8(vaeseq_u8(b, zero));
+        b = veorq_u8(b, *p.add(10));
+        b = vaesmcq_u8(vaeseq_u8(b, zero));
+        b = veorq_u8(b, *p.add(11));
+        b = vaesmcq_u8(vaeseq_u8(b, zero));
+        b = veorq_u8(b, *p.add(12));
+        b = vaesmcq_u8(vaeseq_u8(b, zero));
+        b = veorq_u8(b, *p.add(13));
+        b = vaeseq_u8(b, zero);
+        veorq_u8(b, *p.add(14))
+    } else {
+        b = vaeseq_u8(b, zero);
+        veorq_u8(b, rk[10])
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -64,7 +72,7 @@ mod tests {
     use super::*;
 
     fn make_rk(key: &[u8; 32]) -> [uint8x16_t; 15] {
-        let soft = crate::aes::aes::key_expand(key);
+        let soft = crate::aes::aes::expand_key::<15>(key);
         let mut rk = [unsafe { vdupq_n_u8(0) }; 15];
         for i in 0..15 {
             rk[i] = unsafe { vld1q_u8(soft[i].as_ptr()) };

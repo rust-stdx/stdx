@@ -10,7 +10,7 @@
 ///   – bit 0   (LSB of u128) = coefficient of x^127 (= LSB of the last byte)
 ///
 /// This matches `u128::from_be_bytes(block)` exactly.
-use super::aes::{encrypt_block, key_expand};
+use super::aes::{encrypt_block, expand_key};
 use crate::{Hash, bytes::Bytes};
 
 /// Precomputed bit-reversal lookup table for all 256 byte values.
@@ -175,9 +175,38 @@ fn ghash_mul_table(table: &GhashTable, x: &[u8; 16]) -> [u8; 16] {
 /// Returns `([h1_br..h8_br], h_natural)` where:
 /// - `h1_br`..`h8_br` are in the bit-reversed domain used by hardware GHASH
 /// - `h_natural` is H in the natural big-endian byte order (for software fallback / E(J0))
-pub(crate) fn precompute_ghash_powers(key: &[u8; 32]) -> ([[u8; 16]; 8], [u8; 16]) {
-    let rk = key_expand(key);
+pub(crate) fn precompute_ghash_powers_256(key: &[u8; 32]) -> ([[u8; 16]; 8], [u8; 16]) {
+    let rk = expand_key::<15>(key);
     let h = encrypt_block(&rk, &[0u8; 16]);
+    let h2 = gf128_mul(&h, &h);
+    let h3 = gf128_mul(&h2, &h);
+    let h4 = gf128_mul(&h3, &h);
+    let h5 = gf128_mul(&h4, &h);
+    let h6 = gf128_mul(&h5, &h);
+    let h7 = gf128_mul(&h6, &h);
+    let h8 = gf128_mul(&h7, &h);
+    (
+        [
+            bitreverse_bytes(&h),
+            bitreverse_bytes(&h2),
+            bitreverse_bytes(&h3),
+            bitreverse_bytes(&h4),
+            bitreverse_bytes(&h5),
+            bitreverse_bytes(&h6),
+            bitreverse_bytes(&h7),
+            bitreverse_bytes(&h8),
+        ],
+        h,
+    )
+}
+
+/// Precompute GHASH powers H¹ through H⁸ from a 16-byte AES-128 key.
+///
+/// Returns `([h1_br..h8_br], h_natural)` in the same format as
+/// [`precompute_ghash_powers`].
+pub(crate) fn precompute_ghash_powers_128(key: &[u8; 16]) -> ([[u8; 16]; 8], [u8; 16]) {
+    let rk: [[u8; 16]; 11] = super::aes::expand_key::<11>(key);
+    let h = encrypt_block::<11>(&rk, &[0u8; 16]);
     let h2 = gf128_mul(&h, &h);
     let h3 = gf128_mul(&h2, &h);
     let h4 = gf128_mul(&h3, &h);

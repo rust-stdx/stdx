@@ -1,7 +1,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::{
     Aead,
-    aes::Aes256Gcm,
+    aes::{Aes128Gcm, Aes256Gcm},
     ascon::AsconAead128,
     chacha::{ChaCha8Poly1305, ChaCha20Blake3, ChaCha20Poly1305},
 };
@@ -29,7 +29,8 @@ const NONCE_256: [u8; 32] = [
 ];
 
 fn bench_encrypt(c: &mut Criterion) {
-    let aes = Aes256Gcm::new(&KEY);
+    let aes128 = Aes128Gcm::new(&KEY_16);
+    let aes256 = Aes256Gcm::new(&KEY);
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
     let chacha8poly1305 = ChaCha8Poly1305::new(&KEY);
     let chacha_blake3 = ChaCha20Blake3::new(&KEY);
@@ -43,7 +44,17 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = aes.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let _tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AES-128-GCM-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -94,7 +105,8 @@ fn bench_encrypt(c: &mut Criterion) {
 }
 
 fn bench_decrypt(c: &mut Criterion) {
-    let aes = Aes256Gcm::new(&KEY);
+    let aes128 = Aes128Gcm::new(&KEY_16);
+    let aes256 = Aes256Gcm::new(&KEY);
     let chacha8poly1305 = ChaCha8Poly1305::new(&KEY);
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
     let chacha_blake3 = ChaCha20Blake3::new(&KEY);
@@ -108,11 +120,25 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = aes.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
                     (data, tag)
                 },
                 |(mut data, tag)| {
-                    let _result = aes.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
+                    let _result = aes256.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AES-128-GCM-decrypt"), |b| {
+            b.iter_batched(
+                || {
+                    let mut data = vec![0xA5_u8; size];
+                    let tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    (data, tag)
+                },
+                |(mut data, tag)| {
+                    let _result = aes128.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
                 },
                 criterion::BatchSize::SmallInput,
             );

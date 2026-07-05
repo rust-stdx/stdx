@@ -1,4 +1,4 @@
-/// Pure-Rust AES-256 block cipher.
+/// Pure-Rust AES block cipher (128-bit and 256-bit keys).
 ///
 /// Design notes:
 /// - Favours speed over constant-time execution (table-driven S-box lookups).
@@ -8,6 +8,8 @@
 use super::ghash::gf128_mul;
 
 // ── AES constants ─────────────────────────────────────────────────────────────
+
+pub const GCM_MAX_LEN: usize = (u32::MAX as usize - 1) * 16;
 
 #[rustfmt::skip]
 pub(crate) const SBOX: [u8; 256] = [
@@ -52,10 +54,10 @@ const SBOX_INV: [u8; 256] = [
 /// Round constants for AES key expansion (RCON[1..10]).
 pub(crate) const RCON: [u8; 11] = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
-// ── AES-256 key schedule ───────────────────────────────────────────────────────
+// ── AES key schedule ───────────────────────────────────────────────────────────
 
-/// AES-256 expanded key: 15 round keys × 16 bytes = 240 bytes.
-pub type RoundKeys = [[u8; 16]; 15];
+/// AES expanded key: `N` round keys × 16 bytes.
+pub type RoundKeys<const N: usize> = [[u8; 16]; N];
 
 #[inline(always)]
 fn rot_word(w: [u8; 4]) -> [u8; 4] {
@@ -72,33 +74,42 @@ fn sub_word(w: [u8; 4]) -> [u8; 4] {
     ]
 }
 
-/// Expand a 256-bit key into 15 AES round keys (FIPS 197 §5.2, Nk=8, Nr=14).
-pub fn key_expand(key: &[u8; 32]) -> RoundKeys {
-    // W[0..60] – 60 words of 4 bytes each
-    let mut w = [[0u8; 4]; 60];
+/// Expand a key into AES round keys (FIPS 197 §5.2).
+///
+/// - `N = 11` → AES-128 (Nk=4, Nr=10, 44 words → 11 round keys)
+/// - `N = 15` → AES-256 (Nk=8, Nr=14, 60 words → 15 round keys)
+pub fn expand_key<const N: usize>(key: &[u8]) -> RoundKeys<N> {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+    let nk = key.len() / 4;
+    let words = N * 4;
 
-    for i in 0..8 {
+    // Max 60 words (AES-256). Use a fixed-size buffer for both key sizes.
+    let mut w = [[0u8; 4]; 60];
+    for i in 0..nk {
         w[i] = [key[4 * i], key[4 * i + 1], key[4 * i + 2], key[4 * i + 3]];
     }
 
-    for i in 8..60 {
+    for i in nk..words {
         let mut temp = w[i - 1];
-        if i % 8 == 0 {
+        if i % nk == 0 {
             temp = sub_word(rot_word(temp));
-            temp[0] ^= RCON[i / 8];
-        } else if i % 8 == 4 {
+            temp[0] ^= RCON[i / nk];
+        } else if N == 15 && i % nk == 4 {
+            // AES-256 only: SubWord every 4 words within the Nk=8 group
             temp = sub_word(temp);
         }
         w[i] = [
-            w[i - 8][0] ^ temp[0],
-            w[i - 8][1] ^ temp[1],
-            w[i - 8][2] ^ temp[2],
-            w[i - 8][3] ^ temp[3],
+            w[i - nk][0] ^ temp[0],
+            w[i - nk][1] ^ temp[1],
+            w[i - nk][2] ^ temp[2],
+            w[i - nk][3] ^ temp[3],
         ];
     }
 
-    let mut rk = [[0u8; 16]; 15];
-    for i in 0..15 {
+    let mut rk = [[0u8; 16]; N];
+    for i in 0..N {
         for j in 0..4 {
             rk[i][4 * j..4 * j + 4].copy_from_slice(&w[4 * i + j]);
         }
@@ -259,36 +270,45 @@ const TD3: [u32; 256] = {
 ///
 /// Combines SubBytes, ShiftRows, and MixColumns into four 32-bit table lookups
 /// per column, matching the approach used by Go and OpenSSL for software AES.
-pub fn encrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
+///
+/// `N = 11` for AES-128 (10 rounds), `N = 15` for AES-256 (14 rounds).
+pub fn encrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]) -> [u8; 16] {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
     let mut s = *block;
 
     // Round 0: AddRoundKey
     for i in 0..16 {
-        s[i] ^= rk[0][i];
+        s[i] ^= round_keys[0][i];
     }
 
-    // Rounds 1..13: SubBytes + ShiftRows + MixColumns + AddRoundKey via T-tables
-    for r in 1..14 {
+    // Rounds 1..N-2: SubBytes + ShiftRows + MixColumns + AddRoundKey via T-tables
+    let p = round_keys.as_ptr();
+    #[allow(clippy::needless_range_loop)]
+    for r in 1..N - 1 {
+        let rk = unsafe { &*p.add(r) };
         let t0 = TE0[s[0] as usize]
             ^ TE1[s[5] as usize]
             ^ TE2[s[10] as usize]
             ^ TE3[s[15] as usize]
-            ^ u32::from_ne_bytes(rk[r][0..4].try_into().unwrap());
+            ^ u32::from_ne_bytes(rk[0..4].try_into().unwrap());
         let t1 = TE0[s[4] as usize]
             ^ TE1[s[9] as usize]
             ^ TE2[s[14] as usize]
             ^ TE3[s[3] as usize]
-            ^ u32::from_ne_bytes(rk[r][4..8].try_into().unwrap());
+            ^ u32::from_ne_bytes(rk[4..8].try_into().unwrap());
         let t2 = TE0[s[8] as usize]
             ^ TE1[s[13] as usize]
             ^ TE2[s[2] as usize]
             ^ TE3[s[7] as usize]
-            ^ u32::from_ne_bytes(rk[r][8..12].try_into().unwrap());
+            ^ u32::from_ne_bytes(rk[8..12].try_into().unwrap());
         let t3 = TE0[s[12] as usize]
             ^ TE1[s[1] as usize]
             ^ TE2[s[6] as usize]
             ^ TE3[s[11] as usize]
-            ^ u32::from_ne_bytes(rk[r][12..16].try_into().unwrap());
+            ^ u32::from_ne_bytes(rk[12..16].try_into().unwrap());
 
         s[0..4].copy_from_slice(&t0.to_ne_bytes());
         s[4..8].copy_from_slice(&t1.to_ne_bytes());
@@ -296,24 +316,25 @@ pub fn encrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
         s[12..16].copy_from_slice(&t3.to_ne_bytes());
     }
 
-    // Round 14: SubBytes + ShiftRows + AddRoundKey (no MixColumns)
+    // Final round (N-1): SubBytes + ShiftRows + AddRoundKey (no MixColumns)
+    let rk_last = unsafe { &*p.add(N - 1) };
     s = [
-        SBOX[s[0] as usize] ^ rk[14][0],
-        SBOX[s[5] as usize] ^ rk[14][1],
-        SBOX[s[10] as usize] ^ rk[14][2],
-        SBOX[s[15] as usize] ^ rk[14][3],
-        SBOX[s[4] as usize] ^ rk[14][4],
-        SBOX[s[9] as usize] ^ rk[14][5],
-        SBOX[s[14] as usize] ^ rk[14][6],
-        SBOX[s[3] as usize] ^ rk[14][7],
-        SBOX[s[8] as usize] ^ rk[14][8],
-        SBOX[s[13] as usize] ^ rk[14][9],
-        SBOX[s[2] as usize] ^ rk[14][10],
-        SBOX[s[7] as usize] ^ rk[14][11],
-        SBOX[s[12] as usize] ^ rk[14][12],
-        SBOX[s[1] as usize] ^ rk[14][13],
-        SBOX[s[6] as usize] ^ rk[14][14],
-        SBOX[s[11] as usize] ^ rk[14][15],
+        SBOX[s[0] as usize] ^ rk_last[0],
+        SBOX[s[5] as usize] ^ rk_last[1],
+        SBOX[s[10] as usize] ^ rk_last[2],
+        SBOX[s[15] as usize] ^ rk_last[3],
+        SBOX[s[4] as usize] ^ rk_last[4],
+        SBOX[s[9] as usize] ^ rk_last[5],
+        SBOX[s[14] as usize] ^ rk_last[6],
+        SBOX[s[3] as usize] ^ rk_last[7],
+        SBOX[s[8] as usize] ^ rk_last[8],
+        SBOX[s[13] as usize] ^ rk_last[9],
+        SBOX[s[2] as usize] ^ rk_last[10],
+        SBOX[s[7] as usize] ^ rk_last[11],
+        SBOX[s[12] as usize] ^ rk_last[12],
+        SBOX[s[1] as usize] ^ rk_last[13],
+        SBOX[s[6] as usize] ^ rk_last[14],
+        SBOX[s[11] as usize] ^ rk_last[15],
     ];
     s
 }
@@ -322,20 +343,28 @@ pub fn encrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
 ///
 /// Note: the inverse T-tables (TD0..TD3) combine InvSubBytes + InvMixColumns.
 /// Because AddRoundKey falls between InvSubBytes and InvMixColumns in the
-/// decryption round, each round key rk[1]..rk[13] must have InvMixColumns
+/// decryption round, each round key rk[1]..rk[N-2] must have InvMixColumns
 /// applied to it before the XOR.
-pub(crate) fn decrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
-    let mut s = *block;
-
-    // Round 14 reversed: AddRoundKey
-    for i in 0..16 {
-        s[i] ^= rk[14][i];
+///
+/// `N = 11` for AES-128 (10 rounds), `N = 15` for AES-256 (14 rounds).
+pub fn decrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]) -> [u8; 16] {
+    const {
+        assert!(N == 11 || N == 15);
     }
 
-    // Rounds 13..1: InvShiftRows + InvSubBytes + AddRoundKey + InvMixColumns via inverse T-tables
-    for r in (1..14).rev() {
+    let mut s = *block;
+
+    // Round N-1 reversed: AddRoundKey
+    let p_last = unsafe { &*round_keys.as_ptr().add(N - 1) };
+    for i in 0..16 {
+        s[i] ^= p_last[i];
+    }
+
+    // Rounds N-2..1: InvShiftRows + InvSubBytes + AddRoundKey + InvMixColumns via inverse T-tables
+    let p = round_keys.as_ptr();
+    for r in (1..N - 1).rev() {
         // Apply InvMixColumns to round key columns for correct T-table XOR
-        let mut rk_adj = rk[r];
+        let mut rk_adj = unsafe { *p.add(r) };
         inv_mix_columns(&mut rk_adj);
 
         let t0 = TD0[s[0] as usize]
@@ -367,112 +396,27 @@ pub(crate) fn decrypt_block(rk: &RoundKeys, block: &[u8; 16]) -> [u8; 16] {
 
     // Round 0: InvShiftRows + InvSubBytes + AddRoundKey (no InvMixColumns)
     s = [
-        SBOX_INV[s[0] as usize] ^ rk[0][0],
-        SBOX_INV[s[13] as usize] ^ rk[0][1],
-        SBOX_INV[s[10] as usize] ^ rk[0][2],
-        SBOX_INV[s[7] as usize] ^ rk[0][3],
-        SBOX_INV[s[4] as usize] ^ rk[0][4],
-        SBOX_INV[s[1] as usize] ^ rk[0][5],
-        SBOX_INV[s[14] as usize] ^ rk[0][6],
-        SBOX_INV[s[11] as usize] ^ rk[0][7],
-        SBOX_INV[s[8] as usize] ^ rk[0][8],
-        SBOX_INV[s[5] as usize] ^ rk[0][9],
-        SBOX_INV[s[2] as usize] ^ rk[0][10],
-        SBOX_INV[s[15] as usize] ^ rk[0][11],
-        SBOX_INV[s[12] as usize] ^ rk[0][12],
-        SBOX_INV[s[9] as usize] ^ rk[0][13],
-        SBOX_INV[s[6] as usize] ^ rk[0][14],
-        SBOX_INV[s[3] as usize] ^ rk[0][15],
+        SBOX_INV[s[0] as usize] ^ round_keys[0][0],
+        SBOX_INV[s[13] as usize] ^ round_keys[0][1],
+        SBOX_INV[s[10] as usize] ^ round_keys[0][2],
+        SBOX_INV[s[7] as usize] ^ round_keys[0][3],
+        SBOX_INV[s[4] as usize] ^ round_keys[0][4],
+        SBOX_INV[s[1] as usize] ^ round_keys[0][5],
+        SBOX_INV[s[14] as usize] ^ round_keys[0][6],
+        SBOX_INV[s[11] as usize] ^ round_keys[0][7],
+        SBOX_INV[s[8] as usize] ^ round_keys[0][8],
+        SBOX_INV[s[5] as usize] ^ round_keys[0][9],
+        SBOX_INV[s[2] as usize] ^ round_keys[0][10],
+        SBOX_INV[s[15] as usize] ^ round_keys[0][11],
+        SBOX_INV[s[12] as usize] ^ round_keys[0][12],
+        SBOX_INV[s[9] as usize] ^ round_keys[0][13],
+        SBOX_INV[s[6] as usize] ^ round_keys[0][14],
+        SBOX_INV[s[3] as usize] ^ round_keys[0][15],
     ];
     s
 }
 
-#[inline(always)]
-fn add_round_key(state: &mut [u8; 16], rk: &[u8; 16]) {
-    for i in 0..16 {
-        state[i] ^= rk[i];
-    }
-}
-
-#[inline(always)]
-fn sub_bytes(state: &mut [u8; 16]) {
-    for b in state.iter_mut() {
-        *b = SBOX[*b as usize];
-    }
-}
-
-/// AES ShiftRows: row r is shifted left by r positions (column-major layout).
-#[inline(always)]
-fn shift_rows(s: &mut [u8; 16]) {
-    let t = *s;
-    // row 0: no shift
-    // row 1: shift left 1
-    s[1] = t[5];
-    s[5] = t[9];
-    s[9] = t[13];
-    s[13] = t[1];
-    // row 2: shift left 2
-    s[2] = t[10];
-    s[6] = t[14];
-    s[10] = t[2];
-    s[14] = t[6];
-    // row 3: shift left 3
-    s[3] = t[15];
-    s[7] = t[3];
-    s[11] = t[7];
-    s[15] = t[11];
-}
-
-/// AES MixColumns on a single column (bytes at indices col*4 .. col*4+3).
-#[inline(always)]
-fn mix_col(s: &mut [u8; 16], col: usize) {
-    let i = col * 4;
-    let s0 = s[i];
-    let s1 = s[i + 1];
-    let s2 = s[i + 2];
-    let s3 = s[i + 3];
-    s[i] = xtime(s0) ^ xtime(s1) ^ s1 ^ s2 ^ s3;
-    s[i + 1] = s0 ^ xtime(s1) ^ xtime(s2) ^ s2 ^ s3;
-    s[i + 2] = s0 ^ s1 ^ xtime(s2) ^ xtime(s3) ^ s3;
-    s[i + 3] = xtime(s0) ^ s0 ^ s1 ^ s2 ^ xtime(s3);
-}
-
-#[inline(always)]
-fn mix_columns(state: &mut [u8; 16]) {
-    mix_col(state, 0);
-    mix_col(state, 1);
-    mix_col(state, 2);
-    mix_col(state, 3);
-}
-
-// ── Decryption helpers ────────────────────────────────────────────────────────
-
-#[inline(always)]
-fn inv_sub_bytes(state: &mut [u8; 16]) {
-    for b in state.iter_mut() {
-        *b = SBOX_INV[*b as usize];
-    }
-}
-
-#[inline(always)]
-fn inv_shift_rows(s: &mut [u8; 16]) {
-    let t = *s;
-    // row 1: shift right 1
-    s[1] = t[13];
-    s[5] = t[1];
-    s[9] = t[5];
-    s[13] = t[9];
-    // row 2: shift right 2
-    s[2] = t[10];
-    s[6] = t[14];
-    s[10] = t[2];
-    s[14] = t[6];
-    // row 3: shift right 3
-    s[3] = t[7];
-    s[7] = t[11];
-    s[11] = t[15];
-    s[15] = t[3];
-}
+// ── helpers ────────────────────────────────────────────────────────
 
 /// Multiply in GF(2^8) mod 0x11b.
 #[inline(always)]
@@ -533,7 +477,7 @@ mod tests {
         let pt: [u8; 16] = hex::decode_array::<16>(b"00112233445566778899aabbccddeeff").unwrap();
         let ct_expected: [u8; 16] = hex::decode_array::<16>(b"8ea2b7ca516745bfeafc49904b496089").unwrap();
 
-        let rk = key_expand(&key);
+        let rk = expand_key::<15>(&key);
         let ct = encrypt_block(&rk, &pt);
         assert_eq!(ct, ct_expected);
     }
@@ -545,7 +489,7 @@ mod tests {
         let ct: [u8; 16] = hex::decode_array::<16>(b"8ea2b7ca516745bfeafc49904b496089").unwrap();
         let pt_expected: [u8; 16] = hex::decode_array::<16>(b"00112233445566778899aabbccddeeff").unwrap();
 
-        let rk = key_expand(&key);
+        let rk = expand_key::<15>(&key);
         let pt = decrypt_block(&rk, &ct);
         assert_eq!(pt, pt_expected);
     }
@@ -575,7 +519,7 @@ mod tests {
             ),
         ];
 
-        let rk = key_expand(&key);
+        let rk = expand_key::<15>(&key);
         for (pt, ct) in blocks {
             assert_eq!(encrypt_block(&rk, pt), *ct);
             assert_eq!(decrypt_block(&rk, ct), *pt);
@@ -608,7 +552,7 @@ mod tests {
         ];
 
         for (key, pt, ct_expected) in vectors {
-            let rk = key_expand(key);
+            let rk = expand_key::<15>(key);
             let ct = encrypt_block(&rk, pt);
             assert_eq!(ct, *ct_expected, "key={}", hex::encode(key));
             let pt2 = decrypt_block(&rk, &ct);
@@ -620,7 +564,7 @@ mod tests {
     fn encrypt_decrypt_roundtrip_random() {
         let key: [u8; 32] =
             hex::decode_array::<32>(b"deadbeefcafebabedeadbeefcafebabe0011223344556677deadbeefcafebabe").unwrap();
-        let rk = key_expand(&key);
+        let rk = expand_key::<15>(&key);
         for seed in 0u8..=255 {
             let pt = [seed; 16];
             let ct = encrypt_block(&rk, &pt);

@@ -3,12 +3,12 @@
 /// x86-64 AES-256 block cipher using AES-NI intrinsics.
 use core::arch::x86_64::*;
 
-/// 15 round-keys for AES-256 (Nr = 14 rounds + 1 whitening key).
-pub(crate) type RoundKeysNi = [__m128i; 15];
-
+/// Const generic AES encrypt block for AES-128 (N=11) and AES-256 (N=15).
 #[target_feature(enable = "aes,sse2")]
 #[inline]
-pub(crate) unsafe fn aes_encrypt_block(rk: &RoundKeysNi, block: __m128i) -> __m128i {
+pub(crate) unsafe fn aes_encrypt_block<const N: usize>(rk: &[__m128i; N], block: __m128i) -> __m128i {
+    const { assert!(N == 11 || N == 15) };
+
     let mut b = _mm_xor_si128(block, rk[0]);
     b = _mm_aesenc_si128(b, rk[1]);
     b = _mm_aesenc_si128(b, rk[2]);
@@ -19,11 +19,17 @@ pub(crate) unsafe fn aes_encrypt_block(rk: &RoundKeysNi, block: __m128i) -> __m1
     b = _mm_aesenc_si128(b, rk[7]);
     b = _mm_aesenc_si128(b, rk[8]);
     b = _mm_aesenc_si128(b, rk[9]);
-    b = _mm_aesenc_si128(b, rk[10]);
-    b = _mm_aesenc_si128(b, rk[11]);
-    b = _mm_aesenc_si128(b, rk[12]);
-    b = _mm_aesenc_si128(b, rk[13]);
-    _mm_aesenclast_si128(b, rk[14])
+
+    if N == 15 {
+        let p = rk.as_ptr();
+        b = _mm_aesenc_si128(b, *p.add(10));
+        b = _mm_aesenc_si128(b, *p.add(11));
+        b = _mm_aesenc_si128(b, *p.add(12));
+        b = _mm_aesenc_si128(b, *p.add(13));
+        _mm_aesenclast_si128(b, *p.add(14))
+    } else {
+        _mm_aesenclast_si128(b, rk[10])
+    }
 }
 
 #[cfg(test)]
@@ -47,7 +53,7 @@ mod tests {
     }
 
     fn make_rk(key: &[u8; 32]) -> [__m128i; 15] {
-        let soft = crate::aes::aes::key_expand(key);
+        let soft = crate::aes::aes::key_expand_256(key);
         let mut rk = [unsafe { _mm_setzero_si128() }; 15];
         for i in 0..15 {
             rk[i] = unsafe { _mm_loadu_si128(soft[i].as_ptr().cast()) };

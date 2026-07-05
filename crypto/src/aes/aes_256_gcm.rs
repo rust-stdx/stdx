@@ -4,9 +4,9 @@ use core::arch::x86_64::__m128i;
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
 use super::aes::RoundKeys;
 use super::{
-    aes::{encrypt_block, key_expand},
+    aes::{GCM_MAX_LEN, encrypt_block, expand_key},
     aes_ctr::Aes256Ctr,
-    ghash::{compute_tag, precompute_ghash_powers, precompute_ghash_table},
+    ghash::{compute_tag, precompute_ghash_powers_256, precompute_ghash_table},
 };
 use crate::{Aead, AeadError, Hash, StreamCipher};
 
@@ -22,11 +22,6 @@ use crate::{Aead, AeadError, Hash, StreamCipher};
 ///
 /// The raw 32-byte key is retained so the software fallback can recompute
 /// the expanded key on the rare occasion the hardware path is unavailable.
-#[cfg(target_pointer_width = "64")]
-pub(crate) const MAX_GCM_LEN: usize = (u32::MAX as usize - 1) * 16;
-#[cfg(not(target_pointer_width = "64"))]
-pub(crate) const MAX_GCM_LEN: usize = usize::MAX;
-
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Gcm {
     pub(crate) key: [u8; 32],
@@ -60,12 +55,12 @@ impl Aes256Gcm {
         #[cfg(target_arch = "x86_64")]
         {
             use core::arch::x86_64::*;
-            let rk_soft = key_expand(key);
+            let rk_soft = expand_key::<15>(key);
             let mut rk = unsafe { [_mm_setzero_si128(); 15] };
             for i in 0..15 {
                 rk[i] = unsafe { _mm_loadu_si128(rk_soft[i].as_ptr().cast()) };
             }
-            let (h_powers_bytes, _h) = precompute_ghash_powers(key);
+            let (h_powers_bytes, _h) = precompute_ghash_powers_256(key);
             let mut h_powers = unsafe { [_mm_setzero_si128(); 8] };
             for i in 0..8 {
                 h_powers[i] = unsafe { _mm_loadu_si128(h_powers_bytes[i].as_ptr().cast()) };
@@ -80,12 +75,12 @@ impl Aes256Gcm {
         #[cfg(target_arch = "aarch64")]
         {
             use core::arch::aarch64::*;
-            let rk_soft = key_expand(key);
+            let rk_soft = expand_key::<15>(key);
             let mut rk = [unsafe { vdupq_n_u8(0) }; 15];
             for i in 0..15 {
                 rk[i] = unsafe { vld1q_u8(rk_soft[i].as_ptr()) };
             }
-            let (h_powers_bytes, _h) = precompute_ghash_powers(key);
+            let (h_powers_bytes, _h) = precompute_ghash_powers_256(key);
             let mut h_powers = [unsafe { vdupq_n_u8(0) }; 8];
             for i in 0..8 {
                 h_powers[i] = unsafe { vld1q_u8(h_powers_bytes[i].as_ptr()) };
@@ -101,7 +96,7 @@ impl Aes256Gcm {
         {
             Aes256Gcm {
                 key: *key,
-                round_keys: key_expand(key),
+                round_keys: expand_key::<15>(key),
             }
         }
     }
@@ -112,11 +107,7 @@ impl Aes256Gcm {
     /// only the hardware-specific keys. This path is only reached when
     /// the hardware accelerator is unavailable, so the overhead is negligible.
     pub(crate) fn encrypt_in_place_soft(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Hash {
-        assert!(
-            in_out.len() <= MAX_GCM_LEN,
-            "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
-        );
-        let rk = key_expand(&self.key);
+        let rk = expand_key::<15>(&self.key);
         let h = encrypt_block(&rk, &[0u8; 16]);
         let ghash_table = precompute_ghash_table(&h);
 
@@ -144,10 +135,10 @@ impl Aes256Gcm {
         nonce: &[u8; 12],
         aad: &[u8],
     ) -> Result<(), AeadError> {
-        if in_out.len() > MAX_GCM_LEN {
+        if in_out.len() > GCM_MAX_LEN {
             return Err(AeadError::InvalidCiphertext);
         }
-        let rk = key_expand(&self.key);
+        let rk = expand_key::<15>(&self.key);
         let h = encrypt_block(&rk, &[0u8; 16]);
         let ghash_table = precompute_ghash_table(&h);
 
@@ -186,15 +177,15 @@ impl Aead for Aes256Gcm {
     #[inline]
     #[allow(unreachable_code)]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
+        assert!(
+            in_out.len() <= GCM_MAX_LEN,
+            "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
+        );
+
         assert_eq!(nonce.len(), 12, "AES-256-GCM nonce must be 12 bytes");
         let nonce_arr: &[u8; 12] = nonce.try_into().unwrap();
 
-        #[cfg(target_arch = "aarch64")]
-        {
-            use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
-            return unsafe { gcm_encrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, nonce_arr, aad) };
-        }
-
+        // dynamic dispatch if the "std" feature is enabled
         #[cfg(feature = "std")]
         {
             #[cfg(target_arch = "x86_64")]
@@ -208,8 +199,17 @@ impl Aead for Aes256Gcm {
                     return unsafe { gcm_encrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, nonce_arr, aad) };
                 }
             }
+
+            #[cfg(target_arch = "aarch64")]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
+                if std::arch::is_aarch64_feature_detected!("aes") {
+                    return unsafe { gcm_encrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, nonce_arr, aad) };
+                }
+            }
         }
 
+        // otherwise, static dispatch depending on the CPU instructions available on the compiling machine
         #[cfg(not(feature = "std"))]
         {
             #[cfg(all(
@@ -221,6 +221,12 @@ impl Aead for Aes256Gcm {
             {
                 use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
                 return unsafe { gcm_encrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, nonce_arr, aad) };
+            }
+
+            #[cfg(all(target_arch = "x86_64", target_feature = "aes",))]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
+                return unsafe { gcm_encrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, nonce_arr, aad) };
             }
         }
 
@@ -240,6 +246,7 @@ impl Aead for Aes256Gcm {
             unsafe { return gcm_decrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, tag_arr, nonce_arr, aad) }
         }
 
+        // dynamic dispatch if the "std" feature is enabled
         #[cfg(feature = "std")]
         {
             #[cfg(target_arch = "x86_64")]
@@ -255,8 +262,19 @@ impl Aead for Aes256Gcm {
                     }
                 }
             }
+
+            #[cfg(target_arch = "aarch64")]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
+                if std::arch::is_aarch64_feature_detected!("aes") {
+                    unsafe {
+                        return gcm_decrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, tag_arr, nonce_arr, aad);
+                    }
+                }
+            }
         }
 
+        // otherwise, static dispatch depending on the CPU instructions available on the compiling machine
         #[cfg(not(feature = "std"))]
         {
             #[cfg(all(
@@ -271,6 +289,14 @@ impl Aead for Aes256Gcm {
                     return gcm_decrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, tag_arr, nonce_arr, aad);
                 }
             }
+
+            #[cfg(all(target_arch = "x86_64", target_feature = "aes",))]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
+                unsafe {
+                    return gcm_decrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, tag_arr, nonce_arr, aad);
+                }
+            }
         }
 
         self.decrypt_in_place_soft(in_out, tag_arr, nonce_arr, aad)
@@ -283,7 +309,7 @@ mod tests {
 
     // ── AES-256-GCM (NIST SP 800-38D Appendix B and additional vectors) ────────
 
-    include!("aes_gcm_vectors.rs");
+    include!("aes_256_gcm_vectors.rs");
 
     fn run_gcm_vector_soft(v: &GcmVector) {
         let key: [u8; 32] = hex::decode_array::<32>(v.key.as_bytes()).unwrap();

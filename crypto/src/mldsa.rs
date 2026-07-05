@@ -1253,7 +1253,7 @@ mod tests {
         struct KatRecord {
             key_generation_seed: String,
             sha3_256_hash_of_verification_key: String,
-            sha3_256_hash_of_signing_key: String,
+            // sha3_256_hash_of_signing_key: String,
             message: String,
             signing_randomness: String,
             sha3_256_hash_of_signature: String,
@@ -1666,7 +1666,7 @@ mod tests {
             let pk_hex = group.get("publicKey").and_then(|v| v.as_str()).unwrap_or_default();
             let pk = hex::decode(pk_hex);
             let Ok(pk) = pk else {
-                for test in group["tests"].as_array().unwrap() {
+                for _test in group["tests"].as_array().unwrap() {
                     skipped += 1;
                 }
                 continue;

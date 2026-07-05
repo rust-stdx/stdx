@@ -49,20 +49,23 @@ use crate::{AeadError, Hash, bytes::Bytes};
 
 /// Encrypt using AES-NI + PCLMULQDQ with precomputed keys and GHASH powers.
 ///
-/// `rk` – precomputed round keys (15 × __m128i).
-/// `h_powers` – [H¹..H⁸] all in bit-reversed-per-byte form.
+/// `N` is the number of round keys: 11 for AES-128, 15 for AES-256.
 ///
 /// CTR and GHASH are **fused** into a single pass over the data to minimise
 /// memory bandwidth. Eight blocks are processed per iteration for better
 /// pipelining of the `aesenc` instruction chain.
 #[target_feature(enable = "aes,pclmulqdq,ssse3,sse4.1,sse2")]
-pub(crate) unsafe fn gcm_encrypt_aesni(
-    rk: &[__m128i; 15],
+pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
+    rk: &[__m128i; N],
     h_powers: &[__m128i; 8],
     in_out: &mut [u8],
     nonce: &[u8; 12],
     aad: &[u8],
 ) -> Hash {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
     assert!(
         in_out.len() <= MAX_GCM_LEN,
         "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
@@ -75,7 +78,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
     let j0 = _mm_loadu_si128(j0_bytes.as_ptr().cast());
 
     // E(J0) in natural byte order (used to mask the tag)
-    let ej0 = aes_encrypt_block(rk, j0);
+    let ej0 = aes_encrypt_block::<N>(rk, j0);
     let mut ej0_bytes = [0u8; 16];
     _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
 
@@ -112,14 +115,14 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
         let c7 = _mm_shuffle_epi8(_mm_add_epi32(base, six), swap);
         let c8 = _mm_shuffle_epi8(_mm_add_epi32(base, seven), swap);
 
-        let k1 = aes_encrypt_block(rk, c1);
-        let k2 = aes_encrypt_block(rk, c2);
-        let k3 = aes_encrypt_block(rk, c3);
-        let k4 = aes_encrypt_block(rk, c4);
-        let k5 = aes_encrypt_block(rk, c5);
-        let k6 = aes_encrypt_block(rk, c6);
-        let k7 = aes_encrypt_block(rk, c7);
-        let k8 = aes_encrypt_block(rk, c8);
+        let k1 = aes_encrypt_block::<N>(rk, c1);
+        let k2 = aes_encrypt_block::<N>(rk, c2);
+        let k3 = aes_encrypt_block::<N>(rk, c3);
+        let k4 = aes_encrypt_block::<N>(rk, c4);
+        let k5 = aes_encrypt_block::<N>(rk, c5);
+        let k6 = aes_encrypt_block::<N>(rk, c6);
+        let k7 = aes_encrypt_block::<N>(rk, c7);
+        let k8 = aes_encrypt_block::<N>(rk, c8);
 
         let p1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let p2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -161,10 +164,10 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
         let c3 = _mm_shuffle_epi8(_mm_add_epi32(base, two), swap);
         let c4 = _mm_shuffle_epi8(_mm_add_epi32(base, three), swap);
 
-        let k1 = aes_encrypt_block(rk, c1);
-        let k2 = aes_encrypt_block(rk, c2);
-        let k3 = aes_encrypt_block(rk, c3);
-        let k4 = aes_encrypt_block(rk, c4);
+        let k1 = aes_encrypt_block::<N>(rk, c1);
+        let k2 = aes_encrypt_block::<N>(rk, c2);
+        let k3 = aes_encrypt_block::<N>(rk, c3);
+        let k4 = aes_encrypt_block::<N>(rk, c4);
 
         let p1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let p2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -189,7 +192,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
 
     // Tail blocks (1-3)
     while i + 16 <= n {
-        let k = aes_encrypt_block(rk, _mm_shuffle_epi8(base, swap));
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(base, swap));
         let ct = _mm_xor_si128(_mm_loadu_si128(in_out.as_ptr().add(i).cast()), k);
         _mm_storeu_si128(in_out.as_mut_ptr().add(i).cast(), ct);
 
@@ -200,7 +203,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
         i += 16;
     }
     if i < n {
-        let k = aes_encrypt_block(rk, _mm_shuffle_epi8(base, swap));
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(base, swap));
         let mut buf = [0u8; 16];
         buf[..n - i].copy_from_slice(&in_out[i..]);
         let ct = _mm_xor_si128(_mm_loadu_si128(buf.as_ptr().cast()), k);
@@ -236,14 +239,18 @@ pub(crate) unsafe fn gcm_encrypt_aesni(
 /// then CTR-decrypt. 8-block aggregates are used for large payloads,
 /// falling back to 4-block when less than 8 blocks remain.
 #[target_feature(enable = "aes,pclmulqdq,ssse3,sse4.1,sse2")]
-pub(crate) unsafe fn gcm_decrypt_aesni(
-    rk: &[__m128i; 15],
+pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
+    rk: &[__m128i; N],
     h_powers: &[__m128i; 8],
     in_out: &mut [u8],
     tag: &[u8; 16],
     nonce: &[u8; 12],
     aad: &[u8],
 ) -> Result<(), AeadError> {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
     if in_out.len() > MAX_GCM_LEN {
         return Err(AeadError::InvalidCiphertext);
     }
@@ -254,7 +261,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni(
     j0_bytes[15] = 0x01;
     let j0 = _mm_loadu_si128(j0_bytes.as_ptr().cast());
 
-    let ej0 = aes_encrypt_block(rk, j0);
+    let ej0 = aes_encrypt_block::<N>(rk, j0);
     let mut ej0_bytes = [0u8; 16];
     _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
 
@@ -342,14 +349,14 @@ pub(crate) unsafe fn gcm_decrypt_aesni(
         let c7 = _mm_shuffle_epi8(_mm_add_epi32(base, six), swap);
         let c8 = _mm_shuffle_epi8(_mm_add_epi32(base, seven), swap);
 
-        let k1 = aes_encrypt_block(rk, c1);
-        let k2 = aes_encrypt_block(rk, c2);
-        let k3 = aes_encrypt_block(rk, c3);
-        let k4 = aes_encrypt_block(rk, c4);
-        let k5 = aes_encrypt_block(rk, c5);
-        let k6 = aes_encrypt_block(rk, c6);
-        let k7 = aes_encrypt_block(rk, c7);
-        let k8 = aes_encrypt_block(rk, c8);
+        let k1 = aes_encrypt_block::<N>(rk, c1);
+        let k2 = aes_encrypt_block::<N>(rk, c2);
+        let k3 = aes_encrypt_block::<N>(rk, c3);
+        let k4 = aes_encrypt_block::<N>(rk, c4);
+        let k5 = aes_encrypt_block::<N>(rk, c5);
+        let k6 = aes_encrypt_block::<N>(rk, c6);
+        let k7 = aes_encrypt_block::<N>(rk, c7);
+        let k8 = aes_encrypt_block::<N>(rk, c8);
 
         let ct1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let ct2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -379,10 +386,10 @@ pub(crate) unsafe fn gcm_decrypt_aesni(
         let c3 = _mm_shuffle_epi8(_mm_add_epi32(base, two), swap);
         let c4 = _mm_shuffle_epi8(_mm_add_epi32(base, three), swap);
 
-        let k1 = aes_encrypt_block(rk, c1);
-        let k2 = aes_encrypt_block(rk, c2);
-        let k3 = aes_encrypt_block(rk, c3);
-        let k4 = aes_encrypt_block(rk, c4);
+        let k1 = aes_encrypt_block::<N>(rk, c1);
+        let k2 = aes_encrypt_block::<N>(rk, c2);
+        let k3 = aes_encrypt_block::<N>(rk, c3);
+        let k4 = aes_encrypt_block::<N>(rk, c4);
 
         let ct1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let ct2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -399,14 +406,14 @@ pub(crate) unsafe fn gcm_decrypt_aesni(
     }
 
     while i + 16 <= n {
-        let k = aes_encrypt_block(rk, _mm_shuffle_epi8(base, swap));
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(base, swap));
         let pt = _mm_xor_si128(_mm_loadu_si128(in_out.as_ptr().add(i).cast()), k);
         _mm_storeu_si128(in_out.as_mut_ptr().add(i).cast(), pt);
         base = _mm_add_epi32(base, one);
         i += 16;
     }
     if i < n {
-        let k = aes_encrypt_block(rk, _mm_shuffle_epi8(base, swap));
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(base, swap));
         let mut buf = [0u8; 16];
         buf[..n - i].copy_from_slice(&in_out[i..]);
         let pt = _mm_xor_si128(_mm_loadu_si128(buf.as_ptr().cast()), k);
@@ -441,7 +448,7 @@ mod tests {
     }
 
     fn make_rk(key: &[u8; 32]) -> [__m128i; 15] {
-        let soft = crate::aes::aes::key_expand(key);
+        let soft = crate::aes::aes::key_expand_256(key);
         let mut rk = [unsafe { _mm_setzero_si128() }; 15];
         for i in 0..15 {
             rk[i] = unsafe { _mm_loadu_si128(soft[i].as_ptr().cast()) };
@@ -450,7 +457,7 @@ mod tests {
     }
 
     fn make_h_powers(key: &[u8; 32]) -> [__m128i; 8] {
-        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers(key);
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers_256(key);
         let mut hp = [unsafe { _mm_setzero_si128() }; 8];
         for i in 0..8 {
             hp[i] = unsafe { _mm_loadu_si128(bytes[i].as_ptr().cast()) };

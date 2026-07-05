@@ -9,7 +9,7 @@ use core::arch::x86_64::*;
 /// Wraps the AES-256 block cipher in CTR mode as a [`StreamCipher`].
 /// On x86-64 with AES-NI + SSSE3, and on aarch64 with ARMv8 Crypto
 /// extensions, the keystream generation is hardware-accelerated.
-use super::aes::{RoundKeys, encrypt_block, key_expand};
+use super::aes::{RoundKeys, encrypt_block, expand_key};
 #[cfg(target_arch = "x86_64")]
 use super::aes_amd64::aes_encrypt_block;
 #[cfg(target_arch = "aarch64")]
@@ -27,7 +27,7 @@ use crate::StreamCipher;
 /// (CTR mode is symmetric).
 /// You can move in the keystream with [`set_counter`](Aes256Ctr::set_counter).
 pub struct Aes256Ctr {
-    round_keys: RoundKeys,
+    round_keys: RoundKeys<15>,
     #[cfg(target_arch = "x86_64")]
     round_keys_aesni: [__m128i; 15],
     #[cfg(target_arch = "aarch64")]
@@ -40,7 +40,7 @@ impl Aes256Ctr {
     ///
     /// The initial counter is zeroed.
     pub fn new(key: &[u8; 32]) -> Self {
-        let round_keys = key_expand(key);
+        let round_keys = expand_key::<15>(key);
         #[cfg(target_arch = "x86_64")]
         {
             let mut round_keys_aesni = unsafe { [_mm_setzero_si128(); 15] };

@@ -1,124 +1,107 @@
+#[cfg(target_arch = "x86_64")]
+use core::arch::x86_64::__m128i;
+
 use super::{
-    aes::{RCON, SBOX, TE0, TE1, TE2, TE3},
-    ghash::{compute_tag, precompute_ghash_table},
+    aes::{encrypt_block, expand_key},
+    ghash::{compute_tag, precompute_ghash_powers_128, precompute_ghash_table},
 };
-use crate::{Aead, AeadError, Hash};
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+use crate::aes::RoundKeys;
+use crate::{
+    Aead, AeadError, Hash,
+    aes::{RoundKeys, aes::GCM_MAX_LEN},
+};
 
 /// AES-128-GCM authenticated cipher.
+///
+/// On x86-64 machines with AES-NI + PCLMULQDQ the methods automatically
+/// dispatch to the hardware-accelerated path.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Gcm {
-    key: [u8; 16],
-    round_keys: [[u8; 16]; 11],
-}
-
-/// AES-128 key expansion. Returns 11 round keys.
-pub fn key_expand_128(key: &[u8; 16]) -> [[u8; 16]; 11] {
-    let mut w = [[0u8; 4]; 44];
-    for i in 0..4 {
-        w[i] = [key[4 * i], key[4 * i + 1], key[4 * i + 2], key[4 * i + 3]];
-    }
-    for i in 4..44 {
-        let mut temp = w[i - 1];
-        if i % 4 == 0 {
-            temp = [
-                SBOX[temp[1] as usize],
-                SBOX[temp[2] as usize],
-                SBOX[temp[3] as usize],
-                SBOX[temp[0] as usize],
-            ];
-            temp[0] ^= RCON[i / 4];
-        }
-        w[i] = [
-            w[i - 4][0] ^ temp[0],
-            w[i - 4][1] ^ temp[1],
-            w[i - 4][2] ^ temp[2],
-            w[i - 4][3] ^ temp[3],
-        ];
-    }
-    let mut rk = [[0u8; 16]; 11];
-    for i in 0..11 {
-        for j in 0..4 {
-            rk[i][4 * j..4 * j + 4].copy_from_slice(&w[4 * i + j]);
-        }
-    }
-    rk
-}
-
-/// Encrypt one 16-byte block using AES-128 (T-table accelerated).
-pub fn encrypt_block_aes128(round_keys: &[[u8; 16]; 11], block: &[u8; 16]) -> [u8; 16] {
-    let mut s = *block;
-    for i in 0..16 {
-        s[i] ^= round_keys[0][i];
-    }
-    for r in 1..10 {
-        let t0 = TE0[s[0] as usize]
-            ^ TE1[s[5] as usize]
-            ^ TE2[s[10] as usize]
-            ^ TE3[s[15] as usize]
-            ^ u32::from_ne_bytes(round_keys[r][0..4].try_into().unwrap());
-        let t1 = TE0[s[4] as usize]
-            ^ TE1[s[9] as usize]
-            ^ TE2[s[14] as usize]
-            ^ TE3[s[3] as usize]
-            ^ u32::from_ne_bytes(round_keys[r][4..8].try_into().unwrap());
-        let t2 = TE0[s[8] as usize]
-            ^ TE1[s[13] as usize]
-            ^ TE2[s[2] as usize]
-            ^ TE3[s[7] as usize]
-            ^ u32::from_ne_bytes(round_keys[r][8..12].try_into().unwrap());
-        let t3 = TE0[s[12] as usize]
-            ^ TE1[s[1] as usize]
-            ^ TE2[s[6] as usize]
-            ^ TE3[s[11] as usize]
-            ^ u32::from_ne_bytes(round_keys[r][12..16].try_into().unwrap());
-        s[0..4].copy_from_slice(&t0.to_ne_bytes());
-        s[4..8].copy_from_slice(&t1.to_ne_bytes());
-        s[8..12].copy_from_slice(&t2.to_ne_bytes());
-        s[12..16].copy_from_slice(&t3.to_ne_bytes());
-    }
-    s = [
-        SBOX[s[0] as usize] ^ round_keys[10][0],
-        SBOX[s[5] as usize] ^ round_keys[10][1],
-        SBOX[s[10] as usize] ^ round_keys[10][2],
-        SBOX[s[15] as usize] ^ round_keys[10][3],
-        SBOX[s[4] as usize] ^ round_keys[10][4],
-        SBOX[s[9] as usize] ^ round_keys[10][5],
-        SBOX[s[14] as usize] ^ round_keys[10][6],
-        SBOX[s[3] as usize] ^ round_keys[10][7],
-        SBOX[s[8] as usize] ^ round_keys[10][8],
-        SBOX[s[13] as usize] ^ round_keys[10][9],
-        SBOX[s[2] as usize] ^ round_keys[10][10],
-        SBOX[s[7] as usize] ^ round_keys[10][11],
-        SBOX[s[12] as usize] ^ round_keys[10][12],
-        SBOX[s[1] as usize] ^ round_keys[10][13],
-        SBOX[s[6] as usize] ^ round_keys[10][14],
-        SBOX[s[11] as usize] ^ round_keys[10][15],
-    ];
-    s
+    pub(crate) key: [u8; 16],
+    /// x86_64 AES-NI round keys (precomputed in `new()`).
+    #[cfg(target_arch = "x86_64")]
+    pub(crate) round_keys_ni: [__m128i; 11],
+    /// Precomputed GHASH powers [H¹..H⁸] in bit-reversed-per-byte form.
+    #[cfg(target_arch = "x86_64")]
+    pub(crate) h_powers: [__m128i; 8],
+    /// aarch64 ARMv8 round keys (precomputed in `new()`).
+    #[cfg(target_arch = "aarch64")]
+    pub(crate) round_keys_arm: [core::arch::aarch64::uint8x16_t; 11],
+    /// Precomputed GHASH powers [H¹..H⁸] in bit-reversed-per-byte form.
+    #[cfg(target_arch = "aarch64")]
+    pub(crate) h_powers: [core::arch::aarch64::uint8x16_t; 8],
+    /// Software round keys (targets without hardware acceleration).
+    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+    pub(crate) round_keys: RoundKeys<11>,
 }
 
 impl Aes128Gcm {
     pub const KEY_SIZE: usize = 16;
 
     pub fn new(key: &[u8; 16]) -> Self {
-        Aes128Gcm {
-            key: *key,
-            round_keys: key_expand_128(key),
+        #[cfg(target_arch = "x86_64")]
+        {
+            use core::arch::x86_64::*;
+            let rk_soft: [[u8; 16]; 11] = expand_key::<11>(key);
+            let mut rk = unsafe { [_mm_setzero_si128(); 11] };
+            for i in 0..11 {
+                rk[i] = unsafe { _mm_loadu_si128(rk_soft[i].as_ptr().cast()) };
+            }
+            let (h_powers_bytes, _h) = precompute_ghash_powers_128(key);
+            let mut h_powers = unsafe { [_mm_setzero_si128(); 8] };
+            for i in 0..8 {
+                h_powers[i] = unsafe { _mm_loadu_si128(h_powers_bytes[i].as_ptr().cast()) };
+            }
+            Aes128Gcm {
+                key: *key,
+                round_keys_ni: rk,
+                h_powers,
+            }
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            use core::arch::aarch64::*;
+            let rk_soft: [[u8; 16]; 11] = expand_key::<11>(key);
+            let mut rk = [unsafe { vdupq_n_u8(0) }; 11];
+            for i in 0..11 {
+                rk[i] = unsafe { vld1q_u8(rk_soft[i].as_ptr()) };
+            }
+            let (h_powers_bytes, _h) = precompute_ghash_powers_128(key);
+            let mut h_powers = [unsafe { vdupq_n_u8(0) }; 8];
+            for i in 0..8 {
+                h_powers[i] = unsafe { vld1q_u8(h_powers_bytes[i].as_ptr()) };
+            }
+            Aes128Gcm {
+                key: *key,
+                round_keys_arm: rk,
+                h_powers,
+            }
+        }
+
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            Aes128Gcm {
+                key: *key,
+                round_keys: expand_key::<11>(key),
+            }
         }
     }
 
     pub(crate) fn encrypt_in_place_soft(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Hash {
-        let h = encrypt_block_aes128(&self.round_keys, &[0u8; 16]);
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&self.key);
+        let h = encrypt_block::<11>(&rk, &[0u8; 16]);
         let ghash_table = precompute_ghash_table(&h);
 
         let mut j0 = [0u8; 16];
         j0[..12].copy_from_slice(nonce);
         j0[15] = 1;
 
-        let ej0 = encrypt_block_aes128(&self.round_keys, &j0);
+        let ej0 = encrypt_block::<11>(&rk, &j0);
 
         j0[15] = 2;
-        aes128_ctr_xor(&self.round_keys, &j0, in_out);
+        aes128_ctr_xor(&rk, &j0, in_out);
 
         compute_tag(&ghash_table, aad, in_out, &ej0)
     }
@@ -130,14 +113,15 @@ impl Aes128Gcm {
         nonce: &[u8; 12],
         aad: &[u8],
     ) -> Result<(), AeadError> {
-        let h = encrypt_block_aes128(&self.round_keys, &[0u8; 16]);
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&self.key);
+        let h = encrypt_block::<11>(&rk, &[0u8; 16]);
         let ghash_table = precompute_ghash_table(&h);
 
         let mut j0 = [0u8; 16];
         j0[..12].copy_from_slice(nonce);
         j0[15] = 1;
 
-        let ej0 = encrypt_block_aes128(&self.round_keys, &j0);
+        let ej0 = encrypt_block::<11>(&rk, &j0);
 
         let expected_tag = compute_tag(&ghash_table, aad, in_out, &ej0);
 
@@ -150,18 +134,18 @@ impl Aes128Gcm {
         }
 
         j0[15] = 2;
-        aes128_ctr_xor(&self.round_keys, &j0, in_out);
+        aes128_ctr_xor(&rk, &j0, in_out);
 
         Ok(())
     }
 }
 
-fn aes128_ctr_xor(round_keys: &[[u8; 16]; 11], counter: &[u8; 16], in_out: &mut [u8]) {
+fn aes128_ctr_xor(round_keys: &RoundKeys<11>, counter: &[u8; 16], in_out: &mut [u8]) {
     let mut ctr = *counter;
     let n = in_out.len();
     let mut i = 0;
     while i + 16 <= n {
-        let ks = encrypt_block_aes128(round_keys, &ctr);
+        let ks = encrypt_block::<11>(round_keys, &ctr);
         for j in 0..16 {
             in_out[i + j] ^= ks[j];
         }
@@ -174,7 +158,7 @@ fn aes128_ctr_xor(round_keys: &[[u8; 16]; 11], counter: &[u8; 16], in_out: &mut 
         i += 16;
     }
     if i < n {
-        let ks = encrypt_block_aes128(round_keys, &ctr);
+        let ks = encrypt_block::<11>(round_keys, &ctr);
         for j in 0..(n - i) {
             in_out[i + j] ^= ks[j];
         }
@@ -185,16 +169,133 @@ impl Aead for Aes128Gcm {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
+    #[inline]
+    #[allow(unreachable_code)]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
+        assert!(
+            in_out.len() <= GCM_MAX_LEN,
+            "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
+        );
+
         assert_eq!(nonce.len(), 12, "AES-128-GCM nonce must be 12 bytes");
         let nonce_arr: &[u8; 12] = nonce.try_into().unwrap();
+
+        // dynamic dispatch if the "std" feature is enabled
+        #[cfg(feature = "std")]
+        {
+            #[cfg(target_arch = "x86_64")]
+            {
+                use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
+                if std::arch::is_x86_feature_detected!("aes")
+                    && std::arch::is_x86_feature_detected!("pclmulqdq")
+                    && std::arch::is_x86_feature_detected!("ssse3")
+                    && std::arch::is_x86_feature_detected!("sse4.1")
+                {
+                    return unsafe { gcm_encrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, nonce_arr, aad) };
+                }
+            }
+
+            #[cfg(target_arch = "aarch64")]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
+                if std::arch::is_aarch64_feature_detected!("aes") {
+                    return unsafe { gcm_encrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, nonce_arr, aad) };
+                }
+            }
+        }
+
+        // otherwise, static dispatch depending on the CPU instructions available on the compiling machine
+        #[cfg(not(feature = "std"))]
+        {
+            #[cfg(all(
+                target_arch = "x86_64",
+                target_feature = "aes",
+                target_feature = "pclmulqdq",
+                target_feature = "ssse3",
+                target_feature = "sse4.1"
+            ))]
+            {
+                use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
+                return unsafe { gcm_encrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, nonce_arr, aad) };
+            }
+
+            #[cfg(all(target_arch = "aarch64", target_feature = "aes",))]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
+                return unsafe { gcm_encrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, nonce_arr, aad) };
+            }
+        }
+
         self.encrypt_in_place_soft(in_out, nonce_arr, aad)
     }
 
+    #[inline]
+    #[allow(unreachable_code)]
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
         assert_eq!(nonce.len(), 12, "AES-128-GCM nonce must be 12 bytes");
         let nonce_arr: &[u8; 12] = nonce.try_into().unwrap();
         let tag_arr: &[u8; 16] = tag.try_into().expect("AES-128-GCM tag must be 16 bytes");
+
+        // dynamic dispatch if the "std" feature is enabled
+        #[cfg(feature = "std")]
+        {
+            #[cfg(target_arch = "x86_64")]
+            {
+                use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
+                if std::arch::is_x86_feature_detected!("aes")
+                    && std::arch::is_x86_feature_detected!("pclmulqdq")
+                    && std::arch::is_x86_feature_detected!("ssse3")
+                    && std::arch::is_x86_feature_detected!("sse4.1")
+                {
+                    unsafe {
+                        return gcm_decrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, tag_arr, nonce_arr, aad);
+                    }
+                }
+            }
+
+            #[cfg(target_arch = "aarch64")]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
+                if std::arch::is_aarch64_feature_detected!("aes") {
+                    unsafe {
+                        return gcm_decrypt_armv8(
+                            &self.round_keys_arm,
+                            &self.h_powers,
+                            in_out,
+                            tag_arr,
+                            nonce_arr,
+                            aad,
+                        );
+                    }
+                }
+            }
+        }
+
+        // otherwise, static dispatch depending on the CPU instructions available on the compiling machine
+        #[cfg(not(feature = "std"))]
+        {
+            #[cfg(all(
+                target_feature = "aes",
+                target_feature = "pclmulqdq",
+                target_feature = "ssse3",
+                target_feature = "sse4.1"
+            ))]
+            {
+                use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
+                unsafe {
+                    return gcm_decrypt_aesni(&self.round_keys_ni, &self.h_powers, in_out, tag_arr, nonce_arr, aad);
+                }
+            }
+
+            #[cfg(all(target_arch = "aarch64", target_feature = "aes",))]
+            {
+                use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
+                unsafe {
+                    return gcm_decrypt_armv8(&self.round_keys_arm, &self.h_powers, in_out, tag_arr, nonce_arr, aad);
+                }
+            }
+        }
+
         self.decrypt_in_place_soft(in_out, tag_arr, nonce_arr, aad)
     }
 }
@@ -204,6 +305,7 @@ mod tests {
     use hex;
 
     use super::*;
+    use crate::aes::aes::{TE0, TE1, TE2, TE3, encrypt_block, expand_key};
 
     include!("aes_128_gcm_vectors.rs");
 
@@ -212,8 +314,8 @@ mod tests {
         // NIST FIPS 197 Appendix B: AES-128 K=0, P=0 -> C=66e94bd4ef8a2c3b884cfa59ca342b2e
         let key = [0u8; 16];
         let pt = [0u8; 16];
-        let rk = key_expand_128(&key);
-        let ct = encrypt_block_aes128(&rk, &pt);
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
+        let ct = encrypt_block::<11>(&rk, &pt);
         let expected = hex::decode_array::<16>(b"66e94bd4ef8a2c3b884cfa59ca342b2e").unwrap();
         assert_eq!(ct, expected, "AES-128 encrypt K=0, P=0 mismatch");
     }
@@ -222,15 +324,14 @@ mod tests {
     fn aes128_fips197_vector() {
         let key = hex::decode_array::<16>(b"2b7e151628aed2a6abf7158809cf4f3c").unwrap();
         let pt = hex::decode_array::<16>(b"3243f6a8885a308d313198a2e0370734").unwrap();
-        let rk = key_expand_128(&key);
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
 
-        // Verify round keys as hex strings for readability
         let rk_hex: Vec<String> = rk.iter().map(|rk_i| hex::encode(rk_i)).collect();
         assert_eq!(rk_hex[0], "2b7e151628aed2a6abf7158809cf4f3c", "rk0");
         assert_eq!(rk_hex[1], "a0fafe1788542cb123a339392a6c7605", "rk1");
         assert_eq!(rk_hex[2], "f2c295f27a96b9435935807a7359f67f", "rk2");
 
-        let ct = encrypt_block_aes128(&rk, &pt);
+        let ct = encrypt_block::<11>(&rk, &pt);
         let ct_hex = hex::encode(&ct);
         assert_eq!(
             ct_hex, "3925841d02dc09fbdc118597196a0b32",
@@ -316,8 +417,8 @@ mod tests {
     fn aes128_block_encrypt_k0_j0() {
         let key = [0u8; 16];
         let j0: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
-        let rk = key_expand_128(&key);
-        let ct = encrypt_block_aes128(&rk, &j0);
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
+        let ct = encrypt_block::<11>(&rk, &j0);
         let expected = hex::decode_array::<16>(b"58e2fccefa7e3061367f1d57a4e7455a").unwrap();
         assert_eq!(ct, expected, "AES(K=0, J0=0...01) mismatch");
     }
@@ -326,16 +427,14 @@ mod tests {
     fn aes128_debug_round_state() {
         let key = [0u8; 16];
         let pt = [0u8; 16];
-        let rk = key_expand_128(&key);
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
 
-        // Compute first T-table round manually
         let mut s = pt;
         for i in 0..16 {
             s[i] ^= rk[0][i];
         }
         assert_eq!(s, [0; 16], "after AddRoundKey with K=0, state should be all zeros");
 
-        // Round 1
         let r = 1usize;
         let t0 = TE0[s[0] as usize]
             ^ TE1[s[5] as usize]
@@ -343,9 +442,6 @@ mod tests {
             ^ TE3[s[15] as usize]
             ^ u32::from_ne_bytes(rk[r][0..4].try_into().unwrap());
 
-        // Expected rk[1] = 62636363 repeated 4x = [0x62,0x63,0x63,0x63] repeated
-        // TE0[0] = 0xa56363c6, TE1[0]=0x6363c6a5, TE2[0]=0x63c6a563, TE3[0]=0xc6a56363
-        // t0 = 0xa56363c6 ^ 0x6363c6a5 ^ 0x63c6a563 ^ 0xc6a56363 ^ u32_from_ne([0x62,0x63,0x63,0x63])
         let rk1word0 = u32::from_ne_bytes([0x62, 0x63, 0x63, 0x63]);
         assert_eq!(rk1word0, 0x63636362, "rk[1] word 0 on LE should be 0x63636362");
         let te0_0 = TE0[0];
@@ -358,12 +454,11 @@ mod tests {
         assert_eq!(te3_0, 0xc6a56363, "TE3[0]");
 
         let expected_t0 = 0xa56363c6u32 ^ 0x6363c6a5u32 ^ 0x63c6a563u32 ^ 0xc6a56363u32;
-        // All XOR to 0 since they're cyclic permutations
         assert_eq!(expected_t0, 0x63636363u32, "TE0^TE1^TE2^TE3 should be 0x63636363");
         assert_eq!(t0, 0x63636363u32 ^ 0x63636362u32, "t0 after XOR with rk");
         assert_eq!(t0, 0x00000001u32, "t0 should be 1");
 
-        let ct = encrypt_block_aes128(&rk, &pt);
+        let ct = encrypt_block::<11>(&rk, &pt);
         let ct_hex = hex::encode(&ct);
         assert_eq!(ct_hex, "66e94bd4ef8a2c3b884cfa59ca342b2e", "AES-128 K=0 P=0 full encrypt fails");
     }
