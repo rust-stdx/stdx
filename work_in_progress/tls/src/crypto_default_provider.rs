@@ -304,26 +304,26 @@ impl CryptoProvider for DefaultCryptoProvider {
     fn header_protection_mask(&self, suite: CipherSuite, hp_key: &[u8], sample: &[u8; 16]) -> Result<[u8; 16], Error> {
         match suite {
             CipherSuite::TlsAes128GcmSha256 => {
-                use crypto::aes::{encrypt_block_aes128, key_expand_128};
+                use crypto::aes::{encrypt_block, expand_key};
                 let key: &[u8; 16] = hp_key.try_into().map_err(|_| {
                     Error::InvalidKey(InvalidKeyFailure::WrongLength {
                         algorithm: "AES-128 HP key",
                         expected: 16,
                     })
                 })?;
-                let rk = key_expand_128(key);
-                Ok(encrypt_block_aes128(&rk, sample))
+                let rk = expand_key::<11>(key);
+                Ok(encrypt_block::<11>(&rk, sample))
             }
             CipherSuite::TlsAes256GcmSha384 => {
-                use crypto::aes::{encrypt_block, key_expand};
+                use crypto::aes::{encrypt_block, key_expand_256};
                 let key: &[u8; 32] = hp_key.try_into().map_err(|_| {
                     Error::InvalidKey(InvalidKeyFailure::WrongLength {
                         algorithm: "AES-256 HP key",
                         expected: 32,
                     })
                 })?;
-                let rk = key_expand(key);
-                Ok(encrypt_block(&rk, sample))
+                let rk = key_expand_256(key);
+                Ok(encrypt_block::<15>(&rk, sample))
             }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
                 use crypto::chacha::ChaCha;

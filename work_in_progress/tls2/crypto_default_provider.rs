@@ -338,6 +338,18 @@ impl CryptoProvider for DefaultCryptoProvider {
                 let signature = secret_key.sign(data);
                 Ok(Vec::from_slice(&signature).unwrap())
             }
+            SignatureScheme::EcdsaP256Sha256 => {
+                let key: &[u8; 32] = secret_key.try_into().map_err(|_| Error::CryptoError)?;
+                let private_key = crypto::p256::PrivateKey::from_bytes(key).map_err(|_| Error::CryptoError)?;
+                let raw_sig = private_key.sign(data).map_err(|_| Error::CryptoError)?;
+                p256_raw_to_der_signature(&raw_sig)
+            }
+            SignatureScheme::EcdsaP384Sha384 => {
+                let key: &[u8; 48] = secret_key.try_into().map_err(|_| Error::CryptoError)?;
+                let private_key = crypto::p384::PrivateKey::from_bytes(key).map_err(|_| Error::CryptoError)?;
+                let raw_sig = private_key.sign(data).map_err(|_| Error::CryptoError)?;
+                p384_raw_to_der_signature(&raw_sig)
+            }
             _ => Err(Error::CryptoError),
         }
     }
@@ -352,12 +364,12 @@ impl CryptoProvider for DefaultCryptoProvider {
             }
             SignatureScheme::EcdsaP256Sha256 => {
                 let pk = crypto::p256::PublicKey::from_bytes(public_key).map_err(|_| Error::CryptoError)?;
-                let sig = der_to_raw_p256_signature(signature).map_err(|_| Error::DecodeError)?;
+                let sig = p256_der_to_raw_signature(signature).map_err(|_| Error::DecodeError)?;
                 pk.verify(data, &sig).map_err(|_| Error::InvalidSignature)
             }
             SignatureScheme::EcdsaP384Sha384 => {
                 let pk = crypto::p384::PublicKey::from_bytes(public_key).map_err(|_| Error::CryptoError)?;
-                let sig = der_to_raw_p384_signature(signature).map_err(|_| Error::DecodeError)?;
+                let sig = p384_der_to_raw_signature(signature).map_err(|_| Error::DecodeError)?;
                 pk.verify(data, &sig).map_err(|_| Error::InvalidSignature)
             }
             SignatureScheme::RsaPkcs1Sha256 => {
@@ -400,7 +412,7 @@ fn normalize_scalar_48(bytes: &[u8]) -> [u8; 48] {
     out
 }
 
-fn der_to_raw_p256_signature(der: &[u8]) -> Result<[u8; 64], Error> {
+fn p256_der_to_raw_signature(der: &[u8]) -> Result<[u8; 64], Error> {
     if der.len() < 8 || der[0] != 0x30 {
         return Err(Error::DecodeError);
     }
@@ -432,7 +444,7 @@ fn der_to_raw_p256_signature(der: &[u8]) -> Result<[u8; 64], Error> {
     Ok(sig)
 }
 
-fn der_to_raw_p384_signature(der: &[u8]) -> Result<[u8; 96], Error> {
+fn p384_der_to_raw_signature(der: &[u8]) -> Result<[u8; 96], Error> {
     if der.len() < 8 || der[0] != 0x30 {
         return Err(Error::DecodeError);
     }
@@ -462,6 +474,100 @@ fn der_to_raw_p384_signature(der: &[u8]) -> Result<[u8; 96], Error> {
     sig[..48].copy_from_slice(&r);
     sig[48..].copy_from_slice(&s);
     Ok(sig)
+}
+
+fn p256_raw_to_der_signature(raw: &[u8; 64]) -> Result<Vec<u8, SIGNATURE_MAX_SIZE>, Error> {
+    let r = &raw[..32];
+    let s = &raw[32..];
+
+    let r_offset = r.iter().position(|&b| b != 0).unwrap_or(r.len());
+    let r_stripped = &r[r_offset..];
+    let (r_enc, r_enc_len) = if r_stripped.is_empty() {
+        ([0x00u8; 34], 1)
+    } else if r_stripped[0] & 0x80 != 0 {
+        let mut arr = [0u8; 34];
+        arr[0] = 0x00;
+        arr[1..=r_stripped.len()].copy_from_slice(&r_stripped);
+        (arr, r_stripped.len() + 1)
+    } else {
+        let mut arr = [0u8; 34];
+        arr[..r_stripped.len()].copy_from_slice(&r_stripped);
+        (arr, r_stripped.len())
+    };
+
+    let s_offset = s.iter().position(|&b| b != 0).unwrap_or(s.len());
+    let s_stripped = &s[s_offset..];
+    let (s_enc, s_enc_len) = if s_stripped.is_empty() {
+        ([0x00u8; 34], 1)
+    } else if s_stripped[0] & 0x80 != 0 {
+        let mut arr = [0u8; 34];
+        arr[0] = 0x00;
+        arr[1..=s_stripped.len()].copy_from_slice(&s_stripped);
+        (arr, s_stripped.len() + 1)
+    } else {
+        let mut arr = [0u8; 34];
+        arr[..s_stripped.len()].copy_from_slice(&s_stripped);
+        (arr, s_stripped.len())
+    };
+
+    let total_len = 2 + r_enc_len + 2 + s_enc_len;
+    let mut der = Vec::new();
+    der.push(0x30).unwrap();
+    der.push(total_len as u8).unwrap();
+    der.push(0x02).unwrap();
+    der.push(r_enc_len as u8).unwrap();
+    der.extend_from_slice(&r_enc[..r_enc_len]).unwrap();
+    der.push(0x02).unwrap();
+    der.push(s_enc_len as u8).unwrap();
+    der.extend_from_slice(&s_enc[..s_enc_len]).unwrap();
+    Ok(der)
+}
+
+fn p384_raw_to_der_signature(raw: &[u8; 96]) -> Result<Vec<u8, SIGNATURE_MAX_SIZE>, Error> {
+    let r = &raw[..48];
+    let s = &raw[48..];
+
+    let r_offset = r.iter().position(|&b| b != 0).unwrap_or(r.len());
+    let r_stripped = &r[r_offset..];
+    let (r_enc, r_enc_len) = if r_stripped.is_empty() {
+        ([0x00u8; 50], 1)
+    } else if r_stripped[0] & 0x80 != 0 {
+        let mut arr = [0u8; 50];
+        arr[0] = 0x00;
+        arr[1..=r_stripped.len()].copy_from_slice(r_stripped);
+        (arr, r_stripped.len() + 1)
+    } else {
+        let mut arr = [0u8; 50];
+        arr[..r_stripped.len()].copy_from_slice(r_stripped);
+        (arr, r_stripped.len())
+    };
+
+    let s_offset = s.iter().position(|&b| b != 0).unwrap_or(s.len());
+    let s_stripped = &s[s_offset..];
+    let (s_enc, s_enc_len) = if s_stripped.is_empty() {
+        ([0x00u8; 50], 1)
+    } else if s_stripped[0] & 0x80 != 0 {
+        let mut arr = [0u8; 50];
+        arr[0] = 0x00;
+        arr[1..=s_stripped.len()].copy_from_slice(s_stripped);
+        (arr, s_stripped.len() + 1)
+    } else {
+        let mut arr = [0u8; 50];
+        arr[..s_stripped.len()].copy_from_slice(s_stripped);
+        (arr, s_stripped.len())
+    };
+
+    let total_len = 2 + r_enc_len + 2 + s_enc_len;
+    let mut der = Vec::new();
+    der.push(0x30).unwrap();
+    der.push(total_len as u8).unwrap();
+    der.push(0x02).unwrap();
+    der.push(r_enc_len as u8).unwrap();
+    der.extend_from_slice(&r_enc[..r_enc_len]).unwrap();
+    der.push(0x02).unwrap();
+    der.push(s_enc_len as u8).unwrap();
+    der.extend_from_slice(&s_enc[..s_enc_len]).unwrap();
+    Ok(der)
 }
 
 #[cfg(test)]
@@ -529,5 +635,75 @@ mod tests {
 
         assert_eq!(alice_ss.len(), 32, "P-256 shared secret must be 32 bytes");
         assert_eq!(alice_ss, bob_ss, "shared secrets must match");
+    }
+
+    #[test]
+    fn ecdsa_p256_sign_verify_roundtrip() {
+        let provider = DefaultCryptoProvider;
+        let data = b"TLS 1.3 test message";
+
+        let seed = [42u8; 32];
+        let private_key = crypto::p256::PrivateKey::from_bytes(&seed).unwrap();
+        let public_key = private_key.public_key().to_bytes();
+
+        let signature = provider.sign(SignatureScheme::EcdsaP256Sha256, &seed, data).unwrap();
+        provider
+            .verify(SignatureScheme::EcdsaP256Sha256, &public_key, data, &signature)
+            .unwrap();
+    }
+
+    #[test]
+    fn ecdsa_p384_sign_verify_roundtrip() {
+        let provider = DefaultCryptoProvider;
+        let data = b"TLS 1.3 test message";
+
+        let seed = [42u8; 48];
+        let private_key = crypto::p384::PrivateKey::from_bytes(&seed).unwrap();
+        let public_key = private_key.public_key().to_bytes();
+
+        let signature = provider.sign(SignatureScheme::EcdsaP384Sha384, &seed, data).unwrap();
+        provider
+            .verify(SignatureScheme::EcdsaP384Sha384, &public_key, data, &signature)
+            .unwrap();
+    }
+
+    #[test]
+    fn ecdsa_p256_der_encoding_roundtrip() {
+        let raw = [0u8; 64];
+        let der = p256_raw_to_der_signature(&raw).unwrap();
+        let decoded = p256_der_to_raw_signature(&der).unwrap();
+        assert_eq!(raw, decoded);
+
+        let raw = [0xffu8; 64];
+        let der = p256_raw_to_der_signature(&raw).unwrap();
+        let decoded = p256_der_to_raw_signature(&der).unwrap();
+        assert_eq!(raw, decoded);
+
+        let mut raw = [0u8; 64];
+        raw[0] = 0x12;
+        raw[32] = 0x34;
+        let der = p256_raw_to_der_signature(&raw).unwrap();
+        let decoded = p256_der_to_raw_signature(&der).unwrap();
+        assert_eq!(raw, decoded);
+    }
+
+    #[test]
+    fn ecdsa_p384_der_encoding_roundtrip() {
+        let raw = [0u8; 96];
+        let der = p384_raw_to_der_signature(&raw).unwrap();
+        let decoded = p384_der_to_raw_signature(&der).unwrap();
+        assert_eq!(raw, decoded);
+
+        let raw = [0xffu8; 96];
+        let der = p384_raw_to_der_signature(&raw).unwrap();
+        let decoded = p384_der_to_raw_signature(&der).unwrap();
+        assert_eq!(raw, decoded);
+
+        let mut raw = [0u8; 96];
+        raw[0] = 0x12;
+        raw[48] = 0x34;
+        let der = p384_raw_to_der_signature(&raw).unwrap();
+        let decoded = p384_der_to_raw_signature(&der).unwrap();
+        assert_eq!(raw, decoded);
     }
 }

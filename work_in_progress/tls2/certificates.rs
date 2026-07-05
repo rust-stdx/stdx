@@ -228,7 +228,6 @@ impl<C: CryptoProvider> DefaultCertificateVerifier<C> {
     /// By default:
     /// - No X.509 roots are configured — X.509 chains are rejected.
     /// - No raw public keys are pinned — raw public keys are rejected.
-    /// - Validation is not bypassed.
     ///
     /// Use the builder methods ([`with_roots`][Self::with_roots],
     /// [`with_system_roots`][Self::with_system_roots],
@@ -362,13 +361,18 @@ impl<C: CryptoProvider> DefaultCertificateVerifier<C> {
 
         let now = match &self.clock {
             Some(clock) => clock.now(),
-            #[cfg(feature = "std")]
-            None => std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-            #[cfg(not(feature = "std"))]
-            None => return Err(Error::CertificateClockMissing),
+            None => {
+                #[cfg(feature = "std")]
+                {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs()
+                }
+
+                #[cfg(not(feature = "std"))]
+                return Err(Error::CertificateClockMissing);
+            }
         };
 
         for i in 0..chain.len() {
