@@ -45,54 +45,54 @@ pub fn key_expand_128(key: &[u8; 16]) -> [[u8; 16]; 11] {
 }
 
 /// Encrypt one 16-byte block using AES-128 (T-table accelerated).
-pub fn encrypt_block_aes128(rk: &[[u8; 16]; 11], block: &[u8; 16]) -> [u8; 16] {
+pub fn encrypt_block_aes128(round_keys: &[[u8; 16]; 11], block: &[u8; 16]) -> [u8; 16] {
     let mut s = *block;
     for i in 0..16 {
-        s[i] ^= rk[0][i];
+        s[i] ^= round_keys[0][i];
     }
     for r in 1..10 {
         let t0 = TE0[s[0] as usize]
             ^ TE1[s[5] as usize]
             ^ TE2[s[10] as usize]
             ^ TE3[s[15] as usize]
-            ^ u32::from_ne_bytes(rk[r][0..4].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[r][0..4].try_into().unwrap());
         let t1 = TE0[s[4] as usize]
             ^ TE1[s[9] as usize]
             ^ TE2[s[14] as usize]
             ^ TE3[s[3] as usize]
-            ^ u32::from_ne_bytes(rk[r][4..8].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[r][4..8].try_into().unwrap());
         let t2 = TE0[s[8] as usize]
             ^ TE1[s[13] as usize]
             ^ TE2[s[2] as usize]
             ^ TE3[s[7] as usize]
-            ^ u32::from_ne_bytes(rk[r][8..12].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[r][8..12].try_into().unwrap());
         let t3 = TE0[s[12] as usize]
             ^ TE1[s[1] as usize]
             ^ TE2[s[6] as usize]
             ^ TE3[s[11] as usize]
-            ^ u32::from_ne_bytes(rk[r][12..16].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[r][12..16].try_into().unwrap());
         s[0..4].copy_from_slice(&t0.to_ne_bytes());
         s[4..8].copy_from_slice(&t1.to_ne_bytes());
         s[8..12].copy_from_slice(&t2.to_ne_bytes());
         s[12..16].copy_from_slice(&t3.to_ne_bytes());
     }
     s = [
-        SBOX[s[0] as usize] ^ rk[10][0],
-        SBOX[s[5] as usize] ^ rk[10][1],
-        SBOX[s[10] as usize] ^ rk[10][2],
-        SBOX[s[15] as usize] ^ rk[10][3],
-        SBOX[s[4] as usize] ^ rk[10][4],
-        SBOX[s[9] as usize] ^ rk[10][5],
-        SBOX[s[14] as usize] ^ rk[10][6],
-        SBOX[s[3] as usize] ^ rk[10][7],
-        SBOX[s[8] as usize] ^ rk[10][8],
-        SBOX[s[13] as usize] ^ rk[10][9],
-        SBOX[s[2] as usize] ^ rk[10][10],
-        SBOX[s[7] as usize] ^ rk[10][11],
-        SBOX[s[12] as usize] ^ rk[10][12],
-        SBOX[s[1] as usize] ^ rk[10][13],
-        SBOX[s[6] as usize] ^ rk[10][14],
-        SBOX[s[11] as usize] ^ rk[10][15],
+        SBOX[s[0] as usize] ^ round_keys[10][0],
+        SBOX[s[5] as usize] ^ round_keys[10][1],
+        SBOX[s[10] as usize] ^ round_keys[10][2],
+        SBOX[s[15] as usize] ^ round_keys[10][3],
+        SBOX[s[4] as usize] ^ round_keys[10][4],
+        SBOX[s[9] as usize] ^ round_keys[10][5],
+        SBOX[s[14] as usize] ^ round_keys[10][6],
+        SBOX[s[3] as usize] ^ round_keys[10][7],
+        SBOX[s[8] as usize] ^ round_keys[10][8],
+        SBOX[s[13] as usize] ^ round_keys[10][9],
+        SBOX[s[2] as usize] ^ round_keys[10][10],
+        SBOX[s[7] as usize] ^ round_keys[10][11],
+        SBOX[s[12] as usize] ^ round_keys[10][12],
+        SBOX[s[1] as usize] ^ round_keys[10][13],
+        SBOX[s[6] as usize] ^ round_keys[10][14],
+        SBOX[s[11] as usize] ^ round_keys[10][15],
     ];
     s
 }
@@ -118,7 +118,7 @@ impl Aes128Gcm {
         let ej0 = encrypt_block_aes128(&self.round_keys, &j0);
 
         j0[15] = 2;
-        aes128_ctr_xor(&self.key, &self.round_keys, &j0, in_out);
+        aes128_ctr_xor(&self.round_keys, &j0, in_out);
 
         compute_tag(&ghash_table, aad, in_out, &ej0)
     }
@@ -150,18 +150,18 @@ impl Aes128Gcm {
         }
 
         j0[15] = 2;
-        aes128_ctr_xor(&self.key, &self.round_keys, &j0, in_out);
+        aes128_ctr_xor(&self.round_keys, &j0, in_out);
 
         Ok(())
     }
 }
 
-fn aes128_ctr_xor(key: &[u8; 16], rk: &[[u8; 16]; 11], counter: &[u8; 16], in_out: &mut [u8]) {
+fn aes128_ctr_xor(round_keys: &[[u8; 16]; 11], counter: &[u8; 16], in_out: &mut [u8]) {
     let mut ctr = *counter;
     let n = in_out.len();
     let mut i = 0;
     while i + 16 <= n {
-        let ks = encrypt_block_aes128(rk, &ctr);
+        let ks = encrypt_block_aes128(round_keys, &ctr);
         for j in 0..16 {
             in_out[i + j] ^= ks[j];
         }
@@ -174,7 +174,7 @@ fn aes128_ctr_xor(key: &[u8; 16], rk: &[[u8; 16]; 11], counter: &[u8; 16], in_ou
         i += 16;
     }
     if i < n {
-        let ks = encrypt_block_aes128(rk, &ctr);
+        let ks = encrypt_block_aes128(round_keys, &ctr);
         for j in 0..(n - i) {
             in_out[i + j] ^= ks[j];
         }
@@ -342,21 +342,6 @@ mod tests {
             ^ TE2[s[10] as usize]
             ^ TE3[s[15] as usize]
             ^ u32::from_ne_bytes(rk[r][0..4].try_into().unwrap());
-        let t1 = TE0[s[4] as usize]
-            ^ TE1[s[9] as usize]
-            ^ TE2[s[14] as usize]
-            ^ TE3[s[3] as usize]
-            ^ u32::from_ne_bytes(rk[r][4..8].try_into().unwrap());
-        let t2 = TE0[s[8] as usize]
-            ^ TE1[s[13] as usize]
-            ^ TE2[s[2] as usize]
-            ^ TE3[s[7] as usize]
-            ^ u32::from_ne_bytes(rk[r][8..12].try_into().unwrap());
-        let t3 = TE0[s[12] as usize]
-            ^ TE1[s[1] as usize]
-            ^ TE2[s[6] as usize]
-            ^ TE3[s[11] as usize]
-            ^ u32::from_ne_bytes(rk[r][12..16].try_into().unwrap());
 
         // Expected rk[1] = 62636363 repeated 4x = [0x62,0x63,0x63,0x63] repeated
         // TE0[0] = 0xa56363c6, TE1[0]=0x6363c6a5, TE2[0]=0x63c6a563, TE3[0]=0xc6a56363
