@@ -1,13 +1,18 @@
-use tls2::{ClientConfig, tokio::TlsClient};
+use std::sync::Arc;
+
+use tls2::{
+    ClientConfig, DefaultCertificateVerifier, crypto_default_provider::DefaultCryptoProvider, tokio::TlsClient,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_name = std::env::args().nth(1).unwrap_or("example.com".to_string());
 
     let stream = tokio::net::TcpStream::connect((&*server_name, 443)).await?;
-    let provider = tls2::crypto_default_provider::DefaultCryptoProvider::new().with_system_roots();
-    let config = ClientConfig::new(provider);
-    let mut tls = TlsClient::new(config, stream);
+    let crypto_provider = DefaultCryptoProvider;
+    let verifier = Arc::new(DefaultCertificateVerifier::new(crypto_provider.clone()).with_system_roots());
+    let config = ClientConfig::new(crypto_provider);
+    let mut tls = TlsClient::new(config, verifier, stream);
 
     let handshake_data = tls.handshake(Some(&server_name), &[b"http/1.1"]).await?;
 

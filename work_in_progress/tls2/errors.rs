@@ -63,8 +63,10 @@ pub enum Error {
     CertificateEmptyRawPublicKey,
     /// Unsupported signature algorithm in certificate
     CertificateUnsupportedSignatureAlgorithm,
-    /// RawPublicKey requires a custom verifier
-    CertificateRawPublicKeyRequiresCustomVerifier,
+    /// No clock available for certificate validity check (set one via
+    /// [`with_clock`](crate::DefaultCertificateVerifier::with_clock) or enable
+    /// the `std` feature)
+    CertificateClockMissing,
 
     // ── Crypto ──
     CryptoError,

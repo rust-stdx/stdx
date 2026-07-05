@@ -3,8 +3,8 @@ use core::ops::{Deref, DerefMut};
 use heapless::Vec;
 
 use crate::{
-    KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, KEY_EXCHANGE_SECRET_KEY_MAX_SIZE, KEY_EXCHANGE_SHARED_SECRET_MAX_SIZE, MAX_CERTS,
-    MAX_HASH_SIZE, ParsedCertificate, ReceivedCertificate, SIGNATURE_MAX_SIZE, errors::Error,
+    KEY_EXCHANGE_PUBLIC_KEY_MAX_SIZE, KEY_EXCHANGE_SECRET_KEY_MAX_SIZE, KEY_EXCHANGE_SHARED_SECRET_MAX_SIZE,
+    MAX_HASH_SIZE, SIGNATURE_MAX_SIZE, errors::Error,
 };
 
 /// A fixed-capacity byte buffer for cryptographic hash outputs.
@@ -74,7 +74,7 @@ impl DerefMut for Hash {
     }
 }
 
-pub trait CryptoProvider: Clone {
+pub trait CryptoProvider: Clone + Send + Sync {
     const CIPHER_SUITES: &[CipherSuite];
     const KEY_EXCHANGE_GROUPS: &[KeyExchangeGroup];
     const SIGNATURE_SCHEMES: &[SignatureScheme];
@@ -146,9 +146,6 @@ pub trait CryptoProvider: Clone {
         data: &[u8],
     ) -> Result<Vec<u8, SIGNATURE_MAX_SIZE>, Error>;
     fn verify(&self, scheme: SignatureScheme, public_key: &[u8], data: &[u8], signature: &[u8]) -> Result<(), Error>;
-
-    // Certificate validation
-    fn verify_certificate(&self, cert: &ReceivedCertificate, server_name: Option<&str>) -> Result<(), Error>;
 }
 
 /// Cipher suites supported by a [`CryptoProvider`].
@@ -224,6 +221,20 @@ pub enum KeyExchangeGroup {
     /// X25519MLKEM768 — post-quantum hybrid (X25519 ECDHE + ML-KEM-768 KEM).
     /// draft-ietf-tls-ecdhe-mlkem
     X25519MlKem768,
+    /// NIST P-256 (secp256r1) ECDHE
+    Secp256r1,
+    /// NIST P-384 (secp384r1) ECDHE
+    Secp384r1,
+    /// NIST P-521 (secp521r1) ECDHE
+    Secp521r1,
+    /// X448 (ECDHE with Curve448)
+    X448,
+    /// SecP256r1MLKEM768 — post-quantum hybrid (secp256r1 ECDHE + ML-KEM-768 KEM).
+    /// draft-ietf-tls-ecdhe-mlkem
+    Secp256r1MlKem768,
+    /// SecP384r1MLKEM1024 — post-quantum hybrid (secp384r1 ECDHE + ML-KEM-1024 KEM).
+    /// draft-ietf-tls-ecdhe-mlkem
+    Secp384r1MlKem1024,
 }
 
 impl KeyExchangeGroup {
@@ -232,6 +243,12 @@ impl KeyExchangeGroup {
         match self {
             Self::X25519 => [0x00, 0x1D],
             Self::X25519MlKem768 => [0x11, 0xEC],
+            Self::Secp256r1 => [0x00, 0x17],
+            Self::Secp384r1 => [0x00, 0x18],
+            Self::Secp521r1 => [0x00, 0x19],
+            Self::X448 => [0x00, 0x1E],
+            Self::Secp256r1MlKem768 => [0x11, 0xEB],
+            Self::Secp384r1MlKem1024 => [0x11, 0xED],
         }
     }
 
@@ -240,6 +257,12 @@ impl KeyExchangeGroup {
         match bytes {
             [0x00, 0x1D] => Some(Self::X25519),
             [0x11, 0xEC] => Some(Self::X25519MlKem768),
+            [0x00, 0x17] => Some(Self::Secp256r1),
+            [0x00, 0x18] => Some(Self::Secp384r1),
+            [0x00, 0x19] => Some(Self::Secp521r1),
+            [0x00, 0x1E] => Some(Self::X448),
+            [0x11, 0xEB] => Some(Self::Secp256r1MlKem768),
+            [0x11, 0xED] => Some(Self::Secp384r1MlKem1024),
             _ => None,
         }
     }
@@ -249,6 +272,12 @@ impl KeyExchangeGroup {
         match self {
             Self::X25519 => 32,
             Self::X25519MlKem768 => 1216,
+            Self::Secp256r1 => 65,
+            Self::Secp384r1 => 97,
+            Self::Secp521r1 => 133,
+            Self::X448 => 56,
+            Self::Secp256r1MlKem768 => 1249,
+            Self::Secp384r1MlKem1024 => 1665,
         }
     }
 
@@ -260,6 +289,12 @@ impl KeyExchangeGroup {
         match self {
             Self::X25519 => 32,
             Self::X25519MlKem768 => 1120,
+            Self::Secp256r1 => 65,
+            Self::Secp384r1 => 97,
+            Self::Secp521r1 => 133,
+            Self::X448 => 56,
+            Self::Secp256r1MlKem768 => 1153,
+            Self::Secp384r1MlKem1024 => 1665,
         }
     }
 }

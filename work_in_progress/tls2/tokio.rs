@@ -1,29 +1,36 @@
 use std::{
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll, ready},
 };
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 
 use crate::{
-    ALPN_PROTOCOL_MAX_SIZE, CipherSuite, Client, ClientApplicationDataEvent, ClientConfig, ClientHandshakeEvent,
-    CryptoProvider, Error, KeyExchangeGroup, MAX_RECORD_SIZE, SignatureScheme,
+    ALPN_PROTOCOL_MAX_SIZE, CertificateVerifier, CipherSuite, Client, ClientApplicationDataEvent, ClientConfig,
+    ClientHandshakeEvent, CryptoProvider, Error, KeyExchangeGroup, MAX_RECORD_SIZE, SignatureScheme,
 };
 
 /// Tokio-based TLS stream wrapping the sans-IO `Client`.
-pub struct TlsClient<S, P: CryptoProvider + Unpin> {
+pub struct TlsClient<S, C>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+    C: CryptoProvider + Unpin,
+{
     stream: S,
-    client: Client<Vec<u8>, P>,
+    client: Client<Vec<u8>, C>,
+    certificate_verifier: Arc<dyn CertificateVerifier>,
     close_notify_sent: bool,
 }
 
-impl<S, P: CryptoProvider + Unpin> TlsClient<S, P> {
-    pub fn new(config: ClientConfig<P>, stream: S) -> Self {
+impl<S: AsyncRead + AsyncWrite + Unpin, P: CryptoProvider + Unpin> TlsClient<S, P> {
+    pub fn new(config: ClientConfig<P>, certificate_verifier: Arc<dyn CertificateVerifier>, stream: S) -> Self {
         let client = Client::new(config, vec![0u8; MAX_RECORD_SIZE], vec![0u8; MAX_RECORD_SIZE]);
 
         Self {
             stream,
             client,
+            certificate_verifier,
             close_notify_sent: false,
         }
     }
@@ -33,10 +40,7 @@ impl<S, P: CryptoProvider + Unpin> TlsClient<S, P> {
         &mut self,
         server_name: Option<&str>,
         alpn_protocols: &[&[u8]],
-    ) -> Result<HandshakeData, Error>
-    where
-        S: AsyncRead + AsyncWrite + Unpin,
-    {
+    ) -> Result<HandshakeData, Error> {
         let mut event = self.client.start_handshake(server_name, alpn_protocols)?;
         loop {
             match event {
@@ -55,6 +59,14 @@ impl<S, P: CryptoProvider + Unpin> TlsClient<S, P> {
                         return Err(Error::ConnectionClosed);
                     }
                     self.client.commit_received(n);
+                }
+                ClientHandshakeEvent::VerifyServerCertificate => {
+                    {
+                        let (cert, server_name) =
+                            self.client.server_certificate().ok_or(Error::CertificateParseFailed)?;
+                        self.certificate_verifier.verify_certificate(&cert, server_name).await?;
+                    }
+                    self.client.accept_certificate(Ok(()));
                 }
                 ClientHandshakeEvent::Done {
                     ciphersuite,
@@ -80,7 +92,7 @@ impl<S, P: CryptoProvider + Unpin> TlsClient<S, P> {
 
 // ── AsyncRead ─────────────────────────────────────────────────────────────
 
-impl<S: AsyncRead + AsyncWrite + Unpin, P: CryptoProvider + Unpin> AsyncRead for TlsClient<S, P> {
+impl<S: AsyncRead + AsyncWrite + Unpin, C: CryptoProvider + Unpin> AsyncRead for TlsClient<S, C> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
         loop {
@@ -155,7 +167,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin, P: CryptoProvider + Unpin> AsyncRead for
 
 // ── AsyncWrite ────────────────────────────────────────────────────────────
 
-impl<S: AsyncRead + AsyncWrite + Unpin, P: CryptoProvider + Unpin> AsyncWrite for TlsClient<S, P> {
+impl<S: AsyncRead + AsyncWrite + Unpin, C: CryptoProvider + Unpin> AsyncWrite for TlsClient<S, C> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
         let this = self.get_mut();
 

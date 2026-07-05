@@ -7,10 +7,10 @@ edition = "2024"
 path = "tls.rs"
 
 [features]
-default = ["crypto-default-provider", "webpki-validator", "std", "tokio"]
+default = ["crypto-default-provider", "default-certificate-verifier", "std", "tokio"]
 crypto-default-provider = ["dep:crypto", "crypto/random"]
+default-certificate-verifier = ["dep:crypto"]
 std = ["crypto/std", "x509/std", "dep:async-trait"]
-webpki-validator = ["dep:crypto"]
 tokio = ["dep:tokio", "std"]
 zeroize = ["dep:zeroize", "crypto?/zeroize"]
 

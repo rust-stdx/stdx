@@ -81,7 +81,7 @@ mod tests {
         // Now test using our provider chain
         use tls2::{CipherSuite, CryptoProvider, crypto_default_provider::DefaultCryptoProvider, key_schedule};
 
-        let provider = DefaultCryptoProvider::new();
+        let provider = DefaultCryptoProvider;
         let suite = CipherSuite::TlsAes128GcmSha256;
 
         let (aead_key, _our_iv) =
