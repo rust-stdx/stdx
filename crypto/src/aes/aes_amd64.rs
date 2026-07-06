@@ -64,7 +64,7 @@ mod tests {
     }
 
     fn make_rk(key: &[u8; 32]) -> [__m128i; 15] {
-        let soft = crate::aes::aes::key_expand_256(key);
+        let soft = super::expand_key::<15>(key);
         let mut rk = [unsafe { _mm_setzero_si128() }; 15];
         for i in 0..15 {
             rk[i] = unsafe { _mm_loadu_si128(soft[i].as_ptr().cast()) };

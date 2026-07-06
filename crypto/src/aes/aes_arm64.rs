@@ -82,7 +82,7 @@ mod tests {
     use super::*;
 
     fn make_rk(key: &[u8; 32]) -> [uint8x16_t; 15] {
-        let soft = crate::aes::aes::expand_key::<15>(key);
+        let soft = super::expand_key::<15>(key);
         let mut rk = [unsafe { vdupq_n_u8(0) }; 15];
         for i in 0..15 {
             rk[i] = unsafe { vld1q_u8(soft[i].as_ptr()) };
