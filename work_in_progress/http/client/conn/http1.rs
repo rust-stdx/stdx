@@ -1,4 +1,3 @@
-use bytes::Bytes;
 #[cfg(feature = "tls")]
 use tls::io_tokio::{TlsConnector, TlsStream};
 use tokio::{

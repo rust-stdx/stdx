@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tls::{
-    CertType, ClientConfig, ClientConnection, Error, HandshakeFailure, SIGNING_PUBLIC_KEY_MAX_SIZE, ServerConfig,
-    ServerConnection,
+    CertType, ClientConfig, ClientConnection, Error, SIGNING_PUBLIC_KEY_MAX_SIZE, ServerConfig, ServerConnection,
     config::{CertificateProvider, ClientHello, ProvidedCertificate},
     crypto::CryptoProvider,
     crypto_default_provider::DefaultCryptoProvider,
@@ -80,39 +79,25 @@ async fn selfcontained_app_data() {
     let mut client = ClientConnection::new(client_cfg, Some("localhost")).await.unwrap();
 
     let mut ch_bytes = Vec::new();
-    let mut buf = [0u8; tls::MAX_RECORD_SIZE];
-    while {
-        let n = client.write_tls(&mut buf).unwrap();
-        if n > 0 {
-            ch_bytes.extend_from_slice(&buf[..n]);
-        }
-        n > 0
-    } {}
+    while let Some(n) = client.write_tls() {
+        ch_bytes.extend_from_slice(&n);
+    }
     assert!(!ch_bytes.is_empty(), "ClientHello should be generated");
 
     server.inject(&ch_bytes);
     server.process().await.unwrap();
     let mut server_response = Vec::new();
-    let mut buf = [0u8; tls::MAX_RECORD_SIZE];
-    while {
-        let n = server.write_tls(&mut buf).unwrap();
-        if n > 0 {
-            server_response.extend_from_slice(&buf[..n]);
-        }
-        n > 0
-    } {}
+    while let Some(n) = server.write_tls() {
+        server_response.extend_from_slice(&n);
+    }
     assert!(!server_response.is_empty(), "Server should respond");
 
     client.inject(&server_response);
     client.process().await.unwrap();
     let mut client_fin = Vec::new();
-    while {
-        let n = client.write_tls(&mut buf).unwrap();
-        if n > 0 {
-            client_fin.extend_from_slice(&buf[..n]);
-        }
-        n > 0
-    } {}
+    while let Some(n) = client.write_tls() {
+        client_fin.extend_from_slice(&n);
+    }
     assert!(
         client.handshake_done(),
         "Client handshake should complete after first server response"
@@ -125,8 +110,8 @@ async fn selfcontained_app_data() {
 
     assert!(server.handshake_done(), "Full handshake should complete");
 
-    let n = server.encrypt_application_data(b"HELLO FROM SERVER", &mut buf).unwrap();
-    client.inject(&buf[..n]);
+    let n = server.encrypt_application_data(b"HELLO FROM SERVER").unwrap();
+    client.inject(&n);
     client.process().await.unwrap();
     let mut received_server = false;
     while let Some(data) = client.read_app_data() {
@@ -135,8 +120,8 @@ async fn selfcontained_app_data() {
     }
     assert!(received_server, "Client should receive app data from server");
 
-    let n = client.encrypt_application_data(b"HELLO FROM CLIENT", &mut buf).unwrap();
-    server.inject(&buf[..n]);
+    let n = client.encrypt_application_data(b"HELLO FROM CLIENT").unwrap();
+    server.inject(&n);
     server.process().await.unwrap();
     let mut received_client = false;
     while let Some(data) = server.read_app_data() {
@@ -160,39 +145,25 @@ async fn selfcontained_app_data_pq() {
     let mut client = ClientConnection::new(client_cfg, Some("localhost")).await.unwrap();
 
     let mut ch_bytes = Vec::new();
-    let mut buf = [0u8; tls::MAX_RECORD_SIZE];
-    while {
-        let n = client.write_tls(&mut buf).unwrap();
-        if n > 0 {
-            ch_bytes.extend_from_slice(&buf[..n]);
-        }
-        n > 0
-    } {}
+    while let Some(n) = client.write_tls() {
+        ch_bytes.extend_from_slice(&n);
+    }
     assert!(!ch_bytes.is_empty(), "ClientHello should be generated");
 
     server.inject(&ch_bytes);
     server.process().await.unwrap();
     let mut server_response = Vec::new();
-    let mut buf = [0u8; tls::MAX_RECORD_SIZE];
-    while {
-        let n = server.write_tls(&mut buf).unwrap();
-        if n > 0 {
-            server_response.extend_from_slice(&buf[..n]);
-        }
-        n > 0
-    } {}
+    while let Some(n) = server.write_tls() {
+        server_response.extend_from_slice(&n);
+    }
     assert!(!server_response.is_empty(), "Server should respond");
 
     client.inject(&server_response);
     client.process().await.unwrap();
     let mut client_fin = Vec::new();
-    while {
-        let n = client.write_tls(&mut buf).unwrap();
-        if n > 0 {
-            client_fin.extend_from_slice(&buf[..n]);
-        }
-        n > 0
-    } {}
+    while let Some(n) = client.write_tls() {
+        client_fin.extend_from_slice(&n);
+    }
     assert!(
         client.handshake_done(),
         "Client handshake should complete after first server response"

@@ -1,8 +1,7 @@
 //! Example: connect to an HTTP/3 server, send GET /, and print the response.
 use std::{
     net::{SocketAddr, ToSocketAddrs},
-    sync::Arc,
-    time::{Duration, SystemTime},
+    time::SystemTime,
 };
 
 use http::http3::{self, frame, qpack};
@@ -19,15 +18,8 @@ impl Transport for UdpTransport {
     async fn send_to(&self, dest: SocketAddr, data: &[u8]) -> Result<usize, IoError> {
         self.socket.send_to(data, dest).await.map_err(IoError::from)
     }
-    async fn receive_from(&self, buf: &mut [u8], deadline: Option<Duration>) -> Result<(usize, SocketAddr), IoError> {
-        let recv = self.socket.recv_from(buf);
-        match deadline {
-            Some(d) => match tokio::time::timeout(d, recv).await {
-                Ok(result) => result.map_err(IoError::from),
-                Err(_) => Err(IoError::WouldBlock),
-            },
-            None => recv.await.map_err(IoError::from),
-        }
+    async fn receive_from(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr), IoError> {
+        self.socket.recv_from(buf).await.map_err(IoError::from)
     }
     fn local_addr(&self) -> Result<SocketAddr, IoError> {
         self.socket.local_addr().map_err(IoError::from)
@@ -56,27 +48,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport = UdpTransport {
         socket: TokioUdpSocket::bind("0.0.0.0:0").await?,
     };
-    let conn = quic::Connection::connect(Arc::new(transport), config, addr, &server_name).await?;
+    let mut conn = quic::Connection::new(transport, config);
+    conn.connect(addr, &server_name).await?;
     println!("QUIC handshake complete");
-
-    // Spawn background task to drive the connection
-    let bg = conn.clone();
-    tokio::spawn(async move {
-        eprintln!("[bg] poll task started");
-        loop {
-            eprintln!("[bg] calling poll");
-            if let Err(err) = bg.poll().await {
-                eprintln!("error polling connection: {err}");
-            }
-            eprintln!("[bg] poll returned");
-        }
-    });
 
     let mut ctl = conn.open_unidirectional_stream().await?;
     let mut ctl_buf = Vec::new();
     quic::varint::encode(http3::CONTROL_STREAM_TYPE, &mut ctl_buf);
     ctl_buf.extend_from_slice(&frame::encode_frame(&frame::Frame::Settings(Vec::new())));
-    ctl.send(&ctl_buf, false).await?;
+    ctl.send(&ctl_buf, false)?;
     eprintln!("[http3] ctl.send done");
 
     let mut enc = conn.open_unidirectional_stream().await?;
@@ -84,29 +64,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = Vec::new();
     quic::varint::encode(http3::QPACK_ENCODER_STREAM_TYPE, &mut buf);
     quic::varint::encode(0x20, &mut buf);
-    enc.send(&buf, false).await?;
+    enc.send(&buf, false)?;
 
     let mut dec = conn.open_unidirectional_stream().await?;
     let mut buf = Vec::new();
     quic::varint::encode(http3::QPACK_DECODER_STREAM_TYPE, &mut buf);
-    dec.send(&buf, false).await?;
+    dec.send(&buf, false)?;
 
     let (mut req_send, mut req_recv) = conn.open_bidirectional_stream().await?;
 
     println!("Sending GET / ...");
     let mut enc = qpack::QpackEncoder::new();
-    req_send
-        .send(
-            &frame::encode_frame(&frame::Frame::Headers(enc.encode(&[
-                (":method", "GET"),
-                (":scheme", "https"),
-                (":authority", &server_name),
-                (":path", "/"),
-                ("user-agent", "stdx-h3/0.1"),
-            ]))),
-            true,
-        )
-        .await?;
+    req_send.send(
+        &frame::encode_frame(&frame::Frame::Headers(enc.encode(&[
+            (":method", "GET"),
+            (":scheme", "https"),
+            (":authority", &server_name),
+            (":path", "/"),
+            ("user-agent", "stdx-h3/0.1"),
+        ]))),
+        true,
+    )?;
 
     println!("Waiting for server response...");
     let mut server = conn.accept_unidirectional_stream().await?;
@@ -157,57 +135,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
         match frame::decode_frame(&pending) {
-            Ok((f, consumed)) => {
-                match f {
-                    frame::Frame::Headers(d) => {
+            Ok((f, consumed)) => match f {
+                frame::Frame::Headers(d) => {
+                    pending.drain(..consumed);
+                    headers = dec.decode(&d).map_err(|e| format!("qpack: {e:?}"))?;
+                }
+                frame::Frame::Data(d) => {
+                    body.extend_from_slice(&d);
+                    pending.drain(..consumed);
+                }
+                frame::Frame::GoAway {
+                    stream_id,
+                } => {
+                    println!("Server GoAway (stream_id={stream_id})");
+                    pending.drain(..consumed);
+                }
+                frame::Frame::Grease(ty, _) => {
+                    println!("GREASE frame type=0x{ty:x}");
+                    pending.drain(..consumed);
+                }
+                frame::Frame::CancelPush(_) | frame::Frame::PushPromise(_) | frame::Frame::MaxPushId(_) => {
+                    pending.drain(..consumed);
+                }
+                frame::Frame::Settings(_) => {
+                    pending.drain(..consumed);
+                }
+                frame::Frame::Unknown(ty, _payload) => {
+                    if ty < 0x100 {
+                        body.extend_from_slice(&pending[..consumed]);
                         pending.drain(..consumed);
-                        headers = dec.decode(&d).map_err(|e| format!("qpack: {e:?}"))?;
-                    }
-                    frame::Frame::Data(d) => {
-                        body.extend_from_slice(&d);
-                        pending.drain(..consumed);
-                    }
-                    frame::Frame::GoAway {
-                        stream_id,
-                    } => {
-                        println!("Server GoAway (stream_id={stream_id})");
-                        pending.drain(..consumed);
-                    }
-                    frame::Frame::Grease(ty, _) => {
-                        println!("GREASE frame type=0x{ty:x}");
-                        pending.drain(..consumed);
-                    }
-                    frame::Frame::CancelPush(_) | frame::Frame::PushPromise(_) | frame::Frame::MaxPushId(_) => {
-                        // Server push frames — not expected for a simple GET.
-                        pending.drain(..consumed);
-                    }
-                    frame::Frame::Settings(_) => {
-                        // Already handled on the control stream above; ignore here.
-                        pending.drain(..consumed);
-                    }
-                    frame::Frame::Unknown(ty, _payload) => {
-                        // A small type value likely means we're reading HTML body content
-                        // that happens to look like a valid frame header.
-                        if ty < 0x100 {
-                            body.extend_from_slice(&pending[..consumed]);
-                            pending.drain(..consumed);
-                            body.extend_from_slice(&pending);
-                            pending.clear();
-                            while let Some(n) = req_recv.receive(&mut buf).await? {
-                                body.extend_from_slice(&buf[..n]);
-                            }
-                            stream_done = true;
-                        } else {
-                            pending.drain(..consumed);
+                        body.extend_from_slice(&pending);
+                        pending.clear();
+                        while let Some(n) = req_recv.receive(&mut buf).await? {
+                            body.extend_from_slice(&buf[..n]);
                         }
+                        stream_done = true;
+                    } else {
+                        pending.drain(..consumed);
                     }
                 }
-            }
+            },
             Err(frame::FrameDecodeError::Incomplete) | Err(frame::FrameDecodeError::BadVarint) => {
                 if stream_done {
-                    // End of stream: consume any trailing data as body content
                     if !pending.is_empty() {
-                        // Check if it starts with a DATA frame header
                         if pending.len() >= 2 && pending[0] == 0x00 {
                             if let Ok((_ty, tc)) = quic::varint::decode(&pending) {
                                 if let Ok((_len, lc)) = quic::varint::decode(&pending[tc..]) {
@@ -218,7 +188,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
                         }
-                        // Still have bytes after attempted parse: add to body
                         if !pending.is_empty() {
                             body.extend_from_slice(&pending);
                         }

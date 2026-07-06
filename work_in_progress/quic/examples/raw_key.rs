@@ -120,14 +120,14 @@ impl CertificateValidator for PinnedKeyValidator {
             } => {
                 if *scheme != SignatureScheme::Ed25519 {
                     return Err(tls::Error::CertificateValidationFailed(
-                        tls::CertificateValidationFailure::Other(format!("expected Ed25519, got {scheme:?}").into()),
+                        tls::CertificateValidationFailure::SignatureVerificationFailed,
                     ));
                 }
                 if public_key.as_slice() == expected_pk {
                     Ok(())
                 } else {
                     Err(tls::Error::CertificateValidationFailed(
-                        tls::CertificateValidationFailure::Other("public key mismatch".into()),
+                        tls::CertificateValidationFailure::SignatureVerificationFailed,
                     ))
                 }
             }

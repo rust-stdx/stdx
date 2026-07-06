@@ -48,6 +48,7 @@ pub const MAX_EXTENSIONS: usize = 16;
 
 /// Maximum number of certificate in a chain
 pub const MAX_CERTIFICATES_IN_CHAIN: usize = 10;
+pub const MAX_RECORD_SIZE: usize = 16662;
 
 mod errors;
 mod message;

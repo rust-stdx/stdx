@@ -5,11 +5,10 @@ mod pool;
 
 use std::{sync::Arc, time::Duration};
 
-use alt_svc::{AltSvcCache, parse_alt_svc_for_h3, split_alt_authority};
+use alt_svc::{AltSvcCache, parse_alt_svc_for_h3};
 use bytes::Bytes;
-use conn::ConnRef;
 use error::Error;
-use pool::{ConnectionPool, PoolKey};
+use pool::ConnectionPool;
 use tokio::sync::Mutex;
 
 use crate::common::{Request, Response};
@@ -212,7 +211,7 @@ impl Default for Client {
 }
 
 fn build_alpn() -> Vec<Bytes> {
-    let mut alpn = vec![Bytes::from_static(b"http/1.1")];
+    let alpn = vec![Bytes::from_static(b"http/1.1")];
     #[cfg(feature = "http2")]
     alpn.insert(0, Bytes::from_static(b"h2"));
     alpn

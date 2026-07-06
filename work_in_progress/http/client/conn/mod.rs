@@ -4,8 +4,6 @@ pub(crate) mod http2;
 #[cfg(feature = "http3")]
 pub(crate) mod http3;
 
-use std::sync::Arc;
-
 use super::{error::Error, pool::PoolKey};
 use crate::common::{Request, Response};
 
