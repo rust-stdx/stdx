@@ -465,7 +465,6 @@ mod tests {
         hp
     }
 
-    // ── GHASH / GCM test vectors (NIST SP 800-38D + others) ──────────────────
     #[test]
     fn aesni_tag_mismatch() {
         skip_unless_aesni!();

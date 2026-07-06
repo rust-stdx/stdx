@@ -196,7 +196,7 @@ impl<const N: usize> AesGcm<N> {
 
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         assert!(
-            in_out.len() <= GCM_MAX_LEN,
+            in_out.len() as u64 <= GCM_MAX_LEN,
             "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
         );
 
@@ -221,7 +221,7 @@ impl<const N: usize> AesGcm<N> {
     }
 
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
-        if in_out.len() > GCM_MAX_LEN + Self::TAG_SIZE {
+        if in_out.len() as u64 > GCM_MAX_LEN + Self::TAG_SIZE as u64 {
             return Err(AeadError::InvalidCiphertext);
         }
 

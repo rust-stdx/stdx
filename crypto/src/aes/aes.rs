@@ -9,7 +9,7 @@ use super::ghash::gf128_mul;
 
 // ── AES constants ─────────────────────────────────────────────────────────────
 
-pub const GCM_MAX_LEN: usize = (u32::MAX as usize - 1) * 16;
+pub const GCM_MAX_LEN: u64 = (u32::MAX as u64 - 1) * 16;
 
 #[rustfmt::skip]
 pub(crate) const SBOX: [u8; 256] = [
