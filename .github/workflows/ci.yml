@@ -29,6 +29,4 @@ jobs:
         run: make check
       # package that run on all platforms
       - run: cargo test --target ${{ matrix.target }} -p hex -p base64 -p base32 -p crypto
-      # packages that don't run yet on WASM
-      - if: matrix.target != 'wasm32-wasip1'
-        run: cargo test --target ${{ matrix.target }} -p tls
+

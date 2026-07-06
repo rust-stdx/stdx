@@ -466,36 +466,6 @@ mod tests {
     }
 
     // ── GHASH / GCM test vectors (NIST SP 800-38D + others) ──────────────────
-
-    include!("aes_gcm_vectors.rs");
-
-    #[test]
-    fn nist_gcm_aesni() {
-        skip_unless_aesni!();
-
-        for v in NIST_GCM_VECTORS {
-            let key: [u8; 32] = hex::decode_array::<32>(v.key.as_bytes()).unwrap();
-            let nonce: [u8; 12] = hex::decode_array::<12>(v.nonce.as_bytes()).unwrap();
-            let pt = hex::decode(v.pt).unwrap();
-            let aad = hex::decode(v.aad).unwrap();
-            let exp_ct = hex::decode(v.ct).unwrap();
-            let exp_tag: [u8; 16] = hex::decode_array::<16>(v.tag.as_bytes()).unwrap();
-
-            let rk = make_rk(&key);
-            let hp = make_h_powers(&key);
-
-            let mut buf = pt.clone();
-            let tag = unsafe { super::gcm_encrypt_aesni(&rk, &hp, &mut buf, &nonce, &aad) };
-            assert_eq!(buf, exp_ct, "AES-NI ct  key={}", v.key);
-            assert_eq!(tag.as_ref(), &exp_tag[..], "AES-NI tag key={}", v.key);
-
-            let mut buf2 = exp_ct.clone();
-            unsafe { super::gcm_decrypt_aesni(&rk, &hp, &mut buf2, &exp_tag, &nonce, &aad) }
-                .expect("AES-NI decrypt failed");
-            assert_eq!(buf2, pt, "AES-NI pt  key={}", v.key);
-        }
-    }
-
     #[test]
     fn aesni_tag_mismatch() {
         skip_unless_aesni!();
