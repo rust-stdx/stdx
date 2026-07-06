@@ -429,10 +429,8 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        aes::{expand_key, ghash::precompute_ghash_table},
-        *,
-    };
+    use super::*;
+    use crate::aes::{expand_key, ghash::precompute_ghash_table};
 
     fn have_features() -> bool {
         std::arch::is_x86_feature_detected!("aes")
@@ -451,7 +449,7 @@ mod tests {
     }
 
     fn make_rk(key: &[u8; 32]) -> [__m128i; 15] {
-        let soft = super::expand_key::<15>(key);
+        let soft = crate::aes::aes::expand_key::<15>(key);
         let mut rk = [unsafe { _mm_setzero_si128() }; 15];
         for i in 0..15 {
             rk[i] = unsafe { _mm_loadu_si128(soft[i].as_ptr().cast()) };
@@ -460,7 +458,7 @@ mod tests {
     }
 
     fn make_h_powers(key: &[u8; 32]) -> [__m128i; 8] {
-        let (bytes, _) = super::ghash::precompute_ghash_powers::<15>(key);
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers::<15>(key);
         let mut hp = [unsafe { _mm_setzero_si128() }; 8];
         for i in 0..8 {
             hp[i] = unsafe { _mm_loadu_si128(bytes[i].as_ptr().cast()) };
@@ -496,7 +494,7 @@ mod tests {
         let round_keys = expand_key(&key);
         let ghash_table = precompute_ghash_table(&round_keys);
 
-        let cipher = super::aes_gcm::Aes256Gcm::new(&key);
+        let cipher = crate::aes::aes_gcm::Aes256Gcm::new(&key);
         let mut soft_buf = pt.clone();
         let soft_tag = cipher
             .0
