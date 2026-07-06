@@ -25,6 +25,8 @@ pub type Result<T> = std::result::Result<T, PgError>;
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::{types::*, *};
 
     #[test]
@@ -109,8 +111,8 @@ mod tests {
 
     #[test]
     fn test_bind_iter_uuid() {
-        let u1 = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        let u2 = uuid::Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap();
+        let u1 = uuid::Uuid::from_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let u2 = uuid::Uuid::from_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap();
         let bi = BindIter::new(vec![u1, u2].into_iter(), &UUID);
         let bytes = bi.to_sql().unwrap();
         let dim_count = i32::from_be_bytes([bytes[12], bytes[13], bytes[14], bytes[15]]);
@@ -229,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_to_sql_timestamptz_overflow() {
-        use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
+        use chrono::{NaiveDate, TimeDelta};
         // Create a duration that exceeds i64 microseconds
         let big_dur = TimeDelta::microseconds(i64::MAX);
         let pg_epoch = NaiveDate::from_ymd_opt(2000, 1, 1)
@@ -250,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_to_sql_timestamptz_normal() {
-        use chrono::{DateTime, Utc};
+        use chrono::DateTime;
         let dt = DateTime::from_timestamp(0, 0).unwrap();
         let result = dt.to_sql().unwrap();
         let pg_epoch = DateTime::from_timestamp(946684800, 0).unwrap();
@@ -302,9 +304,6 @@ mod tests {
 
     #[test]
     fn test_parse_command_tag_insert() {
-        use crate::connection;
-        let mut affected = 0u64;
-
         // The parse_command_tag is a private function in connection.rs.
         // We test via the public API's encode/decode behavior.
         // This test verifies the logic through simple_query's CommandComplete parsing.
@@ -413,9 +412,9 @@ mod tests {
     #[test]
     fn test_from_sql_uuid() {
         use uuid::Uuid;
-        let u = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let u = Uuid::from_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
         let bytes = u.as_bytes();
-        let result = Uuid::from_sql(UUIDOID, bytes).unwrap();
+        let result = Uuid::from_sql(UUIDOID, &bytes).unwrap();
         assert_eq!(result, u);
     }
 
@@ -467,8 +466,8 @@ mod tests {
     fn test_bind_iter_uuid_full_roundtrip() {
         use uuid::Uuid;
         let data = vec![
-            Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
-            Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap(),
+            Uuid::from_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
+            Uuid::from_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap(),
         ];
         let vec_encoded = data.to_sql().unwrap();
         let bind_encoded = BindIter::new(data.into_iter(), &UUID).to_sql().unwrap();
