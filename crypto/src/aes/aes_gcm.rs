@@ -5,7 +5,7 @@ use super::{
     ghash::{GHashPowers, compute_tag, precompute_ghash_powers, precompute_ghash_table},
 };
 use crate::{
-    Aead, AeadError, Hash, StreamCipher,
+    Aead, AeadError, Hash,
     aes::{RoundKeys, aes::RoundKeysSoftware, aes_ctr::AesCtr, ghash::GhashTable},
 };
 
@@ -120,6 +120,8 @@ impl AesGcm<15> {
 }
 
 impl<const N: usize> AesGcm<N> {
+    const TAG_SIZE: usize = 16;
+
     fn new_inner(key: &[u8]) -> Self {
         const { assert!(N == 11 || N == 15) };
 
@@ -192,6 +194,58 @@ impl<const N: usize> AesGcm<N> {
         }
     }
 
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
+        assert!(
+            in_out.len() <= GCM_MAX_LEN,
+            "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
+        );
+
+        let nonce_arr: &[u8; 12] = nonce.try_into().expect("AES-GCM nonce must be 12 bytes");
+
+        match (&self.round_keys, &self.h_powers) {
+            #[cfg(target_arch = "aarch64")]
+            (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
+                use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
+                gcm_encrypt_armv8(round_keys, &h_powers, in_out, nonce_arr, aad)
+            },
+            #[cfg(target_arch = "x86_64")]
+            (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
+                use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
+                gcm_encrypt_aesni(&round_keys, &h_powers, in_out, nonce_arr, aad)
+            },
+            (RoundKeys::Software(round_keys), GHashPowers::Software(ghash_table)) => {
+                self.encrypt_in_place_soft(in_out, round_keys, ghash_table, nonce_arr, aad)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
+        if in_out.len() > GCM_MAX_LEN + Self::TAG_SIZE {
+            return Err(AeadError::InvalidCiphertext);
+        }
+
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
+        let tag_arr: &[u8; 16] = tag.try_into().expect("AES-GCM tag must be 16 bytes");
+
+        match (&self.round_keys, &self.h_powers) {
+            #[cfg(target_arch = "aarch64")]
+            (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
+                use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
+                gcm_decrypt_armv8(round_keys, &h_powers, in_out, tag_arr, nonce_arr, aad)
+            },
+            #[cfg(target_arch = "x86_64")]
+            (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
+                use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
+                gcm_decrypt_aesni(&round_keys, &h_powers, in_out, tag_arr, nonce_arr, aad)
+            },
+            (RoundKeys::Software(round_keys), GHashPowers::Software(ghash_table)) => {
+                self.decrypt_in_place_soft(in_out, round_keys, ghash_table, tag_arr, nonce_arr, aad)
+            }
+            _ => unreachable!(),
+        }
+    }
+
     /// Pure-Rust encrypt implementation.
     pub(crate) fn encrypt_in_place_soft(
         &self,
@@ -243,63 +297,6 @@ impl<const N: usize> AesGcm<N> {
         aes_ctr.xor_keystream(in_out);
 
         Ok(())
-    }
-}
-
-impl<const N: usize> Aead for AesGcm<N> {
-    const TAG_SIZE: usize = 16;
-    const NONCE_SIZE: usize = 12;
-
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-        assert!(
-            in_out.len() <= GCM_MAX_LEN,
-            "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
-        );
-
-        let nonce_arr: &[u8; 12] = nonce.try_into().expect("AES-GCM nonce must be 12 bytes");
-
-        match (&self.round_keys, &self.h_powers) {
-            #[cfg(target_arch = "aarch64")]
-            (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
-                use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
-                gcm_encrypt_armv8(round_keys, &h_powers, in_out, nonce_arr, aad)
-            },
-            #[cfg(target_arch = "x86_64")]
-            (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
-                use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
-                gcm_encrypt_aesni(&round_keys, &h_powers, in_out, nonce_arr, aad)
-            },
-            (RoundKeys::Software(round_keys), GHashPowers::Software(ghash_table)) => {
-                self.encrypt_in_place_soft(in_out, round_keys, ghash_table, nonce_arr, aad)
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
-        if in_out.len() > GCM_MAX_LEN + Self::TAG_SIZE {
-            return Err(AeadError::InvalidCiphertext);
-        }
-
-        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
-        let tag_arr: &[u8; 16] = tag.try_into().expect("AES-GCM tag must be 16 bytes");
-
-        match (&self.round_keys, &self.h_powers) {
-            #[cfg(target_arch = "aarch64")]
-            (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
-                use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
-                gcm_decrypt_armv8(round_keys, &h_powers, in_out, tag_arr, nonce_arr, aad)
-            },
-            #[cfg(target_arch = "x86_64")]
-            (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
-                use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
-                gcm_decrypt_aesni(&round_keys, &h_powers, in_out, tag_arr, nonce_arr, aad)
-            },
-            (RoundKeys::Software(round_keys), GHashPowers::Software(ghash_table)) => {
-                self.decrypt_in_place_soft(in_out, round_keys, ghash_table, tag_arr, nonce_arr, aad)
-            }
-            _ => unreachable!(),
-        }
     }
 }
 
