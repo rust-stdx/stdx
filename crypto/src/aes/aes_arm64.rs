@@ -3,7 +3,7 @@
 /// aarch64 AES-256-GCM using ARMv8 Crypto extensions.
 ///
 /// Same 8/4-block parallel CTR and aggregated GHASH strategy as the
-/// x86_64 path (see `aes256_amd64.rs` for details). The ARMv8 equivalents:
+/// x86_64 path (see `aes_amd64.rs` for details). The ARMv8 equivalents:
 /// - `vaeseq_u8` / `vaesmcq_u8` for AES
 /// - `vmull_p64` intrinsic for carry-less multiplication
 /// - `vrbitq_u8` for per-byte bit reversal
@@ -17,36 +17,49 @@
 /// eliminating key expansion and H derivation from every call.
 use core::arch::aarch64::*;
 
+pub(crate) fn expand_key_armv8<const N: usize>(round_keys_software: [[u8; 16]; N]) -> [uint8x16_t; N] {
+    const { assert!(N == 11 || N == 15) };
+
+    let mut round_keys = [unsafe { vdupq_n_u8(0) }; N];
+    for i in 0..N {
+        round_keys[i] = unsafe { vld1q_u8(round_keys_software[i].as_ptr()) };
+    }
+    round_keys
+}
+
 /// Const generic AES encrypt block for AES-128 (N=11) and AES-256 (N=15).
 #[target_feature(enable = "aes,neon")]
 #[inline]
-pub(crate) unsafe fn aes_encrypt_block<const N: usize>(rk: &[uint8x16_t; N], block: uint8x16_t) -> uint8x16_t {
+pub(crate) unsafe fn aes_encrypt_block<const N: usize>(round_keys: &[uint8x16_t; N], block: uint8x16_t) -> uint8x16_t {
     const { assert!(N == 11 || N == 15) };
 
     let zero = vdupq_n_u8(0);
 
-    let mut b = veorq_u8(block, rk[0]);
+    let mut b = veorq_u8(block, round_keys[0]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[1]);
+    b = veorq_u8(b, round_keys[1]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[2]);
+    b = veorq_u8(b, round_keys[2]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[3]);
+    b = veorq_u8(b, round_keys[3]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[4]);
+    b = veorq_u8(b, round_keys[4]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[5]);
+    b = veorq_u8(b, round_keys[5]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[6]);
+    b = veorq_u8(b, round_keys[6]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[7]);
+    b = veorq_u8(b, round_keys[7]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[8]);
+    b = veorq_u8(b, round_keys[8]);
     b = vaesmcq_u8(vaeseq_u8(b, zero));
-    b = veorq_u8(b, rk[9]);
+    b = veorq_u8(b, round_keys[9]);
 
-    if N == 15 {
-        let p = rk.as_ptr();
+    if N == 11 {
+        b = vaeseq_u8(b, zero);
+        veorq_u8(b, round_keys[10])
+    } else {
+        let p = round_keys.as_ptr();
         b = vaesmcq_u8(vaeseq_u8(b, zero));
         b = veorq_u8(b, *p.add(10));
         b = vaesmcq_u8(vaeseq_u8(b, zero));
@@ -57,9 +70,6 @@ pub(crate) unsafe fn aes_encrypt_block<const N: usize>(rk: &[uint8x16_t; N], blo
         b = veorq_u8(b, *p.add(13));
         b = vaeseq_u8(b, zero);
         veorq_u8(b, *p.add(14))
-    } else {
-        b = vaeseq_u8(b, zero);
-        veorq_u8(b, rk[10])
     }
 }
 

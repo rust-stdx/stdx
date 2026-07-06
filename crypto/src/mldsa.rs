@@ -1182,7 +1182,7 @@ mod tests {
     }
 
     // Verify using sig-ver.json + key-gen.json.
-    // Key mapping: sigver ML-DSA-65 test at position i → keygen ML-DSA-65 position i.
+    // Key mapping: sigver ML-DSA-65 test at position i -> keygen ML-DSA-65 position i.
     // sigver ML-DSA-65 tcId range: 16-30 (15 tests)
     // keygen ML-DSA-65 tcId range: 26-50 (25 tests)
     // offset = 26 - 16 = 10
@@ -1244,7 +1244,7 @@ mod tests {
         assert_eq!(tested, 15, "all 15 ML-DSA-65 sigver tests should be run");
     }
 
-    // KAT: seed → keygen → SHA3-256(verification_key) checks, sign → SHA3-256(signature) checks.
+    // KAT: seed -> keygen -> SHA3-256(verification_key) checks, sign -> SHA3-256(signature) checks.
     #[test]
     fn test_ml_dsa_65_kat() {
         use serde::Deserialize;

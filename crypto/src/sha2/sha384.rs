@@ -124,17 +124,18 @@ impl Hasher for Sha384 {
 #[inline(always)]
 #[allow(unreachable_code)]
 fn process_block(state: &mut [u64; 8], block: &[u8; 128]) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        if sha512_amd64::process_block_if_supported(state, block) {
-            return;
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    if std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx") {
+        unsafe {
+            sha512_amd64::compress(state, block);
         }
+        return;
     }
 
     #[cfg(target_arch = "aarch64")]
     {
         unsafe {
-            sha512_arm64::process_block(state, block);
+            sha512_arm64::compress(state, block);
         }
         return;
     }

@@ -3,6 +3,17 @@
 /// x86-64 AES-256 block cipher using AES-NI intrinsics.
 use core::arch::x86_64::*;
 
+#[inline]
+pub(crate) fn expand_key_x86_64<const N: usize>(round_keys_software: [[u8; 16]; N]) -> [__m128i; N] {
+    const { assert!(N == 11 || N == 15) };
+
+    let mut round_keys = unsafe { [_mm_setzero_si128(); N] };
+    for i in 0..N {
+        round_keys[i] = unsafe { _mm_loadu_si128(round_keys_software[i].as_ptr().cast()) };
+    }
+    round_keys
+}
+
 /// Const generic AES encrypt block for AES-128 (N=11) and AES-256 (N=15).
 #[target_feature(enable = "aes,sse2")]
 #[inline]
@@ -20,15 +31,15 @@ pub(crate) unsafe fn aes_encrypt_block<const N: usize>(rk: &[__m128i; N], block:
     b = _mm_aesenc_si128(b, rk[8]);
     b = _mm_aesenc_si128(b, rk[9]);
 
-    if N == 15 {
+    if N == 11 {
+        _mm_aesenclast_si128(b, rk[10])
+    } else {
         let p = rk.as_ptr();
         b = _mm_aesenc_si128(b, *p.add(10));
         b = _mm_aesenc_si128(b, *p.add(11));
         b = _mm_aesenc_si128(b, *p.add(12));
         b = _mm_aesenc_si128(b, *p.add(13));
         _mm_aesenclast_si128(b, *p.add(14))
-    } else {
-        _mm_aesenclast_si128(b, rk[10])
     }
 }
 

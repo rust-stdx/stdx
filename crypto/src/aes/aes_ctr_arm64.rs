@@ -7,7 +7,7 @@ pub(crate) const SWAP_MASK: [u8; 16] = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4
 
 /// Increment the big-endian 32-bit counter stored in bytes 12..15.
 #[inline]
-pub(crate) fn ctr_inc(counter: uint8x16_t) -> uint8x16_t {
+pub(crate) fn increment_counter(counter: uint8x16_t) -> uint8x16_t {
     unsafe {
         let swap = vld1q_u8(SWAP_MASK.as_ptr());
         let swapped = vqtbl1q_u8(counter, swap);

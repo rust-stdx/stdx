@@ -4,21 +4,46 @@ use core::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 
-/// AES-256-CTR stream cipher with hardware acceleration.
-///
-/// Wraps the AES-256 block cipher in CTR mode as a [`StreamCipher`].
-/// On x86-64 with AES-NI + SSSE3, and on aarch64 with ARMv8 Crypto
-/// extensions, the keystream generation is hardware-accelerated.
-use super::aes::{RoundKeys, encrypt_block, expand_key};
+use super::aes::{encrypt_block, expand_key};
 #[cfg(target_arch = "x86_64")]
 use super::aes_amd64::aes_encrypt_block;
 #[cfg(target_arch = "aarch64")]
 use super::aes_arm64::aes_encrypt_block;
-#[cfg(target_arch = "x86_64")]
-use super::aes_ctr_amd64::ctr_inc as ctr_inc_ni;
-#[cfg(target_arch = "aarch64")]
-use super::aes_ctr_arm64::ctr_inc as ctr_inc_arm;
-use crate::StreamCipher;
+use crate::{StreamCipher, aes::RoundKeys};
+
+/// AES-128 in CTR mode.
+///
+/// Create a new cipher with [`new`](Aes128Ctr::new).
+/// [`xor_keystream`](StreamCipher::xor_keystream) to encrypt or decrypt
+/// (CTR mode is symmetric).
+/// You can move in the keystream with [`set_counter`](Aes128Ctr::set_counter).
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub struct Aes128Ctr(pub(crate) AesCtr<11>);
+
+impl Aes128Ctr {
+    /// Create a new AES-128-CTR stream cipher from a 16-byte key.
+    ///
+    /// The initial counter is zeroed.
+    #[inline]
+    pub fn new(key: &[u8; 16]) -> Self {
+        Self(AesCtr::<11>::new(key))
+    }
+
+    /// Set the 16-byte counter block.
+    ///
+    /// For GCM this is `nonce || 0x00000002` (J₀ + 1).
+    #[inline]
+    pub fn set_counter(&mut self, counter: &[u8; 16]) {
+        self.0.set_counter(counter)
+    }
+}
+
+impl StreamCipher for Aes128Ctr {
+    #[inline]
+    fn xor_keystream(&mut self, in_out: &mut [u8]) {
+        self.0.xor_keystream(in_out)
+    }
+}
 
 /// AES-256 in CTR mode.
 ///
@@ -26,67 +51,144 @@ use crate::StreamCipher;
 /// [`xor_keystream`](StreamCipher::xor_keystream) to encrypt or decrypt
 /// (CTR mode is symmetric).
 /// You can move in the keystream with [`set_counter`](Aes256Ctr::set_counter).
-pub struct Aes256Ctr {
-    round_keys: RoundKeys<15>,
-    #[cfg(target_arch = "x86_64")]
-    round_keys_aesni: [__m128i; 15],
-    #[cfg(target_arch = "aarch64")]
-    round_keys_armv8: [uint8x16_t; 15],
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub struct Aes256Ctr(pub(crate) AesCtr<15>);
+
+impl Aes256Ctr {
+    /// Create a new AES-256-CTR stream cipher from a 32-byte key.
+    ///
+    /// The initial counter is zeroed.
+    #[inline]
+    pub fn new(key: &[u8; 32]) -> Self {
+        Self(AesCtr::<15>::new(key))
+    }
+
+    /// Set the 16-byte counter block.
+    ///
+    /// For GCM this is `nonce || 0x00000002` (J₀ + 1).
+    #[inline]
+    pub fn set_counter(&mut self, counter: &[u8; 16]) {
+        self.0.set_counter(counter)
+    }
+}
+
+impl StreamCipher for Aes256Ctr {
+    #[inline]
+    fn xor_keystream(&mut self, in_out: &mut [u8]) {
+        self.0.xor_keystream(in_out)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Generic implementation of AES in counter mode.
+/// `N` is the number of rounds. 11 for AES-128 and 15 for AES-256
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub(crate) struct AesCtr<const N: usize> {
+    round_keys: RoundKeys<N>,
     counter: [u8; 16],
 }
 
-impl Aes256Ctr {
-    /// Create a new cipher from a 32-byte key.
+impl AesCtr<11> {
+    pub fn new(key: &[u8; 16]) -> Self {
+        Self::new_inner(key)
+    }
+}
+
+impl AesCtr<15> {
+    pub fn new(key: &[u8; 32]) -> Self {
+        Self::new_inner(key)
+    }
+}
+
+impl<const N: usize> AesCtr<N> {
+    /// Create a new cipher from a 16-byte key.
     ///
     /// The initial counter is zeroed.
-    pub fn new(key: &[u8; 32]) -> Self {
-        let round_keys = expand_key::<15>(key);
-        #[cfg(target_arch = "x86_64")]
-        {
-            let mut round_keys_aesni = unsafe { [_mm_setzero_si128(); 15] };
-            for i in 0..15 {
-                round_keys_aesni[i] = unsafe { _mm_loadu_si128(round_keys[i].as_ptr().cast()) };
-            }
-            return Self {
-                round_keys,
-                round_keys_aesni,
-                counter: [0u8; 16],
-            };
-        }
+    fn new_inner(key: &[u8]) -> Self {
+        const { assert!(N == 11 || N == 15) };
+
+        let round_keys_software = expand_key(key);
+
         #[cfg(target_arch = "aarch64")]
         {
-            let mut round_keys_armv8 = [unsafe { vdupq_n_u8(0) }; 15];
-            for i in 0..15 {
-                round_keys_armv8[i] = unsafe { vld1q_u8(round_keys[i].as_ptr()) };
+            #[cfg(any(feature = "std", target_feature = "aes"))]
+            use crate::aes::aes_arm64::expand_key_armv8;
+
+            #[cfg(feature = "std")]
+            if std::arch::is_aarch64_feature_detected!("aes") {
+                return AesCtr {
+                    round_keys: RoundKeys::Armv8(expand_key_armv8(round_keys_software)),
+                    counter: [0u8; 16],
+                };
             }
-            return Self {
-                round_keys,
-                round_keys_armv8,
+
+            #[cfg(all(not(feature = "std"), target_feature = "aes"))]
+            return AesCtr {
+                round_keys: RoundKeys::Armv8(expand_key_armv8(round_keys_software)),
                 counter: [0u8; 16],
             };
         }
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+
+        #[cfg(target_arch = "x86_64")]
         {
-            Self {
-                round_keys,
-                counter: [0u8; 16],
+            use crate::aes::aes_amd64::expand_key_x86_64;
+
+            #[cfg(feature = "std")]
+            if std::arch::is_x86_feature_detected!("aes") {
+                return AesCtr {
+                    round_keys: RoundKeys::X86_64(expand_key_x86_64(round_keys_software)),
+                    counter: [0u8; 16],
+                };
             }
+
+            #[cfg(all(not(feature = "std"), target_feature = "aes"))]
+            return AesCtr {
+                round_keys: RoundKeys::X86_64(expand_key_x86_64(round_keys_software)),
+                counter: [0u8; 16],
+            };
+        }
+
+        AesCtr {
+            round_keys: RoundKeys::Software(round_keys_software),
+            counter: [0u8; 16],
+        }
+    }
+
+    /// Create a new cipher from pre-computed round keys.
+    /// It's useful to re-use AES-CTR in another cipher such AES-GCM
+    #[inline]
+    pub(crate) fn from_round_keys(round_keys: RoundKeys<N>) -> Self {
+        const { assert!(N == 11 || N == 15) };
+
+        Self {
+            round_keys,
+            counter: [0u8; 16],
         }
     }
 
     fn xor_keystream_soft(&mut self, in_out: &mut [u8]) {
+        let RoundKeys::Software(round_keys) = &self.round_keys else {
+            unreachable!()
+        };
+
         let n = in_out.len();
         let mut i = 0;
+        let mut counter = self.counter;
+
         while i + 16 <= n {
-            let ks = encrypt_block(&self.round_keys, &self.counter);
+            let ks = encrypt_block(&round_keys, &self.counter);
             for k in 0..16 {
                 in_out[i + k] ^= ks[k];
             }
-            self.increment_counter();
+            Self::increment_counter(&mut counter);
             i += 16;
         }
+        self.counter = counter;
+
         if i < n {
-            let ks = encrypt_block(&self.round_keys, &self.counter);
+            let ks = encrypt_block(&round_keys, &self.counter);
             for k in 0..n - i {
                 in_out[i + k] ^= ks[k];
             }
@@ -96,19 +198,26 @@ impl Aes256Ctr {
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "aes,ssse3,sse2")]
     unsafe fn xor_keystream_aesni(&mut self, in_out: &mut [u8]) {
+        use super::aes_ctr_amd64::increment_counter;
+
+        let RoundKeys::X86_64(round_keys) = &self.round_keys else {
+            unreachable!()
+        };
+
         let n = in_out.len();
         let mut i = 0;
         let mut ctr = _mm_loadu_si128(self.counter.as_ptr().cast());
 
         while i + 16 <= n {
-            let ks = aes_encrypt_block(&self.round_keys_aesni, ctr);
+            let ks = aes_encrypt_block(&round_keys, ctr);
             let p = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
             _mm_storeu_si128(in_out.as_mut_ptr().add(i).cast(), _mm_xor_si128(p, ks));
-            ctr = ctr_inc_ni(ctr);
+            ctr = increment_counter(ctr);
             i += 16;
         }
+
         if i < n {
-            let ks = aes_encrypt_block(&self.round_keys_aesni, ctr);
+            let ks = aes_encrypt_block(&round_keys, ctr);
             let mut ks_bytes = [0u8; 16];
             _mm_storeu_si128(ks_bytes.as_mut_ptr().cast(), ks);
             for k in 0..n - i {
@@ -121,19 +230,24 @@ impl Aes256Ctr {
 
     #[cfg(target_arch = "aarch64")]
     unsafe fn xor_keystream_armv8(&mut self, in_out: &mut [u8]) {
+        use super::aes_ctr_arm64::increment_counter;
+
+        let RoundKeys::Armv8(round_keys) = &self.round_keys else {
+            unreachable!()
+        };
         let n = in_out.len();
         let mut i = 0;
         let mut ctr = vld1q_u8(self.counter.as_ptr());
 
         while i + 16 <= n {
-            let ks = aes_encrypt_block(&self.round_keys_armv8, ctr);
+            let ks = aes_encrypt_block(round_keys, ctr);
             let p = vld1q_u8(in_out.as_ptr().add(i));
             vst1q_u8(in_out.as_mut_ptr().add(i), veorq_u8(p, ks));
-            ctr = ctr_inc_arm(ctr);
+            ctr = increment_counter(ctr);
             i += 16;
         }
         if i < n {
-            let ks = aes_encrypt_block(&self.round_keys_armv8, ctr);
+            let ks = aes_encrypt_block(round_keys, ctr);
             let mut ks_bytes = [0u8; 16];
             vst1q_u8(ks_bytes.as_mut_ptr(), ks);
             for k in 0..n - i {
@@ -153,47 +267,25 @@ impl Aes256Ctr {
     }
 
     #[inline]
-    fn increment_counter(&mut self) {
-        let counter_value = u32::from_be_bytes(self.counter[12..16].try_into().unwrap());
-        self.counter[12..16].copy_from_slice(&counter_value.wrapping_add(1).to_be_bytes());
+    fn increment_counter(counter: &mut [u8; 16]) {
+        let counter_value = u32::from_be_bytes(counter[12..16].try_into().unwrap());
+        counter[12..16].copy_from_slice(&counter_value.wrapping_add(1).to_be_bytes());
     }
 }
 
-impl StreamCipher for Aes256Ctr {
-    #[allow(unreachable_code)]
+impl<const N: usize> StreamCipher for AesCtr<N> {
+    #[inline]
     fn xor_keystream(&mut self, in_out: &mut [u8]) {
-        #[cfg(target_arch = "aarch64")]
-        {
-            unsafe {
+        match &self.round_keys {
+            #[cfg(target_arch = "aarch64")]
+            RoundKeys::Armv8(_) => unsafe {
                 self.xor_keystream_armv8(in_out);
-            }
-            return;
-        }
-
-        #[cfg(feature = "std")]
-        {
+            },
             #[cfg(target_arch = "x86_64")]
-            {
-                if std::arch::is_x86_feature_detected!("aes") && std::arch::is_x86_feature_detected!("ssse3") {
-                    unsafe {
-                        self.xor_keystream_aesni(in_out);
-                    }
-                    return;
-                }
-            }
+            RoundKeys::X86_64(_) => unsafe {
+                self.xor_keystream_aesni(in_out);
+            },
+            RoundKeys::Software(_) => self.xor_keystream_soft(in_out),
         }
-
-        #[cfg(not(feature = "std"))]
-        {
-            #[cfg(all(target_arch = "x86_64", target_feature = "aes", target_feature = "ssse3"))]
-            {
-                unsafe {
-                    self.xor_keystream_aesni(in_out);
-                }
-                return;
-            }
-        }
-
-        self.xor_keystream_soft(in_out);
     }
 }

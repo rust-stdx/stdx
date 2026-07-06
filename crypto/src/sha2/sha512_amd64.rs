@@ -4,21 +4,8 @@ use core::arch::x86_64::*;
 
 use super::sha512::SHA512_K;
 
-#[inline]
-pub(crate) fn process_block_if_supported(state: &mut [u64; 8], block: &[u8; 128]) -> bool {
-    if std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx") {
-        // SAFETY: Runtime feature detection guarantees required CPU features.
-        unsafe {
-            compress(state, block);
-        }
-        return true;
-    }
-
-    false
-}
-
 #[target_feature(enable = "sha512,avx")]
-unsafe fn compress(state: &mut [u64; 8], block: &[u8; 128]) {
+pub(crate) unsafe fn compress(state: &mut [u64; 8], block: &[u8; 128]) {
     let mut w = [0u64; 80];
 
     let mut i = 0usize;

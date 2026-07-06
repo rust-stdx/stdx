@@ -38,9 +38,9 @@
 use core::arch::x86_64::*;
 
 use super::{
+    aes::GCM_MAX_LEN,
     aes_amd64::aes_encrypt_block,
-    aes_ctr_amd64::{SWAP_BYTES, ctr_inc},
-    aes_gcm::MAX_GCM_LEN,
+    aes_ctr_amd64::{SWAP_BYTES, increment_counter},
     ghash_amd64::{bitreverse_per_byte, clmul_gcm, ghash_4blocks, ghash_8blocks, ghash_update},
 };
 use crate::{AeadError, Hash, bytes::Bytes};
@@ -67,7 +67,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
     }
 
     assert!(
-        in_out.len() <= MAX_GCM_LEN,
+        in_out.len() <= GCM_MAX_LEN,
         "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
     );
 
@@ -83,7 +83,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
     _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
 
     // CTR starts at J0 + 1 = nonce ∥ 0x00000002
-    let mut ctr = ctr_inc(j0);
+    let ctr = increment_counter(j0);
 
     // ── Single-pass fused CTR + GHASH ──────────────────────────────────────
     let swap = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
@@ -251,7 +251,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
         assert!(N == 11 || N == 15);
     }
 
-    if in_out.len() > MAX_GCM_LEN {
+    if in_out.len() > GCM_MAX_LEN {
         return Err(AeadError::InvalidCiphertext);
     }
 
@@ -327,7 +327,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
 
     // ── CTR decrypt ────────────────────────────────────────────────────────
     let swap = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
-    let mut ctr = ctr_inc(j0);
+    let ctr = increment_counter(j0);
     let mut base = _mm_shuffle_epi8(ctr, swap);
     let zero_offset = _mm_setzero_si128();
     let one = _mm_set_epi32(1, 0, 0, 0);
@@ -457,7 +457,7 @@ mod tests {
     }
 
     fn make_h_powers(key: &[u8; 32]) -> [__m128i; 8] {
-        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers_256(key);
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers::<15>(key);
         let mut hp = [unsafe { _mm_setzero_si128() }; 8];
         for i in 0..8 {
             hp[i] = unsafe { _mm_loadu_si128(bytes[i].as_ptr().cast()) };

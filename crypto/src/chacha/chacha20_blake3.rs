@@ -93,7 +93,9 @@ impl Aead for ChaCha20Blake3 {
     }
 
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
-        assert!(nonce.len() == 32, "nonce must be 32 bytes");
+        if nonce.len() != 32 {
+            return Err(AeadError::InvalidNonce);
+        }
 
         // kdf_out = BLAKE3.keyed(key, nonce)
         let mut kdf_out = [0u8; 72];

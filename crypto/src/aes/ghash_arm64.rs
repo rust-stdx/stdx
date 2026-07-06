@@ -6,48 +6,8 @@
 /// polynomial representation and the little-endian PMULL domain).
 use core::arch::aarch64::*;
 
-/// Multiply two GCM elements using PMULL + 3-step reduction.
-#[target_feature(enable = "aes,neon")]
-#[inline]
-pub(crate) unsafe fn clmul_gcm_pmull(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
-    let poly = vld1q_u8([0x87, 0, 0, 0, 0, 0, 0, 0, 0x87, 0, 0, 0, 0, 0, 0, 0].as_ptr());
-    let result: uint8x16_t;
-    core::arch::asm!(
-        "movi    v17.16b, #0",
-        "pmull   v18.1q, {a:v}.1d, {b:v}.1d",
-        "pmull2  v19.1q, {a:v}.2d, {b:v}.2d",
-        "ext     v20.16b, {a:v}.16b, {a:v}.16b, #8",
-        "ext     v21.16b, {b:v}.16b, {b:v}.16b, #8",
-        "eor     v20.16b, v20.16b, {a:v}.16b",
-        "eor     v21.16b, v21.16b, {b:v}.16b",
-        "pmull   v22.1q, v20.1d, v21.1d",
-        "eor     v22.16b, v22.16b, v18.16b",
-        "eor     v22.16b, v22.16b, v19.16b",
-        "ext     v20.16b, v17.16b, v22.16b, #8",
-        "eor     v18.16b, v18.16b, v20.16b",
-        "ext     v20.16b, v22.16b, v17.16b, #8",
-        "eor     v19.16b, v19.16b, v20.16b",
-        "pmull   v22.1q, v19.1d, {poly:v}.1d",
-        "ext     v20.16b, v19.16b, v19.16b, #8",
-        "pmull   v23.1q, v20.1d, {poly:v}.1d",
-        "ext     v20.16b, v17.16b, v23.16b, #8",
-        "ext     v21.16b, v23.16b, v17.16b, #8",
-        "pmull   v17.1q, v21.1d, {poly:v}.1d",
-        "eor     v18.16b, v18.16b, v22.16b",
-        "eor     v18.16b, v18.16b, v20.16b",
-        "eor     {result:v}.16b, v18.16b, v17.16b",
-        a = in(vreg) a,
-        b = in(vreg) b,
-        poly = in(vreg) poly,
-        result = out(vreg) result,
-        out("v17") _, out("v18") _, out("v19") _,
-        out("v20") _, out("v21") _, out("v22") _, out("v23") _,
-        options(nostack),
-    );
-    result
-}
-
 /// Single-block GHASH feed (tail processing).
+#[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn ghash_update(mut state: uint8x16_t, h: uint8x16_t, data: &[u8]) -> uint8x16_t {
     let n = data.len();
     let mut i = 0usize;
@@ -72,6 +32,7 @@ pub(crate) unsafe fn ghash_update(mut state: uint8x16_t, h: uint8x16_t, data: &[
 ///
 ///   state' = state·H⁴ ⊕ B₁·H⁴ ⊕ B₂·H³ ⊕ B₃·H² ⊕ B₄·H
 #[inline]
+#[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn ghash_4blocks(
     state: uint8x16_t,
     b1: uint8x16_t,
@@ -103,6 +64,7 @@ pub(crate) unsafe fn ghash_4blocks(
 ///
 ///   state' = state·H⁸ ⊕ B₁·H⁸ ⊕ B₂·H⁷ ⊕ ... ⊕ B₈·H
 #[inline]
+#[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn ghash_8blocks(
     state: uint8x16_t,
     b1: uint8x16_t,
@@ -150,4 +112,45 @@ pub(crate) unsafe fn ghash_8blocks(
             veorq_u8(t2, veorq_u8(t3, veorq_u8(t4, veorq_u8(t5, veorq_u8(t6, veorq_u8(t7, t8)))))),
         ),
     )
+}
+
+/// Multiply two GCM elements using PMULL + 3-step reduction.
+#[inline]
+#[target_feature(enable = "aes,neon")]
+pub(crate) unsafe fn clmul_gcm_pmull(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
+    let poly = vld1q_u8([0x87, 0, 0, 0, 0, 0, 0, 0, 0x87, 0, 0, 0, 0, 0, 0, 0].as_ptr());
+    let result: uint8x16_t;
+    core::arch::asm!(
+        "movi    v17.16b, #0",
+        "pmull   v18.1q, {a:v}.1d, {b:v}.1d",
+        "pmull2  v19.1q, {a:v}.2d, {b:v}.2d",
+        "ext     v20.16b, {a:v}.16b, {a:v}.16b, #8",
+        "ext     v21.16b, {b:v}.16b, {b:v}.16b, #8",
+        "eor     v20.16b, v20.16b, {a:v}.16b",
+        "eor     v21.16b, v21.16b, {b:v}.16b",
+        "pmull   v22.1q, v20.1d, v21.1d",
+        "eor     v22.16b, v22.16b, v18.16b",
+        "eor     v22.16b, v22.16b, v19.16b",
+        "ext     v20.16b, v17.16b, v22.16b, #8",
+        "eor     v18.16b, v18.16b, v20.16b",
+        "ext     v20.16b, v22.16b, v17.16b, #8",
+        "eor     v19.16b, v19.16b, v20.16b",
+        "pmull   v22.1q, v19.1d, {poly:v}.1d",
+        "ext     v20.16b, v19.16b, v19.16b, #8",
+        "pmull   v23.1q, v20.1d, {poly:v}.1d",
+        "ext     v20.16b, v17.16b, v23.16b, #8",
+        "ext     v21.16b, v23.16b, v17.16b, #8",
+        "pmull   v17.1q, v21.1d, {poly:v}.1d",
+        "eor     v18.16b, v18.16b, v22.16b",
+        "eor     v18.16b, v18.16b, v20.16b",
+        "eor     {result:v}.16b, v18.16b, v17.16b",
+        a = in(vreg) a,
+        b = in(vreg) b,
+        poly = in(vreg) poly,
+        result = out(vreg) result,
+        out("v17") _, out("v18") _, out("v19") _,
+        out("v20") _, out("v21") _, out("v22") _, out("v23") _,
+        options(nostack),
+    );
+    result
 }

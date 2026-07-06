@@ -1,7 +1,3 @@
-#[cfg(target_arch = "x86_64")]
-use super::sha512_amd64;
-#[cfg(target_arch = "aarch64")]
-use super::sha512_arm64;
 use crate::{Bytes, Hash, Hasher};
 
 pub(crate) const SHA512_K: [u64; 80] = [
@@ -205,18 +201,32 @@ impl Hasher for Sha512 {
 fn process_block(state: &mut [u64; 8], block: &[u8; 128]) {
     #[cfg(target_arch = "x86_64")]
     {
-        if sha512_amd64::process_block_if_supported(state, block) {
+        #[cfg(feature = "std")]
+        if std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx") {
+            unsafe { super::sha512_amd64::compress(state, block) };
+            return;
+        }
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha512", target_feature = "avx"))]
+        {
+            unsafe { super::sha512_amd64::compress(state, block) };
             return;
         }
     }
 
     #[cfg(target_arch = "aarch64")]
     {
-        // SAFETY: aarch64 target in this repository assumes SHA3/SHA512 instructions are present.
-        unsafe {
-            sha512_arm64::process_block(state, block);
+        #[cfg(feature = "std")]
+        if std::arch::is_aarch64_feature_detected!("sha3") {
+            unsafe { super::sha512_arm64::compress(state, block) };
+            return;
         }
-        return;
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+        {
+            unsafe { super::sha512_arm64::compress(state, block) };
+            return;
+        }
     }
 
     process_block_scalar(state, block);

@@ -56,8 +56,24 @@ pub(crate) const RCON: [u8; 11] = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x4
 
 // ── AES key schedule ───────────────────────────────────────────────────────────
 
-/// AES expanded key: `N` round keys × 16 bytes.
-pub type RoundKeys<const N: usize> = [[u8; 16]; N];
+/// AES expanded key: `N` round keys x 16 bytes.
+/// N = 11 for AES-128 and 15 for AES-256
+#[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub(crate) enum RoundKeys<const N: usize> {
+    #[cfg(target_arch = "x86_64")]
+    /// The platform supports x86 AES-NI instructions
+    X86_64([core::arch::x86_64::__m128i; N]),
+
+    #[cfg(target_arch = "aarch64")]
+    /// The platform supports ARMv8 AES instructions
+    Armv8([core::arch::aarch64::uint8x16_t; N]),
+
+    /// The platform doesn't support AES hardware acceleration
+    Software([[u8; 16]; N]),
+}
+
+pub(crate) type RoundKeysSoftware<const N: usize> = [[u8; 16]; N];
 
 #[inline(always)]
 fn rot_word(w: [u8; 4]) -> [u8; 4] {
@@ -76,9 +92,9 @@ fn sub_word(w: [u8; 4]) -> [u8; 4] {
 
 /// Expand a key into AES round keys (FIPS 197 §5.2).
 ///
-/// - `N = 11` → AES-128 (Nk=4, Nr=10, 44 words → 11 round keys)
-/// - `N = 15` → AES-256 (Nk=8, Nr=14, 60 words → 15 round keys)
-pub fn expand_key<const N: usize>(key: &[u8]) -> RoundKeys<N> {
+/// - `N = 11` -> AES-128 (Nk=4, Nr=10, 44 words -> 11 round keys)
+/// - `N = 15` -> AES-256 (Nk=8, Nr=14, 60 words -> 15 round keys)
+pub fn expand_key<const N: usize>(key: &[u8]) -> RoundKeysSoftware<N> {
     const {
         assert!(N == 11 || N == 15);
     }
@@ -153,7 +169,7 @@ pub(crate) const TE1: [u32; 256] = {
         let s = SBOX[i] as u32;
         let s2 = xtime(SBOX[i]) as u32;
         let s3 = (s ^ s2) as u32;
-        // Column: [3·S, 2·S, 1·S, 1·S]  → LE bytes [3S,2S,1S,1S]
+        // Column: [3·S, 2·S, 1·S, 1·S]  -> LE bytes [3S,2S,1S,1S]
         t[i] = (s << 24) | (s << 16) | (s2 << 8) | s3;
         i += 1;
     }
@@ -202,7 +218,7 @@ const TD0: [u32; 256] = {
         let c1 = (s8 ^ s2 ^ s) as u32; // 0b·S
         let c2 = (s8 ^ s4 ^ s) as u32; // 0d·S
         let c3 = (s8 ^ s) as u32; // 09·S
-        // Column: [0e·S, 09·S, 0d·S, 0b·S]  → LE bytes [c0,c3,c2,c1]
+        // Column: [0e·S, 09·S, 0d·S, 0b·S]  -> LE bytes [c0,c3,c2,c1]
         t[i] = (c1 << 24) | (c2 << 16) | (c3 << 8) | c0;
         i += 1;
     }
@@ -272,7 +288,7 @@ const TD3: [u32; 256] = {
 /// per column, matching the approach used by Go and OpenSSL for software AES.
 ///
 /// `N = 11` for AES-128 (10 rounds), `N = 15` for AES-256 (14 rounds).
-pub fn encrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]) -> [u8; 16] {
+pub fn encrypt_block<const N: usize>(round_keys: &RoundKeysSoftware<N>, block: &[u8; 16]) -> [u8; 16] {
     const {
         assert!(N == 11 || N == 15);
     }
@@ -285,30 +301,29 @@ pub fn encrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]
     }
 
     // Rounds 1..N-2: SubBytes + ShiftRows + MixColumns + AddRoundKey via T-tables
-    let p = round_keys.as_ptr();
-    #[allow(clippy::needless_range_loop)]
-    for r in 1..N - 1 {
-        let rk = unsafe { &*p.add(r) };
+    let round_keys_pointer = round_keys.as_ptr();
+    for round in 1..N - 1 {
+        let round_keys = unsafe { &*round_keys_pointer.add(round) };
         let t0 = TE0[s[0] as usize]
             ^ TE1[s[5] as usize]
             ^ TE2[s[10] as usize]
             ^ TE3[s[15] as usize]
-            ^ u32::from_ne_bytes(rk[0..4].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[0..4].try_into().unwrap());
         let t1 = TE0[s[4] as usize]
             ^ TE1[s[9] as usize]
             ^ TE2[s[14] as usize]
             ^ TE3[s[3] as usize]
-            ^ u32::from_ne_bytes(rk[4..8].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[4..8].try_into().unwrap());
         let t2 = TE0[s[8] as usize]
             ^ TE1[s[13] as usize]
             ^ TE2[s[2] as usize]
             ^ TE3[s[7] as usize]
-            ^ u32::from_ne_bytes(rk[8..12].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[8..12].try_into().unwrap());
         let t3 = TE0[s[12] as usize]
             ^ TE1[s[1] as usize]
             ^ TE2[s[6] as usize]
             ^ TE3[s[11] as usize]
-            ^ u32::from_ne_bytes(rk[12..16].try_into().unwrap());
+            ^ u32::from_ne_bytes(round_keys[12..16].try_into().unwrap());
 
         s[0..4].copy_from_slice(&t0.to_ne_bytes());
         s[4..8].copy_from_slice(&t1.to_ne_bytes());
@@ -317,7 +332,7 @@ pub fn encrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]
     }
 
     // Final round (N-1): SubBytes + ShiftRows + AddRoundKey (no MixColumns)
-    let rk_last = unsafe { &*p.add(N - 1) };
+    let rk_last = unsafe { &*round_keys_pointer.add(N - 1) };
     s = [
         SBOX[s[0] as usize] ^ rk_last[0],
         SBOX[s[5] as usize] ^ rk_last[1],
@@ -347,7 +362,7 @@ pub fn encrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]
 /// applied to it before the XOR.
 ///
 /// `N = 11` for AES-128 (10 rounds), `N = 15` for AES-256 (14 rounds).
-pub fn decrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]) -> [u8; 16] {
+pub fn decrypt_block<const N: usize>(round_keys: &RoundKeysSoftware<N>, block: &[u8; 16]) -> [u8; 16] {
     const {
         assert!(N == 11 || N == 15);
     }
@@ -361,10 +376,10 @@ pub fn decrypt_block<const N: usize>(round_keys: &RoundKeys<N>, block: &[u8; 16]
     }
 
     // Rounds N-2..1: InvShiftRows + InvSubBytes + AddRoundKey + InvMixColumns via inverse T-tables
-    let p = round_keys.as_ptr();
-    for r in (1..N - 1).rev() {
+    let round_keys_pointer = round_keys.as_ptr();
+    for round in (1..N - 1).rev() {
         // Apply InvMixColumns to round key columns for correct T-table XOR
-        let mut rk_adj = unsafe { *p.add(r) };
+        let mut rk_adj = unsafe { *round_keys_pointer.add(round) };
         inv_mix_columns(&mut rk_adj);
 
         let t0 = TD0[s[0] as usize]
@@ -595,7 +610,7 @@ mod tests {
     // H and X from GCM Test Case 2 (NIST SP 800-38D Appendix B).
     #[test]
     fn gf128_mul_nist_tv2() {
-        // H = AES_K(0) for K = all-zeros 128-bit key → irrelevant for 256-bit here,
+        // H = AES_K(0) for K = all-zeros 128-bit key -> irrelevant for 256-bit here,
         // but we test the raw GF multiplication with known values from NIST test vectors.
         // From TC2: H = 66e94bd4ef8a2c3b884cfa59ca342b2e
         //           X (first GHASH input) = feedfacedeadbeeffeedfacedeadbeef

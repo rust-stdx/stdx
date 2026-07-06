@@ -207,7 +207,7 @@ impl FieldElement {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/// 4×4 → 8-limb schoolbook product (16 multiplications).
+/// 4×4 -> 8-limb schoolbook product (16 multiplications).
 #[inline]
 fn mul_4x4(a: &[u64; 4], b: &[u64; 4]) -> [u64; 8] {
     let mut p = [0u64; 8];

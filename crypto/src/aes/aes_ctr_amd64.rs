@@ -12,7 +12,7 @@ pub(crate) const SWAP_BYTES: [i8; 16] = [3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 1
 /// low 32-bit lane, then swaps back. No memory round-trip.
 #[target_feature(enable = "ssse3,sse2")]
 #[inline]
-pub(crate) unsafe fn ctr_inc(ctr: __m128i) -> __m128i {
+pub(crate) unsafe fn increment_counter(ctr: __m128i) -> __m128i {
     let swap = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
     let le = _mm_shuffle_epi8(ctr, swap);
     let inc = _mm_add_epi32(le, _mm_set_epi32(1, 0, 0, 0));

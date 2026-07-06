@@ -39,31 +39,29 @@ pub fn chacha_avx512<const ROUNDS: usize, const IS_IETF: bool>(
 
     let w13 = if IS_IETF { state[13] as i32 } else { 0 };
 
-    let mut initial_state: [__m512i; STATE_WORDS] = unsafe {
-        [
-            // constant
-            _mm512_set1_epi32(state[0] as i32),
-            _mm512_set1_epi32(state[1] as i32),
-            _mm512_set1_epi32(state[2] as i32),
-            _mm512_set1_epi32(state[3] as i32),
-            // key
-            _mm512_set1_epi32(state[4] as i32),
-            _mm512_set1_epi32(state[5] as i32),
-            _mm512_set1_epi32(state[6] as i32),
-            _mm512_set1_epi32(state[7] as i32),
-            _mm512_set1_epi32(state[8] as i32),
-            _mm512_set1_epi32(state[9] as i32),
-            _mm512_set1_epi32(state[10] as i32),
-            _mm512_set1_epi32(state[11] as i32),
-            // counter, set it to 0 for now, it is injected later during each iteration of the loop
-            _mm512_set1_epi32(0),
-            // word 13: nonce low for IETF, counter high for DJB (set to 0 and injected per-lane)
-            _mm512_set1_epi32(w13),
-            // nonce
-            _mm512_set1_epi32(state[14] as i32),
-            _mm512_set1_epi32(state[15] as i32),
-        ]
-    };
+    let mut initial_state: [__m512i; STATE_WORDS] = [
+        // constant
+        _mm512_set1_epi32(state[0] as i32),
+        _mm512_set1_epi32(state[1] as i32),
+        _mm512_set1_epi32(state[2] as i32),
+        _mm512_set1_epi32(state[3] as i32),
+        // key
+        _mm512_set1_epi32(state[4] as i32),
+        _mm512_set1_epi32(state[5] as i32),
+        _mm512_set1_epi32(state[6] as i32),
+        _mm512_set1_epi32(state[7] as i32),
+        _mm512_set1_epi32(state[8] as i32),
+        _mm512_set1_epi32(state[9] as i32),
+        _mm512_set1_epi32(state[10] as i32),
+        _mm512_set1_epi32(state[11] as i32),
+        // counter, set it to 0 for now, it is injected later during each iteration of the loop
+        _mm512_set1_epi32(0),
+        // word 13: nonce low for IETF, counter high for DJB (set to 0 and injected per-lane)
+        _mm512_set1_epi32(w13),
+        // nonce
+        _mm512_set1_epi32(state[14] as i32),
+        _mm512_set1_epi32(state[15] as i32),
+    ];
 
     // process input by chunks of 16 * 64 bytes
     for input_blocks in input.chunks_mut(BLOCK_SIZE * SIMD_LANES) {

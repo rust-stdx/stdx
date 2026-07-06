@@ -164,9 +164,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         #[cfg(all(feature = "std", target_arch = "x86_64"))]
         if in_out.len() >= 128 && is_x86_feature_detected!("avx512f") {
             use super::chacha_avx512::chacha_avx512;
-            unsafe {
-                chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-            }
+            unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
             return;
         }
 
@@ -174,18 +172,22 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         #[cfg(all(not(feature = "std"), target_arch = "x86_64", target_feature = "avx512f"))]
         if in_out.len() >= 128 {
             use super::chacha_avx512::chacha_avx512;
-            unsafe {
-                chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-            }
+            unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
             return;
         }
 
         #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
         if in_out.len() >= 128 {
             use super::chacha_avx2::chacha_avx2;
-            unsafe {
-                chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-            }
+            unsafe { chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
+            return;
+        }
+
+        // aarch64 assumes that NEON is always available so compile-time dispatch is enough
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        if in_out.len() >= 128 {
+            use super::chacha_neon::chacha_neon;
+            unsafe { chacha_neon::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
             return;
         }
 
@@ -194,16 +196,6 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         if in_out.len() >= 128 {
             use super::chacha_wasm_simd128::chacha_wasm_simd128;
             chacha_wasm_simd128::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-            return;
-        }
-
-        // aarch64 assumes that NEON is always available so compile-time dispatch is enough
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        if in_out.len() >= 128 {
-            use super::chacha_neon::chacha_neon;
-            unsafe {
-                chacha_neon::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-            }
             return;
         }
 
@@ -1225,12 +1217,12 @@ Expected: {}",
         assert_eq!(buf, full_encrypted, "baseline DJB");
 
         // encrypt 10 bytes, reset counter to 0, re-encrypt those 10 bytes
-        // (this XORs again → back to plaintext), then encrypt the rest.
+        // (this XORs again -> back to plaintext), then encrypt the rest.
         let mut buf = pt.clone();
         let mut cipher = ChaCha20Djb::new(&key, &nonce);
         cipher.xor_keystream(&mut buf[..10]);
         cipher.set_counter(0);
-        cipher.xor_keystream(&mut buf[..10]); // re-XOR → bytes 0-9 are plaintext again
+        cipher.xor_keystream(&mut buf[..10]); // re-XOR -> bytes 0-9 are plaintext again
         cipher.xor_keystream(&mut buf[10..]);
 
         // first 10 bytes are back to plaintext

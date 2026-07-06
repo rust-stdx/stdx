@@ -4,13 +4,8 @@ use core::arch::aarch64::*;
 
 use super::sha256::SHA256_K;
 
-#[inline]
-pub(crate) unsafe fn process_block(state: &mut [u32; 8], block: &[u8; 64]) {
-    compress(state, core::slice::from_ref(block));
-}
-
 #[target_feature(enable = "sha2")]
-unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
+pub(crate) unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
     let mut abcd = vld1q_u32(state[0..4].as_ptr());
     let mut efgh = vld1q_u32(state[4..8].as_ptr());
 

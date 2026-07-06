@@ -156,11 +156,11 @@ impl std::error::Error for HkdfError {}
 /// Traits
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub trait StreamCipher: Sized {
+pub trait StreamCipher {
     fn xor_keystream(&mut self, in_out: &mut [u8]);
 }
 
-pub trait Aead: Sized {
+pub trait Aead {
     const TAG_SIZE: usize;
     const NONCE_SIZE: usize;
 
@@ -205,7 +205,7 @@ pub trait Zeroize {}
 #[cfg(not(feature = "zeroize"))]
 impl<T> Zeroize for T {}
 
-pub trait Hasher: Sized + Clone + Zeroize {
+pub trait Hasher: Clone + Zeroize {
     /// The internal block size of the hash function
     const BLOCK_SIZE: usize;
     /// The output size of the hash function
@@ -223,7 +223,7 @@ pub trait Hasher: Sized + Clone + Zeroize {
     }
 }
 
-pub trait Xof: Sized + Send + Sync {
+pub trait Xof: Send + Sync {
     fn absorb(&mut self, data: &[u8]);
     fn squeeze(&mut self, out: &mut [u8]);
 }

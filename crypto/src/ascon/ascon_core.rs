@@ -497,7 +497,7 @@ pub(crate) fn p8(state: &mut State) {
 pub(crate) fn round(state: &mut State, c: u8) {
     let s = &mut state.0;
 
-    // p_C: constant addition to word 2 (low byte → low u32)
+    // p_C: constant addition to word 2 (low byte -> low u32)
     s[4] ^= c as u32;
 
     // p_S: substitution layer (bit-sliced 5-bit S-box)

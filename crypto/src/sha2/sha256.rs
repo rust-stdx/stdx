@@ -1,7 +1,3 @@
-#[cfg(target_arch = "x86_64")]
-use super::sha256_amd64;
-#[cfg(target_arch = "aarch64")]
-use super::sha256_arm64;
 use crate::{Bytes, Hash, Hasher};
 
 pub(crate) const SHA256_K: [u32; 64] = [
@@ -126,18 +122,32 @@ impl Hasher for Sha256 {
 fn process_block(state: &mut [u32; 8], block: &[u8; 64]) {
     #[cfg(target_arch = "x86_64")]
     {
-        if sha256_amd64::process_block_sha_ni(state, block) {
+        #[cfg(feature = "std")]
+        if std::arch::is_x86_feature_detected!("sha") {
+            unsafe { super::sha256_amd64::compress(state, core::slice::from_ref(block)) };
+            return;
+        }
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha"))]
+        {
+            unsafe { super::sha256_amd64::compress(state, core::slice::from_ref(block)) };
             return;
         }
     }
 
     #[cfg(target_arch = "aarch64")]
     {
-        // SAFETY: aarch64 target in this repository assumes SHA2 instructions are present.
-        unsafe {
-            sha256_arm64::process_block(state, block);
+        #[cfg(feature = "std")]
+        if std::arch::is_aarch64_feature_detected!("sha2") {
+            unsafe { super::sha256_arm64::compress(state, core::slice::from_ref(block)) };
+            return;
         }
-        return;
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha2"))]
+        {
+            unsafe { super::sha256_arm64::compress(state, core::slice::from_ref(block)) };
+            return;
+        }
     }
 
     process_block_scalar(state, block);

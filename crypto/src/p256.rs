@@ -129,24 +129,28 @@ const MODULUS_P: U256 = U256::from_limbs([
     0x0000_0000_0000_0000,
     0xffff_ffff_0000_0001,
 ]);
+
 const MODULUS_N: U256 = U256::from_limbs([
     0xf3b9_cac2_fc63_2551,
     0xbce6_faad_a717_9e84,
     0xffff_ffff_ffff_ffff,
     0xffff_ffff_0000_0000,
 ]);
+
 const P_MINUS_TWO: U256 = U256::from_limbs([
     0xffff_ffff_ffff_fffd,
     0x0000_0000_ffff_ffff,
     0x0000_0000_0000_0000,
     0xffff_ffff_0000_0001,
 ]);
+
 const P_PLUS_ONE_OVER_FOUR: U256 = U256::from_limbs([
     0x0000_0000_0000_0000,
     0x0000_0000_4000_0000,
     0x4000_0000_0000_0000,
     0x3fff_ffff_c000_0000,
 ]);
+
 const N_MINUS_TWO: U256 = U256::from_limbs([
     0xf3b9_cac2_fc63_254f,
     0xbce6_faad_a717_9e84,
@@ -160,12 +164,14 @@ const CURVE_B: FieldElement = FieldElement(U256::from_limbs([
     0xb3eb_bd55_7698_86bc,
     0x5ac6_35d8_aa3a_93e7,
 ]));
+
 const GENERATOR_X: FieldElement = FieldElement(U256::from_limbs([
     0xf4a1_3945_d898_c296,
     0x7703_7d81_2deb_33a0,
     0xf8bc_e6e5_63a4_40f2,
     0x6b17_d1f2_e12c_4247,
 ]));
+
 const GENERATOR_Y: FieldElement = FieldElement(U256::from_limbs([
     0xcbb6_4068_37bf_51f5,
     0x2bce_3357_6b31_5ece,
@@ -181,18 +187,21 @@ const S4: [u64; 4] = [
     0xffffffffffffffff,
     0x00000000fffffffe,
 ];
+
 const S5: [u64; 4] = [
     0x00000000ffffffff,
     0x0000000100000001,
     0xfffffffeffffffff,
     0xfffffffe00000000,
 ];
+
 const S6: [u64; 4] = [
     0xfffffffefffffffe,
     0x00000002ffffffff,
     0x0000000000000002,
     0xfffffffe00000001,
 ];
+
 const S7: [u64; 4] = [
     0xfffffffeffffffff,
     0xfffffffffffffffe,
@@ -431,6 +440,7 @@ impl Scalar {
         Self(self.0.add_mod(&rhs.0, &MODULUS_N))
     }
 
+    #[cfg(test)]
     #[inline]
     fn sub(self, rhs: Self) -> Self {
         Self(self.0.sub_mod(&rhs.0, &MODULUS_N))
@@ -473,12 +483,6 @@ struct AffinePoint {
 }
 
 impl AffinePoint {
-    const IDENTITY: Self = Self {
-        x: FieldElement::ZERO,
-        y: FieldElement::ONE,
-        infinity: true,
-    };
-
     const GENERATOR: Self = Self {
         x: GENERATOR_X,
         y: GENERATOR_Y,
@@ -515,6 +519,7 @@ impl AffinePoint {
         out
     }
 
+    #[cfg(test)]
     #[inline]
     fn to_compressed_bytes(&self) -> [u8; PUBLIC_KEY_COMPRESSED_SIZE] {
         let mut out = [0u8; PUBLIC_KEY_COMPRESSED_SIZE];
@@ -558,6 +563,7 @@ impl ProjectivePoint {
         z: FieldElement::ZERO,
     };
 
+    #[cfg(test)]
     #[inline]
     fn from_affine(point: &AffinePoint) -> Self {
         if point.infinity {
@@ -820,6 +826,7 @@ fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, EllipticCurveError
     AffinePoint::from_sec1_bytes(public_key).ok_or(EllipticCurveError::InvalidKey)
 }
 
+#[cfg(test)]
 fn derive_public_key_uncompressed(
     private_key: &[u8; PRIVATE_KEY_SIZE],
 ) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], EllipticCurveError> {
@@ -830,6 +837,7 @@ fn derive_public_key_uncompressed(
     Ok(point.to_uncompressed_bytes())
 }
 
+#[cfg(test)]
 fn derive_public_key_compressed(
     private_key: &[u8; PRIVATE_KEY_SIZE],
 ) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], EllipticCurveError> {
@@ -2022,10 +2030,6 @@ mod tests {
 
     #[test]
     fn ecdsa_rejects_ptr_at_infinity_as_public_key() {
-        let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
-        let signature = key.sign(b"msg").unwrap();
-
         // The point at infinity (0x00) is rejected as a public key
         assert!(!is_valid_public_key(&[0x00]));
         assert!(PublicKey::from_bytes(&[0x00]).is_err());
@@ -2298,14 +2302,18 @@ mod tests {
     }
 
     #[test]
-    fn ecdsa_rejects_truncated_signature() {
+    fn p256_ecdsa_rejects_truncated_signature() {
         let key = PrivateKey::generate().unwrap();
         let sig = key.sign(b"msg").unwrap();
-        // Truncated signature should panic or be rejected
-        let truncated: [u8; 63] = sig[..63].try_into().unwrap();
-        // Can't call verify with wrong size due to type system
-        // This is a compile-time guarantee
-        assert_eq!(sig.len(), SIGNATURE_SIZE);
+        // Truncate to 63 bytes and pad to 64 with zeros
+        let mut truncated = [0u8; SIGNATURE_SIZE];
+        truncated[..63].copy_from_slice(&sig[..63]);
+        // If the dropped byte is 0, the padded copy equals the original,
+        // so flip a bit to ensure it's different
+        if truncated == sig {
+            truncated[63] ^= 0x01;
+        }
+        assert!(key.public_key().verify(b"msg", &truncated).is_err());
     }
 
     #[test]

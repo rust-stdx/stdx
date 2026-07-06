@@ -11,7 +11,7 @@
 ///
 /// This matches `u128::from_be_bytes(block)` exactly.
 use super::aes::{encrypt_block, expand_key};
-use crate::{Hash, bytes::Bytes};
+use crate::{Hash, aes::aes::RoundKeysSoftware, bytes::Bytes};
 
 /// Precomputed bit-reversal lookup table for all 256 byte values.
 /// Replaces 16 x reverse_bits() calls with simple table lookups.
@@ -120,10 +120,11 @@ pub(crate) fn gf128_mul(x: &[u8; 16], h: &[u8; 16]) -> [u8; 16] {
 pub(crate) type GhashTable = [[u8; 16]; 16];
 
 /// Build a nibble-lookup table for a given GHASH subkey H.
-pub(crate) fn precompute_ghash_table(h: &[u8; 16]) -> GhashTable {
+pub(crate) fn precompute_ghash_table<const N: usize>(round_keys: &RoundKeysSoftware<N>) -> GhashTable {
+    let h = encrypt_block(round_keys, &[0u8; 16]);
     let mut tab = [[0u8; 16]; 16];
-    let h_val = u128::from_be_bytes(*h);
-    tab[8] = *h;
+    let h_val = u128::from_be_bytes(h);
+    tab[8] = h;
     tab[4] = gf128_mul_x(h_val).to_be_bytes();
     tab[2] = gf128_mul_x(gf128_mul_x(h_val)).to_be_bytes();
     tab[1] = gf128_mul_x(gf128_mul_x(gf128_mul_x(h_val))).to_be_bytes();
@@ -170,43 +171,29 @@ fn ghash_mul_table(table: &GhashTable, x: &[u8; 16]) -> [u8; 16] {
 
 // ── Precomputation ───────────────────────────────────────────────────────────
 
+/// Precomputed GHASH powers for AES-GCM — one of hardware-native or software tables.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub enum GHashPowers {
+    #[cfg(target_arch = "x86_64")]
+    X86_64([core::arch::x86_64::__m128i; 8]),
+    #[cfg(target_arch = "aarch64")]
+    Armv8([core::arch::aarch64::uint8x16_t; 8]),
+    Software(GhashTable),
+}
+
 /// Precompute GHASH powers H¹ through H⁸ in bit-reversed-per-byte form.
 ///
 /// Returns `([h1_br..h8_br], h_natural)` where:
 /// - `h1_br`..`h8_br` are in the bit-reversed domain used by hardware GHASH
 /// - `h_natural` is H in the natural big-endian byte order (for software fallback / E(J0))
-pub(crate) fn precompute_ghash_powers_256(key: &[u8; 32]) -> ([[u8; 16]; 8], [u8; 16]) {
-    let rk = expand_key::<15>(key);
-    let h = encrypt_block(&rk, &[0u8; 16]);
-    let h2 = gf128_mul(&h, &h);
-    let h3 = gf128_mul(&h2, &h);
-    let h4 = gf128_mul(&h3, &h);
-    let h5 = gf128_mul(&h4, &h);
-    let h6 = gf128_mul(&h5, &h);
-    let h7 = gf128_mul(&h6, &h);
-    let h8 = gf128_mul(&h7, &h);
-    (
-        [
-            bitreverse_bytes(&h),
-            bitreverse_bytes(&h2),
-            bitreverse_bytes(&h3),
-            bitreverse_bytes(&h4),
-            bitreverse_bytes(&h5),
-            bitreverse_bytes(&h6),
-            bitreverse_bytes(&h7),
-            bitreverse_bytes(&h8),
-        ],
-        h,
-    )
-}
-
-/// Precompute GHASH powers H¹ through H⁸ from a 16-byte AES-128 key.
 ///
-/// Returns `([h1_br..h8_br], h_natural)` in the same format as
-/// [`precompute_ghash_powers`].
-pub(crate) fn precompute_ghash_powers_128(key: &[u8; 16]) -> ([[u8; 16]; 8], [u8; 16]) {
-    let rk: [[u8; 16]; 11] = super::aes::expand_key::<11>(key);
-    let h = encrypt_block::<11>(&rk, &[0u8; 16]);
+/// `N` is the number of AES round keys: `11` for AES-128, `15` for AES-256.
+pub(crate) fn precompute_ghash_powers<const N: usize>(key: &[u8]) -> ([[u8; 16]; 8], [u8; 16]) {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+    let rk = expand_key::<N>(key);
+    let h = encrypt_block::<N>(&rk, &[0u8; 16]);
     let h2 = gf128_mul(&h, &h);
     let h3 = gf128_mul(&h2, &h);
     let h4 = gf128_mul(&h3, &h);

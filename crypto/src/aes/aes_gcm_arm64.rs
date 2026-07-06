@@ -19,10 +19,12 @@
 /// eliminating key expansion and H derivation from every call.
 use core::arch::aarch64::*;
 
+use constant_time_eq::constant_time_eq;
+
 use super::{
     aes::GCM_MAX_LEN,
     aes_arm64::aes_encrypt_block,
-    aes_ctr_arm64::{SWAP_MASK, ctr_inc},
+    aes_ctr_arm64::{SWAP_MASK, increment_counter},
     ghash_arm64::{clmul_gcm_pmull, ghash_4blocks, ghash_8blocks, ghash_update},
 };
 use crate::{AeadError, Hash, bytes::Bytes};
@@ -30,7 +32,7 @@ use crate::{AeadError, Hash, bytes::Bytes};
 // ── Encrypt ───────────────────────────────────────────────────────────────────
 
 pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
-    rk: &[uint8x16_t; N],
+    round_keys: &[uint8x16_t; N],
     h_powers: &[uint8x16_t; 8],
     in_out: &mut [u8],
     nonce: &[u8; 12],
@@ -49,12 +51,12 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
     j0[..12].copy_from_slice(nonce);
     j0[15] = 1;
 
-    let ej0 = aes_encrypt_block::<N>(rk, vld1q_u8(j0.as_ptr()));
+    let ej0 = aes_encrypt_block::<N>(round_keys, vld1q_u8(j0.as_ptr()));
     let mut ej0_bytes = [0u8; 16];
     vst1q_u8(ej0_bytes.as_mut_ptr(), ej0);
 
     // CTR starts at J0 + 1
-    let ctr = ctr_inc(vld1q_u8(j0.as_ptr()));
+    let ctr = increment_counter(vld1q_u8(j0.as_ptr()));
 
     let swap = vld1q_u8(SWAP_MASK.as_ptr());
     let mut base = vqtbl1q_u8(ctr, swap);
@@ -84,14 +86,14 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
         let c7 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), six)), swap);
         let c8 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), seven)), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
-        let k5 = aes_encrypt_block::<N>(rk, c5);
-        let k6 = aes_encrypt_block::<N>(rk, c6);
-        let k7 = aes_encrypt_block::<N>(rk, c7);
-        let k8 = aes_encrypt_block::<N>(rk, c8);
+        let k1 = aes_encrypt_block::<N>(round_keys, c1);
+        let k2 = aes_encrypt_block::<N>(round_keys, c2);
+        let k3 = aes_encrypt_block::<N>(round_keys, c3);
+        let k4 = aes_encrypt_block::<N>(round_keys, c4);
+        let k5 = aes_encrypt_block::<N>(round_keys, c5);
+        let k6 = aes_encrypt_block::<N>(round_keys, c6);
+        let k7 = aes_encrypt_block::<N>(round_keys, c7);
+        let k8 = aes_encrypt_block::<N>(round_keys, c8);
 
         let p1 = vld1q_u8(in_out.as_ptr().add(i));
         let p2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -133,10 +135,10 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
         let c3 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), two)), swap);
         let c4 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), three)), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
+        let k1 = aes_encrypt_block::<N>(round_keys, c1);
+        let k2 = aes_encrypt_block::<N>(round_keys, c2);
+        let k3 = aes_encrypt_block::<N>(round_keys, c3);
+        let k4 = aes_encrypt_block::<N>(round_keys, c4);
 
         let p1 = vld1q_u8(in_out.as_ptr().add(i));
         let p2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -161,7 +163,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
 
     // Tail blocks (1-3)
     while i + 16 <= n {
-        let k = aes_encrypt_block::<N>(rk, vqtbl1q_u8(base, swap));
+        let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
         let ct = veorq_u8(vld1q_u8(in_out.as_ptr().add(i)), k);
         vst1q_u8(in_out.as_mut_ptr().add(i), ct);
 
@@ -172,7 +174,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
         i += 16;
     }
     if i < n {
-        let k = aes_encrypt_block::<N>(rk, vqtbl1q_u8(base, swap));
+        let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
         let mut buf = [0u8; 16];
         buf[..n - i].copy_from_slice(&in_out[i..]);
         let ct = veorq_u8(vld1q_u8(buf.as_ptr()), k);
@@ -203,7 +205,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
 // ── Decrypt ───────────────────────────────────────────────────────────────────
 
 pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
-    rk: &[uint8x16_t; N],
+    round_keys: &[uint8x16_t; N],
     h_powers: &[uint8x16_t; 8],
     in_out: &mut [u8],
     tag: &[u8; 16],
@@ -214,15 +216,11 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         assert!(N == 11 || N == 15);
     }
 
-    if in_out.len() > GCM_MAX_LEN {
-        return Err(AeadError::InvalidCiphertext);
-    }
-
     let mut j0 = [0u8; 16];
     j0[..12].copy_from_slice(nonce);
     j0[15] = 1;
 
-    let ej0 = aes_encrypt_block::<N>(rk, vld1q_u8(j0.as_ptr()));
+    let ej0 = aes_encrypt_block::<N>(round_keys, vld1q_u8(j0.as_ptr()));
     let mut ej0_bytes = [0u8; 16];
     vst1q_u8(ej0_bytes.as_mut_ptr(), ej0);
 
@@ -277,18 +275,13 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     let mut computed = [0u8; 16];
     vst1q_u8(computed.as_mut_ptr(), computed_tag);
 
-    // Constant-time comparison
-    let mut diff = 0u8;
-    for k in 0..16 {
-        diff |= computed[k] ^ tag[k];
-    }
-    if diff != 0 {
+    if !constant_time_eq(&computed, tag) {
         return Err(AeadError::InvalidCiphertext);
     }
 
     // ── CTR decrypt ────────────────────────────────────────────────────────
     let swap = vld1q_u8(SWAP_MASK.as_ptr());
-    let ctr = ctr_inc(vld1q_u8(j0.as_ptr()));
+    let ctr = increment_counter(vld1q_u8(j0.as_ptr()));
     let mut base = vqtbl1q_u8(ctr, swap);
     let zero = vdupq_n_u32(0);
     let one = vsetq_lane_u32(1, vdupq_n_u32(0), 0);
@@ -311,14 +304,14 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         let c7 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), six)), swap);
         let c8 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), seven)), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
-        let k5 = aes_encrypt_block::<N>(rk, c5);
-        let k6 = aes_encrypt_block::<N>(rk, c6);
-        let k7 = aes_encrypt_block::<N>(rk, c7);
-        let k8 = aes_encrypt_block::<N>(rk, c8);
+        let k1 = aes_encrypt_block::<N>(round_keys, c1);
+        let k2 = aes_encrypt_block::<N>(round_keys, c2);
+        let k3 = aes_encrypt_block::<N>(round_keys, c3);
+        let k4 = aes_encrypt_block::<N>(round_keys, c4);
+        let k5 = aes_encrypt_block::<N>(round_keys, c5);
+        let k6 = aes_encrypt_block::<N>(round_keys, c6);
+        let k7 = aes_encrypt_block::<N>(round_keys, c7);
+        let k8 = aes_encrypt_block::<N>(round_keys, c8);
 
         let ct1 = vld1q_u8(in_out.as_ptr().add(i));
         let ct2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -348,10 +341,10 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         let c3 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), two)), swap);
         let c4 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), three)), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
+        let k1 = aes_encrypt_block::<N>(round_keys, c1);
+        let k2 = aes_encrypt_block::<N>(round_keys, c2);
+        let k3 = aes_encrypt_block::<N>(round_keys, c3);
+        let k4 = aes_encrypt_block::<N>(round_keys, c4);
 
         let ct1 = vld1q_u8(in_out.as_ptr().add(i));
         let ct2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -368,14 +361,14 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     }
 
     while i + 16 <= n {
-        let k = aes_encrypt_block::<N>(rk, vqtbl1q_u8(base, swap));
+        let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
         let pt = veorq_u8(vld1q_u8(in_out.as_ptr().add(i)), k);
         vst1q_u8(in_out.as_mut_ptr().add(i), pt);
         base = vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), one));
         i += 16;
     }
     if i < n {
-        let k = aes_encrypt_block::<N>(rk, vqtbl1q_u8(base, swap));
+        let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
         let mut buf = [0u8; 16];
         buf[..n - i].copy_from_slice(&in_out[i..]);
         let pt = veorq_u8(vld1q_u8(buf.as_ptr()), k);
@@ -394,8 +387,9 @@ mod tests {
     use hex;
 
     use super::*;
+    use crate::aes::{expand_key, ghash::precompute_ghash_table};
 
-    fn make_rk(key: &[u8; 32]) -> [uint8x16_t; 15] {
+    fn make_round_keys(key: &[u8; 32]) -> [uint8x16_t; 15] {
         let soft = crate::aes::aes::expand_key::<15>(key);
         let mut rk = [unsafe { vdupq_n_u8(0) }; 15];
         for i in 0..15 {
@@ -405,7 +399,7 @@ mod tests {
     }
 
     fn make_h_powers(key: &[u8; 32]) -> [uint8x16_t; 8] {
-        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers_256(key);
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers::<15>(key);
         let mut hp = [unsafe { vdupq_n_u8(0) }; 8];
         for i in 0..8 {
             hp[i] = unsafe { vld1q_u8(bytes[i].as_ptr()) };
@@ -420,12 +414,16 @@ mod tests {
         let nonce: [u8; 12] = hex::decode_array::<12>(b"cafebabefacedbaddecaf888").unwrap();
         let aad = hex::decode("feedfacedeadbeeffeedfacedeadbeef").unwrap();
         let pt: Vec<u8> = (0u8..=255u8).collect();
+        let round_keys = expand_key(&key);
+        let ghash_table = precompute_ghash_table(&round_keys);
 
-        let cipher = crate::aes::aes_256_gcm::Aes256Gcm::new(&key);
+        let cipher = crate::aes::Aes256Gcm::new(&key);
         let mut soft_buf = pt.clone();
-        let soft_tag = cipher.encrypt_in_place_soft(&mut soft_buf, &nonce, &aad);
+        let soft_tag = cipher
+            .0
+            .encrypt_in_place_soft(&mut soft_buf, &round_keys, &ghash_table, &nonce, &aad);
 
-        let rk = make_rk(&key);
+        let rk = make_round_keys(&key);
         let hp = make_h_powers(&key);
         let mut arm_buf = pt.clone();
         let arm_tag = unsafe { gcm_encrypt_armv8(&rk, &hp, &mut arm_buf, &nonce, &aad) };

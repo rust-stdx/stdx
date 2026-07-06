@@ -131,6 +131,7 @@ const MODULUS_P: U384 = U384::from_limbs([
     0xffffffffffffffff,
     0xffffffffffffffff,
 ]);
+
 const MODULUS_N: U384 = U384::from_limbs([
     0xecec196accc52973,
     0x581a0db248b0a77a,
@@ -139,6 +140,7 @@ const MODULUS_N: U384 = U384::from_limbs([
     0xffffffffffffffff,
     0xffffffffffffffff,
 ]);
+
 const P_MINUS_TWO: U384 = U384::from_limbs([
     0x00000000fffffffd,
     0xffffffff00000000,
@@ -147,6 +149,7 @@ const P_MINUS_TWO: U384 = U384::from_limbs([
     0xffffffffffffffff,
     0xffffffffffffffff,
 ]);
+
 const P_PLUS_ONE_OVER_FOUR: U384 = U384::from_limbs([
     0x0000000040000000,
     0xbfffffffc0000000,
@@ -155,6 +158,7 @@ const P_PLUS_ONE_OVER_FOUR: U384 = U384::from_limbs([
     0xffffffffffffffff,
     0x3fffffffffffffff,
 ]);
+
 const N_MINUS_TWO: U384 = U384::from_limbs([
     0xecec196accc52971,
     0x581a0db248b0a77a,
@@ -172,6 +176,7 @@ const CURVE_B: FieldElement = FieldElement(U384::from_limbs([
     0x988e056be3f82d19,
     0xb3312fa7e23ee7e4,
 ]));
+
 const GENERATOR_X: FieldElement = FieldElement(U384::from_limbs([
     0x3a545e3872760ab7,
     0x5502f25dbf55296c,
@@ -180,6 +185,7 @@ const GENERATOR_X: FieldElement = FieldElement(U384::from_limbs([
     0x8eb1c71ef320ad74,
     0xaa87ca22be8b0537,
 ]));
+
 const GENERATOR_Y: FieldElement = FieldElement(U384::from_limbs([
     0x7a431d7c90ea0e5f,
     0x0a60b1ce1d7e819d,
@@ -200,6 +206,7 @@ const S6: [u64; 6] = [
     0x0000000000000000,
     0x0000000000000000,
 ];
+
 const S7: [u64; 6] = [
     0x0000000000000000,
     0xffffffff00000001,
@@ -208,6 +215,7 @@ const S7: [u64; 6] = [
     0x0000000000000000,
     0x0000000000000000,
 ];
+
 const S8: [u64; 6] = [
     0x0000000000000000,
     0x0000000000000000,
@@ -216,6 +224,7 @@ const S8: [u64; 6] = [
     0x0000000000000001,
     0x0000000000000000,
 ];
+
 const S9: [u64; 6] = [
     0x0000000000000000,
     0x0000000000000000,
@@ -224,6 +233,7 @@ const S9: [u64; 6] = [
     0x00000000ffffffff,
     0x0000000000000001,
 ];
+
 const S10: [u64; 6] = [
     0xffffffff00000001,
     0x00000000ffffffff,
@@ -232,6 +242,7 @@ const S10: [u64; 6] = [
     0xffffffff00000001,
     0x00000000ffffffff,
 ];
+
 const S11: [u64; 6] = [
     0x00000001ffffffff,
     0xfffffffe00000000,
@@ -527,6 +538,7 @@ impl Scalar {
         Self(self.0.add_mod(&rhs.0, &MODULUS_N))
     }
 
+    #[cfg(test)]
     #[inline]
     fn sub(self, rhs: Self) -> Self {
         Self(self.0.sub_mod(&rhs.0, &MODULUS_N))
@@ -569,12 +581,6 @@ struct AffinePoint {
 }
 
 impl AffinePoint {
-    const IDENTITY: Self = Self {
-        x: FieldElement::ZERO,
-        y: FieldElement::ONE,
-        infinity: true,
-    };
-
     const GENERATOR: Self = Self {
         x: GENERATOR_X,
         y: GENERATOR_Y,
@@ -611,6 +617,7 @@ impl AffinePoint {
         out
     }
 
+    #[cfg(test)]
     #[inline]
     fn to_compressed_bytes(&self) -> [u8; PUBLIC_KEY_COMPRESSED_SIZE] {
         let mut out = [0u8; PUBLIC_KEY_COMPRESSED_SIZE];
@@ -654,6 +661,7 @@ impl ProjectivePoint {
         z: FieldElement::ZERO,
     };
 
+    #[cfg(test)]
     #[inline]
     fn from_affine(point: &AffinePoint) -> Self {
         if point.infinity {
@@ -902,6 +910,7 @@ fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, EllipticCurveError
     AffinePoint::from_sec1_bytes(public_key).ok_or(EllipticCurveError::InvalidKey)
 }
 
+#[cfg(test)]
 fn derive_public_key_uncompressed(
     private_key: &[u8; PRIVATE_KEY_SIZE],
 ) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], EllipticCurveError> {
@@ -912,6 +921,7 @@ fn derive_public_key_uncompressed(
     Ok(point.to_uncompressed_bytes())
 }
 
+#[cfg(test)]
 fn derive_public_key_compressed(
     private_key: &[u8; PRIVATE_KEY_SIZE],
 ) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], EllipticCurveError> {
