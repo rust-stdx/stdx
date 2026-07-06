@@ -53,26 +53,66 @@ pub enum AeadKey {
 }
 
 impl CryptoProvider for DefaultCryptoProvider {
-    const CIPHER_SUITES: &[CipherSuite] = &[
-        CipherSuite::TlsAes128GcmSha256,
-        CipherSuite::TlsChaCha20Poly1305Sha256,
-        CipherSuite::TlsAes256GcmSha384,
-    ];
-    const KEY_EXCHANGE_GROUPS: &[KeyExchangeGroup] = &[
-        KeyExchangeGroup::X25519MlKem768,
-        KeyExchangeGroup::X25519,
-        KeyExchangeGroup::Secp256r1,
-    ];
-    const SIGNATURE_SCHEMES: &[SignatureScheme] = &[
-        SignatureScheme::Ed25519,
-        SignatureScheme::EcdsaP256Sha256,
-        SignatureScheme::EcdsaP384Sha384,
-        SignatureScheme::RsaPssRsaSha256,
-        SignatureScheme::RsaPkcs1Sha256,
-    ];
-
     type Hasher = Hasher;
     type AeadKey = AeadKey;
+
+    #[inline]
+    fn cipher_suites() -> &'static [CipherSuite] {
+        // runtime / compile detection of CPU instructions to return the list of supported ciphersuites
+        // in the correct order
+        static AES_FIRST: &[CipherSuite] = &[
+            CipherSuite::TlsAes128GcmSha256,
+            CipherSuite::TlsChaCha20Poly1305Sha256,
+            CipherSuite::TlsAes256GcmSha384,
+        ];
+        static CHACHA_FIRST: &[CipherSuite] = &[
+            CipherSuite::TlsChaCha20Poly1305Sha256,
+            CipherSuite::TlsAes128GcmSha256,
+            CipherSuite::TlsAes256GcmSha384,
+        ];
+
+        #[cfg(target_arch = "x86_64")]
+        {
+            #[cfg(feature = "std")]
+            if std::arch::is_x86_feature_detected!("aes") {
+                return AES_FIRST;
+            }
+            #[cfg(all(not(feature = "std"), target_feature = "aes"))]
+            return AES_FIRST;
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            #[cfg(feature = "std")]
+            if std::arch::is_aarch64_feature_detected!("aes") {
+                return AES_FIRST;
+            }
+            #[cfg(all(not(feature = "std"), target_feature = "aes"))]
+            return AES_FIRST;
+        }
+
+        CHACHA_FIRST
+    }
+
+    #[inline]
+    fn signature_schemes() -> &'static [SignatureScheme] {
+        &[
+            SignatureScheme::Ed25519,
+            SignatureScheme::EcdsaP256Sha256,
+            SignatureScheme::EcdsaP384Sha384,
+            SignatureScheme::RsaPssRsaSha256,
+            SignatureScheme::RsaPkcs1Sha256,
+        ]
+    }
+
+    #[inline]
+    fn key_exchange_groups() -> &'static [KeyExchangeGroup] {
+        &[
+            KeyExchangeGroup::X25519MlKem768,
+            KeyExchangeGroup::X25519,
+            KeyExchangeGroup::Secp256r1,
+        ]
+    }
 
     fn new_aead_key(&self, suite: CipherSuite, key: &[u8]) -> Self::AeadKey {
         match suite {

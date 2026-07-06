@@ -315,15 +315,15 @@ impl CryptoProvider for DefaultCryptoProvider {
                 Ok(encrypt_block::<11>(&rk, sample))
             }
             CipherSuite::TlsAes256GcmSha384 => {
-                use crypto::aes::{encrypt_block, key_expand_256};
+                use crypto::aes::{encrypt_block, expand_key};
                 let key: &[u8; 32] = hp_key.try_into().map_err(|_| {
                     Error::InvalidKey(InvalidKeyFailure::WrongLength {
                         algorithm: "AES-256 HP key",
                         expected: 32,
                     })
                 })?;
-                let rk = key_expand_256(key);
-                Ok(encrypt_block::<15>(&rk, sample))
+                let rk = expand_key::<15>(key);
+                Ok(encrypt_block(&rk, sample))
             }
             CipherSuite::TlsChaCha20Poly1305Sha256 => {
                 use crypto::chacha::ChaCha;

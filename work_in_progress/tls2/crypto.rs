@@ -75,16 +75,20 @@ impl DerefMut for Hash {
 }
 
 pub trait CryptoProvider: Clone + Send + Sync {
-    const CIPHER_SUITES: &[CipherSuite];
-    const KEY_EXCHANGE_GROUPS: &[KeyExchangeGroup];
-    const SIGNATURE_SCHEMES: &[SignatureScheme];
-
     /// Opaque incremental hash state, must be Clone for transcript checkpointing.
     type Hasher: Clone + Unpin;
 
     /// A distinct type is used to avoid computation for ench encrypt / decrypt operation for some
     /// ciphers (e.g. AES key expanding)
     type AeadKey: Unpin;
+
+    // Supported cryptographic algorithms.
+    // These are associated functions instead of associated const so crypto providers can perform
+    // runtime detection of the instructions supported by the CPU.
+
+    fn cipher_suites() -> &'static [CipherSuite];
+    fn signature_schemes() -> &'static [SignatureScheme];
+    fn key_exchange_groups() -> &'static [KeyExchangeGroup];
 
     fn secure_random(&self, buf: &mut [u8]);
 

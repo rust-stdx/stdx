@@ -218,7 +218,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
             ciphersuite: None,
             alpn: None,
             negotiated_cert_type: CertType::X509,
-            key_exchange_group: C::KEY_EXCHANGE_GROUPS
+            key_exchange_group: C::key_exchange_groups()
                 .first()
                 .copied()
                 .unwrap_or(KeyExchangeGroup::X25519),
@@ -315,7 +315,8 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
         let mut key_exchange_public_keys: heapless::Vec<KeyExchangePublicKey, KEY_EXCHANGE_MAX_GROUPS> =
             heapless::Vec::new();
 
-        for group in C::KEY_EXCHANGE_GROUPS.iter().take(KEY_EXCHANGE_MAX_GROUPS) {
+        let key_exchange_groups = C::key_exchange_groups();
+        for group in key_exchange_groups.iter().take(KEY_EXCHANGE_MAX_GROUPS) {
             let (secret, public) = crypto_provider.key_exchange_generate_keypair(*group)?;
             self.key_exchange_pairs
                 .push(secret)
@@ -325,10 +326,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
                 .map_err(|_| Error::InvalidConfiguration)?;
         }
 
-        self.key_exchange_group = C::KEY_EXCHANGE_GROUPS
-            .first()
-            .copied()
-            .unwrap_or(KeyExchangeGroup::X25519);
+        self.key_exchange_group = *key_exchange_groups.first().ok_or(Error::InvalidConfiguration)?;
 
         self.server_name.clear();
         if let Some(name) = server_name {
@@ -361,10 +359,11 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
                 .unwrap();
         }
 
-        if !C::SIGNATURE_SCHEMES.is_empty() {
+        let signature_schemes = C::signature_schemes();
+        if !signature_schemes.is_empty() {
             extensions
                 .push(message::ClientExtension::SignatureAlgorithms {
-                    schemes: C::SIGNATURE_SCHEMES,
+                    schemes: signature_schemes,
                 })
                 .unwrap();
         }
@@ -402,7 +401,7 @@ impl<B: Buffer, C: CryptoProvider> Client<B, C> {
             &mut self.send_buffer[offset..],
             &client_random,
             &[],
-            C::CIPHER_SUITES,
+            C::cipher_suites(),
             &extensions,
         )?;
 
