@@ -67,7 +67,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
     }
 
     assert!(
-        in_out.len() <= GCM_MAX_LEN,
+        in_out.len() as u64 <= GCM_MAX_LEN,
         "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
     );
 
@@ -251,7 +251,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
         assert!(N == 11 || N == 15);
     }
 
-    if in_out.len() > GCM_MAX_LEN {
+    if in_out.len() as u64 > GCM_MAX_LEN {
         return Err(AeadError::InvalidCiphertext);
     }
 
