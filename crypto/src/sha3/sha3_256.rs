@@ -1,4 +1,4 @@
-use super::keccak::Keccak;
+use super::keccak::KeccakSponge;
 use crate::{Bytes, Hash, Hasher};
 
 const SHA3_256_RATE: usize = 136;
@@ -29,14 +29,14 @@ const SHA3_256_DOMAIN_SEPARATOR: u8 = 0x06;
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Sha3_256 {
-    keccak: Keccak<24>,
+    keccak: KeccakSponge<24>,
 }
 
 impl Sha3_256 {
     #[inline]
     pub fn new() -> Self {
         return Sha3_256 {
-            keccak: Keccak::new(SHA3_256_RATE, SHA3_256_DOMAIN_SEPARATOR),
+            keccak: KeccakSponge::new(SHA3_256_RATE, SHA3_256_DOMAIN_SEPARATOR),
         };
     }
 }

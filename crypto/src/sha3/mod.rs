@@ -1,3 +1,5 @@
+//! The SHA-3 family of hashing functions (FIPS 202 and NIST SP 800-185).
+
 pub mod keccak;
 mod kmac;
 mod sha3_256;

@@ -40,7 +40,7 @@ pub const ROUND_CONSTANTS: [u64; 24] = [
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
-pub(crate) enum SpongeMode {
+enum SpongeMode {
     Absorbing,
     Squeezing,
 }
@@ -50,9 +50,8 @@ pub(crate) enum SpongeMode {
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 #[repr(align(8))]
 // the struct requires 8-byte alignment for `ptr::copy_nonoverlapping` UB check on wasm32:
-// `state` is transmuted to
-// `&mut [u64; 25]` in `permute_and_reset_pos`, which needs 8-byte alignment.
-pub(crate) struct Keccak<const ROUNDS: usize> {
+// `state` is transmuted to `&mut [u64; 25]` in `permute_and_reset_pos`, which needs 8-byte alignment.
+pub struct KeccakSponge<const ROUNDS: usize> {
     state: [u8; 200],
     rate: usize,
     padding: u8,
@@ -61,11 +60,11 @@ pub(crate) struct Keccak<const ROUNDS: usize> {
     mode: SpongeMode,
 }
 
-impl<const ROUNDS: usize> Keccak<ROUNDS> {
+impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
     #[inline]
-    pub(crate) fn new(rate: usize, delimiter: u8) -> Self {
+    pub fn new(rate: usize, delimiter: u8) -> Self {
         debug_assert!(rate > 0 && rate < 200);
-        return Keccak {
+        return KeccakSponge {
             state: [0u8; 200],
             rate,
             padding: delimiter,
@@ -75,7 +74,7 @@ impl<const ROUNDS: usize> Keccak<ROUNDS> {
     }
 
     #[inline]
-    pub(crate) fn absorb(&mut self, data: &[u8]) {
+    pub fn absorb(&mut self, data: &[u8]) {
         assert_eq!(self.mode, SpongeMode::Absorbing, "absorb can't be called after squeezing");
 
         // we first need to prevent `data` to overflow into `capacity`
@@ -85,18 +84,6 @@ impl<const ROUNDS: usize> Keccak<ROUNDS> {
         // then we can absorbe `RATE`-sized chunks
         for chunk in data[rate_remainder..].chunks(self.rate) {
             self.absorb_chunk(chunk);
-        }
-    }
-
-    #[inline]
-    fn absorb_chunk(&mut self, chunk: &[u8]) {
-        // xor(&mut self.state[self.pos..RATE], &chunk);
-        xor(&mut self.state[self.pos..self.pos + chunk.len()], &chunk);
-        self.pos += chunk.len();
-
-        // if the sponge is full, apply the permutation
-        if self.pos == self.rate {
-            self.permute_and_reset_pos();
         }
     }
 
@@ -115,6 +102,17 @@ impl<const ROUNDS: usize> Keccak<ROUNDS> {
         // then we can squeeze `RATE`-sized chunks
         for mut chunk in out[rate_remainder..].chunks_mut(self.rate) {
             self.squeeze_chunk(&mut chunk);
+        }
+    }
+
+    #[inline]
+    fn absorb_chunk(&mut self, chunk: &[u8]) {
+        xor(&mut self.state[self.pos..self.pos + chunk.len()], &chunk);
+        self.pos += chunk.len();
+
+        // if the sponge is full, apply the permutation
+        if self.pos == self.rate {
+            self.permute_and_reset_pos();
         }
     }
 
@@ -145,7 +143,7 @@ impl<const ROUNDS: usize> Keccak<ROUNDS> {
     }
 }
 
-/// The Keccak-p sponge function for a 1600-bit state
+/// The Keccak-p permutation a 1600-bit state
 #[allow(unreachable_code)]
 pub fn p1600<const ROUNDS: usize>(state: &mut [u64; 25]) {
     const {
@@ -211,7 +209,7 @@ pub fn p1600<const ROUNDS: usize>(state: &mut [u64; 25]) {
 
 /// xor dest with source. source is not modified.
 #[inline(always)]
-pub fn xor(dest: &mut [u8], source: &[u8]) {
+fn xor(dest: &mut [u8], source: &[u8]) {
     dest.iter_mut()
         .zip(source.iter())
         .for_each(|(dest, source)| *dest ^= *source);

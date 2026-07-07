@@ -1,3 +1,5 @@
+//! ML-KEM post-quantum key encapsulation mechanism (KEM) standardized in FIPS 203.
+
 mod mlkem;
 mod mlkem1024;
 mod mlkem768;

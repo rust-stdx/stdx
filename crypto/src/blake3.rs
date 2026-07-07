@@ -1,3 +1,6 @@
+//! The BLAKE3 cryptographic hash function with support for ultra-fast hashing, keyed hashing (MAC),
+//! key derivation and extendable-output (XOF).
+
 use crate::{Bytes, Hash, Hasher, Xof};
 
 /// BLAKE3 hash function.

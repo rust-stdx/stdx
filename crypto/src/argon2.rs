@@ -1,4 +1,4 @@
-//! Pure Rust implementation of Argon2id (RFC 9106).
+//! Argon2id (RFC 9106) password hashing function.
 //!
 //! Argon2id is a memory-hard password hashing function that provides resistance
 //! against both side-channel attacks and GPU/ASIC brute-force attacks.

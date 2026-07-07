@@ -1,10 +1,9 @@
 //! Pure Rust cryptography with `no_std` support and hardware / SIMD acceleration
-//! for `x86_64` and `aarch64` (and sometimes WASM).
+//! for `x86_64`, `aarch64` and WebAssembly.
 //!
 //! # ⚠️ Warning
 //!
-//! This crate has **not** undergone a third-party security audit or formal
-//! cryptographic review yet. Use at your own risk.
+//! This crate has **not** undergone a third-party security audit yet. Use at your own risk.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -46,7 +45,7 @@ pub use bytes::Hash;
 #[cfg(feature = "random")]
 pub use random::{random_bytes, random_fill};
 
-const MAX_HASH_BLOCK_SIZE: usize = 128;
+const MAX_HASH_BLOCK_SIZE: usize = 136;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Errors

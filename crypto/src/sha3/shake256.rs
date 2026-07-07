@@ -1,4 +1,4 @@
-use super::keccak::Keccak;
+use super::keccak::KeccakSponge;
 use crate::{Hash, Hasher, Xof, bytes::Bytes};
 
 pub(crate) const SHAKE256_RATE: usize = 136;
@@ -15,7 +15,7 @@ type EncodedBytes = Bytes<9>;
 /// # One-shot API
 ///
 /// ```ignore
-/// use crypto::sha3::Shake256;
+/// use crypto{Hasher, sha3::Shake256};
 ///
 /// let mut output = [0u8; 64];
 /// Shake256::hash(b"hello world", &mut output);
@@ -35,22 +35,22 @@ type EncodedBytes = Bytes<9>;
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Shake256 {
-    keccak: Keccak<24>,
+    keccak: KeccakSponge<24>,
 }
 
 impl Shake256 {
+    #[inline]
+    pub fn new() -> Self {
+        return Shake256 {
+            keccak: KeccakSponge::new(SHAKE256_RATE, SHAKE256_DOMAIN_SEPARATOR),
+        };
+    }
+
     #[inline]
     pub fn hash(data: &[u8], output: &mut [u8]) {
         let mut hasher = Shake256::new();
         hasher.absorb(data);
         hasher.squeeze(output);
-    }
-
-    #[inline]
-    pub fn new() -> Self {
-        return Shake256 {
-            keccak: Keccak::new(SHAKE256_RATE, SHAKE256_DOMAIN_SEPARATOR),
-        };
     }
 }
 
@@ -118,7 +118,7 @@ impl Hasher for Shake256 {
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct CShake256 {
-    keccak: Keccak<24>,
+    keccak: KeccakSponge<24>,
 }
 
 impl CShake256 {
@@ -133,11 +133,11 @@ impl CShake256 {
     pub fn new(function_name: &[u8], customization: &[u8]) -> Self {
         if function_name.is_empty() && customization.is_empty() {
             return CShake256 {
-                keccak: Keccak::new(SHAKE256_RATE, SHAKE256_DOMAIN_SEPARATOR),
+                keccak: KeccakSponge::new(SHAKE256_RATE, SHAKE256_DOMAIN_SEPARATOR),
             };
         }
 
-        let mut keccak = Keccak::new(SHAKE256_RATE, CSHAKE256_DOMAIN_SEPARATOR);
+        let mut keccak = KeccakSponge::new(SHAKE256_RATE, CSHAKE256_DOMAIN_SEPARATOR);
 
         // absorb bytepad(encode_string(N) || encode_string(S), w)
 

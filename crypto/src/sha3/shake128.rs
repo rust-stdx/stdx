@@ -1,12 +1,12 @@
-use super::keccak::Keccak;
-use crate::Xof;
+use super::keccak::KeccakSponge;
+use crate::{Bytes, Hash, Hasher, Xof};
 
 pub(crate) const SHAKE128_RATE: usize = 168;
 const SHAKE128_DOMAIN_SEPARATOR: u8 = 0x1f;
 
-/// SHAKE128 extensible-output function (XOF) as defined in FIPS 202.
+/// SHAKE128 extensible-output function (XOF) standardized in FIPS 202.
 ///
-/// Implements the [`Xof`] trait.
+/// Implements both the [`Xof`] and [`Hasher`] traits.
 ///
 /// # One-shot API
 ///
@@ -29,15 +29,16 @@ const SHAKE128_DOMAIN_SEPARATOR: u8 = 0x1f;
 /// shake.squeeze(&mut out);
 /// ```
 #[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Shake128 {
-    keccak: Keccak<24>,
+    keccak: KeccakSponge<24>,
 }
 
 impl Shake128 {
     #[inline]
     pub fn new() -> Self {
         return Shake128 {
-            keccak: Keccak::new(SHAKE128_RATE, SHAKE128_DOMAIN_SEPARATOR),
+            keccak: KeccakSponge::new(SHAKE128_RATE, SHAKE128_DOMAIN_SEPARATOR),
         };
     }
 
@@ -46,6 +47,28 @@ impl Shake128 {
         let mut hasher = Shake128::new();
         hasher.absorb(data);
         hasher.squeeze(output);
+    }
+}
+
+impl Hasher for Shake128 {
+    const BLOCK_SIZE: usize = SHAKE128_RATE;
+    const OUTPUT_SIZE: usize = 32;
+
+    #[inline]
+    fn new() -> Self {
+        return Shake128::new();
+    }
+
+    #[inline]
+    fn update(&mut self, data: &[u8]) {
+        self.absorb(data);
+    }
+
+    #[inline]
+    fn sum(mut self) -> Hash {
+        let mut hash = Bytes::<64>::with_length(Self::OUTPUT_SIZE);
+        self.squeeze(hash.as_mut());
+        return Hash(hash);
     }
 }
 

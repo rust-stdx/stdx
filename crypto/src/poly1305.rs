@@ -1,3 +1,5 @@
+//! # Poly1305 MAC
+
 /// Poly1305 streaming MAC state.
 ///
 /// Feeds data incrementally via `update()`, then produces the 16-byte

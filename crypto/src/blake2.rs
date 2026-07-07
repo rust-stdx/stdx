@@ -1,3 +1,5 @@
+//! BLAKE2 Cryptographic Hash and Message Authentication Code (MAC) (RFC 7693).
+
 use crate::{Bytes, Hash, Hasher};
 
 const IV: [u64; 8] = [

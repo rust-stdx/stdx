@@ -16,10 +16,9 @@ name = "runtime"
 harness = false
 
 
-[profile.bench]
-lto = true
-codegen-units = 1
-opt-level = 3
-# Line numbers for dhat
-debug = 1
-
+# [profile.bench]
+# lto = true
+# codegen-units = 1
+# opt-level = 3
+# # Line numbers for dhat
+# debug = 1

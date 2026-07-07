@@ -1,3 +1,10 @@
+//! The SHA-2 family of hashing functions.
+//!
+//! # ⚠️ Warning
+//!
+//! SHA-2 function are vulnerable to length-extension attacks. Unless mandated, you may prefer `BLAKE3`
+//! or the (slower) SHA-3 functions.
+
 mod sha256;
 mod sha384;
 mod sha512;

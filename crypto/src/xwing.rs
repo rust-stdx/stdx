@@ -1,3 +1,5 @@
+//! X-Wing: hybrid post-quantum key encapsulation mechanism (KEM) algorithm (ML-KEM-768 with X25519).
+
 use crate::{
     curve25519::x25519,
     mlkem::{self, MlKemError},

@@ -1,3 +1,5 @@
+//! HMAC (Hash-based Message Authentication Code)
+
 use crate::{Hash, Hasher, HkdfError, hmac::Hmac};
 
 const DEFAULT_SALT: [u8; 64] = [0u8; 64];

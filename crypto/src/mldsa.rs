@@ -1,3 +1,5 @@
+//! ML-DSA post-quantum signatures standardized in FIPS 204.
+
 use constant_time_eq::constant_time_eq;
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};

@@ -384,7 +384,9 @@ pub(crate) fn poly_getnoise(seed: &[u8; 32], nonce: u8, eta: usize) -> Poly {
     input[..32].copy_from_slice(seed);
     input[32] = nonce;
     let mut buf = [0u8; 128];
-    Shake256::hash(&input, &mut buf);
+    let mut shake256 = Shake256::new();
+    shake256.absorb(&input);
+    shake256.squeeze(&mut buf);
     cbd2(&buf)
 }
 
