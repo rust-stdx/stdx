@@ -1437,7 +1437,7 @@ dependencies = [
  "httpdate 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itoa",
  "pin-project-lite 0.2.17",
- "smallvec",
+ "smallvec 1.15.2",
  "tokio",
  "want",
 ]
@@ -1552,7 +1552,7 @@ dependencies = [
  "icu_normalizer_data",
  "icu_properties",
  "icu_provider",
- "smallvec",
+ "smallvec 1.15.2",
  "zerovec",
 ]
 
@@ -1604,7 +1604,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de"
 dependencies = [
  "idna_adapter",
- "smallvec",
+ "smallvec 1.15.2",
  "utf8_iter",
 ]
 
@@ -1734,6 +1734,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "jwt"
+version = "0.1.0"
+dependencies = [
+ "base64 0.1.0",
+ "constant_time_eq 0.3.0",
+ "crypto",
+ "serde",
+ "serde_json",
+ "smallvec 2.0.0-alpha.12",
 ]
 
 [[package]]
@@ -2025,7 +2037,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "redox_syscall",
- "smallvec",
+ "smallvec 1.15.2",
  "windows-link",
 ]
 
@@ -2796,6 +2808,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "smallvec"
+version = "2.0.0-alpha.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef784004ca8777809dcdad6ac37629f0a97caee4c685fcea805278d81dd8b857"
+
+[[package]]
 name = "socket2"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2851,7 +2869,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "smallvec",
+ "smallvec 1.15.2",
  "thiserror 2.0.18",
  "tracing",
  "url",
@@ -2944,7 +2962,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "smallvec",
+ "smallvec 1.15.2",
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.18",

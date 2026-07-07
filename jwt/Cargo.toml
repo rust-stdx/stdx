@@ -1,0 +1,21 @@
+[package]
+name = "jwt"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "jwt.rs"
+
+[features]
+default = ["std"]
+
+std = ["serde/std"]
+
+
+[dependencies]
+base64 = { path = "../base64" }
+constant_time_eq = { path = "../constant_time_eq" }
+crypto = { path = "../crypto" }
+serde = { workspace = true, default_features = false, features = ["derive"] }
+serde_json = { workspace = true }
+smallvec = { workspace = true }

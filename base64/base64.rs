@@ -519,7 +519,7 @@ pub fn decode(data: impl AsRef<[u8]>, alphabet: Alphabet) -> Result<alloc::vec::
 pub const fn decode_array<const OUT: usize>(encoded_data: &[u8], alphabet: Alphabet) -> Result<[u8; OUT], DecodeError> {
     let mut result = [0u8; OUT];
     match decode_into_constant_time(&mut result, encoded_data, alphabet) {
-        Ok(()) => Ok(result),
+        Ok(_) => Ok(result),
         Err(err) => Err(err),
     }
 }
@@ -544,7 +544,7 @@ pub const fn decode_array<const OUT: usize>(encoded_data: &[u8], alphabet: Alpha
 /// base64::decode_into(&mut buf, b"aGVsbG8=", base64::Alphabet::Standard).unwrap();
 /// assert_eq!(&buf, b"hello");
 /// ```
-pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -> Result<(), DecodeError> {
+pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -> Result<usize, DecodeError> {
     let (content_len, _) = strip_padding_info(encoded_data, alphabet.is_padded())?;
     let computed_output = decoded_length(content_len)?;
     if output.len() < computed_output {
@@ -554,19 +554,22 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     if content_len >= 32 {
         let content = &encoded_data[..content_len];
-        return unsafe { base64_neon::decode_into(output, content, alphabet) };
+        unsafe { base64_neon::decode_into(output, content, alphabet)? };
+        return Ok(computed_output);
     }
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     if content_len >= 32 {
         let content = &encoded_data[..content_len];
-        return unsafe { base64_avx2::decode_into(output, content, alphabet) };
+        unsafe { base64_avx2::decode_into(output, content, alphabet) };
+        return Ok(computed_output);
     }
 
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     if content_len >= 16 {
         let content = &encoded_data[..content_len];
-        return base64_wasm_simd128::decode_into(output, content, alphabet);
+        base64_wasm_simd128::decode_into(output, content, alphabet);
+        return Ok(computed_output);
     }
 
     decode_into_constant_time(output, encoded_data, alphabet)
@@ -590,12 +593,12 @@ pub const fn decode_into_constant_time(
     output: &mut [u8],
     encoded_data: &[u8],
     alphabet: Alphabet,
-) -> Result<(), DecodeError> {
+) -> Result<usize, DecodeError> {
     let in_len = encoded_data.len();
     let padding = alphabet.is_padded();
 
     if in_len == 0 {
-        return Ok(());
+        return Ok(0);
     }
 
     let (content_len, _padding_len) = match strip_padding_info(encoded_data, padding) {
@@ -604,7 +607,7 @@ pub const fn decode_into_constant_time(
     };
 
     if content_len == 0 {
-        return Ok(());
+        return Ok(0);
     }
 
     let computed_output = match decoded_length(content_len) {
@@ -755,7 +758,7 @@ pub const fn decode_into_constant_time(
         return Err(DecodeError::InvalidInput);
     }
 
-    Ok(())
+    Ok(computed_output)
 }
 
 /// Constant-time mapping: base64 character to 6-bit value.
@@ -1253,7 +1256,7 @@ mod tests {
                 let mut decoded = alloc::vec![0u8; input_len];
                 assert_eq!(
                     decode_into_constant_time(&mut decoded, &enc_buf, *alphabet),
-                    Ok(()),
+                    Ok(elen),
                     "decode failed len={input_len} alphabet={alphabet:?}"
                 );
                 assert_eq!(&decoded, &data_buf, "roundtrip mismatch len={input_len} alphabet={alphabet:?}");
