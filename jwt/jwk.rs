@@ -80,7 +80,7 @@ impl core::str::FromStr for OkpCurve {
 }
 
 impl core::fmt::Display for OkpCurve {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut alloc::fmt::Formatter<'_>) -> alloc::fmt::Result {
         write!(f, "{self:?}")
     }
 }
@@ -192,6 +192,8 @@ mod base64_url_no_padding {
     }
 
     pub(crate) mod option {
+        use alloc::string::String;
+
         use super::*;
 
         pub fn serialize<S: Serializer, const N: usize>(

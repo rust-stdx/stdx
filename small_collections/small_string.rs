@@ -1,5 +1,3 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-
 extern crate alloc;
 
 #[derive(Clone, Debug)]
@@ -26,7 +24,7 @@ impl<const N: usize> SmallString<N> {
 
     /// Creates a [`SmallString`] from an already heap-allocateed String.
     #[inline(always)]
-    pub fn from_string(s: String) -> Self {
+    pub fn from_string(s: alloc::string::String) -> Self {
         Self::Heap(s)
     }
 
@@ -35,7 +33,7 @@ impl<const N: usize> SmallString<N> {
     /// If the bytes are not valid UTF-8, this returns an error.
     /// If valid, it attempts to store them inline if they fit.
     #[inline(always)]
-    pub fn from_utf8(bytes: Vec<u8>) -> Result<Self, alloc::string::FromUtf8Error> {
+    pub fn from_utf8(bytes: alloc::vec::Vec<u8>) -> Result<Self, alloc::string::FromUtf8Error> {
         Ok(Self::Heap(alloc::string::String::from_utf8(bytes)?))
     }
 
@@ -54,8 +52,8 @@ impl<const N: usize> SmallString<N> {
         // TODO: should we move back to inline if str.len() allows it but str is owned?
         let str = alloc::string::String::from_utf8_lossy(bytes);
         match str {
-            std::borrow::Cow::Borrowed(borrowed) => Self::from_str(borrowed),
-            std::borrow::Cow::Owned(owned) => Self::from_string(owned),
+            alloc::borrow::Cow::Borrowed(borrowed) => Self::from_str(borrowed),
+            alloc::borrow::Cow::Owned(owned) => Self::from_string(owned),
         }
     }
 
@@ -217,9 +215,9 @@ impl<const N: usize> From<&str> for SmallString<N> {
     }
 }
 
-impl<const N: usize> From<String> for SmallString<N> {
+impl<const N: usize> From<alloc::string::String> for SmallString<N> {
     #[inline(always)]
-    fn from(s: String) -> Self {
+    fn from(s: alloc::string::String) -> Self {
         Self::from_string(s)
     }
 }
@@ -298,9 +296,9 @@ impl<const N: usize> PartialEq<SmallString<N>> for &str {
     }
 }
 
-impl<const N: usize> PartialEq<String> for SmallString<N> {
+impl<const N: usize> PartialEq<alloc::string::String> for SmallString<N> {
     #[inline(always)]
-    fn eq(&self, other: &String) -> bool {
+    fn eq(&self, other: &alloc::string::String) -> bool {
         self.as_str() == other.as_str()
     }
 }
