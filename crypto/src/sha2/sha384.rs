@@ -1,4 +1,4 @@
-use super::sha512::process_block_scalar;
+use super::sha512::{detect_sha512_ext, process_block_scalar};
 #[cfg(target_arch = "x86_64")]
 use super::sha512_amd64;
 #[cfg(target_arch = "aarch64")]
@@ -37,6 +37,7 @@ pub struct Sha384 {
     buffer: [u8; 128],
     buffer_len: usize,
     total_len: u128,
+    has_sha_ext: bool,
 }
 
 impl Hasher for Sha384 {
@@ -59,6 +60,7 @@ impl Hasher for Sha384 {
             buffer: [0u8; 128],
             buffer_len: 0,
             total_len: 0,
+            has_sha_ext: detect_sha512_ext(),
         };
     }
 
@@ -73,14 +75,14 @@ impl Hasher for Sha384 {
             data = &data[to_fill..];
 
             if self.buffer_len == 128 {
-                process_block(&mut self.state, &self.buffer);
+                process_block(&mut self.state, &self.buffer, self.has_sha_ext);
                 self.buffer_len = 0;
             }
         }
 
         let mut chunks = data.chunks_exact(128);
         for chunk in &mut chunks {
-            process_block(&mut self.state, chunk.try_into().unwrap());
+            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
         }
 
         let remainder = chunks.remainder();
@@ -109,7 +111,7 @@ impl Hasher for Sha384 {
 
         let total_tail_len = length_offset + 16;
         for chunk in tail[..total_tail_len].chunks_exact(128) {
-            process_block(&mut self.state, chunk.try_into().unwrap());
+            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
         }
 
         let mut hash = Bytes::<64>::new();
@@ -122,22 +124,19 @@ impl Hasher for Sha384 {
 }
 
 #[inline(always)]
-#[allow(unreachable_code)]
-fn process_block(state: &mut [u64; 8], block: &[u8; 128]) {
-    #[cfg(all(target_arch = "x86_64", feature = "std"))]
-    if std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx") {
-        unsafe {
-            sha512_amd64::compress(state, block);
+fn process_block(state: &mut [u64; 8], block: &[u8; 128], has_sha_ext: bool) {
+    if has_sha_ext {
+        #[cfg(target_arch = "x86_64")]
+        {
+            unsafe { sha512_amd64::compress(state, block) };
+            return;
         }
-        return;
-    }
 
-    #[cfg(target_arch = "aarch64")]
-    {
-        unsafe {
-            sha512_arm64::compress(state, block);
+        #[cfg(target_arch = "aarch64")]
+        {
+            unsafe { sha512_arm64::compress(state, block) };
+            return;
         }
-        return;
     }
 
     process_block_scalar(state, block);

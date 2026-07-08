@@ -112,6 +112,7 @@ pub struct Sha512 {
     buffer: [u8; 128],
     buffer_len: usize,
     total_len: u128,
+    has_sha_ext: bool,
 }
 
 impl Hasher for Sha512 {
@@ -134,6 +135,7 @@ impl Hasher for Sha512 {
             buffer: [0u8; 128],
             buffer_len: 0,
             total_len: 0,
+            has_sha_ext: detect_sha512_ext(),
         };
     }
 
@@ -148,14 +150,14 @@ impl Hasher for Sha512 {
             data = &data[to_fill..];
 
             if self.buffer_len == 128 {
-                process_block(&mut self.state, &self.buffer);
+                process_block(&mut self.state, &self.buffer, self.has_sha_ext);
                 self.buffer_len = 0;
             }
         }
 
         let mut chunks = data.chunks_exact(128);
         for chunk in &mut chunks {
-            process_block(&mut self.state, chunk.try_into().unwrap());
+            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
         }
 
         let remainder = chunks.remainder();
@@ -184,7 +186,7 @@ impl Hasher for Sha512 {
 
         let total_tail_len = length_offset + 16;
         for chunk in tail[..total_tail_len].chunks_exact(128) {
-            process_block(&mut self.state, chunk.try_into().unwrap());
+            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
         }
 
         let mut hash = Bytes::<64>::new();
@@ -197,32 +199,15 @@ impl Hasher for Sha512 {
 }
 
 #[inline(always)]
-#[allow(unreachable_code)]
-fn process_block(state: &mut [u64; 8], block: &[u8; 128]) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        #[cfg(feature = "std")]
-        if std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx") {
-            unsafe { super::sha512_amd64::compress(state, block) };
-            return;
-        }
-
-        #[cfg(all(not(feature = "std"), target_feature = "sha512", target_feature = "avx"))]
+fn process_block(state: &mut [u64; 8], block: &[u8; 128], has_sha_ext: bool) {
+    if has_sha_ext {
+        #[cfg(target_arch = "x86_64")]
         {
             unsafe { super::sha512_amd64::compress(state, block) };
             return;
         }
-    }
 
-    #[cfg(target_arch = "aarch64")]
-    {
-        #[cfg(feature = "std")]
-        if std::arch::is_aarch64_feature_detected!("sha3") {
-            unsafe { super::sha512_arm64::compress(state, block) };
-            return;
-        }
-
-        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+        #[cfg(target_arch = "aarch64")]
         {
             unsafe { super::sha512_arm64::compress(state, block) };
             return;
@@ -230,6 +215,34 @@ fn process_block(state: &mut [u64; 8], block: &[u8; 128]) {
     }
 
     process_block_scalar(state, block);
+}
+
+/// Determine whether the CPU supports hardware SHA-512 acceleration.
+pub(crate) fn detect_sha512_ext() -> bool {
+    #[cfg(target_arch = "aarch64")]
+    {
+        #[cfg(feature = "std")]
+        return std::arch::is_aarch64_feature_detected!("sha3");
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+        return true;
+
+        #[cfg(all(not(feature = "std"), not(target_feature = "sha3")))]
+        return false;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        #[cfg(feature = "std")]
+        return std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx");
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha512", target_feature = "avx"))]
+        return true;
+
+        #[cfg(all(not(feature = "std"), not(all(target_feature = "sha512", target_feature = "avx"))))]
+        return false;
+    }
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    return false;
 }
 
 #[inline]

@@ -40,6 +40,7 @@ pub struct Sha256 {
     buffer: [u8; 64],
     buffer_len: usize,
     total_len: u64,
+    has_sha_ext: bool,
 }
 
 impl Hasher for Sha256 {
@@ -55,6 +56,7 @@ impl Hasher for Sha256 {
             buffer: [0u8; 64],
             buffer_len: 0,
             total_len: 0,
+            has_sha_ext: detect_sha256_ext(),
         };
     }
 
@@ -69,14 +71,14 @@ impl Hasher for Sha256 {
             data = &data[to_fill..];
 
             if self.buffer_len == 64 {
-                process_block(&mut self.state, &self.buffer);
+                process_block(&mut self.state, &self.buffer, self.has_sha_ext);
                 self.buffer_len = 0;
             }
         }
 
         let mut chunks = data.chunks_exact(64);
         for chunk in &mut chunks {
-            process_block(&mut self.state, chunk.try_into().unwrap());
+            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
         }
 
         let remainder = chunks.remainder();
@@ -105,7 +107,7 @@ impl Hasher for Sha256 {
 
         let total_tail_len = length_offset + 8;
         for chunk in tail[..total_tail_len].chunks_exact(64) {
-            process_block(&mut self.state, chunk.try_into().unwrap());
+            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
         }
 
         let mut hash = Bytes::<64>::new();
@@ -118,32 +120,15 @@ impl Hasher for Sha256 {
 }
 
 #[inline(always)]
-#[allow(unreachable_code)]
-fn process_block(state: &mut [u32; 8], block: &[u8; 64]) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        #[cfg(feature = "std")]
-        if std::arch::is_x86_feature_detected!("sha") {
-            unsafe { super::sha256_amd64::compress(state, core::slice::from_ref(block)) };
-            return;
-        }
-
-        #[cfg(all(not(feature = "std"), target_feature = "sha"))]
+fn process_block(state: &mut [u32; 8], block: &[u8; 64], has_sha_ext: bool) {
+    if has_sha_ext {
+        #[cfg(target_arch = "x86_64")]
         {
             unsafe { super::sha256_amd64::compress(state, core::slice::from_ref(block)) };
             return;
         }
-    }
 
-    #[cfg(target_arch = "aarch64")]
-    {
-        #[cfg(feature = "std")]
-        if std::arch::is_aarch64_feature_detected!("sha2") {
-            unsafe { super::sha256_arm64::compress(state, core::slice::from_ref(block)) };
-            return;
-        }
-
-        #[cfg(all(not(feature = "std"), target_feature = "sha2"))]
+        #[cfg(target_arch = "aarch64")]
         {
             unsafe { super::sha256_arm64::compress(state, core::slice::from_ref(block)) };
             return;
@@ -153,7 +138,6 @@ fn process_block(state: &mut [u32; 8], block: &[u8; 64]) {
     process_block_scalar(state, block);
 }
 
-#[inline]
 pub(crate) fn process_block_scalar(state: &mut [u32; 8], block: &[u8; 64]) {
     let mut w = [0u32; 64];
     let mut i = 0usize;
@@ -212,6 +196,35 @@ pub(crate) fn process_block_scalar(state: &mut [u32; 8], block: &[u8; 64]) {
     state[5] = state[5].wrapping_add(f);
     state[6] = state[6].wrapping_add(g);
     state[7] = state[7].wrapping_add(h);
+}
+
+/// Determine whether the CPU supports hardware SHA-256 acceleration.
+fn detect_sha256_ext() -> bool {
+    #[cfg(target_arch = "aarch64")]
+    {
+        #[cfg(feature = "std")]
+        return std::arch::is_aarch64_feature_detected!("sha2");
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha2"))]
+        return true;
+
+        #[cfg(all(not(feature = "std"), not(target_feature = "sha2")))]
+        return false;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        #[cfg(feature = "std")]
+        return std::arch::is_x86_feature_detected!("sha");
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha"))]
+        return true;
+
+        #[cfg(all(not(feature = "std"), not(target_feature = "sha")))]
+        return false;
+    }
+
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    return false;
 }
 
 #[cfg(test)]
