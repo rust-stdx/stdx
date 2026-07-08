@@ -42,6 +42,23 @@ pub struct RsaPublicKey {
 }
 
 impl RsaPublicKey {
+    /// Build an RSA public key from raw modulus `n` and public exponent `e`
+    /// (both big-endian byte slices).
+    ///
+    /// This is useful when importing keys from formats like JWK where `n` and
+    /// `e` are available directly as bytes rather than inside an ASN.1 DER
+    /// wrapper.
+    #[inline]
+    pub fn from_n_e(n_bytes: &[u8], e: &[u8]) -> Result<Self, RsaError> {
+        let n = uint_from_variable_be(n_bytes)?;
+        Ok(RsaPublicKey {
+            n_bytes: n_bytes.len(),
+            mu: n.compute_mu_for_barrett(),
+            e: uint_from_variable_be(e)?,
+            n,
+        })
+    }
+
     /// Parse an RSA public key from the raw PKCS#1 bytes.
     ///
     /// The input is the content of the BIT STRING inside the SPKI —
@@ -65,15 +82,7 @@ impl RsaPublicKey {
         let mut e_buf = [0u8; RSA_MAX_BYTES];
         let e_len = read_integer_bytes(data, &mut e_buf)?;
 
-        let n = uint_from_variable_be(&n_buf[..n_len]);
-        let e = uint_from_variable_be(&e_buf[..e_len]);
-
-        Ok(RsaPublicKey {
-            n,
-            e,
-            n_bytes: n_len,
-            mu: n.compute_mu_for_barrett(),
-        })
+        Self::from_n_e(&n_buf[..n_len], &e_buf[..e_len])
     }
 
     /// Verify a PKCS#1 v1.5 signature.
@@ -92,7 +101,7 @@ impl RsaPublicKey {
             return Err(RsaError::Unspecified);
         }
 
-        let s = uint_from_variable_be(signature);
+        let s = uint_from_variable_be(signature)?;
 
         // Reject signatures not reduced modulo n
         if s.ct_ge(&self.n) {
@@ -168,7 +177,7 @@ impl RsaPublicKey {
             return Err(RsaError::Unspecified);
         }
 
-        let s = uint_from_variable_be(signature);
+        let s = uint_from_variable_be(signature)?;
         if s.ct_ge(&self.n) {
             return Err(RsaError::Unspecified);
         }
@@ -319,9 +328,11 @@ fn asn1_integer_size(data: &[u8]) -> usize {
 
 /// Build a `Uint` from a variable-length big-endian byte slice
 /// (left-padded with zeros to the full bit width).
-fn uint_from_variable_be(bytes: &[u8]) -> Uint<RSA_MAX_BITS, RSA_MAX_LIMBS> {
+fn uint_from_variable_be(bytes: &[u8]) -> Result<Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>, RsaError> {
     let max_bytes = RSA_MAX_BITS / 8;
-    assert!(bytes.len() <= max_bytes);
+    if bytes.len() > max_bytes {
+        return Err(RsaError::NotSupported);
+    }
     let mut limbs = [0u64; RSA_MAX_LIMBS];
     let byte_count = bytes.len();
     let mut i = 0;
@@ -336,7 +347,7 @@ fn uint_from_variable_be(bytes: &[u8]) -> Uint<RSA_MAX_BITS, RSA_MAX_LIMBS> {
         limbs[i] = u64::from_be_bytes(buf);
         i += 1;
     }
-    Uint::from_limbs(limbs)
+    Ok(Uint::from_limbs(limbs))
 }
 
 /// Write a `Uint` as big-endian bytes into a buffer, right-aligned.
@@ -512,12 +523,29 @@ mod tests {
 
     #[test]
     fn modpow_works() {
-        let base = uint_from_variable_be(&[3]);
-        let exp = uint_from_variable_be(&[5]);
-        let modulus = uint_from_variable_be(&[7]);
+        let base = uint_from_variable_be(&[3]).unwrap();
+        let exp = uint_from_variable_be(&[5]).unwrap();
+        let modulus = uint_from_variable_be(&[7]).unwrap();
         let result = base.modpow(&exp, &modulus);
         let bytes = result.to_be_bytes_fixed::<512>();
         assert_eq!(bytes[511], 5, "3^5 mod 7 should be 5, got {}", bytes[511]);
+    }
+
+    #[test]
+    fn from_n_e_matches_der() {
+        let sig = hex::decode(
+            "9d00f18defaa95b474b06ac4674b1b9270e110c6f474ce29e3aa972eca09137c9a82267e634986ecd54734f2edb1b3d72b539b8608e23074898c56042f9f014bfff59abce81c57d606b60f80ae4e110fc6f9dea99ce2897ce1d90661ab3d3b3f1a5ddf258b920a51c8c8758ab2da3da20da99c84eb2f57859b36918447c4cdbfa16cc09523fd27d28d4e97fa9ff0ea4d633c937a904a196a64e934851ee02b7922a8f5a4534bb10b8e16b89c12ddc347d7b4317f8b9d3dfed07a442d47351b18db38f45cc92e5c577b866df21766094d1f737ea418852827be3aec10d3c5a65a40087d9647b91a4d9419ad784a31caf02254cfc01a682bb6f5a231307f0fc8d9",
+        ).unwrap();
+        let digest = hex::decode("41cb0773387b187c038b7015498534c11369f1cfd094a714f4f39cf63ebb42ba").unwrap();
+
+        // n and e extracted from the DER above
+        let n = hex::decode(
+            "b1d59f746650c6a4360d26dc2e05581e1bd12cddcfc459a75dd2ef6d38cb6e977c72cad72f5e8ad4795484211e71e9a292d25a3901fca4cd242649f56cce50ad6ba148658d71f3a9c8b39e92a7a49543243df8ca2688292d47ff2a92a6ee0c9151162936791f522afccd6a7508251934b909d62fa805bae0d79f83f3c981b39c15ea79ce7b4ec2ff82240ce2a9fb93ae49d7697d1248f73d4ad23461055f469a3936ab959a0c6a067aa19521650f3649a028e2ebe355909aae7c95d3fc988684478b2bb11b307cb58c6c14727e1b62103d400ac8eed0e0d6d7f7d7cfc1f4ae4cbd9759372f8408c52174abb05f134ca6788fb60ba3f35c57c07cd44011bb113b",
+        ).unwrap();
+        let e = hex::decode("010001").unwrap();
+
+        let key = RsaPublicKey::from_n_e(&n, &e).unwrap();
+        key.verify_pkcs1_v1_5(&sig, &digest, DIGEST_INFO_SHA256_PREFIX).unwrap();
     }
 
     #[cfg(feature = "std")]

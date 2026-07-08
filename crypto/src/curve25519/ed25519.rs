@@ -107,6 +107,7 @@ const BASEPOINT: EdwardsPoint = EdwardsPoint {
 /// let sig = priv_key.sign(b"message");
 /// assert!(pub_key.verify(b"message", &sig).is_ok());
 /// ```
+// TODO: zeroize
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SecretKey {
     seed: [u8; SECRET_KEY_SIZE],

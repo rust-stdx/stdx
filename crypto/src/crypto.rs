@@ -115,6 +115,7 @@ impl std::error::Error for EllipticCurveError {}
 pub enum RsaError {
     InvalidKey,
     InvalidSignature,
+    NotSupported,
     Unspecified,
 }
 
@@ -123,6 +124,7 @@ impl core::fmt::Display for RsaError {
         match self {
             RsaError::InvalidKey => write!(f, "key is not valid"),
             RsaError::InvalidSignature => write!(f, "signature is not valid"),
+            RsaError::NotSupported => write!(f, "key size not supported"),
             RsaError::Unspecified => write!(f, "unknown error"),
         }
     }

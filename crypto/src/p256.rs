@@ -2,8 +2,8 @@ use big_number::{Uint, mac};
 
 use crate::{EllipticCurveError, Hasher, hmac::Hmac, sha2::Sha256};
 
-/// Size of a P-256 private key in bytes (32 bytes).
-pub const PRIVATE_KEY_SIZE: usize = 32;
+/// Size of a P-256 secret key in bytes (32 bytes).
+pub const SECRET_KEY_SIZE: usize = 32;
 /// Size of a compressed P-256 public key in bytes (33 bytes, includes 0x02/0x03 prefix).
 pub const PUBLIC_KEY_COMPRESSED_SIZE: usize = 33;
 /// Size of an uncompressed P-256 public key in bytes (65 bytes, includes 0x04 prefix).
@@ -14,7 +14,7 @@ pub const SIGNATURE_SIZE: usize = 64;
 /// as an encryption key; apply a KDF first.
 pub const ECDH_SHARED_SECRET_SIZE: usize = 32;
 
-/// P-256 (secp256r1) ECDSA private key.
+/// P-256 (secp256r1) ECDSA secret key.
 ///
 /// Supports signing and ECDH key agreement.
 ///
@@ -43,25 +43,26 @@ pub const ECDH_SHARED_SECRET_SIZE: usize = 32;
 ///
 /// The raw shared secret from [`ecdh`](Self::ecdh) **must not** be used
 /// directly as an encryption key. Apply a KDF (e.g. HKDF) first.
+// TODO: zeroize
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PrivateKey {
+pub struct SecretKey {
     scalar: Scalar,
     public_point: AffinePoint,
 }
 
-impl PrivateKey {
+impl SecretKey {
     #[cfg(feature = "random")]
-    pub fn generate() -> Result<PrivateKey, EllipticCurveError> {
-        let key: [u8; PRIVATE_KEY_SIZE] = crate::random::random_bytes();
+    pub fn generate() -> Result<SecretKey, EllipticCurveError> {
+        let key: [u8; SECRET_KEY_SIZE] = crate::random::random_bytes();
         Self::from_bytes(&key)
     }
 
-    pub fn from_bytes(key: &[u8; PRIVATE_KEY_SIZE]) -> Result<PrivateKey, EllipticCurveError> {
+    pub fn from_bytes(key: &[u8; SECRET_KEY_SIZE]) -> Result<SecretKey, EllipticCurveError> {
         let scalar = Scalar::from_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
         let public_point = scalar_mul_generator(&scalar)
             .to_affine()
             .ok_or(EllipticCurveError::Unspecified)?;
-        Ok(PrivateKey {
+        Ok(SecretKey {
             scalar,
             public_point,
         })
@@ -81,7 +82,7 @@ impl PrivateKey {
         ecdh_inner(&self.scalar, &peer_public.point)
     }
 
-    pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
+    pub fn to_bytes(&self) -> [u8; SECRET_KEY_SIZE] {
         self.scalar.to_bytes()
     }
 }
@@ -107,6 +108,21 @@ pub struct PublicKey {
 impl PublicKey {
     pub fn from_bytes(key: &[u8]) -> Result<PublicKey, EllipticCurveError> {
         let point = AffinePoint::from_sec1_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
+        Ok(PublicKey {
+            point,
+        })
+    }
+
+    /// Build a public key from raw affine x and y coordinates (both
+    /// big-endian, 32 bytes each). Returns `InvalidKey` if the coordinates
+    /// are not a valid point on the P-256 curve.
+    ///
+    /// This is useful when importing keys from formats like JWK where `x`
+    /// and `y` are available directly.
+    pub fn from_x_y(x_bytes: &[u8; 32], y_bytes: &[u8; 32]) -> Result<PublicKey, EllipticCurveError> {
+        let x = FieldElement::from_bytes(x_bytes).ok_or(EllipticCurveError::InvalidKey)?;
+        let y = FieldElement::from_bytes(y_bytes).ok_or(EllipticCurveError::InvalidKey)?;
+        let point = AffinePoint::new(x, y).ok_or(EllipticCurveError::InvalidKey)?;
         Ok(PublicKey {
             point,
         })
@@ -818,7 +834,7 @@ fn rfc6979_generate_k(private_key: &Scalar, message_hash: &[u8; 32]) -> Scalar {
     }
 }
 
-fn parse_private_key(private_key: &[u8; PRIVATE_KEY_SIZE]) -> Result<Scalar, EllipticCurveError> {
+fn parse_secret_key(private_key: &[u8; SECRET_KEY_SIZE]) -> Result<Scalar, EllipticCurveError> {
     Scalar::from_bytes(private_key).ok_or(EllipticCurveError::InvalidKey)
 }
 
@@ -828,9 +844,9 @@ fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, EllipticCurveError
 
 #[cfg(test)]
 fn derive_public_key_uncompressed(
-    private_key: &[u8; PRIVATE_KEY_SIZE],
+    private_key: &[u8; SECRET_KEY_SIZE],
 ) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], EllipticCurveError> {
-    let scalar = parse_private_key(private_key)?;
+    let scalar = parse_secret_key(private_key)?;
     let point = scalar_mul_generator(&scalar)
         .to_affine()
         .ok_or(EllipticCurveError::Unspecified)?;
@@ -839,9 +855,9 @@ fn derive_public_key_uncompressed(
 
 #[cfg(test)]
 fn derive_public_key_compressed(
-    private_key: &[u8; PRIVATE_KEY_SIZE],
+    private_key: &[u8; SECRET_KEY_SIZE],
 ) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], EllipticCurveError> {
-    let scalar = parse_private_key(private_key)?;
+    let scalar = parse_secret_key(private_key)?;
     let point = scalar_mul_generator(&scalar)
         .to_affine()
         .ok_or(EllipticCurveError::Unspecified)?;
@@ -856,10 +872,10 @@ fn ecdh_inner(scalar: &Scalar, peer_point: &AffinePoint) -> Result<[u8; ECDH_SHA
 }
 
 pub fn ecdh(
-    private_key: &[u8; PRIVATE_KEY_SIZE],
+    secret_key: &[u8; SECRET_KEY_SIZE],
     peer_public_key: &[u8],
 ) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-    let scalar = parse_private_key(private_key)?;
+    let scalar = parse_secret_key(secret_key)?;
     let peer_point = parse_public_key(peer_public_key)?;
     ecdh_inner(&scalar, &peer_point)
 }
@@ -1089,6 +1105,28 @@ mod tests {
     }
 
     #[test]
+    fn from_x_y_matches_generator() {
+        let key = PublicKey::from_x_y(
+            &hex::decode("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            &hex::decode("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+        )
+        .unwrap();
+        let from_sec1 = PublicKey::from_bytes(&key.to_bytes()).unwrap();
+        assert_eq!(key, from_sec1);
+    }
+
+    #[test]
+    fn from_x_y_rejects_off_curve() {
+        assert!(PublicKey::from_x_y(&[0u8; 32], &[0u8; 32]).is_err());
+    }
+
+    #[test]
     fn derive_public_key_generator_matches_sec1_base_point() {
         let mut private_key = [0u8; 32];
         private_key[31] = 1;
@@ -1117,7 +1155,7 @@ mod tests {
     #[test]
     fn ecdsa_sign_matches_rfc6979_vectors() {
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let sample_signature = key.sign(b"sample").unwrap();
         let expected_sample = decode_hex::<64>(
             "efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716\
@@ -1201,7 +1239,7 @@ mod tests {
     #[test]
     fn ecdsa_verify_accepts_compressed_and_uncompressed_public_keys() {
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let uncompressed = key.public_key();
         let compressed = derive_public_key_compressed(&private_key).unwrap();
         let signature = key.sign(b"sample").unwrap();
@@ -1214,7 +1252,7 @@ mod tests {
     #[test]
     fn verify_rejects_tampering_and_invalid_points() {
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let pub_key = key.public_key();
         let mut off_curve = [0u8; 65];
         off_curve.copy_from_slice(&pub_key.to_bytes());
@@ -1236,13 +1274,13 @@ mod tests {
 
     #[test]
     fn invalid_inputs_are_rejected() {
-        let invalid_private_key = [0u8; PRIVATE_KEY_SIZE];
-        assert!(PrivateKey::from_bytes(&invalid_private_key).is_err());
+        let invalid_private_key = [0u8; SECRET_KEY_SIZE];
+        assert!(SecretKey::from_bytes(&invalid_private_key).is_err());
         assert!(derive_public_key_uncompressed(&invalid_private_key).is_err());
         assert!(derive_public_key_compressed(&invalid_private_key).is_err());
 
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let signature = key.sign(b"msg").unwrap();
         let mut zero_r = signature;
         zero_r[..32].fill(0);
@@ -1313,7 +1351,7 @@ mod tests {
     #[test]
     fn ecdsa_sign_verify_round_trip_multiple_messages() {
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let pub_key = key.public_key();
 
         let messages: &[&[u8]] = &[
@@ -1347,7 +1385,7 @@ mod tests {
 
         for key_hex in keys {
             let private_key = decode_hex::<32>(key_hex);
-            let key = PrivateKey::from_bytes(&private_key).unwrap();
+            let key = SecretKey::from_bytes(&private_key).unwrap();
             let sig = key.sign(b"test message").unwrap();
             assert!(
                 key.public_key().verify(b"test message", &sig).is_ok(),
@@ -1361,8 +1399,8 @@ mod tests {
     fn ecdsa_verify_wrong_public_key_rejects() {
         let private_key1 = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
         let private_key2 = decode_hex::<32>("0000000000000000000000000000000000000000000000000000000000000001");
-        let key1 = PrivateKey::from_bytes(&private_key1).unwrap();
-        let key2 = PrivateKey::from_bytes(&private_key2).unwrap();
+        let key1 = SecretKey::from_bytes(&private_key1).unwrap();
+        let key2 = SecretKey::from_bytes(&private_key2).unwrap();
 
         let sig = key1.sign(b"message").unwrap();
         assert!(key2.public_key().verify(b"message", &sig).is_err());
@@ -1414,7 +1452,7 @@ mod tests {
 
         for key_hex in keys {
             let private_key = decode_hex::<32>(key_hex);
-            let key = PrivateKey::from_bytes(&private_key).unwrap();
+            let key = SecretKey::from_bytes(&private_key).unwrap();
             let uncompressed = key.public_key();
             let compressed = derive_public_key_compressed(&private_key).unwrap();
 
@@ -1648,8 +1686,8 @@ mod tests {
         );
         let expected_shared = decode_hex::<32>("d6840f6b42f6edafd13116e0e12565202fef8e9ece7dce03812464d04b9442de");
 
-        let alice = PrivateKey::from_bytes(&i_priv).unwrap();
-        let bob = PrivateKey::from_bytes(&r_priv).unwrap();
+        let alice = SecretKey::from_bytes(&i_priv).unwrap();
+        let bob = SecretKey::from_bytes(&r_priv).unwrap();
         let bob_pub = PublicKey::from_bytes(&r_pub).unwrap();
         let alice_pub = PublicKey::from_bytes(&i_pub).unwrap();
 
@@ -1677,7 +1715,7 @@ mod tests {
         );
         let expected_shared = decode_hex::<32>("46fc62106420ff012e54a434fbdd2d25ccc5852060561e68040dd7778997bd7b");
 
-        let key = PrivateKey::from_bytes(&priv_key).unwrap();
+        let key = SecretKey::from_bytes(&priv_key).unwrap();
         assert_eq!(key.public_key().to_bytes(), pub_key);
 
         let peer = PublicKey::from_bytes(&peer_pub).unwrap();
@@ -1702,8 +1740,8 @@ mod tests {
     #[test]
     fn ecdh_round_trip_alice_bob() {
         // Full round-trip ECDH key exchange with randomly generated keys
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
+        let bob = SecretKey::generate().unwrap();
 
         let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
         let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
@@ -1714,7 +1752,7 @@ mod tests {
 
     #[test]
     fn ecdh_rejects_off_curve_peer_public_key() {
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         let mut bad_pub = alice.public_key().to_bytes().to_vec();
         // Flip a bit in y to take it off the curve
         bad_pub[64] ^= 0x01;
@@ -1724,7 +1762,7 @@ mod tests {
 
     #[test]
     fn ecdh_rejects_infinity_peer_public_key() {
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         // Infinity encoding (0x00) should be rejected
         let infinity = [0x00u8];
         assert!(ecdh(&alice.to_bytes(), &infinity).is_err());
@@ -1732,7 +1770,7 @@ mod tests {
 
     #[test]
     fn ecdh_rejects_bad_length_peer_public_key() {
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         // Empty key
         assert!(ecdh(&alice.to_bytes(), &[]).is_err());
         // Truncated key
@@ -1746,8 +1784,8 @@ mod tests {
     #[test]
     fn ecdh_rejects_invalid_private_key_zero() {
         let zero_key = [0u8; 32];
-        assert!(PrivateKey::from_bytes(&zero_key).is_err());
-        let bob = PrivateKey::generate().unwrap();
+        assert!(SecretKey::from_bytes(&zero_key).is_err());
+        let bob = SecretKey::generate().unwrap();
         assert!(ecdh(&zero_key, &bob.public_key().to_bytes()).is_err());
     }
 
@@ -1755,21 +1793,21 @@ mod tests {
     fn ecdh_rejects_invalid_private_key_order() {
         // n (the curve order) is rejected
         let n_bytes = decode_hex::<32>("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
-        assert!(PrivateKey::from_bytes(&n_bytes).is_err());
+        assert!(SecretKey::from_bytes(&n_bytes).is_err());
 
         // n+1 is rejected
         let n_plus_1 = decode_hex::<32>("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632552");
-        assert!(PrivateKey::from_bytes(&n_plus_1).is_err());
+        assert!(SecretKey::from_bytes(&n_plus_1).is_err());
 
         // all-ones is rejected
         let all_ones = [0xffu8; 32];
-        assert!(PrivateKey::from_bytes(&all_ones).is_err());
+        assert!(SecretKey::from_bytes(&all_ones).is_err());
     }
 
     #[test]
     fn ecdh_rejects_peer_public_key_x_equal_to_p() {
         // x = p (the field modulus) should be rejected as out of range
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         let mut bad_pub = [0u8; 65];
         bad_pub[0] = 0x04;
         bad_pub[1..33].copy_from_slice(&decode_hex::<32>(
@@ -1783,8 +1821,8 @@ mod tests {
     #[test]
     fn ecdh_different_messages_same_shared_secret() {
         // ECDH shared secret depends only on the two key pairs, not any message
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
+        let bob = SecretKey::generate().unwrap();
 
         let shared1 = alice.ecdh(&bob.public_key()).unwrap();
         let shared2 = alice.ecdh(&bob.public_key()).unwrap();
@@ -1794,7 +1832,7 @@ mod tests {
     #[test]
     fn ecdh_self_exchange_is_deterministic() {
         // ECDH with own public key produces a deterministic result
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         let shared = alice.ecdh(&alice.public_key()).unwrap();
         let shared2 = alice.ecdh(&alice.public_key()).unwrap();
         assert_eq!(shared, shared2);
@@ -1802,9 +1840,9 @@ mod tests {
 
     #[test]
     fn ecdh_different_keys_produce_different_secrets() {
-        let alice = PrivateKey::generate().unwrap();
-        let bob1 = PrivateKey::generate().unwrap();
-        let bob2 = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
+        let bob1 = SecretKey::generate().unwrap();
+        let bob2 = SecretKey::generate().unwrap();
 
         let shared1 = alice.ecdh(&bob1.public_key()).unwrap();
         let shared2 = alice.ecdh(&bob2.public_key()).unwrap();
@@ -1860,7 +1898,7 @@ mod tests {
     fn ecdh_rejects_invalid_curve_attack() {
         // Invalid curve attack: a point not on P-256 should always be rejected.
         // Point (1, 1) is not on the P-256 curve.
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         let mut off_curve = [0u8; 65];
         off_curve[0] = 0x04;
         off_curve[33] = 0x01;
@@ -1928,7 +1966,7 @@ mod tests {
         // P-224 generator point is not on P-256.
         // P-224 generator x = b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21
         // (this is longer than 32 bytes, so we just test a random point that's not on P-256)
-        let alice = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
         let p224_gen_x = [
             0x00, 0x00, 0x00, 0x00, 0xb7, 0x0e, 0x0c, 0xbd, 0x6b, 0xb4, 0xbf, 0x7f, 0x32, 0x13, 0x90, 0xb9, 0x4a, 0x03,
             0xc1, 0xd3, 0x56, 0xc2, 0x11, 0x22, 0x34, 0x32, 0x80, 0xd6, 0x11, 0x5c, 0x1d, 0x21,
@@ -1950,13 +1988,13 @@ mod tests {
     fn ecdh_private_key_rejects_zero_and_order() {
         // PrivateKey::from_bytes must reject zero and n (curve order)
         let zero = [0u8; 32];
-        assert!(PrivateKey::from_bytes(&zero).is_err());
+        assert!(SecretKey::from_bytes(&zero).is_err());
 
         let n = decode_hex::<32>("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
-        assert!(PrivateKey::from_bytes(&n).is_err());
+        assert!(SecretKey::from_bytes(&n).is_err());
 
         let n_minus_1 = decode_hex::<32>("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632550");
-        assert!(PrivateKey::from_bytes(&n_minus_1).is_ok());
+        assert!(SecretKey::from_bytes(&n_minus_1).is_ok());
     }
 
     #[test]
@@ -1982,9 +2020,9 @@ mod tests {
     #[test]
     fn ecdh_multiple_exchanges_consistency() {
         // Verify ECDH commutativity across multiple key pairs
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
-        let charlie = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
+        let bob = SecretKey::generate().unwrap();
+        let charlie = SecretKey::generate().unwrap();
 
         let alice_bob = alice.ecdh(&bob.public_key()).unwrap();
         let bob_alice = bob.ecdh(&alice.public_key()).unwrap();
@@ -2006,8 +2044,8 @@ mod tests {
 
     #[test]
     fn ecdh_standalone_function_matches_method() {
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
+        let bob = SecretKey::generate().unwrap();
 
         let method_result = alice.ecdh(&bob.public_key()).unwrap();
         let standalone_result = ecdh(&alice.to_bytes(), &bob.public_key().to_bytes()).unwrap();
@@ -2038,7 +2076,7 @@ mod tests {
     #[test]
     fn ecdsa_verify_rejects_non_canonical_r_and_s() {
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let _valid_sig = key.sign(b"msg").unwrap();
 
         // r = n+1 is rejected
@@ -2058,16 +2096,16 @@ mod tests {
 
     #[test]
     fn private_key_round_trip_bytes() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let bytes = key.to_bytes();
-        let key2 = PrivateKey::from_bytes(&bytes).unwrap();
+        let key2 = SecretKey::from_bytes(&bytes).unwrap();
         assert_eq!(key.to_bytes(), key2.to_bytes());
         assert_eq!(key.public_key().to_bytes(), key2.public_key().to_bytes());
     }
 
     #[test]
     fn public_key_round_trip_bytes() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let pub_key = key.public_key();
         let bytes = pub_key.to_bytes();
         let pub_key2 = PublicKey::from_bytes(&bytes).unwrap();
@@ -2132,8 +2170,8 @@ mod tests {
     #[test]
     fn ecdh_shared_secret_boundary_values() {
         // ECDH shared secret is always exactly 32 bytes
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
+        let alice = SecretKey::generate().unwrap();
+        let bob = SecretKey::generate().unwrap();
 
         let shared = alice.ecdh(&bob.public_key()).unwrap();
         assert_eq!(shared.len(), ECDH_SHARED_SECRET_SIZE);
@@ -2145,7 +2183,7 @@ mod tests {
 
     #[test]
     fn ecdh_rejects_empty_and_invalid_public_key_bytes() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
 
         // Invalid prefix byte
         let mut bad = key.public_key().to_bytes();
@@ -2169,7 +2207,7 @@ mod tests {
     #[test]
     fn ecdsa_sign_then_verify_consistent_for_random_keys() {
         for _ in 0..5 {
-            let key = PrivateKey::generate().unwrap();
+            let key = SecretKey::generate().unwrap();
             let msg = rand::random::<[u8; 32]>();
             let sig = key.sign(&msg).unwrap();
             assert!(key.public_key().verify(&msg, &sig).is_ok());
@@ -2227,7 +2265,7 @@ mod tests {
 
     #[test]
     fn ecdh_with_self_is_consistent() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let shared1 = key.ecdh(&key.public_key()).unwrap();
         let shared2 = key.ecdh(&key.public_key()).unwrap();
         assert_eq!(shared1, shared2);
@@ -2257,14 +2295,14 @@ mod tests {
                 // Private key hex is a bigint, may have leading zeros or be
                 // shorter than 32 bytes. Pad or strip to exactly 32 bytes.
                 let private_bytes = hex::decode(private_hex).unwrap();
-                let mut private_key = [0u8; PRIVATE_KEY_SIZE];
-                let effective_len = private_bytes.len().min(PRIVATE_KEY_SIZE);
-                let skip = if private_bytes.len() > PRIVATE_KEY_SIZE {
-                    private_bytes.len() - PRIVATE_KEY_SIZE
+                let mut private_key = [0u8; SECRET_KEY_SIZE];
+                let effective_len = private_bytes.len().min(SECRET_KEY_SIZE);
+                let skip = if private_bytes.len() > SECRET_KEY_SIZE {
+                    private_bytes.len() - SECRET_KEY_SIZE
                 } else {
                     0
                 };
-                private_key[PRIVATE_KEY_SIZE - effective_len..]
+                private_key[SECRET_KEY_SIZE - effective_len..]
                     .copy_from_slice(&private_bytes[skip..skip + effective_len]);
 
                 let shared = ecdh(&private_key, &public_key);
@@ -2294,7 +2332,7 @@ mod tests {
     #[test]
     fn compressed_public_key_has_correct_prefix() {
         for _ in 0..5 {
-            let key = PrivateKey::generate().unwrap();
+            let key = SecretKey::generate().unwrap();
             let compressed = derive_public_key_compressed(&key.to_bytes()).unwrap();
             let prefix = compressed[0];
             assert!(prefix == 0x02 || prefix == 0x03, "invalid compressed prefix: {prefix:#x}");
@@ -2303,7 +2341,7 @@ mod tests {
 
     #[test]
     fn p256_ecdsa_rejects_truncated_signature() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let sig = key.sign(b"msg").unwrap();
         // Truncate to 63 bytes and pad to 64 with zeros
         let mut truncated = [0u8; SIGNATURE_SIZE];
@@ -2320,7 +2358,7 @@ mod tests {
     fn is_on_curve_accepts_generator_and_random_points() {
         assert!(AffinePoint::GENERATOR.is_on_curve());
         for _ in 0..5 {
-            let key = PrivateKey::generate().unwrap();
+            let key = SecretKey::generate().unwrap();
             // The public point should be on the curve
             // (verified by construction)
             let pb = key.public_key().to_bytes();
@@ -2349,7 +2387,7 @@ mod tests {
     fn nist_p256_vector_verify_all_rfc6979_signatures() {
         // Verify ALL 4 SHA-256 signatures from RFC 6979 A.2.5 match
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
 
         let vectors: &[(&[u8], &str)] = &[
             (
@@ -2445,14 +2483,14 @@ mod tests {
                 // Private key hex is a bigint, may have leading zeros or be
                 // shorter than 32 bytes. Pad or strip to exactly 32 bytes.
                 let private_bytes = hex::decode(private_hex).unwrap();
-                let mut private_key = [0u8; PRIVATE_KEY_SIZE];
-                let effective_len = private_bytes.len().min(PRIVATE_KEY_SIZE);
-                let skip = if private_bytes.len() > PRIVATE_KEY_SIZE {
-                    private_bytes.len() - PRIVATE_KEY_SIZE
+                let mut private_key = [0u8; SECRET_KEY_SIZE];
+                let effective_len = private_bytes.len().min(SECRET_KEY_SIZE);
+                let skip = if private_bytes.len() > SECRET_KEY_SIZE {
+                    private_bytes.len() - SECRET_KEY_SIZE
                 } else {
                     0
                 };
-                private_key[PRIVATE_KEY_SIZE - effective_len..]
+                private_key[SECRET_KEY_SIZE - effective_len..]
                     .copy_from_slice(&private_bytes[skip..skip + effective_len]);
 
                 let shared = ecdh(&private_key, &sec1_point);

@@ -1,4 +1,4 @@
-use crate::p256::{PRIVATE_KEY_SIZE, PUBLIC_KEY_UNCOMPRESSED_SIZE, PrivateKey};
+use crate::p256::{PUBLIC_KEY_UNCOMPRESSED_SIZE, SECRET_KEY_SIZE, SecretKey};
 
 const PKCS8_DER_LEN: usize = 138;
 
@@ -124,28 +124,28 @@ static TEMPLATE: [u8; PKCS8_DER_LEN] = [
 const PRIVATE_KEY_OFFSET: usize = 36;
 const PUBLIC_KEY_OFFSET: usize = 73;
 
-pub fn encode_p256_pkcs8_der(key: &PrivateKey) -> Result<[u8; PKCS8_DER_LEN], Pkcs8Error> {
+pub fn encode_p256_pkcs8_der(key: &SecretKey) -> Result<[u8; PKCS8_DER_LEN], Pkcs8Error> {
     let public_key = key.public_key();
     let pub_bytes = public_key.to_bytes();
     let priv_bytes = key.to_bytes();
 
     let mut der = TEMPLATE;
     der[PUBLIC_KEY_OFFSET..PUBLIC_KEY_OFFSET + PUBLIC_KEY_UNCOMPRESSED_SIZE].copy_from_slice(&pub_bytes);
-    der[PRIVATE_KEY_OFFSET..PRIVATE_KEY_OFFSET + PRIVATE_KEY_SIZE].copy_from_slice(&priv_bytes);
+    der[PRIVATE_KEY_OFFSET..PRIVATE_KEY_OFFSET + SECRET_KEY_SIZE].copy_from_slice(&priv_bytes);
 
     Ok(der)
 }
 
-pub fn decode_p256_pkcs8_der(der: &[u8]) -> Result<PrivateKey, Pkcs8Error> {
+pub fn decode_p256_pkcs8_der(der: &[u8]) -> Result<SecretKey, Pkcs8Error> {
     validate_fixed_prefix(der)?;
 
-    let mut private_key = [0u8; PRIVATE_KEY_SIZE];
-    private_key.copy_from_slice(&der[PRIVATE_KEY_OFFSET..PRIVATE_KEY_OFFSET + PRIVATE_KEY_SIZE]);
+    let mut private_key = [0u8; SECRET_KEY_SIZE];
+    private_key.copy_from_slice(&der[PRIVATE_KEY_OFFSET..PRIVATE_KEY_OFFSET + SECRET_KEY_SIZE]);
 
     let mut public_key = [0u8; PUBLIC_KEY_UNCOMPRESSED_SIZE];
     public_key.copy_from_slice(&der[PUBLIC_KEY_OFFSET..PUBLIC_KEY_OFFSET + PUBLIC_KEY_UNCOMPRESSED_SIZE]);
 
-    PrivateKey::from_bytes(&private_key).map_err(|_| Pkcs8Error::KeyDerivationFailed)
+    SecretKey::from_bytes(&private_key).map_err(|_| Pkcs8Error::KeyDerivationFailed)
 }
 
 #[cfg(test)]
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn encode_round_trip() {
-        let key = PrivateKey::from_bytes(&TEST_PRIVATE_KEY).unwrap();
+        let key = SecretKey::from_bytes(&TEST_PRIVATE_KEY).unwrap();
         let der = encode_p256_pkcs8_der(&key).unwrap();
         let decoded = decode_p256_pkcs8_der(&der).unwrap();
         assert_eq!(decoded.to_bytes(), TEST_PRIVATE_KEY);
@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn encode_matches_known_der() {
-        let key = PrivateKey::from_bytes(&TEST_PRIVATE_KEY).unwrap();
+        let key = SecretKey::from_bytes(&TEST_PRIVATE_KEY).unwrap();
         let der = encode_p256_pkcs8_der(&key).unwrap();
         let expected = decode_hex(TEST_DER_HEX);
         assert_eq!(der.as_slice(), expected.as_slice());
@@ -257,7 +257,7 @@ mod tests {
     fn encode_round_trip_random_keys() {
         for _ in 0..10 {
             let priv_key: [u8; 32] = rand::random();
-            let key = match PrivateKey::from_bytes(&priv_key) {
+            let key = match SecretKey::from_bytes(&priv_key) {
                 Ok(k) => k,
                 Err(_) => continue,
             };
@@ -272,6 +272,6 @@ mod tests {
     #[test]
     fn encode_rejects_invalid_key() {
         let invalid = [0u8; 32];
-        assert!(PrivateKey::from_bytes(&invalid).is_err());
+        assert!(SecretKey::from_bytes(&invalid).is_err());
     }
 }
