@@ -5,6 +5,7 @@ use crypto::{
     blake3::Blake3,
     curve25519::ed25519,
     hmac::Hmac,
+    p256,
     sha2::{Sha256, Sha512},
 };
 use smallvec::SmallVec;
@@ -96,6 +97,8 @@ impl TryFrom<Vec<u8>> for Signature {
 // BLAKE3
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// A `BLAKE3` key.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Blake3Key {
     key: [u8; 32],
 }
@@ -141,6 +144,8 @@ impl Verifier for Blake3Key {
 // HMAC-SHA-256
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// A `HS256` key.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct HmacSha256Key {
     key: SmallVec<u8, 32>,
 }
@@ -191,6 +196,8 @@ impl Verifier for HmacSha256Key {
 // HMAC-SHA-512
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// A `HS512` key.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct HmacSha512Key {
     key: SmallVec<u8, 32>,
 }
@@ -241,6 +248,7 @@ impl Verifier for HmacSha512Key {
 // Ed25519
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: zeroize?
 pub struct Ed25519SecretKey {
     key: ed25519::SecretKey,
 }
@@ -317,3 +325,89 @@ impl Verifier for Ed25519PublicKey {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // P-256
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: zeroize
+pub struct P256SecretKey {
+    key: p256::SecretKey,
+}
+
+impl P256SecretKey {
+    pub fn generate() -> Result<P256SecretKey, Error> {
+        let key = p256::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
+        return Ok(P256SecretKey {
+            key,
+        });
+    }
+
+    pub fn from_bytes(bytes: &[u8; 32]) -> Result<P256SecretKey, Error> {
+        let key = p256::SecretKey::from_bytes(bytes).map_err(|_| Error::InvalidKey)?;
+        return Ok(P256SecretKey {
+            key,
+        });
+    }
+
+    /// Converts the secret key to byte array.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        return self.key.to_bytes();
+    }
+
+    pub fn public_key(&self) -> P256PublicKey {
+        return P256PublicKey {
+            key: self.key.public_key(),
+        };
+    }
+}
+
+impl Signer for P256SecretKey {
+    fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
+        return self
+            .key
+            .sign(message)
+            .map_err(|err| Error::Unspecified(err.to_string()))?
+            .as_ref()
+            .try_into();
+    }
+
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::ES256
+    }
+}
+
+pub struct P256PublicKey {
+    key: p256::PublicKey,
+}
+
+impl P256PublicKey {
+    pub fn from_x_y(x: &[u8; 32], y: &[u8; 32]) -> Result<P256PublicKey, Error> {
+        let key = p256::PublicKey::from_x_y(x, y).map_err(|_| Error::InvalidKey)?;
+        Ok(P256PublicKey {
+            key,
+        })
+    }
+
+    pub fn from_bytes(public_key: &[u8]) -> Result<P256PublicKey, Error> {
+        let key = p256::PublicKey::from_bytes(public_key).map_err(|_| Error::InvalidKey)?;
+        Ok(P256PublicKey {
+            key,
+        })
+    }
+
+    /// Converts the public key to a byte array.
+    pub fn to_bytes(&self) -> [u8; 65] {
+        self.key.to_bytes()
+    }
+}
+
+impl Verifier for P256PublicKey {
+    fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), Error> {
+        let signature = signature.as_ref().try_into().map_err(|_| Error::InvalidSignature)?;
+        return self
+            .key
+            .verify(message, &signature)
+            .map_err(|_| Error::InvalidSignature);
+    }
+
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::ES256
+    }
+}

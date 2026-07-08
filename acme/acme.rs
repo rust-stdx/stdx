@@ -5,7 +5,7 @@
 
 use std::{fmt, sync::Arc};
 
-use crypto::{Hasher, encoding::pkcs8, hmac::Hmac, p256::PrivateKey, sha2::Sha256};
+use crypto::{Hasher, encoding::pkcs8, hmac::Hmac, p256::SecretKey, sha2::Sha256};
 use reqwest::{
     Method, Response, StatusCode,
     header::{CONTENT_TYPE, LOCATION},
@@ -496,13 +496,13 @@ impl fmt::Debug for Client {
 
 struct Key {
     signing_algorithm: SigningAlgorithm,
-    inner: PrivateKey,
+    inner: SecretKey,
     thumb: String,
 }
 
 impl Key {
     fn generate() -> Result<(Self, [u8; 138]), Error> {
-        let inner = PrivateKey::generate().map_err(|_| Error::Crypto)?;
+        let inner = SecretKey::generate().map_err(|_| Error::Crypto)?;
         let pkcs8_der = pkcs8::encode_p256_pkcs8_der(&inner).map_err(|_| Error::Crypto)?;
         let thumb = base64::encode(&Jwk::thumb_sha256(&inner.public_key())?, base64::Alphabet::UrlNoPadding);
 

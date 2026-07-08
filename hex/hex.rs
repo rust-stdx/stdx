@@ -160,7 +160,11 @@ pub fn encode_with_alphabet(data: impl AsRef<[u8]>, alphabet: Alphabet) -> alloc
 /// Encodes `data` into a fixed-size array at compile time.
 ///
 /// The generic parameter `OUT` is the output array length. It must be exactly
-/// `data.len() * 2` long or a compile-time panic is raised.
+/// `data.len() * 2` long or a panic is raised.
+///
+/// # Panics
+///
+/// This function panics if `OUT != data.len() * 2`.
 ///
 /// # Example
 ///

@@ -100,6 +100,7 @@ Complete catalog of all crates in the stdx monorepo. Import any of these directl
 | `strings` | String utilities (uses itoa + ryu) | — | — |
 | `template` | Text template rendering engine | — | — |
 | `memmem` | Substring searching (TwoWay, Boyer-Moore) | — | jneem/memmem |
+| `small_collections` | Small-string optimization types (SmallString) | `std` (default), `serde` | — |
 
 ## Checksums & Hashing
 

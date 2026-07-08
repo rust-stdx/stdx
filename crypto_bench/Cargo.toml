@@ -1,0 +1,17 @@
+[package]
+name = "crypto_bench"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+crypto = { path = "../crypto" }
+aws-lc-rs = { workspace = true }
+aes-gcm = "0.11"
+chacha20poly1305 = "0.11"
+sha2 = "0.11"
+inout = "0.2"
+criterion = { workspace = true }
+
+[[bench]]
+name = "crypto_bench"
+harness = false

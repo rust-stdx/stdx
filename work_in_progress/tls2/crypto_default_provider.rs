@@ -297,7 +297,7 @@ impl CryptoProvider for DefaultCryptoProvider {
             KeyExchangeGroup::Secp256r1 => {
                 let mut private_key_bytes = [0u8; 32];
                 self.secure_random(&mut private_key_bytes);
-                let private_key = p256::PrivateKey::from_bytes(&private_key_bytes).map_err(|_| Error::CryptoError)?;
+                let private_key = p256::SecretKey::from_bytes(&private_key_bytes).map_err(|_| Error::CryptoError)?;
                 let public_key = private_key.public_key();
                 Ok((
                     KeyExchangeSecretKey::new(group, &private_key.to_bytes()),
@@ -353,7 +353,7 @@ impl CryptoProvider for DefaultCryptoProvider {
             }
             KeyExchangeGroup::Secp256r1 => {
                 let sk_bytes: &[u8; 32] = secret.bytes().try_into().map_err(|_| Error::CryptoError)?;
-                let private_key = p256::PrivateKey::from_bytes(sk_bytes).map_err(|_| Error::CryptoError)?;
+                let private_key = p256::SecretKey::from_bytes(sk_bytes).map_err(|_| Error::CryptoError)?;
                 let shared_secret = private_key
                     .ecdh(&p256::PublicKey::from_bytes(peer_public).map_err(|_| Error::CryptoError)?)
                     .map_err(|_| Error::CryptoError)?;
@@ -380,7 +380,7 @@ impl CryptoProvider for DefaultCryptoProvider {
             }
             SignatureScheme::EcdsaP256Sha256 => {
                 let key: &[u8; 32] = secret_key.try_into().map_err(|_| Error::CryptoError)?;
-                let private_key = crypto::p256::PrivateKey::from_bytes(key).map_err(|_| Error::CryptoError)?;
+                let private_key = crypto::p256::SecretKey::from_bytes(key).map_err(|_| Error::CryptoError)?;
                 let raw_sig = private_key.sign(data).map_err(|_| Error::CryptoError)?;
                 p256_raw_to_der_signature(&raw_sig)
             }
@@ -683,7 +683,7 @@ mod tests {
         let data = b"TLS 1.3 test message";
 
         let seed = [42u8; 32];
-        let private_key = crypto::p256::PrivateKey::from_bytes(&seed).unwrap();
+        let private_key = crypto::p256::SecretKey::from_bytes(&seed).unwrap();
         let public_key = private_key.public_key().to_bytes();
 
         let signature = provider.sign(SignatureScheme::EcdsaP256Sha256, &seed, data).unwrap();

@@ -117,6 +117,8 @@ pub enum DecodeError {
     /// The input has invalid padding (e.g. missing `=` when expected,
     /// unexpected `=`, or wrong number of padding characters).
     InvalidPadding,
+    /// The output length is not valid.
+    InvalidOutputLength,
 }
 
 impl core::fmt::Display for EncodeError {
@@ -133,6 +135,7 @@ impl core::fmt::Display for DecodeError {
         match self {
             Self::InvalidInput => f.write_str("invalid base64 character"),
             Self::InvalidInputLength => f.write_str("invalid base64 length"),
+            Self::InvalidOutputLength => f.write_str("output length is not valid"),
             Self::InvalidPadding => f.write_str("invalid base64 padding"),
         }
     }
@@ -548,7 +551,7 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -
     let (content_len, _) = strip_padding_info(encoded_data, alphabet.is_padded())?;
     let computed_output = decoded_length(content_len)?;
     if output.len() < computed_output {
-        return Err(DecodeError::InvalidInputLength);
+        return Err(DecodeError::InvalidOutputLength);
     }
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -616,7 +619,7 @@ pub const fn decode_into_constant_time(
     };
 
     if output.len() < computed_output {
-        return Err(DecodeError::InvalidInputLength);
+        return Err(DecodeError::InvalidOutputLength);
     }
 
     let mut err: u8 = 0;
@@ -1249,14 +1252,14 @@ mod tests {
 
             for alphabet in ALL_ALPHABETS {
                 let padding = alphabet.is_padded();
-                let elen = encoded_length(input_len, padding).expect("encoded_len overflow");
-                enc_buf.resize(elen, 0);
+                let encoded_length = encoded_length(input_len, padding).expect("encoded_len overflow");
+                enc_buf.resize(encoded_length, 0);
                 encode_into_constant_time(&mut enc_buf, &data_buf, *alphabet).unwrap();
 
                 let mut decoded = alloc::vec![0u8; input_len];
                 assert_eq!(
                     decode_into_constant_time(&mut decoded, &enc_buf, *alphabet),
-                    Ok(elen),
+                    Ok(input_len),
                     "decode failed len={input_len} alphabet={alphabet:?}"
                 );
                 assert_eq!(&decoded, &data_buf, "roundtrip mismatch len={input_len} alphabet={alphabet:?}");
@@ -1299,7 +1302,7 @@ mod tests {
         assert_eq!(ERR_INVALID, Err(DecodeError::InvalidInput));
 
         const ERR_SIZE: Result<[u8; 0], DecodeError> = decode_array::<0>(b"Zg==", Alphabet::Standard);
-        assert_eq!(ERR_SIZE, Err(DecodeError::InvalidInputLength));
+        assert_eq!(ERR_SIZE, Err(DecodeError::InvalidOutputLength));
     }
 
     #[test]
@@ -1317,7 +1320,7 @@ mod tests {
         let mut out = [0u8; 2];
         assert_eq!(
             decode_into(&mut out, b"Zm9v", Alphabet::Standard),
-            Err(DecodeError::InvalidInputLength)
+            Err(DecodeError::InvalidOutputLength)
         );
     }
 

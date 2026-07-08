@@ -9,6 +9,7 @@ use alloc::{
 use core::time::Duration;
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use small_collections::SmallString;
 
 mod jwt_crypto;
 pub use jwt_crypto::*;
@@ -28,7 +29,7 @@ pub struct Header {
     /// Content type
     /// https://tools.ietf.org/html/rfc7519#section-5.2
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cty: Option<String>,
+    pub cty: Option<SmallString<3>>,
 
     /// JSON Key URL
     /// https://tools.ietf.org/html/rfc7515#section-4.1.2
@@ -43,7 +44,7 @@ pub struct Header {
     /// Key ID
     /// https://tools.ietf.org/html/rfc7515#section-4.1.4
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub kid: Option<String>,
+    pub kid: Option<SmallString<36>>, // 36 = UUID length
 
     /// X.509 URL
     /// https://tools.ietf.org/html/rfc7515#section-4.1.5
@@ -58,13 +59,13 @@ pub struct Header {
     /// X.509 SHA1 certificate Thumbprint
     /// https://tools.ietf.org/html/rfc7515#section-4.1.7
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub x5t: Option<String>,
+    pub x5t: Option<SmallString<27>>, // 27 = base64_encoded_length(20)
 
     /// X.509 SHA256 certificate Thumbprint
     /// https://tools.ietf.org/html/rfc7515#section-4.1.8
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "x5t#S256")]
-    pub x5t_s256: Option<String>,
+    pub x5t_s256: Option<SmallString<43>>, // 43 = base64_encoded_length(32)
 }
 
 /// Registered claim names from https://www.rfc-editor.org/rfc/rfc7519#section-4.1
@@ -73,37 +74,37 @@ pub struct RegisteredClaims {
     /// Issuer
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub iss: Option<String>,
+    pub iss: Option<SmallString<20>>,
 
     /// Subject
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub: Option<String>,
+    pub sub: Option<SmallString<36>>, // 36 = UUID length
 
     /// Audience
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub aud: Option<String>,
+    pub aud: Option<SmallString<20>>,
 
     /// Expiration Time
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub exp: Option<i64>,
+    pub exp: Option<u64>,
 
     /// Not Before
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub nbf: Option<i64>,
+    pub nbf: Option<u64>,
 
     /// Issued At
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub iat: Option<i64>,
+    pub iat: Option<u64>,
 
     /// JWT ID
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub jti: Option<String>,
+    pub jti: Option<SmallString<36>>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
@@ -352,9 +353,11 @@ pub fn parse_and_verify<C: DeserializeOwned>(
         return Err(Error::ClockIsMissing);
     }
 
-    let mut signature_buffer = [0u8; SIGNATURE_MAX_SIZE];
-    let mut parts = token.split('.');
+    if header.alg != key.algorithm() {
+        return Err(Error::InvalidToken);
+    }
 
+    let mut parts = token.split('.');
     let header_base64 = parts.next().ok_or(Error::InvalidToken)?;
     let claims_base64 = parts.next().ok_or(Error::InvalidToken)?;
     let signature_base64 = parts.next().ok_or(Error::InvalidToken)?;
@@ -362,6 +365,7 @@ pub fn parse_and_verify<C: DeserializeOwned>(
         return Err(Error::InvalidToken);
     }
 
+    let mut signature_buffer = [0u8; SIGNATURE_MAX_SIZE];
     let signature_size = base64::decode_into(
         &mut signature_buffer,
         signature_base64.as_bytes(),
@@ -373,10 +377,6 @@ pub fn parse_and_verify<C: DeserializeOwned>(
     let signed_message = &token[..header_base64.len() + 1 + claims_base64.len()].as_bytes();
     key.verify(signed_message, &signature)
         .map_err(|_| Error::InvalidSignature)?;
-
-    if header.alg != key.algorithm() {
-        return Err(Error::InvalidToken);
-    }
 
     let claims_json =
         base64::decode(&claims_base64, base64::Alphabet::UrlNoPadding).map_err(|_| Error::InvalidToken)?;
@@ -392,9 +392,9 @@ pub fn parse_and_verify<C: DeserializeOwned>(
                         match claims_object.get("exp") {
                             None => return Err(Error::InvalidToken),
                             Some(exp_value) => {
-                                if let Some(exp) = exp_value.as_i64() {
+                                if let Some(exp) = exp_value.as_u64() {
                                     let now = verify_options.clock.unwrap().now();
-                                    if (exp as u64) < (now - verify_options.allowed_time_drift.as_secs()) {
+                                    if exp < (now - verify_options.allowed_time_drift.as_secs()) {
                                         return Err(Error::InvalidToken);
                                     }
                                 } else {
@@ -408,9 +408,9 @@ pub fn parse_and_verify<C: DeserializeOwned>(
                         match claims_object.get("nbf") {
                             None => return Err(Error::InvalidToken),
                             Some(nbf_value) => {
-                                if let Some(nbf) = nbf_value.as_i64() {
+                                if let Some(nbf) = nbf_value.as_u64() {
                                     let now = verify_options.clock.unwrap().now();
-                                    if (nbf as u64) > (now + verify_options.allowed_time_drift.as_secs()) {
+                                    if nbf > (now + verify_options.allowed_time_drift.as_secs()) {
                                         return Err(Error::InvalidToken);
                                     }
                                 } else {
