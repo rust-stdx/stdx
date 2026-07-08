@@ -57,7 +57,9 @@ pub(crate) unsafe fn ghash_4blocks(
     let t3 = clmul_gcm_pmull(b3, h2);
     let t4 = clmul_gcm_pmull(b4, h1);
 
-    veorq_u8(t0, veorq_u8(t1, veorq_u8(t2, veorq_u8(t3, t4))))
+    let left = veorq_u8(t0, t1);
+    let right = veorq_u8(veorq_u8(t2, t3), t4);
+    veorq_u8(left, right)
 }
 
 /// 8-block aggregated GHASH.
@@ -105,13 +107,13 @@ pub(crate) unsafe fn ghash_8blocks(
     let t7 = clmul_gcm_pmull(b7, h2);
     let t8 = clmul_gcm_pmull(b8, h1);
 
-    veorq_u8(
-        t0,
-        veorq_u8(
-            t1,
-            veorq_u8(t2, veorq_u8(t3, veorq_u8(t4, veorq_u8(t5, veorq_u8(t6, veorq_u8(t7, t8)))))),
-        ),
-    )
+    let l0 = veorq_u8(t0, t1);
+    let l1 = veorq_u8(t2, t3);
+    let l2 = veorq_u8(t4, t5);
+    let l3 = veorq_u8(t6, t7);
+    let m0 = veorq_u8(l0, l1);
+    let m1 = veorq_u8(l2, l3);
+    veorq_u8(m0, veorq_u8(m1, t8))
 }
 
 /// Multiply two GCM elements using PMULL + 3-step reduction.
@@ -119,38 +121,72 @@ pub(crate) unsafe fn ghash_8blocks(
 #[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn clmul_gcm_pmull(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     let poly = vld1q_u8([0x87, 0, 0, 0, 0, 0, 0, 0, 0x87, 0, 0, 0, 0, 0, 0, 0].as_ptr());
-    let result: uint8x16_t;
-    core::arch::asm!(
-        "movi    v17.16b, #0",
-        "pmull   v18.1q, {a:v}.1d, {b:v}.1d",
-        "pmull2  v19.1q, {a:v}.2d, {b:v}.2d",
-        "ext     v20.16b, {a:v}.16b, {a:v}.16b, #8",
-        "ext     v21.16b, {b:v}.16b, {b:v}.16b, #8",
-        "eor     v20.16b, v20.16b, {a:v}.16b",
-        "eor     v21.16b, v21.16b, {b:v}.16b",
-        "pmull   v22.1q, v20.1d, v21.1d",
-        "eor     v22.16b, v22.16b, v18.16b",
-        "eor     v22.16b, v22.16b, v19.16b",
-        "ext     v20.16b, v17.16b, v22.16b, #8",
-        "eor     v18.16b, v18.16b, v20.16b",
-        "ext     v20.16b, v22.16b, v17.16b, #8",
-        "eor     v19.16b, v19.16b, v20.16b",
-        "pmull   v22.1q, v19.1d, {poly:v}.1d",
-        "ext     v20.16b, v19.16b, v19.16b, #8",
-        "pmull   v23.1q, v20.1d, {poly:v}.1d",
-        "ext     v20.16b, v17.16b, v23.16b, #8",
-        "ext     v21.16b, v23.16b, v17.16b, #8",
-        "pmull   v17.1q, v21.1d, {poly:v}.1d",
-        "eor     v18.16b, v18.16b, v22.16b",
-        "eor     v18.16b, v18.16b, v20.16b",
-        "eor     {result:v}.16b, v18.16b, v17.16b",
-        a = in(vreg) a,
-        b = in(vreg) b,
-        poly = in(vreg) poly,
-        result = out(vreg) result,
-        out("v17") _, out("v18") _, out("v19") _,
-        out("v20") _, out("v21") _, out("v22") _, out("v23") _,
-        options(nostack),
+    let zero = vdupq_n_u8(0);
+
+    let a_p128 = vreinterpretq_p128_u8(a);
+    let b_p128 = vreinterpretq_p128_u8(b);
+    let poly_p128 = vreinterpretq_p128_u8(poly);
+    let poly_p64x2 = vreinterpretq_p64_p128(poly_p128);
+
+    let a_p64x2 = vreinterpretq_p64_p128(a_p128);
+    let b_p64x2 = vreinterpretq_p64_p128(b_p128);
+
+    // lo = pmull   v18.1q, a.d[0], b.d[0]
+    let lo_p128 = vmull_p64(vgetq_lane_p64::<0>(a_p64x2), vgetq_lane_p64::<0>(b_p64x2));
+    // hi = pmull2  v19.1q, a.2d, b.2d
+    let hi_p128 = vmull_high_p64(a_p64x2, b_p64x2);
+
+    // a_swap = ext a, a, #8; b_swap = ext b, b, #8
+    let a_swap = vextq_u8(a, a, 8);
+    let b_swap = vextq_u8(b, b, 8);
+    // a_xor = a_swap ^ a; b_xor = b_swap ^ b
+    let a_xor = veorq_u8(a_swap, a);
+    let b_xor = veorq_u8(b_swap, b);
+    // mid = pmull a_xor.d[0], b_xor.d[0]
+    let mid_p128 = vmull_p64(
+        vgetq_lane_p64::<0>(vreinterpretq_p64_p128(vreinterpretq_p128_u8(a_xor))),
+        vgetq_lane_p64::<0>(vreinterpretq_p64_p128(vreinterpretq_p128_u8(b_xor))),
     );
-    result
+
+    // mid ^= lo ^ hi
+    let mut lo = vreinterpretq_u8_p128(lo_p128);
+    let mut hi = vreinterpretq_u8_p128(hi_p128);
+    let mid = vreinterpretq_u8_p128(mid_p128);
+    let mid = veorq_u8(veorq_u8(mid, lo), hi);
+
+    // ext zero, mid, #8 → lo ^= (mid shifted right by 8)
+    lo = veorq_u8(lo, vextq_u8(zero, mid, 8));
+    // ext mid, zero, #8 → hi ^= (mid shifted left by 8)
+    hi = veorq_u8(hi, vextq_u8(mid, zero, 8));
+
+    // Reduction step
+    // r1 = pmull hi.d[0], poly.d[0]
+    let r1_p128 = vmull_p64(
+        vgetq_lane_p64::<0>(vreinterpretq_p64_p128(vreinterpretq_p128_u8(hi))),
+        vgetq_lane_p64::<0>(poly_p64x2),
+    );
+    // hi_swap = ext hi, hi, #8
+    let hi_swap = vextq_u8(hi, hi, 8);
+    // r2 = pmull hi_swap.d[0], poly.d[0]
+    let r2_p128 = vmull_p64(
+        vgetq_lane_p64::<0>(vreinterpretq_p64_p128(vreinterpretq_p128_u8(hi_swap))),
+        vgetq_lane_p64::<0>(poly_p64x2),
+    );
+
+    let r2 = vreinterpretq_u8_p128(r2_p128);
+    // ext zero, r2, #8 → r2_lo
+    let r2_lo = vextq_u8(zero, r2, 8);
+    // ext r2, zero, #8 → r2_hi
+    let r2_hi = vextq_u8(r2, zero, 8);
+    // r3 = pmull r2_hi.d[0], poly.d[0]
+    let r3_p128 = vmull_p64(
+        vgetq_lane_p64::<0>(vreinterpretq_p64_p128(vreinterpretq_p128_u8(r2_hi))),
+        vgetq_lane_p64::<0>(poly_p64x2),
+    );
+
+    // result = lo ^ r1 ^ r2_lo ^ r3
+    veorq_u8(
+        veorq_u8(veorq_u8(lo, vreinterpretq_u8_p128(r1_p128)), r2_lo),
+        vreinterpretq_u8_p128(r3_p128),
+    )
 }

@@ -23,7 +23,7 @@ use constant_time_eq::constant_time_eq;
 
 use super::{
     aes::GCM_MAX_LEN,
-    aes_arm64::aes_encrypt_block,
+    aes_arm64::{aes_encrypt_4blocks, aes_encrypt_8blocks, aes_encrypt_block},
     aes_ctr_arm64::{SWAP_MASK, increment_counter},
     ghash_arm64::{clmul_gcm_pmull, ghash_4blocks, ghash_8blocks, ghash_update},
 };
@@ -31,6 +31,7 @@ use crate::{AeadError, Hash, bytes::Bytes};
 
 // ── Encrypt ───────────────────────────────────────────────────────────────────
 
+#[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
     round_keys: &[uint8x16_t; N],
     h_powers: &[uint8x16_t; 8],
@@ -86,14 +87,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
         let c7 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), six)), swap);
         let c8 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), seven)), swap);
 
-        let k1 = aes_encrypt_block::<N>(round_keys, c1);
-        let k2 = aes_encrypt_block::<N>(round_keys, c2);
-        let k3 = aes_encrypt_block::<N>(round_keys, c3);
-        let k4 = aes_encrypt_block::<N>(round_keys, c4);
-        let k5 = aes_encrypt_block::<N>(round_keys, c5);
-        let k6 = aes_encrypt_block::<N>(round_keys, c6);
-        let k7 = aes_encrypt_block::<N>(round_keys, c7);
-        let k8 = aes_encrypt_block::<N>(round_keys, c8);
+        let (k1, k2, k3, k4, k5, k6, k7, k8) = aes_encrypt_8blocks::<N>(round_keys, c1, c2, c3, c4, c5, c6, c7, c8);
 
         let p1 = vld1q_u8(in_out.as_ptr().add(i));
         let p2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -135,10 +129,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
         let c3 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), two)), swap);
         let c4 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), three)), swap);
 
-        let k1 = aes_encrypt_block::<N>(round_keys, c1);
-        let k2 = aes_encrypt_block::<N>(round_keys, c2);
-        let k3 = aes_encrypt_block::<N>(round_keys, c3);
-        let k4 = aes_encrypt_block::<N>(round_keys, c4);
+        let (k1, k2, k3, k4) = aes_encrypt_4blocks::<N>(round_keys, c1, c2, c3, c4);
 
         let p1 = vld1q_u8(in_out.as_ptr().add(i));
         let p2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -204,6 +195,7 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
 
 // ── Decrypt ───────────────────────────────────────────────────────────────────
 
+#[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     round_keys: &[uint8x16_t; N],
     h_powers: &[uint8x16_t; 8],
@@ -224,64 +216,11 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     let mut ej0_bytes = [0u8; 16];
     vst1q_u8(ej0_bytes.as_mut_ptr(), ej0);
 
-    // ── GHASH the ciphertext ──────────────────────────────────────────────
-    let mut state = vdupq_n_u8(0);
-    state = ghash_update(state, h_powers[0], aad);
-
-    let n = in_out.len();
-    let mut i = 0usize;
-
-    while i + 128 <= n {
-        let b1 = vld1q_u8(in_out.as_ptr().add(i));
-        let b2 = vld1q_u8(in_out.as_ptr().add(i + 16));
-        let b3 = vld1q_u8(in_out.as_ptr().add(i + 32));
-        let b4 = vld1q_u8(in_out.as_ptr().add(i + 48));
-        let b5 = vld1q_u8(in_out.as_ptr().add(i + 64));
-        let b6 = vld1q_u8(in_out.as_ptr().add(i + 80));
-        let b7 = vld1q_u8(in_out.as_ptr().add(i + 96));
-        let b8 = vld1q_u8(in_out.as_ptr().add(i + 112));
-        state = ghash_8blocks(state, b1, b2, b3, b4, b5, b6, b7, b8, h_powers);
-        i += 128;
-    }
-
-    while i + 64 <= n {
-        let b1 = vld1q_u8(in_out.as_ptr().add(i));
-        let b2 = vld1q_u8(in_out.as_ptr().add(i + 16));
-        let b3 = vld1q_u8(in_out.as_ptr().add(i + 32));
-        let b4 = vld1q_u8(in_out.as_ptr().add(i + 48));
-        state = ghash_4blocks(state, b1, b2, b3, b4, h_powers);
-        i += 64;
-    }
-
-    while i + 16 <= n {
-        let block = vrbitq_u8(vld1q_u8(in_out.as_ptr().add(i)));
-        state = clmul_gcm_pmull(veorq_u8(state, block), h_powers[0]);
-        i += 16;
-    }
-    if i < n {
-        let mut padded = [0u8; 16];
-        padded[..n - i].copy_from_slice(&in_out[i..]);
-        let block = vrbitq_u8(vld1q_u8(padded.as_ptr()));
-        state = clmul_gcm_pmull(veorq_u8(state, block), h_powers[0]);
-    }
-
-    let mut len_block = [0u8; 16];
-    len_block[..8].copy_from_slice(&((aad.len() as u64) * 8).to_be_bytes());
-    len_block[8..].copy_from_slice(&((in_out.len() as u64) * 8).to_be_bytes());
-    let len_br = vrbitq_u8(vld1q_u8(len_block.as_ptr()));
-    state = clmul_gcm_pmull(veorq_u8(state, len_br), h_powers[0]);
-
-    let computed_tag = veorq_u8(vrbitq_u8(state), vld1q_u8(ej0_bytes.as_ptr()));
-    let mut computed = [0u8; 16];
-    vst1q_u8(computed.as_mut_ptr(), computed_tag);
-
-    if !constant_time_eq(&computed, tag) {
-        return Err(AeadError::InvalidCiphertext);
-    }
-
-    // ── CTR decrypt ────────────────────────────────────────────────────────
-    let swap = vld1q_u8(SWAP_MASK.as_ptr());
+    // CTR starts at J0 + 1
     let ctr = increment_counter(vld1q_u8(j0.as_ptr()));
+
+    // ── Single-pass fused GHASH + CTR decrypt ────────────────────────────────
+    let swap = vld1q_u8(SWAP_MASK.as_ptr());
     let mut base = vqtbl1q_u8(ctr, swap);
     let zero = vdupq_n_u32(0);
     let one = vsetq_lane_u32(1, vdupq_n_u32(0), 0);
@@ -292,8 +231,13 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     let six = vsetq_lane_u32(6, vdupq_n_u32(0), 0);
     let seven = vsetq_lane_u32(7, vdupq_n_u32(0), 0);
 
+    let mut state = vdupq_n_u8(0);
+    state = ghash_update(state, h_powers[0], aad);
+
+    let n = in_out.len();
     let mut i = 0usize;
 
+    // 8-block fused pipeline
     while i + 128 <= n {
         let c1 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), zero)), swap);
         let c2 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), one)), swap);
@@ -304,14 +248,7 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         let c7 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), six)), swap);
         let c8 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), seven)), swap);
 
-        let k1 = aes_encrypt_block::<N>(round_keys, c1);
-        let k2 = aes_encrypt_block::<N>(round_keys, c2);
-        let k3 = aes_encrypt_block::<N>(round_keys, c3);
-        let k4 = aes_encrypt_block::<N>(round_keys, c4);
-        let k5 = aes_encrypt_block::<N>(round_keys, c5);
-        let k6 = aes_encrypt_block::<N>(round_keys, c6);
-        let k7 = aes_encrypt_block::<N>(round_keys, c7);
-        let k8 = aes_encrypt_block::<N>(round_keys, c8);
+        let (k1, k2, k3, k4, k5, k6, k7, k8) = aes_encrypt_8blocks::<N>(round_keys, c1, c2, c3, c4, c5, c6, c7, c8);
 
         let ct1 = vld1q_u8(in_out.as_ptr().add(i));
         let ct2 = vld1q_u8(in_out.as_ptr().add(i + 16));
@@ -321,6 +258,9 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         let ct6 = vld1q_u8(in_out.as_ptr().add(i + 80));
         let ct7 = vld1q_u8(in_out.as_ptr().add(i + 96));
         let ct8 = vld1q_u8(in_out.as_ptr().add(i + 112));
+
+        // GHASH ciphertext first, then decrypt
+        state = ghash_8blocks(state, ct1, ct2, ct3, ct4, ct5, ct6, ct7, ct8, h_powers);
 
         vst1q_u8(in_out.as_mut_ptr().add(i), veorq_u8(ct1, k1));
         vst1q_u8(in_out.as_mut_ptr().add(i + 16), veorq_u8(ct2, k2));
@@ -335,21 +275,21 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         i += 128;
     }
 
+    // 4-block fused pipeline
     while i + 64 <= n {
         let c1 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), zero)), swap);
         let c2 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), one)), swap);
         let c3 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), two)), swap);
         let c4 = vqtbl1q_u8(vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), three)), swap);
 
-        let k1 = aes_encrypt_block::<N>(round_keys, c1);
-        let k2 = aes_encrypt_block::<N>(round_keys, c2);
-        let k3 = aes_encrypt_block::<N>(round_keys, c3);
-        let k4 = aes_encrypt_block::<N>(round_keys, c4);
+        let (k1, k2, k3, k4) = aes_encrypt_4blocks::<N>(round_keys, c1, c2, c3, c4);
 
         let ct1 = vld1q_u8(in_out.as_ptr().add(i));
         let ct2 = vld1q_u8(in_out.as_ptr().add(i + 16));
         let ct3 = vld1q_u8(in_out.as_ptr().add(i + 32));
         let ct4 = vld1q_u8(in_out.as_ptr().add(i + 48));
+
+        state = ghash_4blocks(state, ct1, ct2, ct3, ct4, h_powers);
 
         vst1q_u8(in_out.as_mut_ptr().add(i), veorq_u8(ct1, k1));
         vst1q_u8(in_out.as_mut_ptr().add(i + 16), veorq_u8(ct2, k2));
@@ -360,10 +300,16 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         i += 64;
     }
 
+    // Tail blocks (1-3)
     while i + 16 <= n {
         let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
-        let pt = veorq_u8(vld1q_u8(in_out.as_ptr().add(i)), k);
-        vst1q_u8(in_out.as_mut_ptr().add(i), pt);
+        let ct = vld1q_u8(in_out.as_ptr().add(i));
+
+        let block = vrbitq_u8(ct);
+        state = clmul_gcm_pmull(veorq_u8(state, block), h_powers[0]);
+
+        vst1q_u8(in_out.as_mut_ptr().add(i), veorq_u8(ct, k));
+
         base = vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), one));
         i += 16;
     }
@@ -371,10 +317,33 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
         let mut buf = [0u8; 16];
         buf[..n - i].copy_from_slice(&in_out[i..]);
-        let pt = veorq_u8(vld1q_u8(buf.as_ptr()), k);
+        let ct = vld1q_u8(buf.as_ptr());
+
+        let mut padded = [0u8; 16];
+        padded[..n - i].copy_from_slice(&in_out[i..]);
+        let block = vrbitq_u8(vld1q_u8(padded.as_ptr()));
+        state = clmul_gcm_pmull(veorq_u8(state, block), h_powers[0]);
+
+        let pt = veorq_u8(ct, k);
         let mut out_buf = [0u8; 16];
         vst1q_u8(out_buf.as_mut_ptr(), pt);
         in_out[i..].copy_from_slice(&out_buf[..n - i]);
+    }
+
+    // Length block
+    let mut len_block = [0u8; 16];
+    len_block[..8].copy_from_slice(&((aad.len() as u64) * 8).to_be_bytes());
+    len_block[8..].copy_from_slice(&((in_out.len() as u64) * 8).to_be_bytes());
+    let len_br = vrbitq_u8(vld1q_u8(len_block.as_ptr()));
+    state = clmul_gcm_pmull(veorq_u8(state, len_br), h_powers[0]);
+
+    // Tag
+    let computed_tag = veorq_u8(vrbitq_u8(state), vld1q_u8(ej0_bytes.as_ptr()));
+    let mut computed = [0u8; 16];
+    vst1q_u8(computed.as_mut_ptr(), computed_tag);
+
+    if !constant_time_eq(&computed, tag) {
+        return Err(AeadError::InvalidCiphertext);
     }
 
     Ok(())

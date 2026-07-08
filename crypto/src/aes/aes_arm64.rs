@@ -73,6 +73,291 @@ pub(crate) unsafe fn aes_encrypt_block<const N: usize>(round_keys: &[uint8x16_t;
     }
 }
 
+/// Const generic interleaved AES-encrypt 8 blocks.
+///
+/// All 8 blocks progress through each AES round together, hiding the 3-4 cycle
+/// latency of `vaeseq_u8`/`vaesmcq_u8` across blocks.
+#[target_feature(enable = "aes,neon")]
+#[inline]
+pub(crate) unsafe fn aes_encrypt_8blocks<const N: usize>(
+    rk: &[uint8x16_t; N],
+    b1: uint8x16_t,
+    b2: uint8x16_t,
+    b3: uint8x16_t,
+    b4: uint8x16_t,
+    b5: uint8x16_t,
+    b6: uint8x16_t,
+    b7: uint8x16_t,
+    b8: uint8x16_t,
+) -> (
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+) {
+    const { assert!(N == 11 || N == 15) };
+
+    let zero = vdupq_n_u8(0);
+
+    // Round 0: AddRoundKey
+    let b1 = veorq_u8(b1, rk[0]);
+    let b2 = veorq_u8(b2, rk[0]);
+    let b3 = veorq_u8(b3, rk[0]);
+    let b4 = veorq_u8(b4, rk[0]);
+    let b5 = veorq_u8(b5, rk[0]);
+    let b6 = veorq_u8(b6, rk[0]);
+    let b7 = veorq_u8(b7, rk[0]);
+    let b8 = veorq_u8(b8, rk[0]);
+
+    // Rounds 1-9 (SubBytes+ShiftRows, MixColumns, AddRoundKey)
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[1]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[1]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[1]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[1]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[1]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[1]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[1]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[1]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[2]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[2]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[2]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[2]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[2]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[2]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[2]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[2]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[3]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[3]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[3]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[3]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[3]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[3]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[3]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[3]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[4]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[4]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[4]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[4]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[4]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[4]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[4]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[4]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[5]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[5]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[5]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[5]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[5]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[5]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[5]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[5]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[6]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[6]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[6]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[6]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[6]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[6]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[6]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[6]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[7]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[7]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[7]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[7]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[7]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[7]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[7]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[7]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[8]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[8]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[8]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[8]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[8]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[8]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[8]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[8]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[9]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[9]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[9]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[9]);
+    let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[9]);
+    let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[9]);
+    let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[9]);
+    let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[9]);
+
+    if N == 11 {
+        (
+            veorq_u8(vaeseq_u8(b1, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b2, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b3, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b4, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b5, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b6, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b7, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b8, zero), rk[10]),
+        )
+    } else {
+        // AES-256: extra rounds 10-13, then final round 14
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[10]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[10]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[10]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[10]);
+        let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[10]);
+        let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[10]);
+        let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[10]);
+        let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[10]);
+
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[11]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[11]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[11]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[11]);
+        let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[11]);
+        let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[11]);
+        let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[11]);
+        let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[11]);
+
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[12]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[12]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[12]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[12]);
+        let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[12]);
+        let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[12]);
+        let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[12]);
+        let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[12]);
+
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[13]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[13]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[13]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[13]);
+        let b5 = veorq_u8(vaesmcq_u8(vaeseq_u8(b5, zero)), rk[13]);
+        let b6 = veorq_u8(vaesmcq_u8(vaeseq_u8(b6, zero)), rk[13]);
+        let b7 = veorq_u8(vaesmcq_u8(vaeseq_u8(b7, zero)), rk[13]);
+        let b8 = veorq_u8(vaesmcq_u8(vaeseq_u8(b8, zero)), rk[13]);
+
+        (
+            veorq_u8(vaeseq_u8(b1, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b2, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b3, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b4, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b5, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b6, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b7, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b8, zero), rk[14]),
+        )
+    }
+}
+
+/// Const generic interleaved AES-encrypt 4 blocks.
+#[target_feature(enable = "aes,neon")]
+#[inline]
+pub(crate) unsafe fn aes_encrypt_4blocks<const N: usize>(
+    rk: &[uint8x16_t; N],
+    b1: uint8x16_t,
+    b2: uint8x16_t,
+    b3: uint8x16_t,
+    b4: uint8x16_t,
+) -> (uint8x16_t, uint8x16_t, uint8x16_t, uint8x16_t) {
+    const { assert!(N == 11 || N == 15) };
+
+    let zero = vdupq_n_u8(0);
+
+    let b1 = veorq_u8(b1, rk[0]);
+    let b2 = veorq_u8(b2, rk[0]);
+    let b3 = veorq_u8(b3, rk[0]);
+    let b4 = veorq_u8(b4, rk[0]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[1]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[1]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[1]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[1]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[2]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[2]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[2]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[2]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[3]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[3]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[3]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[3]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[4]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[4]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[4]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[4]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[5]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[5]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[5]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[5]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[6]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[6]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[6]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[6]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[7]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[7]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[7]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[7]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[8]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[8]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[8]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[8]);
+
+    let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[9]);
+    let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[9]);
+    let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[9]);
+    let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[9]);
+
+    if N == 11 {
+        (
+            veorq_u8(vaeseq_u8(b1, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b2, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b3, zero), rk[10]),
+            veorq_u8(vaeseq_u8(b4, zero), rk[10]),
+        )
+    } else {
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[10]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[10]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[10]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[10]);
+
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[11]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[11]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[11]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[11]);
+
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[12]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[12]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[12]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[12]);
+
+        let b1 = veorq_u8(vaesmcq_u8(vaeseq_u8(b1, zero)), rk[13]);
+        let b2 = veorq_u8(vaesmcq_u8(vaeseq_u8(b2, zero)), rk[13]);
+        let b3 = veorq_u8(vaesmcq_u8(vaeseq_u8(b3, zero)), rk[13]);
+        let b4 = veorq_u8(vaesmcq_u8(vaeseq_u8(b4, zero)), rk[13]);
+
+        (
+            veorq_u8(vaeseq_u8(b1, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b2, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b3, zero), rk[14]),
+            veorq_u8(vaeseq_u8(b4, zero), rk[14]),
+        )
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
