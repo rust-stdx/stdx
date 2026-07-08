@@ -2,8 +2,6 @@
 
 Inspired by Go's extensive standard library, we are building Rust's extended standard library to bring simplicity, performance and supply chain security to every Rust developer.
 
-Once the idea has proven valuable, we plan to donate the entire codebase to the Rust Foundation to build trust and drive adoption.
-
 
 Learn more in the announcement post: https://kerkour.com/stdx
 
@@ -14,11 +12,11 @@ To avoid namespace clashes and supply chain risks, we do not use a centralized p
 
 ```toml
 base64 = { git = "https://github.com/rust-stdx/stdx", branch = "main" }
-# or, to pin a commit
+# or to pin a commit
 base64 = { git = "https://github.com/rust-stdx/stdx", rev = "1234" }
-# or, to use Codeberg
+# or to use Codeberg
 base64 = { git = "https://codeberg.org/rust-stdx/stdx", branch = "main" }
-# or, fork it and use your own mirror
+# or fork it and use your own mirror
 base64 = { git = "https://git.[my-organization].com/[username]/stdx", branch = "main" }
 ```
 

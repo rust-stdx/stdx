@@ -1,0 +1,21 @@
+[package]
+name = "small_collections"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "small_collections.rs"
+
+
+[features]
+default = ["std"]
+
+serde = ["dep:serde", "heapless/serde"]
+std = ["serde?/std"]
+
+[dependencies]
+serde = { workspace = true, optional = true, default_features = false, features = ["derive"] }
+heapless = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
