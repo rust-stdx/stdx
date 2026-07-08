@@ -16,6 +16,7 @@ impl<const N: usize> SmallString<N> {
     }
 
     /// Copy the content of an `&str` into a new [`SmallString`].
+    /// The data is stored inline if possible.
     #[inline(always)]
     pub fn from_str(s: &str) -> Self {
         let mut str = Self::new();

@@ -106,6 +106,7 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    #[inline]
     pub fn from_bytes(key: &[u8]) -> Result<PublicKey, EllipticCurveError> {
         let point = AffinePoint::from_sec1_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
         Ok(PublicKey {
@@ -119,6 +120,7 @@ impl PublicKey {
     ///
     /// This is useful when importing keys from formats like JWK where `x`
     /// and `y` are available directly.
+    #[inline]
     pub fn from_x_y(x_bytes: &[u8; 32], y_bytes: &[u8; 32]) -> Result<PublicKey, EllipticCurveError> {
         let x = FieldElement::from_bytes(x_bytes).ok_or(EllipticCurveError::InvalidKey)?;
         let y = FieldElement::from_bytes(y_bytes).ok_or(EllipticCurveError::InvalidKey)?;
@@ -132,8 +134,14 @@ impl PublicKey {
         ecdsa_verify_inner(&self.point, message, signature)
     }
 
+    #[inline]
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE] {
         self.point.to_uncompressed_bytes()
+    }
+
+    #[inline]
+    pub fn to_x_y(&self) -> ([u8; 32], [u8; 32]) {
+        (self.point.x.to_bytes(), self.point.y.to_bytes())
     }
 }
 

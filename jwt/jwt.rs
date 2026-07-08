@@ -1,3 +1,66 @@
+//! JSON Web Tokens (JWT) — sign, parse, and verify JWTs.
+//!
+//! # Two-step verification flow
+//!
+//! [`parse_header`] and [`parse_and_verify`] are separate so that you can
+//! inspect the header, especially the `kid` (Key ID), before choosing
+//! which key to verify with. This is essential when the key must be looked up dynamically.
+//!
+//! # Example
+//!
+//! ```
+//! use jwt::*;
+//!
+//! fn main() -> Result<(), Error> {
+//!     // 1. Generate an Ed25519 secret key.
+//!     let secret_key = Ed25519SecretKey::generate();
+//!
+//!     // 2. Build the header.
+//!     let header = Header {
+//!         typ: TokenType::JWT,
+//!         alg: Algorithm::EdDSA,
+//!         kid: Some("my-key-id".into()),
+//!         cty: None,
+//!         jku: None,
+//!         x5u: None,
+//!         x5c: None,
+//!         x5t: None,
+//!         x5t_s256: None,
+//!     };
+//!
+//!     // 3. Define the claims and sign.
+//!     let claims = serde_json::json!({ "sub": "user123", "exp": 9999999999_u64 });
+//!     let token = sign(&secret_key, &header, &claims)?;
+//!
+//!     // 4. Extract the public key for verification.
+//!     let public_key = secret_key.public_key();
+//!
+//!     // 5. Parse only the header first (e.g., to read `kid` for key lookup).
+//!     let parsed_header = parse_header(&token)?;
+//!     assert_eq!(parsed_header.kid.as_deref(), Some("my-key-id"));
+//!
+//!     // 6. Now verify and deserialize the claims.
+//!     let opts = VerifyOptions {
+//!         allowed_time_drift: core::time::Duration::from_secs(60),
+//!         exp: true,
+//!         nbf: false,
+//!         aud: None,
+//!         iss: None,
+//!         clock: Some(&jwt::SYSTEM_CLOCK),
+//!     };
+//!     let claims: serde_json::Value =
+//!         parse_and_verify(&public_key, &parsed_header, &token, &opts)?;
+//!     assert_eq!(claims["sub"], "user123");
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # `no_std` support
+//!
+//! Disable default features (`default-features = false`) and provide your own
+//! [`Clock`] implementation for time-based claim verification (optional).
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -11,7 +74,10 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use small_collections::SmallString;
 
+mod jwk;
 mod jwt_crypto;
+
+pub use jwk::*;
 pub use jwt_crypto::*;
 
 #[cfg(feature = "std")]

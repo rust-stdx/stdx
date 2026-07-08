@@ -250,7 +250,7 @@ impl Verifier for HmacSha512Key {
 
 // TODO: zeroize?
 pub struct Ed25519SecretKey {
-    key: ed25519::SecretKey,
+    pub(crate) key: ed25519::SecretKey,
 }
 
 impl Ed25519SecretKey {
@@ -305,6 +305,14 @@ impl Ed25519PublicKey {
     /// Converts the public key to a byte array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.key.to_bytes()
+    }
+}
+
+impl From<ed25519::PublicKey> for Ed25519PublicKey {
+    fn from(key: ed25519::PublicKey) -> Self {
+        Self {
+            key,
+        }
     }
 }
 
@@ -374,7 +382,7 @@ impl Signer for P256SecretKey {
 }
 
 pub struct P256PublicKey {
-    key: p256::PublicKey,
+    pub(crate) key: p256::PublicKey,
 }
 
 impl P256PublicKey {

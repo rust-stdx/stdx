@@ -2961,6 +2961,9 @@ name = "smallvec"
 version = "2.0.0-alpha.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef784004ca8777809dcdad6ac37629f0a97caee4c685fcea805278d81dd8b857"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "socket2"
