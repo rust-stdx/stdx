@@ -564,14 +564,14 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     if content_len >= 32 {
         let content = &encoded_data[..content_len];
-        unsafe { base64_avx2::decode_into(output, content, alphabet) };
+        unsafe { base64_avx2::decode_into(output, content, alphabet)? };
         return Ok(computed_output);
     }
 
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     if content_len >= 16 {
         let content = &encoded_data[..content_len];
-        base64_wasm_simd128::decode_into(output, content, alphabet);
+        base64_wasm_simd128::decode_into(output, content, alphabet)?;
         return Ok(computed_output);
     }
 
