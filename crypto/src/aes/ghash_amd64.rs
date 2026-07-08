@@ -97,7 +97,9 @@ pub(crate) unsafe fn ghash_4blocks(
     let t3 = clmul_gcm(b3, h2);
     let t4 = clmul_gcm(b4, h1);
 
-    _mm_xor_si128(t0, _mm_xor_si128(t1, _mm_xor_si128(t2, _mm_xor_si128(t3, t4))))
+    let left = _mm_xor_si128(t0, t1);
+    let right = _mm_xor_si128(_mm_xor_si128(t2, t3), t4);
+    _mm_xor_si128(left, right)
 }
 
 /// Process 8 successive GHASH blocks in one aggregated step.
@@ -146,17 +148,11 @@ pub(crate) unsafe fn ghash_8blocks(
     let t7 = clmul_gcm(b7, h2);
     let t8 = clmul_gcm(b8, h1);
 
-    _mm_xor_si128(
-        t0,
-        _mm_xor_si128(
-            t1,
-            _mm_xor_si128(
-                t2,
-                _mm_xor_si128(
-                    t3,
-                    _mm_xor_si128(t4, _mm_xor_si128(t5, _mm_xor_si128(t6, _mm_xor_si128(t7, t8)))),
-                ),
-            ),
-        ),
-    )
+    let l0 = _mm_xor_si128(t0, t1);
+    let l1 = _mm_xor_si128(t2, t3);
+    let l2 = _mm_xor_si128(t4, t5);
+    let l3 = _mm_xor_si128(t6, t7);
+    let m0 = _mm_xor_si128(l0, l1);
+    let m1 = _mm_xor_si128(l2, l3);
+    _mm_xor_si128(m0, _mm_xor_si128(m1, t8))
 }

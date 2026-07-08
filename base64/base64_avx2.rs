@@ -216,7 +216,7 @@ pub unsafe fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alph
                 _ => 0,
             };
         let out_slice = core::slice::from_raw_parts_mut(out, out_len);
-        return decode_into_constant_time(out_slice, data_slice, alphabet);
+        decode_into_constant_time(out_slice, data_slice, alphabet)?;
     }
 
     Ok(())

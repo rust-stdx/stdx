@@ -363,7 +363,7 @@ impl Signer for P256SecretKey {
         return self
             .key
             .sign(message)
-            .map_err(|err| Error::Unspecified(err.to_string()))?
+            .map_err(|err| Error::Unspecified(alloc::format!("error signing message: {err:?}")))?
             .as_ref()
             .try_into();
     }

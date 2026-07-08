@@ -43,6 +43,272 @@ pub(crate) unsafe fn aes_encrypt_block<const N: usize>(rk: &[__m128i; N], block:
     }
 }
 
+/// Interleaved AES-encrypt 8 blocks — each round is applied across all 8 blocks.
+#[target_feature(enable = "aes,sse2")]
+#[inline]
+pub(crate) unsafe fn aes_encrypt_8blocks<const N: usize>(
+    rk: &[__m128i; N],
+    b1: __m128i,
+    b2: __m128i,
+    b3: __m128i,
+    b4: __m128i,
+    b5: __m128i,
+    b6: __m128i,
+    b7: __m128i,
+    b8: __m128i,
+) -> (__m128i, __m128i, __m128i, __m128i, __m128i, __m128i, __m128i, __m128i) {
+    const { assert!(N == 11 || N == 15) };
+
+    let b1 = _mm_xor_si128(b1, rk[0]);
+    let b2 = _mm_xor_si128(b2, rk[0]);
+    let b3 = _mm_xor_si128(b3, rk[0]);
+    let b4 = _mm_xor_si128(b4, rk[0]);
+    let b5 = _mm_xor_si128(b5, rk[0]);
+    let b6 = _mm_xor_si128(b6, rk[0]);
+    let b7 = _mm_xor_si128(b7, rk[0]);
+    let b8 = _mm_xor_si128(b8, rk[0]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[1]);
+    let b2 = _mm_aesenc_si128(b2, rk[1]);
+    let b3 = _mm_aesenc_si128(b3, rk[1]);
+    let b4 = _mm_aesenc_si128(b4, rk[1]);
+    let b5 = _mm_aesenc_si128(b5, rk[1]);
+    let b6 = _mm_aesenc_si128(b6, rk[1]);
+    let b7 = _mm_aesenc_si128(b7, rk[1]);
+    let b8 = _mm_aesenc_si128(b8, rk[1]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[2]);
+    let b2 = _mm_aesenc_si128(b2, rk[2]);
+    let b3 = _mm_aesenc_si128(b3, rk[2]);
+    let b4 = _mm_aesenc_si128(b4, rk[2]);
+    let b5 = _mm_aesenc_si128(b5, rk[2]);
+    let b6 = _mm_aesenc_si128(b6, rk[2]);
+    let b7 = _mm_aesenc_si128(b7, rk[2]);
+    let b8 = _mm_aesenc_si128(b8, rk[2]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[3]);
+    let b2 = _mm_aesenc_si128(b2, rk[3]);
+    let b3 = _mm_aesenc_si128(b3, rk[3]);
+    let b4 = _mm_aesenc_si128(b4, rk[3]);
+    let b5 = _mm_aesenc_si128(b5, rk[3]);
+    let b6 = _mm_aesenc_si128(b6, rk[3]);
+    let b7 = _mm_aesenc_si128(b7, rk[3]);
+    let b8 = _mm_aesenc_si128(b8, rk[3]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[4]);
+    let b2 = _mm_aesenc_si128(b2, rk[4]);
+    let b3 = _mm_aesenc_si128(b3, rk[4]);
+    let b4 = _mm_aesenc_si128(b4, rk[4]);
+    let b5 = _mm_aesenc_si128(b5, rk[4]);
+    let b6 = _mm_aesenc_si128(b6, rk[4]);
+    let b7 = _mm_aesenc_si128(b7, rk[4]);
+    let b8 = _mm_aesenc_si128(b8, rk[4]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[5]);
+    let b2 = _mm_aesenc_si128(b2, rk[5]);
+    let b3 = _mm_aesenc_si128(b3, rk[5]);
+    let b4 = _mm_aesenc_si128(b4, rk[5]);
+    let b5 = _mm_aesenc_si128(b5, rk[5]);
+    let b6 = _mm_aesenc_si128(b6, rk[5]);
+    let b7 = _mm_aesenc_si128(b7, rk[5]);
+    let b8 = _mm_aesenc_si128(b8, rk[5]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[6]);
+    let b2 = _mm_aesenc_si128(b2, rk[6]);
+    let b3 = _mm_aesenc_si128(b3, rk[6]);
+    let b4 = _mm_aesenc_si128(b4, rk[6]);
+    let b5 = _mm_aesenc_si128(b5, rk[6]);
+    let b6 = _mm_aesenc_si128(b6, rk[6]);
+    let b7 = _mm_aesenc_si128(b7, rk[6]);
+    let b8 = _mm_aesenc_si128(b8, rk[6]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[7]);
+    let b2 = _mm_aesenc_si128(b2, rk[7]);
+    let b3 = _mm_aesenc_si128(b3, rk[7]);
+    let b4 = _mm_aesenc_si128(b4, rk[7]);
+    let b5 = _mm_aesenc_si128(b5, rk[7]);
+    let b6 = _mm_aesenc_si128(b6, rk[7]);
+    let b7 = _mm_aesenc_si128(b7, rk[7]);
+    let b8 = _mm_aesenc_si128(b8, rk[7]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[8]);
+    let b2 = _mm_aesenc_si128(b2, rk[8]);
+    let b3 = _mm_aesenc_si128(b3, rk[8]);
+    let b4 = _mm_aesenc_si128(b4, rk[8]);
+    let b5 = _mm_aesenc_si128(b5, rk[8]);
+    let b6 = _mm_aesenc_si128(b6, rk[8]);
+    let b7 = _mm_aesenc_si128(b7, rk[8]);
+    let b8 = _mm_aesenc_si128(b8, rk[8]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[9]);
+    let b2 = _mm_aesenc_si128(b2, rk[9]);
+    let b3 = _mm_aesenc_si128(b3, rk[9]);
+    let b4 = _mm_aesenc_si128(b4, rk[9]);
+    let b5 = _mm_aesenc_si128(b5, rk[9]);
+    let b6 = _mm_aesenc_si128(b6, rk[9]);
+    let b7 = _mm_aesenc_si128(b7, rk[9]);
+    let b8 = _mm_aesenc_si128(b8, rk[9]);
+
+    if N == 11 {
+        (
+            _mm_aesenclast_si128(b1, rk[10]),
+            _mm_aesenclast_si128(b2, rk[10]),
+            _mm_aesenclast_si128(b3, rk[10]),
+            _mm_aesenclast_si128(b4, rk[10]),
+            _mm_aesenclast_si128(b5, rk[10]),
+            _mm_aesenclast_si128(b6, rk[10]),
+            _mm_aesenclast_si128(b7, rk[10]),
+            _mm_aesenclast_si128(b8, rk[10]),
+        )
+    } else {
+        let b1 = _mm_aesenc_si128(b1, rk[10]);
+        let b2 = _mm_aesenc_si128(b2, rk[10]);
+        let b3 = _mm_aesenc_si128(b3, rk[10]);
+        let b4 = _mm_aesenc_si128(b4, rk[10]);
+        let b5 = _mm_aesenc_si128(b5, rk[10]);
+        let b6 = _mm_aesenc_si128(b6, rk[10]);
+        let b7 = _mm_aesenc_si128(b7, rk[10]);
+        let b8 = _mm_aesenc_si128(b8, rk[10]);
+
+        let b1 = _mm_aesenc_si128(b1, rk[11]);
+        let b2 = _mm_aesenc_si128(b2, rk[11]);
+        let b3 = _mm_aesenc_si128(b3, rk[11]);
+        let b4 = _mm_aesenc_si128(b4, rk[11]);
+        let b5 = _mm_aesenc_si128(b5, rk[11]);
+        let b6 = _mm_aesenc_si128(b6, rk[11]);
+        let b7 = _mm_aesenc_si128(b7, rk[11]);
+        let b8 = _mm_aesenc_si128(b8, rk[11]);
+
+        let b1 = _mm_aesenc_si128(b1, rk[12]);
+        let b2 = _mm_aesenc_si128(b2, rk[12]);
+        let b3 = _mm_aesenc_si128(b3, rk[12]);
+        let b4 = _mm_aesenc_si128(b4, rk[12]);
+        let b5 = _mm_aesenc_si128(b5, rk[12]);
+        let b6 = _mm_aesenc_si128(b6, rk[12]);
+        let b7 = _mm_aesenc_si128(b7, rk[12]);
+        let b8 = _mm_aesenc_si128(b8, rk[12]);
+
+        let b1 = _mm_aesenc_si128(b1, rk[13]);
+        let b2 = _mm_aesenc_si128(b2, rk[13]);
+        let b3 = _mm_aesenc_si128(b3, rk[13]);
+        let b4 = _mm_aesenc_si128(b4, rk[13]);
+        let b5 = _mm_aesenc_si128(b5, rk[13]);
+        let b6 = _mm_aesenc_si128(b6, rk[13]);
+        let b7 = _mm_aesenc_si128(b7, rk[13]);
+        let b8 = _mm_aesenc_si128(b8, rk[13]);
+
+        (
+            _mm_aesenclast_si128(b1, rk[14]),
+            _mm_aesenclast_si128(b2, rk[14]),
+            _mm_aesenclast_si128(b3, rk[14]),
+            _mm_aesenclast_si128(b4, rk[14]),
+            _mm_aesenclast_si128(b5, rk[14]),
+            _mm_aesenclast_si128(b6, rk[14]),
+            _mm_aesenclast_si128(b7, rk[14]),
+            _mm_aesenclast_si128(b8, rk[14]),
+        )
+    }
+}
+
+/// Interleaved AES-encrypt 4 blocks.
+#[target_feature(enable = "aes,sse2")]
+#[inline]
+pub(crate) unsafe fn aes_encrypt_4blocks<const N: usize>(
+    rk: &[__m128i; N],
+    b1: __m128i,
+    b2: __m128i,
+    b3: __m128i,
+    b4: __m128i,
+) -> (__m128i, __m128i, __m128i, __m128i) {
+    const { assert!(N == 11 || N == 15) };
+
+    let b1 = _mm_xor_si128(b1, rk[0]);
+    let b2 = _mm_xor_si128(b2, rk[0]);
+    let b3 = _mm_xor_si128(b3, rk[0]);
+    let b4 = _mm_xor_si128(b4, rk[0]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[1]);
+    let b2 = _mm_aesenc_si128(b2, rk[1]);
+    let b3 = _mm_aesenc_si128(b3, rk[1]);
+    let b4 = _mm_aesenc_si128(b4, rk[1]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[2]);
+    let b2 = _mm_aesenc_si128(b2, rk[2]);
+    let b3 = _mm_aesenc_si128(b3, rk[2]);
+    let b4 = _mm_aesenc_si128(b4, rk[2]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[3]);
+    let b2 = _mm_aesenc_si128(b2, rk[3]);
+    let b3 = _mm_aesenc_si128(b3, rk[3]);
+    let b4 = _mm_aesenc_si128(b4, rk[3]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[4]);
+    let b2 = _mm_aesenc_si128(b2, rk[4]);
+    let b3 = _mm_aesenc_si128(b3, rk[4]);
+    let b4 = _mm_aesenc_si128(b4, rk[4]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[5]);
+    let b2 = _mm_aesenc_si128(b2, rk[5]);
+    let b3 = _mm_aesenc_si128(b3, rk[5]);
+    let b4 = _mm_aesenc_si128(b4, rk[5]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[6]);
+    let b2 = _mm_aesenc_si128(b2, rk[6]);
+    let b3 = _mm_aesenc_si128(b3, rk[6]);
+    let b4 = _mm_aesenc_si128(b4, rk[6]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[7]);
+    let b2 = _mm_aesenc_si128(b2, rk[7]);
+    let b3 = _mm_aesenc_si128(b3, rk[7]);
+    let b4 = _mm_aesenc_si128(b4, rk[7]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[8]);
+    let b2 = _mm_aesenc_si128(b2, rk[8]);
+    let b3 = _mm_aesenc_si128(b3, rk[8]);
+    let b4 = _mm_aesenc_si128(b4, rk[8]);
+
+    let b1 = _mm_aesenc_si128(b1, rk[9]);
+    let b2 = _mm_aesenc_si128(b2, rk[9]);
+    let b3 = _mm_aesenc_si128(b3, rk[9]);
+    let b4 = _mm_aesenc_si128(b4, rk[9]);
+
+    if N == 11 {
+        (
+            _mm_aesenclast_si128(b1, rk[10]),
+            _mm_aesenclast_si128(b2, rk[10]),
+            _mm_aesenclast_si128(b3, rk[10]),
+            _mm_aesenclast_si128(b4, rk[10]),
+        )
+    } else {
+        let b1 = _mm_aesenc_si128(b1, rk[10]);
+        let b2 = _mm_aesenc_si128(b2, rk[10]);
+        let b3 = _mm_aesenc_si128(b3, rk[10]);
+        let b4 = _mm_aesenc_si128(b4, rk[10]);
+
+        let b1 = _mm_aesenc_si128(b1, rk[11]);
+        let b2 = _mm_aesenc_si128(b2, rk[11]);
+        let b3 = _mm_aesenc_si128(b3, rk[11]);
+        let b4 = _mm_aesenc_si128(b4, rk[11]);
+
+        let b1 = _mm_aesenc_si128(b1, rk[12]);
+        let b2 = _mm_aesenc_si128(b2, rk[12]);
+        let b3 = _mm_aesenc_si128(b3, rk[12]);
+        let b4 = _mm_aesenc_si128(b4, rk[12]);
+
+        let b1 = _mm_aesenc_si128(b1, rk[13]);
+        let b2 = _mm_aesenc_si128(b2, rk[13]);
+        let b3 = _mm_aesenc_si128(b3, rk[13]);
+        let b4 = _mm_aesenc_si128(b4, rk[13]);
+
+        (
+            _mm_aesenclast_si128(b1, rk[14]),
+            _mm_aesenclast_si128(b2, rk[14]),
+            _mm_aesenclast_si128(b3, rk[14]),
+            _mm_aesenclast_si128(b4, rk[14]),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

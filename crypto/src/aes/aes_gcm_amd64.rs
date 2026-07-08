@@ -39,7 +39,7 @@ use core::arch::x86_64::*;
 
 use super::{
     aes::GCM_MAX_LEN,
-    aes_amd64::aes_encrypt_block,
+    aes_amd64::{aes_encrypt_4blocks, aes_encrypt_8blocks, aes_encrypt_block},
     aes_ctr_amd64::{SWAP_BYTES, increment_counter},
     ghash_amd64::{bitreverse_per_byte, clmul_gcm, ghash_4blocks, ghash_8blocks, ghash_update},
 };
@@ -115,14 +115,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
         let c7 = _mm_shuffle_epi8(_mm_add_epi32(base, six), swap);
         let c8 = _mm_shuffle_epi8(_mm_add_epi32(base, seven), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
-        let k5 = aes_encrypt_block::<N>(rk, c5);
-        let k6 = aes_encrypt_block::<N>(rk, c6);
-        let k7 = aes_encrypt_block::<N>(rk, c7);
-        let k8 = aes_encrypt_block::<N>(rk, c8);
+        let (k1, k2, k3, k4, k5, k6, k7, k8) = aes_encrypt_8blocks::<N>(rk, c1, c2, c3, c4, c5, c6, c7, c8);
 
         let p1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let p2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -164,10 +157,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
         let c3 = _mm_shuffle_epi8(_mm_add_epi32(base, two), swap);
         let c4 = _mm_shuffle_epi8(_mm_add_epi32(base, three), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
+        let (k1, k2, k3, k4) = aes_encrypt_4blocks::<N>(rk, c1, c2, c3, c4);
 
         let p1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let p2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -349,14 +339,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
         let c7 = _mm_shuffle_epi8(_mm_add_epi32(base, six), swap);
         let c8 = _mm_shuffle_epi8(_mm_add_epi32(base, seven), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
-        let k5 = aes_encrypt_block::<N>(rk, c5);
-        let k6 = aes_encrypt_block::<N>(rk, c6);
-        let k7 = aes_encrypt_block::<N>(rk, c7);
-        let k8 = aes_encrypt_block::<N>(rk, c8);
+        let (k1, k2, k3, k4, k5, k6, k7, k8) = aes_encrypt_8blocks::<N>(rk, c1, c2, c3, c4, c5, c6, c7, c8);
 
         let ct1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let ct2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
@@ -386,10 +369,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
         let c3 = _mm_shuffle_epi8(_mm_add_epi32(base, two), swap);
         let c4 = _mm_shuffle_epi8(_mm_add_epi32(base, three), swap);
 
-        let k1 = aes_encrypt_block::<N>(rk, c1);
-        let k2 = aes_encrypt_block::<N>(rk, c2);
-        let k3 = aes_encrypt_block::<N>(rk, c3);
-        let k4 = aes_encrypt_block::<N>(rk, c4);
+        let (k1, k2, k3, k4) = aes_encrypt_4blocks::<N>(rk, c1, c2, c3, c4);
 
         let ct1 = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
         let ct2 = _mm_loadu_si128(in_out.as_ptr().add(i + 16).cast());
