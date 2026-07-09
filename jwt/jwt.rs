@@ -1,10 +1,15 @@
-//! JSON Web Tokens (JWT) — sign, parse, and verify JWTs.
+//! Sign, parse, and verify JSON Web Tokens JWT(s).
 //!
 //! # Two-step verification flow
 //!
 //! [`parse_header`] and [`parse_and_verify`] are separate so that you can
-//! inspect the header, especially the `kid` (Key ID), before choosing
+//! inspect the header, especially the `kid` field (Key ID), before choosing
 //! which key to verify with. This is essential when the key must be looked up dynamically.
+//!
+//! # `no_std` support
+//!
+//! Disable default features (`default-features = false`) and provide your own
+//! [`Clock`] implementation for time-based claim verification (optional).
 //!
 //! # Example
 //!
@@ -56,10 +61,39 @@
 //! }
 //! ```
 //!
-//! # `no_std` support
+//! # JSON Web Key (JWK) import and export
 //!
-//! Disable default features (`default-features = false`) and provide your own
-//! [`Clock`] implementation for time-based claim verification (optional).
+//! Keys can be exported to and imported from JSON Web Keys (JWK) for publishing or later re-use
+//! with [`Jwk::from`].
+//!
+//! The [`Key`] enum represents any supported cryptographic key. Convert a JWK
+//! into a [`Key`] with [`Key::try_from`]`(&Jwk)`, then use it directly with
+//! [`sign`] or [`parse_and_verify`] without knowing the concrete key type.
+//!
+//! ```
+//! use jwt::*;
+//!
+//! fn main() -> Result<(), Error> {
+//!     // Generate a P-256 key pair.
+//!     let secret_key = P256SecretKey::generate()?;
+//!     let public_key = secret_key.public_key();
+//!
+//!     // Convert to a JWK (e.g. for publishing in a JWKS endpoint).
+//!     let jwk = Jwk::from(&public_key);
+//!     assert_eq!(jwk.algorithm, Algorithm::ES256);
+//!
+//!     // Parse the JWK back into a Key (e.g. from a JWKS response).
+//!     let key = Key::try_from(&jwk)?;
+//!
+//!     // sign and parse_and_verify accept &Key directly.
+//!     let header = Header { typ: TokenType::JWT, alg: Algorithm::ES256, ..Default::default() };
+//!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
+//!     let parsed_header = parse_header(&token)?;
+//!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
+//!
+//!     Ok(())
+//! }
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -132,6 +166,22 @@ pub struct Header {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "x5t#S256")]
     pub x5t_s256: Option<SmallString<43>>, // 43 = base64_encoded_length(32)
+}
+
+impl Default for Header {
+    fn default() -> Self {
+        Self {
+            typ: TokenType::JWT,
+            alg: Algorithm::EdDSA,
+            cty: None,
+            jku: None,
+            kid: None,
+            x5u: None,
+            x5c: None,
+            x5t: None,
+            x5t_s256: None,
+        }
+    }
 }
 
 /// Registered claim names from https://www.rfc-editor.org/rfc/rfc7519#section-4.1
@@ -212,9 +262,6 @@ pub enum Algorithm {
     /// ML-DSA-65
     MlDsa65,
 
-    /// ML-DSA-87
-    MlDsa87,
-
     /// RSASSA-PKCS1-v1.5 with SHA-256
     RS256,
 
@@ -235,26 +282,30 @@ pub enum Algorithm {
 }
 
 impl Algorithm {
+    /// Returns the size of the signature of the algorithm, or, if the size can vary in size,
+    /// the upper bound supported by this package (e.g. 4096 bits / 512 bytes for RSA).
+    /// This is used, among other things, to pre-allocate the output buffer to the correct size
+    /// when encoding a JWT.
     #[inline]
-    pub fn signature_size(&self) -> usize {
+    pub(crate) fn signature_max_size(&self) -> usize {
         match self {
             Algorithm::BLAKE3 => 32,
             Algorithm::HS256 => 32,
+            Algorithm::HS384 => 48,
             Algorithm::HS512 => 64,
             Algorithm::EdDSA => 64,
             Algorithm::ES256 => 64,
+            Algorithm::ES384 => 96,
             Algorithm::ES512 => 132,
-            Algorithm::HS384 => todo!(),
-            Algorithm::ES384 => todo!(),
-            Algorithm::MlDsa44 => todo!(),
-            Algorithm::MlDsa65 => todo!(),
-            Algorithm::MlDsa87 => todo!(),
-            Algorithm::RS256 => todo!(),
-            Algorithm::RS384 => todo!(),
-            Algorithm::RS512 => todo!(),
-            Algorithm::PS256 => todo!(),
-            Algorithm::PS384 => todo!(),
-            Algorithm::PS512 => todo!(),
+            Algorithm::RS256 => 512,
+            Algorithm::RS384 => 512,
+            Algorithm::RS512 => 512,
+            Algorithm::PS256 => 512,
+            Algorithm::PS384 => 512,
+            Algorithm::PS512 => 512,
+            Algorithm::MlDsa44 => 2420,
+            Algorithm::MlDsa65 => 3309,
+            // Algorithm::MlDsa87 => 4627,
         }
     }
 }
@@ -274,7 +325,6 @@ impl core::str::FromStr for Algorithm {
             "EdDSA" => Ok(Algorithm::EdDSA),
             "ML-DSA-44" => Ok(Algorithm::MlDsa44),
             "ML-DSA-65" => Ok(Algorithm::MlDsa65),
-            "ML-DSA-87" => Ok(Algorithm::MlDsa87),
             "RS256" => Ok(Algorithm::RS256),
             "RS384" => Ok(Algorithm::RS384),
             "RS512" => Ok(Algorithm::RS512),
@@ -366,22 +416,47 @@ impl Clock for SystemClock {
 pub struct VerifyOptions<'a> {
     /// Allowed time drift for `nbf` and `exp` verification in order to account for devices with
     /// inacurate clocks.
+    /// default: 30 seconds
     pub allowed_time_drift: Duration,
+    /// default: true
     pub nbf: bool,
+    /// default: true
     pub exp: bool,
+    /// default: None
     pub aud: Option<&'a [&'a str]>,
+    /// default: None
     pub iss: Option<&'a [&'a str]>,
+    /// default: Some(&SYSTEM_CLOCK)
     pub clock: Option<&'a dyn Clock>,
 }
 
+#[cfg(feature = "std")]
+impl Default for VerifyOptions<'_> {
+    fn default() -> Self {
+        Self {
+            allowed_time_drift: core::time::Duration::from_secs(30),
+            nbf: true,
+            exp: true,
+            aud: None,
+            iss: None,
+            clock: Some(&SYSTEM_CLOCK),
+        }
+    }
+}
+
 pub fn sign<C: Serialize>(key: &dyn Signer, header: &Header, claims: &C) -> Result<String, Error> {
+    let signing_algorithm = key.algorithm();
+    if signing_algorithm != header.alg {
+        return Err(Error::InvalidKey);
+    }
+
     let header_base64 = base64::encode(serde_json::to_string(header)?.as_bytes(), base64::Alphabet::UrlNoPadding);
     let claims_base64 = base64::encode(serde_json::to_string(claims)?.as_bytes(), base64::Alphabet::UrlNoPadding);
 
     let mut jwt = String::with_capacity(
         header_base64.len()
             + claims_base64.len()
-            + base64::encoded_length(key.algorithm().signature_size(), false)
+            + base64::encoded_length(signing_algorithm.signature_max_size(), false)
                 .expect("error getting base64 encoding length")
             + 2,
     );
@@ -438,10 +513,9 @@ pub fn parse_and_verify<C: DeserializeOwned>(
         base64::Alphabet::UrlNoPadding,
     )
     .map_err(|_| Error::InvalidSignature)?;
-    let signature = Signature::try_from(&signature_buffer[..signature_size])?;
 
     let signed_message = &token[..header_base64.len() + 1 + claims_base64.len()].as_bytes();
-    key.verify(signed_message, &signature)
+    key.verify(signed_message, &signature_buffer[..signature_size])
         .map_err(|_| Error::InvalidSignature)?;
 
     let claims_json =
