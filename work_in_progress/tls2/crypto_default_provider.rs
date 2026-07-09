@@ -61,14 +61,14 @@ impl CryptoProvider for DefaultCryptoProvider {
         // runtime / compile detection of CPU instructions to return the list of supported ciphersuites
         // in the correct order
         static AES_FIRST: &[CipherSuite] = &[
-            CipherSuite::TlsAes128GcmSha256,
-            CipherSuite::TlsChaCha20Poly1305Sha256,
             CipherSuite::TlsAes256GcmSha384,
+            CipherSuite::TlsChaCha20Poly1305Sha256,
+            CipherSuite::TlsAes128GcmSha256,
         ];
         static CHACHA_FIRST: &[CipherSuite] = &[
             CipherSuite::TlsChaCha20Poly1305Sha256,
-            CipherSuite::TlsAes128GcmSha256,
             CipherSuite::TlsAes256GcmSha384,
+            CipherSuite::TlsAes128GcmSha256,
         ];
 
         #[cfg(target_arch = "x86_64")]
