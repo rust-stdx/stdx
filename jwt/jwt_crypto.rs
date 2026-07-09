@@ -109,7 +109,7 @@ pub struct Blake3Key {
 }
 
 impl Blake3Key {
-    /// Generates a random [`Blake3Key`].
+    /// Generates a random 256-bit [`Blake3Key`].
     pub fn generate() -> Blake3Key {
         let key = crypto::random_bytes();
         return Blake3Key {
@@ -176,7 +176,7 @@ impl HmacSha256Key {
         };
     }
 
-    /// Creates a new [`HmacSha512Key`] from bytes. Returns an error is the key is shorter than
+    /// Creates a new [`HmacSha256Key`] from bytes. Returns an error is the key is shorter than
     /// 16 bytes (128 bits).
     pub fn from_bytes(key: &[u8]) -> Result<HmacSha256Key, Error> {
         // require at least a 128-bit key

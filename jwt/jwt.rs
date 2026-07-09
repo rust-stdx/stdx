@@ -1,4 +1,4 @@
-//! Sign, parse, and verify JSON Web Tokens JWT(s).
+//! Sign, parse, and verify JSON Web Tokens (JWT).
 //!
 //! # Two-step verification flow
 //!
