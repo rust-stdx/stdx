@@ -14,34 +14,36 @@ const RSA_MAX_BITS: usize = 4096;
 const RSA_MAX_LIMBS: usize = RSA_MAX_BITS / 64;
 const RSA_MAX_BYTES: usize = RSA_MAX_BITS / 8;
 
-/// SHA-256 DigestInfo prefix (everything before the hash value).
-const DIGEST_INFO_SHA256_PREFIX: &[u8] = &[
+/// SHA-256 DigestInfo prefix for RSA PKCS#1 v1.5.
+pub const DIGEST_INFO_SHA256_PREFIX: &[u8] = &[
     0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
 ];
 
-/// SHA-384 DigestInfo prefix.
-const DIGEST_INFO_SHA384_PREFIX: &[u8] = &[
+/// SHA-384 DigestInfo prefix for RSA PKCS#1 v1.5.
+pub const DIGEST_INFO_SHA384_PREFIX: &[u8] = &[
     0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30,
 ];
 
-/// SHA-512 DigestInfo prefix.
-const DIGEST_INFO_SHA512_PREFIX: &[u8] = &[
+/// SHA-512 DigestInfo prefix for RSA PKCS#1 v1.5.
+pub const DIGEST_INFO_SHA512_PREFIX: &[u8] = &[
     0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40,
 ];
 
 /// An RSA public key parsed from a PKCS#1 `SubjectPublicKeyInfo` DER blob.
-pub struct RsaPublicKey {
+pub struct PublicKey {
     /// Modulus `n` as a 4096-bit integer (zero-padded for smaller keys).
     n: Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>,
     /// Public exponent `e`.
     e: Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>,
     /// Byte length of the modulus (without padding).
-    n_bytes: usize,
+    n_len: usize,
+    /// Byte length of the public exponent (without leading zeros).
+    e_len: usize,
     /// Barrett reduction precomputation for mod n.
     mu: [u64; big_number::MAX_LIMBS],
 }
 
-impl RsaPublicKey {
+impl PublicKey {
     /// Build an RSA public key from raw modulus `n` and public exponent `e`
     /// (both big-endian byte slices).
     ///
@@ -51,10 +53,19 @@ impl RsaPublicKey {
     #[inline]
     pub fn from_n_e(n_bytes: &[u8], e: &[u8]) -> Result<Self, RsaError> {
         let n = uint_from_variable_be(n_bytes)?;
-        Ok(RsaPublicKey {
-            n_bytes: n_bytes.len(),
+        let e_uint = uint_from_variable_be(e)?;
+        let e_len = {
+            let mut start: usize = 0;
+            while start < e.len().saturating_sub(1) && e[start] == 0 {
+                start += 1;
+            }
+            e.len() - start
+        };
+        Ok(PublicKey {
+            n_len: n_bytes.len(),
             mu: n.compute_mu_for_barrett(),
-            e: uint_from_variable_be(e)?,
+            e: e_uint,
+            e_len,
             n,
         })
     }
@@ -97,7 +108,7 @@ impl RsaPublicKey {
         message_digest: &[u8],
         digest_info_prefix: &[u8],
     ) -> Result<(), RsaError> {
-        if signature.len() != self.n_bytes {
+        if signature.len() != self.n_len {
             return Err(RsaError::Unspecified);
         }
 
@@ -110,7 +121,7 @@ impl RsaPublicKey {
 
         let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
 
-        let mod_bytes = self.n_bytes;
+        let mod_bytes = self.n_len;
         let expected_len = digest_info_prefix.len() + message_digest.len();
 
         let mut m_bytes = [0u8; RSA_MAX_BYTES];
@@ -173,7 +184,7 @@ impl RsaPublicKey {
     /// `hash_fn` produces a digest of `hash_len` bytes.
     /// `salt_len` equals the hash length (Go's PSSSaltLengthEqualsHash).
     pub fn verify_pss<H: Hasher>(&self, signature: &[u8], message: &[u8], salt_len: usize) -> Result<(), RsaError> {
-        if signature.len() != self.n_bytes {
+        if signature.len() != self.n_len {
             return Err(RsaError::Unspecified);
         }
 
@@ -183,13 +194,13 @@ impl RsaPublicKey {
         }
 
         let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
-        let em_len = self.n_bytes;
+        let em_len = self.n_len;
         let hash_len = H::OUTPUT_SIZE;
 
         let mut em = [0u8; RSA_MAX_BYTES];
         write_uint_be(&m, &mut em, em_len);
 
-        let em_bits = self.n_bytes * 8 - 1;
+        let em_bits = self.n_len * 8 - 1;
         let leftmost_bits = 8 * em_len - em_bits;
         if leftmost_bits > 0 && leftmost_bits < 8 {
             if em[0] >> (8 - leftmost_bits) != 0 {
@@ -251,6 +262,22 @@ impl RsaPublicKey {
         }
 
         Ok(())
+    }
+
+    /// Returns the modulus `n` as big-endian bytes, trimmed to the actual key size.
+    /// (e.g. 256 bytes for RSA-2048, 512 bytes for RSA-4096).
+    #[cfg(feature = "alloc")]
+    pub fn n_bytes(&self) -> alloc::vec::Vec<u8> {
+        let full = self.n.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
+        full[full.len() - self.n_len..].to_vec()
+    }
+
+    /// Returns the public exponent `e` as big-endian bytes, trimmed of leading zeros.
+    /// (e.g. `[1, 0, 1]` for 65537).
+    #[cfg(feature = "alloc")]
+    pub fn e_bytes(&self) -> smallvec::SmallVec<u8, 4> {
+        let full = self.e.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
+        full[full.len() - self.e_len..].into()
     }
 }
 
@@ -361,40 +388,40 @@ fn write_uint_be(value: &Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>, out: &mut [u8], byte
 
 /// Convenience: verify RSA-PKCS1-SHA256.
 pub fn verify_pkcs1_sha256(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
-    let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
+    let key = PublicKey::from_pkcs1_der(pkcs1_der)?;
     let digest = crate::sha2::Sha256::hash(message);
     key.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA256_PREFIX)
 }
 
 /// Convenience: verify RSA-PKCS1-SHA384.
 pub fn verify_pkcs1_sha384(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
-    let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
+    let key = PublicKey::from_pkcs1_der(pkcs1_der)?;
     let digest = crate::sha2::Sha384::hash(message);
     key.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA384_PREFIX)
 }
 
 /// Convenience: verify RSA-PKCS1-SHA512.
 pub fn verify_pkcs1_sha512(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
-    let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
+    let key = PublicKey::from_pkcs1_der(pkcs1_der)?;
     let digest = crate::sha2::Sha512::hash(message);
     key.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA512_PREFIX)
 }
 
 /// Convenience: verify RSA-PSS-SHA256.
 pub fn verify_pss_sha256(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
-    let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
+    let key = PublicKey::from_pkcs1_der(pkcs1_der)?;
     key.verify_pss::<crate::sha2::Sha256>(signature, message, 32)
 }
 
 /// Convenience: verify RSA-PSS-SHA384.
 pub fn verify_pss_sha384(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
-    let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
+    let key = PublicKey::from_pkcs1_der(pkcs1_der)?;
     key.verify_pss::<crate::sha2::Sha384>(signature, message, 48)
 }
 
 /// Convenience: verify RSA-PSS-SHA512.
 pub fn verify_pss_sha512(pkcs1_der: &[u8], signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
-    let key = RsaPublicKey::from_pkcs1_der(pkcs1_der)?;
+    let key = PublicKey::from_pkcs1_der(pkcs1_der)?;
     key.verify_pss::<crate::sha2::Sha512>(signature, message, 64)
 }
 
@@ -412,7 +439,7 @@ mod tests {
 
             for group in data["testGroups"].as_array().unwrap() {
                 let pkcs1_der = hex::decode(group["publicKeyAsn"].as_str().unwrap()).unwrap();
-                let key = super::RsaPublicKey::from_pkcs1_der(&pkcs1_der).unwrap();
+                let key = super::PublicKey::from_pkcs1_der(&pkcs1_der).unwrap();
 
                 for test in group["tests"].as_array().unwrap() {
                     let msg_hex = test["msg"].as_str().unwrap();
@@ -477,7 +504,7 @@ mod tests {
 
             for group in data["testGroups"].as_array().unwrap() {
                 let pkcs1_der = hex::decode(group["publicKeyAsn"].as_str().unwrap()).unwrap();
-                let key = super::RsaPublicKey::from_pkcs1_der(&pkcs1_der).unwrap();
+                let key = super::PublicKey::from_pkcs1_der(&pkcs1_der).unwrap();
 
                 for test in group["tests"].as_array().unwrap() {
                     let msg_hex = test["msg"].as_str().unwrap();
@@ -544,7 +571,7 @@ mod tests {
         ).unwrap();
         let e = hex::decode("010001").unwrap();
 
-        let key = RsaPublicKey::from_n_e(&n, &e).unwrap();
+        let key = PublicKey::from_n_e(&n, &e).unwrap();
         key.verify_pkcs1_v1_5(&sig, &digest, DIGEST_INFO_SHA256_PREFIX).unwrap();
     }
 
@@ -588,7 +615,7 @@ mod tests {
         ).unwrap();
         let digest = hex::decode("41cb0773387b187c038b7015498534c11369f1cfd094a714f4f39cf63ebb42ba").unwrap();
 
-        let key = RsaPublicKey::from_pkcs1_der(&pkcs1_der).unwrap();
+        let key = PublicKey::from_pkcs1_der(&pkcs1_der).unwrap();
         key.verify_pkcs1_v1_5(&sig, &digest, DIGEST_INFO_SHA256_PREFIX).unwrap();
     }
 

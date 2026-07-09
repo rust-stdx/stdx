@@ -139,8 +139,9 @@ impl PublicKey {
         self.point.to_uncompressed_bytes()
     }
 
+    /// Returns the `X` and `Y` points as big-endian arrays.
     #[inline]
-    pub fn to_x_y(&self) -> ([u8; 32], [u8; 32]) {
+    pub fn x_y(&self) -> ([u8; 32], [u8; 32]) {
         (self.point.x.to_bytes(), self.point.y.to_bytes())
     }
 }

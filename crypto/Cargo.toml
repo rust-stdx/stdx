@@ -9,7 +9,7 @@ path = "./src/crypto.rs"
 [features]
 default = ["std", "zeroize"]
 
-alloc = []
+alloc = ["dep:smallvec"]
 random = ["dep:getrandom"]
 std = ["alloc", "blake3/std", "memchr/std", "random"]
 zeroize = ["dep:zeroize", "blake3/zeroize"]
@@ -21,6 +21,7 @@ blake3 = { workspace = true, features = ["neon", "wasm32_simd"] }
 constant_time_eq = { path = "../constant_time_eq" }
 getrandom = { version = "0.4", optional = true, default-features = false }
 memchr = { version = "2", default-features = false, features = ["alloc"] }
+smallvec = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }
 
 
