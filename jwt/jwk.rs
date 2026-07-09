@@ -265,7 +265,7 @@ impl From<&Key> for Jwk {
 ///
 /// Use [`Key::into`]`(Jwk)` to convert a [`Key`] into a [`Jwk`].
 ///
-/// `RsaPublicKey`s require heap-allocation to avoid bloting the enum, as RSA should now be deprecated.
+/// `RsaPublicKey`s require heap-allocation to avoid bloating the enum, as RSA should now be deprecated.
 pub enum Key {
     Blake3(Blake3Key),
     HmacSha256(HmacSha256Key),
