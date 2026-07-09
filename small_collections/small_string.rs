@@ -28,6 +28,15 @@ impl<const N: usize> SmallString<N> {
         Self::Heap(s)
     }
 
+    #[inline(always)]
+    pub fn from_small_string<const M: usize>(input: SmallString<M>) -> Self {
+        match input {
+            SmallString::Heap(s) if s.len() <= N => SmallString::from_str(&s),
+            SmallString::Heap(s) => SmallString::Heap(s),
+            SmallString::Inline(s) => SmallString::from_str(s.as_str()),
+        }
+    }
+
     /// Converts a `Vec` of bytes to a [`SmallString`].
     ///
     /// If the bytes are not valid UTF-8, this returns an error.
@@ -517,7 +526,7 @@ mod tests {
     #[test]
     fn test_from_utf8_slice_valid() {
         let s: SmallString<16> = SmallString::from_utf8_slice(b"hello").unwrap();
-        assert!(s.is_inline() == false);
+        assert!(s.is_inline() == true);
         assert_eq!(s.as_str(), "hello");
     }
 
@@ -1267,6 +1276,71 @@ mod tests {
         assert!(s.is_empty());
         s.push_str("a");
         assert_eq!(s.len(), 1);
+    }
+
+    #[test]
+    fn test_from_small_string_inline_to_inline() {
+        let source: SmallString<16> = SmallString::from_str("hello");
+        assert!(source.is_inline());
+
+        let dest: SmallString<32> = SmallString::from_small_string(source);
+        assert!(dest.is_inline());
+        assert_eq!(dest.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_from_small_string_inline_to_spill() {
+        let source: SmallString<16> = SmallString::from_str("hello world");
+        assert!(source.is_inline());
+
+        let dest: SmallString<4> = SmallString::from_small_string(source);
+        assert!(!dest.is_inline());
+        assert_eq!(dest.as_str(), "hello world");
+    }
+
+    #[test]
+    fn test_from_small_string_heap_to_inline() {
+        // Force heap by exceeding inline capacity
+        let source: SmallString<4> = SmallString::from_str("hello world this is long");
+        assert!(!source.is_inline());
+
+        // Target has enough capacity to fit inline
+        let dest: SmallString<64> = SmallString::from_small_string(source);
+        assert!(dest.is_inline());
+        assert_eq!(dest.as_str(), "hello world this is long");
+    }
+
+    #[test]
+    fn test_from_small_string_heap_to_heap() {
+        // Force heap by exceeding inline capacity
+        let source: SmallString<16> = SmallString::from_str("hello world this is even longer string content");
+        assert!(!source.is_inline());
+
+        // Target too small to fit inline
+        let dest: SmallString<4> = SmallString::from_small_string(source);
+        assert!(!dest.is_inline());
+        assert_eq!(dest.as_str(), "hello world this is even longer string content");
+    }
+
+    #[test]
+    fn test_from_small_string_empty() {
+        let source: SmallString<16> = SmallString::new();
+        assert!(source.is_inline());
+        assert!(source.is_empty());
+
+        let dest: SmallString<8> = SmallString::from_small_string(source);
+        assert!(dest.is_inline());
+        assert!(dest.is_empty());
+    }
+
+    #[test]
+    fn test_from_small_string_exact_capacity() {
+        let source: SmallString<16> = SmallString::from_str("abcd");
+        assert!(source.is_inline());
+
+        let dest: SmallString<4> = SmallString::from_small_string(source);
+        assert!(dest.is_inline());
+        assert_eq!(dest.as_str(), "abcd");
     }
 
     #[cfg(feature = "serde")]
