@@ -43,6 +43,7 @@ pub(crate) unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
     _mm_storeu_si128(state_ptr.add(1), hgef);
 }
 
+#[inline]
 #[target_feature(enable = "sha")]
 pub(crate) unsafe fn rounds4(r: usize, abef: &mut __m128i, cdgh: &mut __m128i, rest: __m128i) {
     let rk = _mm_set_epi32(
@@ -57,6 +58,7 @@ pub(crate) unsafe fn rounds4(r: usize, abef: &mut __m128i, cdgh: &mut __m128i, r
     *abef = _mm_sha256rnds2_epu32(*abef, *cdgh, t2);
 }
 
+#[inline]
 #[target_feature(enable = "sha,ssse3")]
 unsafe fn schedule_rounds16(r: usize, abef: &mut __m128i, cdgh: &mut __m128i, w: &mut [__m128i; 4]) {
     for i in 0..4 {

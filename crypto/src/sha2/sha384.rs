@@ -1,8 +1,4 @@
-use super::sha512::{detect_sha512_ext, process_block_scalar};
-#[cfg(target_arch = "x86_64")]
-use super::sha512_amd64;
-#[cfg(target_arch = "aarch64")]
-use super::sha512_arm64;
+use super::sha512;
 use crate::{Bytes, Hash, Hasher};
 
 /// SHA-384 hash function (FIPS 180-4).
@@ -60,7 +56,7 @@ impl Hasher for Sha384 {
             buffer: [0u8; 128],
             buffer_len: 0,
             total_len: 0,
-            has_sha_ext: detect_sha512_ext(),
+            has_sha_ext: sha512::detect_sha512_ext(),
         };
     }
 
@@ -75,17 +71,17 @@ impl Hasher for Sha384 {
             data = &data[to_fill..];
 
             if self.buffer_len == 128 {
-                process_block(&mut self.state, &self.buffer, self.has_sha_ext);
+                sha512::compress_blocks(&mut self.state, &self.buffer, self.has_sha_ext);
                 self.buffer_len = 0;
             }
         }
 
-        let mut chunks = data.chunks_exact(128);
-        for chunk in &mut chunks {
-            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
+        let full_len = data.len() - (data.len() % 128);
+        if full_len > 0 {
+            sha512::compress_blocks(&mut self.state, &data[..full_len], self.has_sha_ext);
         }
 
-        let remainder = chunks.remainder();
+        let remainder = &data[full_len..];
         if !remainder.is_empty() {
             self.buffer[..remainder.len()].copy_from_slice(remainder);
             self.buffer_len = remainder.len();
@@ -110,9 +106,7 @@ impl Hasher for Sha384 {
         tail[length_offset..length_offset + 16].copy_from_slice(&bit_len.to_be_bytes());
 
         let total_tail_len = length_offset + 16;
-        for chunk in tail[..total_tail_len].chunks_exact(128) {
-            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
-        }
+        sha512::compress_blocks(&mut self.state, &tail[..total_tail_len], self.has_sha_ext);
 
         let mut hash = Bytes::<64>::new();
         for word in self.state.iter().take(6) {
@@ -121,25 +115,6 @@ impl Hasher for Sha384 {
 
         return Hash(hash);
     }
-}
-
-#[inline(always)]
-fn process_block(state: &mut [u64; 8], block: &[u8; 128], has_sha_ext: bool) {
-    if has_sha_ext {
-        #[cfg(target_arch = "x86_64")]
-        {
-            unsafe { sha512_amd64::compress(state, block) };
-            return;
-        }
-
-        #[cfg(target_arch = "aarch64")]
-        {
-            unsafe { sha512_arm64::compress(state, block) };
-            return;
-        }
-    }
-
-    process_block_scalar(state, block);
 }
 
 #[cfg(test)]

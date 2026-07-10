@@ -9,6 +9,25 @@ pub(crate) unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
     let mut abcd = vld1q_u32(state[0..4].as_ptr());
     let mut efgh = vld1q_u32(state[4..8].as_ptr());
 
+    let k: [uint32x4_t; 16] = [
+        vld1q_u32(&SHA256_K[0]),
+        vld1q_u32(&SHA256_K[4]),
+        vld1q_u32(&SHA256_K[8]),
+        vld1q_u32(&SHA256_K[12]),
+        vld1q_u32(&SHA256_K[16]),
+        vld1q_u32(&SHA256_K[20]),
+        vld1q_u32(&SHA256_K[24]),
+        vld1q_u32(&SHA256_K[28]),
+        vld1q_u32(&SHA256_K[32]),
+        vld1q_u32(&SHA256_K[36]),
+        vld1q_u32(&SHA256_K[40]),
+        vld1q_u32(&SHA256_K[44]),
+        vld1q_u32(&SHA256_K[48]),
+        vld1q_u32(&SHA256_K[52]),
+        vld1q_u32(&SHA256_K[56]),
+        vld1q_u32(&SHA256_K[60]),
+    ];
+
     for block in blocks {
         let abcd_orig = abcd;
         let efgh_orig = efgh;
@@ -18,50 +37,33 @@ pub(crate) unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
         let mut s2 = vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(block[32..48].as_ptr())));
         let mut s3 = vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(block[48..64].as_ptr())));
 
-        let mut tmp = vaddq_u32(s0, vld1q_u32(&SHA256_K[0]));
-        let mut abcd_prev = abcd;
-        abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
-        efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
+        for ki in (0..16).step_by(4) {
+            let mut tmp = vaddq_u32(s0, k[ki]);
+            let mut abcd_prev = abcd;
+            abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
+            efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
 
-        tmp = vaddq_u32(s1, vld1q_u32(&SHA256_K[4]));
-        abcd_prev = abcd;
-        abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
-        efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
-
-        tmp = vaddq_u32(s2, vld1q_u32(&SHA256_K[8]));
-        abcd_prev = abcd;
-        abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
-        efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
-
-        tmp = vaddq_u32(s3, vld1q_u32(&SHA256_K[12]));
-        abcd_prev = abcd;
-        abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
-        efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
-
-        for t in (16..64).step_by(16) {
-            s0 = vsha256su1q_u32(vsha256su0q_u32(s0, s1), s2, s3);
-            tmp = vaddq_u32(s0, vld1q_u32(&SHA256_K[t]));
+            tmp = vaddq_u32(s1, k[ki + 1]);
             abcd_prev = abcd;
             abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
             efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
 
-            s1 = vsha256su1q_u32(vsha256su0q_u32(s1, s2), s3, s0);
-            tmp = vaddq_u32(s1, vld1q_u32(&SHA256_K[t + 4]));
+            tmp = vaddq_u32(s2, k[ki + 2]);
             abcd_prev = abcd;
             abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
             efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
 
-            s2 = vsha256su1q_u32(vsha256su0q_u32(s2, s3), s0, s1);
-            tmp = vaddq_u32(s2, vld1q_u32(&SHA256_K[t + 8]));
+            tmp = vaddq_u32(s3, k[ki + 3]);
             abcd_prev = abcd;
             abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
             efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
 
-            s3 = vsha256su1q_u32(vsha256su0q_u32(s3, s0), s1, s2);
-            tmp = vaddq_u32(s3, vld1q_u32(&SHA256_K[t + 12]));
-            abcd_prev = abcd;
-            abcd = vsha256hq_u32(abcd_prev, efgh, tmp);
-            efgh = vsha256h2q_u32(efgh, abcd_prev, tmp);
+            if ki < 12 {
+                s0 = vsha256su1q_u32(vsha256su0q_u32(s0, s1), s2, s3);
+                s1 = vsha256su1q_u32(vsha256su0q_u32(s1, s2), s3, s0);
+                s2 = vsha256su1q_u32(vsha256su0q_u32(s2, s3), s0, s1);
+                s3 = vsha256su1q_u32(vsha256su0q_u32(s3, s0), s1, s2);
+            }
         }
 
         abcd = vaddq_u32(abcd, abcd_orig);

@@ -60,7 +60,6 @@ impl Hasher for Sha256 {
         };
     }
 
-    #[inline]
     fn update(&mut self, mut data: &[u8]) {
         self.total_len = self.total_len.wrapping_add(data.len() as u64);
 
@@ -71,24 +70,23 @@ impl Hasher for Sha256 {
             data = &data[to_fill..];
 
             if self.buffer_len == 64 {
-                process_block(&mut self.state, &self.buffer, self.has_sha_ext);
+                compress_blocks(&mut self.state, &self.buffer, self.has_sha_ext);
                 self.buffer_len = 0;
             }
         }
 
-        let mut chunks = data.chunks_exact(64);
-        for chunk in &mut chunks {
-            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
+        let full_len = data.len() - (data.len() % 64);
+        if full_len > 0 {
+            compress_blocks(&mut self.state, &data[..full_len], self.has_sha_ext);
         }
 
-        let remainder = chunks.remainder();
+        let remainder = &data[full_len..];
         if !remainder.is_empty() {
             self.buffer[..remainder.len()].copy_from_slice(remainder);
             self.buffer_len = remainder.len();
         }
     }
 
-    #[inline]
     fn sum(mut self) -> Hash {
         let bit_len = self.total_len.wrapping_mul(8);
 
@@ -106,9 +104,7 @@ impl Hasher for Sha256 {
         tail[length_offset..length_offset + 8].copy_from_slice(&bit_len.to_be_bytes());
 
         let total_tail_len = length_offset + 8;
-        for chunk in tail[..total_tail_len].chunks_exact(64) {
-            process_block(&mut self.state, chunk.try_into().unwrap(), self.has_sha_ext);
-        }
+        compress_blocks(&mut self.state, &tail[..total_tail_len], self.has_sha_ext);
 
         let mut hash = Bytes::<64>::new();
         for word in self.state.iter() {
@@ -119,26 +115,41 @@ impl Hasher for Sha256 {
     }
 }
 
+/// Compress `(data.len() / 64)` blocks of data and ignore any remainder.
 #[inline(always)]
-fn process_block(state: &mut [u32; 8], block: &[u8; 64], has_sha_ext: bool) {
+fn compress_blocks(state: &mut [u32; 8], data: &[u8], has_sha_ext: bool) {
+    // compute the number of blocks to process. Any remainder will be ignored.
+    let n = data.len() / 64;
+    if n == 0 {
+        return;
+    }
+
+    // SAFETY: the unsafe casts are safe because we ensure that data is at least `n` blocks long.
+
     if has_sha_ext {
         #[cfg(target_arch = "x86_64")]
-        {
-            unsafe { super::sha256_amd64::compress(state, core::slice::from_ref(block)) };
+        unsafe {
+            let blocks = core::slice::from_raw_parts(data.as_ptr().cast::<[u8; 64]>(), n);
+            super::sha256_amd64::compress(state, blocks);
             return;
         }
 
         #[cfg(target_arch = "aarch64")]
-        {
-            unsafe { super::sha256_arm64::compress(state, core::slice::from_ref(block)) };
+        unsafe {
+            let blocks = core::slice::from_raw_parts(data.as_ptr().cast::<[u8; 64]>(), n);
+            super::sha256_arm64::compress(state, blocks);
             return;
         }
     }
 
-    process_block_scalar(state, block);
+    // for i in 0..n {
+    for block in data.chunks_exact(64) {
+        // let block = unsafe { &*data.as_ptr().add(i * 64).cast::<[u8; 64]>() };
+        compress_block_software(state, block.try_into().unwrap());
+    }
 }
 
-pub(crate) fn process_block_scalar(state: &mut [u32; 8], block: &[u8; 64]) {
+pub(crate) fn compress_block_software(state: &mut [u32; 8], block: &[u8; 64]) {
     let mut w = [0u32; 64];
     let mut i = 0usize;
     while i < 16 {
@@ -211,6 +222,7 @@ fn detect_sha256_ext() -> bool {
         #[cfg(all(not(feature = "std"), not(target_feature = "sha2")))]
         return false;
     }
+
     #[cfg(target_arch = "x86_64")]
     {
         #[cfg(feature = "std")]
