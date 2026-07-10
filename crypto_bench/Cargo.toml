@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dev-dependencies]
-crypto = { path = "../crypto" }
+crypto = { path = "../crypto", default-features = false, features = ["std"] }
 aws-lc-rs = { workspace = true }
 aes-gcm = "0.11"
 chacha20poly1305 = "0.11"

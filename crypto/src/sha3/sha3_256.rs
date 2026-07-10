@@ -32,22 +32,15 @@ pub struct Sha3_256 {
     keccak: KeccakSponge<24>,
 }
 
-impl Sha3_256 {
-    #[inline]
-    pub fn new() -> Self {
-        return Sha3_256 {
-            keccak: KeccakSponge::new(SHA3_256_RATE, SHA3_256_DOMAIN_SEPARATOR),
-        };
-    }
-}
-
 impl Hasher for Sha3_256 {
     const BLOCK_SIZE: usize = SHA3_256_RATE;
     const OUTPUT_SIZE: usize = 32;
 
     #[inline]
     fn new() -> Self {
-        return Sha3_256::new();
+        Sha3_256 {
+            keccak: KeccakSponge::new(SHA3_256_RATE, SHA3_256_DOMAIN_SEPARATOR),
+        }
     }
 
     #[inline]

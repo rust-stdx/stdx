@@ -216,20 +216,6 @@ fn bench_stdx_sha512(group: &mut criterion::BenchmarkGroup<'_, criterion::measur
 fn bench(c: &mut Criterion) {
     let data = vec![0xA5u8; DATA_SIZE];
 
-    let mut group = c.benchmark_group("AES-256-GCM");
-    group.throughput(Throughput::Bytes(DATA_SIZE as u64));
-    bench_aws_lc_rs_aes256_gcm(&mut group, &data);
-    bench_rustcrypto_aes256_gcm(&mut group, &data);
-    bench_stdx_aes256_gcm(&mut group, &data);
-    group.finish();
-
-    let mut group = c.benchmark_group("ChaCha20Poly1305");
-    group.throughput(Throughput::Bytes(DATA_SIZE as u64));
-    bench_aws_lc_rs_chacha20_poly1305(&mut group, &data);
-    bench_rustcrypto_chacha20_poly1305(&mut group, &data);
-    bench_stdx_chacha20_poly1305(&mut group, &data);
-    group.finish();
-
     let mut group = c.benchmark_group("SHA-256");
     group.throughput(Throughput::Bytes(DATA_SIZE as u64));
     bench_aws_lc_rs_sha256(&mut group, &data);
@@ -242,6 +228,20 @@ fn bench(c: &mut Criterion) {
     bench_aws_lc_rs_sha512(&mut group, &data);
     bench_rustcrypto_sha512(&mut group, &data);
     bench_stdx_sha512(&mut group, &data);
+    group.finish();
+
+    let mut group = c.benchmark_group("AES-256-GCM");
+    group.throughput(Throughput::Bytes(DATA_SIZE as u64));
+    bench_aws_lc_rs_aes256_gcm(&mut group, &data);
+    bench_rustcrypto_aes256_gcm(&mut group, &data);
+    bench_stdx_aes256_gcm(&mut group, &data);
+    group.finish();
+
+    let mut group = c.benchmark_group("ChaCha20Poly1305");
+    group.throughput(Throughput::Bytes(DATA_SIZE as u64));
+    bench_aws_lc_rs_chacha20_poly1305(&mut group, &data);
+    bench_rustcrypto_chacha20_poly1305(&mut group, &data);
+    bench_stdx_chacha20_poly1305(&mut group, &data);
     group.finish();
 }
 

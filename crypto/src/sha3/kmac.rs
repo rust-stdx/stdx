@@ -34,13 +34,6 @@ pub struct Kmac256 {
 
 impl Kmac256 {
     #[inline]
-    pub fn mac(key: &[u8], data: &[u8], customization: &[u8], output: &mut [u8]) {
-        let mut kmac = Kmac256::new(key, customization);
-        kmac.update(data);
-        kmac.finalize_into(output);
-    }
-
-    #[inline]
     pub fn new(key: &[u8], customization: &[u8]) -> Self {
         let mut cshake = CShake256::new(b"KMAC", customization);
 
@@ -77,6 +70,13 @@ impl Kmac256 {
         let encoded_output_len = right_encode(output_bits);
         self.cshake.absorb(encoded_output_len.as_ref());
         self.cshake.squeeze(output);
+    }
+
+    #[inline]
+    pub fn mac(key: &[u8], data: &[u8], customization: &[u8], output: &mut [u8]) {
+        let mut kmac = Kmac256::new(key, customization);
+        kmac.update(data);
+        kmac.finalize_into(output);
     }
 }
 

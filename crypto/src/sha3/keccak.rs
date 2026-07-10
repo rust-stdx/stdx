@@ -48,9 +48,9 @@ enum SpongeMode {
 /// A sponge construction based on Keccak p1600
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
-#[repr(align(8))]
 // the struct requires 8-byte alignment for `ptr::copy_nonoverlapping` UB check on wasm32:
 // `state` is transmuted to `&mut [u64; 25]` in `permute_and_reset_pos`, which needs 8-byte alignment.
+#[repr(align(8))]
 pub struct KeccakSponge<const ROUNDS: usize> {
     state: [u8; 200],
     rate: usize,
