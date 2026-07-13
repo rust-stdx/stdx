@@ -105,7 +105,7 @@ pub const fn name(code: &str) -> &'static str {
 const COUNTRIES_DATA: &[Country] = &[
     Country {
         code: "AD",
-        name: "AndorrA",
+        name: "Andorra",
     },
     Country {
         code: "AE",
