@@ -5,6 +5,8 @@ Inspired by Go's extensive standard library, we are building Rust's extended sta
 
 Learn more in the announcement post: https://kerkour.com/stdx
 
+See [DESIGN.md](./DESIGN.md) for design principles and lessons learned.
+
 
 ## Usage
 
@@ -65,9 +67,9 @@ Contributions are welcome, especially bug reports, improvement ideas and new pac
 
 Except for minor typos, no pull request will be accepted without a preliminary discussion. Please open an issue first.
 
-Commits need to be signed and merged (squashed).
+Commits need to be signed and squashed.
 
-Please keep the size of your Pull / Merge requests reasonnable.
+Please keep the size of your Pull / Merge requests reasonable.
 
 Like all humans, our time is precious. Be succinct, precise and use your brain.
 
