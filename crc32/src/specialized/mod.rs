@@ -1,4 +1,10 @@
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+mod pclmulqdq;
+
+#[cfg(all(feature = "nightly", target_arch = "aarch64"))]
+mod aarch64;
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod implementation {
     pub use super::pclmulqdq::State;
 }
