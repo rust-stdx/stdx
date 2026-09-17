@@ -3,14 +3,15 @@ use std::hint::black_box;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::{
     curve25519::ed25519::SecretKey,
-    mldsa::{ml_dsa_65_generate_keypair, ml_dsa_65_sign, ml_dsa_65_verify},
+    mldsa::{MlDsa65SigningKey, ml_dsa_65_verify},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_sign(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
-    let (mldsa65_seed, _) = black_box(ml_dsa_65_generate_keypair());
+    let mut mldsa65_sk = MlDsa65SigningKey::new();
+    mldsa65_sk.init(&[0u8; 32]);
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(format!("sign/{size}"));
@@ -28,7 +29,7 @@ fn bench_sign(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter("ML-DSA-65"), data_slice, |b, data| {
             b.iter(|| {
-                let signature = ml_dsa_65_sign(black_box(&mldsa65_seed), black_box(data), &[]).unwrap();
+                let signature = mldsa65_sk.sign(black_box(data), &[]).unwrap();
                 black_box(signature);
             });
         });
@@ -40,7 +41,9 @@ fn bench_sign(c: &mut Criterion) {
 fn bench_verify(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
     let ed25519_pk = black_box(ed25519_sk.public_key());
-    let (mldsa65_seed, mldsa65_pk) = black_box(ml_dsa_65_generate_keypair());
+    let mut mldsa65_sk = MlDsa65SigningKey::new();
+    mldsa65_sk.init(&[0u8; 32]);
+    let mldsa65_pk = *mldsa65_sk.public_key();
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(format!("verify/{size}"));
@@ -57,7 +60,7 @@ fn bench_verify(c: &mut Criterion) {
         });
 
         group.bench_with_input(BenchmarkId::from_parameter("ML-DSA-65"), data_slice, |b, data| {
-            let signature = ml_dsa_65_sign(&mldsa65_seed, &data, &[]).unwrap();
+            let signature = mldsa65_sk.sign(&data, &[]).unwrap();
             b.iter(|| {
                 black_box(
                     ml_dsa_65_verify(black_box(&mldsa65_pk), black_box(data), black_box(&signature), &[]).is_ok(),

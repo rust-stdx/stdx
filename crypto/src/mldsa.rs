@@ -1,4 +1,35 @@
 //! ML-DSA post-quantum signatures standardized in FIPS 204.
+//!
+//! This module implements the ML-DSA-65 parameter set.
+//!
+//! # Signing
+//!
+//! Signing is stateful: create an [`MlDsa65SigningKey`], initialize it once
+//! from a 32-byte seed with [`MlDsa65SigningKey::init`] (or
+//! [`MlDsa65SigningKey::generate`] for a fresh random key), then call
+//! [`MlDsa65SigningKey::sign`] (randomized) or
+//! [`MlDsa65SigningKey::sign_derand`] (deterministic for a fixed nonce).
+//!
+//! The expanded key caches the NTT-domain matrix and secret vectors, so
+//! repeated signatures skip key generation. It is a fixed-size value
+//! ([`ML_DSA_65_SIGNING_KEY_SIZE`] bytes) with no heap allocation, so it can
+//! be placed in a `static` on embedded targets:
+//!
+//! ```
+//! # use crypto::mldsa::MlDsa65SigningKey;
+//! # let seed = [0u8; 32];
+//! let mut key = MlDsa65SigningKey::new();
+//! key.init(&seed);
+//! let signature = key.sign_derand(b"message", b"", &[0u8; 32]).unwrap();
+//! assert!(crypto::mldsa::ml_dsa_65_verify(key.public_key(), b"message", &signature, b"").is_ok());
+//! ```
+//!
+//! # Verification
+//!
+//! Verification is stateless: [`ml_dsa_65_verify`] checks a signature over a
+//! message and optional context, while [`ml_dsa_65_verify_external_mu`] checks
+//! a signature over a precomputed 64-byte message representative ("external
+//! μ"). Both return [`MlDsaError`] on failure.
 
 use constant_time_eq::constant_time_eq;
 #[cfg(feature = "zeroize")]
@@ -136,7 +167,7 @@ fn make_hint32(ct0: FieldElement, w: FieldElement, cs2: FieldElement) -> u8 {
     let v1 = highbits32(field_from_montgomery(r_plus_z));
     let r = field_add(r_plus_z, ct0);
     let r1 = highbits32(field_from_montgomery(r));
-    (v1 ^ r1) as u8 & 1u8
+    (v1 != r1) as u8
 }
 
 fn use_hint32(r: FieldElement, hint: u8) -> u8 {
@@ -775,257 +806,314 @@ fn compute_t1_hat(t1: &[[u16; N]; K]) -> [NttPoly; K] {
     t1_hat
 }
 
-#[cfg(feature = "random")]
-pub fn ml_dsa_65_generate_keypair() -> ([u8; ML_DSA_65_SEED_SIZE], [u8; ML_DSA_65_PUBLIC_KEY_SIZE]) {
-    let seed: [u8; ML_DSA_65_SEED_SIZE] = crate::random::random_bytes();
-    ml_dsa_65_keypair_derand(&seed)
+impl NttPoly {
+    const ZERO: Self = Self {
+        coeffs: [0u32; N],
+    };
 }
 
-pub(crate) fn ml_dsa_65_keypair_derand(
-    seed: &[u8; ML_DSA_65_SEED_SIZE],
-) -> ([u8; ML_DSA_65_SEED_SIZE], [u8; ML_DSA_65_PUBLIC_KEY_SIZE]) {
-    let mut shake = Shake256::new();
-    shake.absorb(seed);
-    shake.absorb(&[K as u8, L as u8]);
-    let mut rho = [0u8; 32];
-    let mut rhos = [0u8; 64];
-    let mut key_bytes = [0u8; 32];
-    shake.squeeze(&mut rho);
-    shake.squeeze(&mut rhos);
-    shake.squeeze(&mut key_bytes);
+const ZERO_NTT_ROW: [NttPoly; L] = [NttPoly::ZERO; L];
+const ZERO_NTT_COL: [NttPoly; K] = [NttPoly::ZERO; K];
+const ZERO_NTT_MATRIX: [[NttPoly; L]; K] = [ZERO_NTT_ROW; K];
 
-    let a = compute_matrix_a(&rho);
+/// Size in bytes of an initialized [`MlDsa65SigningKey`].
+///
+/// Useful for sizing `static`/arena storage on memory-constrained targets.
+pub const ML_DSA_65_SIGNING_KEY_SIZE: usize = core::mem::size_of::<MlDsa65SigningKey>();
 
-    let mut s1_hat: [NttPoly; L] = Default::default();
-    for r in 0..L {
-        s1_hat[r] = ntt(&sample_bounded_poly(&rhos, r as u8));
-    }
-    let mut s2_hat: [NttPoly; K] = Default::default();
-    for r in 0..K {
-        s2_hat[r] = ntt(&sample_bounded_poly(&rhos, (L + r) as u8));
-    }
-
-    let mut t_hat: [NttPoly; K] = Default::default();
-    for i in 0..K {
-        t_hat[i] = s2_hat[i].clone();
-        for j in 0..L {
-            t_hat[i] = ntt_add(&t_hat[i], &ntt_mul(&a[i][j], &s1_hat[j]));
-        }
-    }
-
-    let mut t: [Poly; K] = core::array::from_fn(|_| Poly::default());
-    for i in 0..K {
-        t[i] = invntt(&t_hat[i]);
-    }
-
-    let mut t1 = [[0u16; N]; K];
-    for i in 0..K {
-        for j in 0..N {
-            (t1[i][j], _) = power2round(t[i].coeffs[j]);
-        }
-    }
-
-    let pk = pk_encode(&rho, &t1);
-
-    (*seed, pk)
+/// An expanded ML-DSA-65 signing key.
+///
+/// This is the only way to sign: the key generation is run once when the key
+/// is initialized, and the resulting matrix `A` and secret vectors in the NTT
+/// domain are cached, so signing does not repeat the expensive key generation.
+///
+/// The key is a plain fixed-size value (about [`ML_DSA_65_SIGNING_KEY_SIZE`]
+/// bytes) and never allocates, which makes it usable on `no_std` and embedded
+/// targets. On constrained devices place it in a `static` with
+/// [`MlDsa65SigningKey::new`] and initialize it once with
+/// [`MlDsa65SigningKey::init`] or [`MlDsa65SigningKey::generate`]; signing then
+/// only needs a shared reference.
+///
+/// ```
+/// # use crypto::mldsa::MlDsa65SigningKey;
+/// # let seed = [0u8; 32];
+/// let mut key = MlDsa65SigningKey::new();
+/// key.init(&seed);
+/// let signature = key.sign_derand(b"message", b"", &[0u8; 32]).unwrap();
+/// ```
+///
+/// Secrets are zeroized on drop when the `zeroize` feature is enabled.
+#[derive(Debug)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
+pub struct MlDsa65SigningKey {
+    seed: [u8; ML_DSA_65_SEED_SIZE],
+    key_bytes: [u8; 32],
+    pk: [u8; ML_DSA_65_PUBLIC_KEY_SIZE],
+    tr: [u8; 64],
+    a: [[NttPoly; L]; K],
+    s1_hat: [NttPoly; L],
+    s2_hat: [NttPoly; K],
+    t0_hat: [NttPoly; K],
 }
 
-#[cfg(feature = "random")]
-pub fn ml_dsa_65_sign(
-    seed: &[u8; ML_DSA_65_SEED_SIZE],
-    message: &[u8],
-    ctx: &[u8],
-) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
-    let rnd: [u8; 32] = crate::random::random_bytes();
-    ml_dsa_65_sign_derand(seed, message, ctx, &rnd)
-}
-
-pub(crate) fn ml_dsa_65_sign_derand(
-    seed: &[u8; ML_DSA_65_SEED_SIZE],
-    message: &[u8],
-    ctx: &[u8],
-    rnd: &[u8; 32],
-) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
-    let mut shake = Shake256::new();
-    shake.absorb(seed);
-    shake.absorb(&[K as u8, L as u8]);
-    let mut rho = [0u8; 32];
-    let mut rhos = [0u8; 64];
-    let mut key_bytes = [0u8; 32];
-    shake.squeeze(&mut rho);
-    shake.squeeze(&mut rhos);
-    shake.squeeze(&mut key_bytes);
-
-    let a = compute_matrix_a(&rho);
-
-    let mut s1: [Poly; L] = Default::default();
-    for r in 0..L {
-        s1[r] = sample_bounded_poly(&rhos, r as u8);
-    }
-    let mut s2: [Poly; K] = Default::default();
-    for r in 0..K {
-        s2[r] = sample_bounded_poly(&rhos, (L + r) as u8);
-    }
-
-    let mut t: [Poly; K] = core::array::from_fn(|_| Poly::default());
-    for i in 0..K {
-        let mut t_hat_i = NttPoly::default();
-        for j in 0..L {
-            let s1_hat = ntt(&s1[j]);
-            t_hat_i = ntt_add(&t_hat_i, &ntt_mul(&a[i][j], &s1_hat));
-        }
-        t_hat_i = ntt_add(&t_hat_i, &ntt(&s2[i]));
-        t[i] = invntt(&t_hat_i);
-    }
-
-    let mut t0: [Poly; K] = Default::default();
-    let mut t1 = [[0u16; N]; K];
-    for i in 0..K {
-        for j in 0..N {
-            (t1[i][j], t0[i].coeffs[j]) = power2round(t[i].coeffs[j]);
+impl MlDsa65SigningKey {
+    /// Creates a zeroed, uninitialized signing key.
+    ///
+    /// This is a `const fn` so the (large) key can be placed in a `static` or
+    /// another caller-owned location. The key must be initialized with
+    /// [`MlDsa65SigningKey::init`] or [`MlDsa65SigningKey::generate`] before
+    /// signing; signing an uninitialized key yields a signature that does not
+    /// verify.
+    pub const fn new() -> Self {
+        Self {
+            seed: [0u8; ML_DSA_65_SEED_SIZE],
+            key_bytes: [0u8; 32],
+            pk: [0u8; ML_DSA_65_PUBLIC_KEY_SIZE],
+            tr: [0u8; 64],
+            a: ZERO_NTT_MATRIX,
+            s1_hat: ZERO_NTT_ROW,
+            s2_hat: ZERO_NTT_COL,
+            t0_hat: ZERO_NTT_COL,
         }
     }
 
-    let pk = pk_encode(&rho, &t1);
-    let tr = compute_pubkey_hash(&pk);
-    let mu = compute_message_hash(&tr, message, ctx)?;
+    /// Expands `seed` into a signing key, overwriting any previous state.
+    ///
+    /// This runs the full FIPS 204 key generation and caches the NTT-domain
+    /// matrix and secret vectors. Call it once per key; re-initializing the
+    /// same value is allowed and simply replaces the previous key.
+    pub fn init(&mut self, seed: &[u8; ML_DSA_65_SEED_SIZE]) {
+        let mut shake = Shake256::new();
+        shake.absorb(seed);
+        shake.absorb(&[K as u8, L as u8]);
+        let mut rho = [0u8; 32];
+        let mut rhos = [0u8; 64];
+        shake.squeeze(&mut rho);
+        shake.squeeze(&mut rhos);
+        shake.squeeze(&mut self.key_bytes);
 
-    let mut s1_hat: [NttPoly; L] = Default::default();
-    for i in 0..L {
-        s1_hat[i] = ntt(&s1[i]);
-    }
-    let mut s2_hat: [NttPoly; K] = Default::default();
-    for i in 0..K {
-        s2_hat[i] = ntt(&s2[i]);
-    }
-    let mut t0_hat: [NttPoly; K] = Default::default();
-    for i in 0..K {
-        t0_hat[i] = ntt(&t0[i]);
-    }
+        compute_matrix_a_into(&mut self.a, &rho);
 
-    let gamma1 = GAMMA1;
-    let gamma1beta = gamma1 - BETA;
-    let gamma2 = GAMMA2;
-    let gamma2beta = gamma2 - BETA;
-
-    let mut h_shake = Shake256::new();
-    h_shake.absorb(&key_bytes);
-    h_shake.absorb(rnd);
-    h_shake.absorb(&mu);
-    let mut nonce = [0u8; 64];
-    h_shake.squeeze(&mut nonce);
-
-    let mut kappa: usize = 0;
-
-    loop {
-        let mut y: [Poly; L] = core::array::from_fn(|_| Poly::default());
         for r in 0..L {
-            y[r] = expand_mask(&nonce, kappa);
-            kappa += 1;
+            let s1 = sample_bounded_poly(&rhos, r as u8);
+            self.s1_hat[r] = ntt(&s1);
+        }
+        for r in 0..K {
+            let s2 = sample_bounded_poly(&rhos, (L + r) as u8);
+            self.s2_hat[r] = ntt(&s2);
         }
 
-        let mut y_hat: [NttPoly; L] = Default::default();
-        for i in 0..L {
-            y_hat[i] = ntt(&y[i]);
-        }
-
-        let mut w: [Poly; K] = core::array::from_fn(|_| Poly::default());
+        let mut t1 = [[0u16; N]; K];
         for i in 0..K {
-            let mut w_hat = NttPoly::default();
+            let mut t_hat = self.s2_hat[i].clone();
             for j in 0..L {
-                w_hat = ntt_add(&w_hat, &ntt_mul(&a[i][j], &y_hat[j]));
+                t_hat = ntt_add(&t_hat, &ntt_mul(&self.a[i][j], &self.s1_hat[j]));
             }
-            w[i] = invntt(&w_hat);
-        }
-
-        let mut w1 = [[0u8; N]; K];
-        for i in 0..K {
-            w1[i] = highbits_vec(&w[i]);
-        }
-
-        let mut ch_shake = Shake256::new();
-        ch_shake.absorb(&mu);
-        let w1_bytes = w1_encode_bytes(&w1);
-        ch_shake.absorb(&w1_bytes[..K * N / 2]);
-        let mut ct = [0u8; LAMBDA_OVER_4];
-        ch_shake.squeeze(&mut ct);
-
-        let c = sample_in_ball(&ct);
-        let c_hat = ntt(&c);
-
-        let mut cs1: [Poly; L] = core::array::from_fn(|_| Poly::default());
-        for i in 0..L {
-            cs1[i] = invntt(&ntt_mul(&c_hat, &s1_hat[i]));
-        }
-        let mut cs2: [Poly; K] = core::array::from_fn(|_| Poly::default());
-        for i in 0..K {
-            cs2[i] = invntt(&ntt_mul(&c_hat, &s2_hat[i]));
-        }
-
-        let mut z: [Poly; L] = core::array::from_fn(|_| Poly::default());
-        let mut reject = false;
-        for i in 0..L {
-            z[i] = poly_add(&y[i], &cs1[i]);
-            if coefficients_exceed_bound(&z[i], gamma1beta) {
-                reject = true;
-                break;
+            let t = invntt(&t_hat);
+            let mut t0 = Poly::default();
+            for j in 0..N {
+                (t1[i][j], t0.coeffs[j]) = power2round(t.coeffs[j]);
             }
-        }
-        if reject {
-            continue;
+            self.t0_hat[i] = ntt(&t0);
         }
 
-        for i in 0..K {
-            let r0 = poly_sub(&w[i], &cs2[i]);
-            if lowbits_exceed_bound(&r0, gamma2beta) {
-                reject = true;
-                break;
+        self.pk = pk_encode(&rho, &t1);
+        self.tr = compute_pubkey_hash(&self.pk);
+        self.seed = *seed;
+    }
+
+    /// Generates a random seed, initializes the key from it, and returns the
+    /// seed so it can be persisted.
+    #[cfg(feature = "random")]
+    pub fn generate(&mut self) -> [u8; ML_DSA_65_SEED_SIZE] {
+        let seed: [u8; ML_DSA_65_SEED_SIZE] = crate::random::random_bytes();
+        self.init(&seed);
+        seed
+    }
+
+    /// Returns the encoded public key (1952 bytes) for this signing key.
+    pub fn public_key(&self) -> &[u8; ML_DSA_65_PUBLIC_KEY_SIZE] {
+        &self.pk
+    }
+
+    /// Returns the 32-byte seed this key was initialized from.
+    pub fn seed(&self) -> &[u8; ML_DSA_65_SEED_SIZE] {
+        &self.seed
+    }
+
+    /// Signs `message` with a fresh random nonce.
+    ///
+    /// `ctx` is the optional FIPS 204 context string and must be at most 255
+    /// bytes; it returns [`MlDsaError::ContextTooLong`] otherwise.
+    #[cfg(feature = "random")]
+    pub fn sign(&self, message: &[u8], ctx: &[u8]) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
+        let rnd: [u8; 32] = crate::random::random_bytes();
+        self.sign_derand(message, ctx, &rnd)
+    }
+
+    /// Signs `message` deterministically for a fixed 32-byte `rnd`.
+    ///
+    /// Passing `rnd = [0u8; 32]` gives the deterministic FIPS 204 variant;
+    /// any other value gives the hedged/randomized variant. `ctx` must be at
+    /// most 255 bytes, returning [`MlDsaError::ContextTooLong`] otherwise.
+    pub fn sign_derand(
+        &self,
+        message: &[u8],
+        ctx: &[u8],
+        rnd: &[u8; 32],
+    ) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
+        let mu = compute_message_hash(&self.tr, message, ctx)?;
+        Ok(self.sign_internal(&mu, rnd))
+    }
+
+    /// Signs a precomputed 64-byte message representative `mu` (FIPS 204
+    /// "external mu" signing) with a fresh random nonce.
+    ///
+    /// `mu` must be the output of the FIPS 204 message-representative
+    /// computation; this function performs no domain separation or hashing.
+    #[cfg(feature = "random")]
+    pub fn sign_external_mu(&self, mu: &[u8; 64]) -> [u8; ML_DSA_65_SIGNATURE_SIZE] {
+        let rnd: [u8; 32] = crate::random::random_bytes();
+        self.sign_internal(mu, &rnd)
+    }
+
+    /// Signs a precomputed 64-byte message representative `mu` (FIPS 204
+    /// "external mu" signing) deterministically for a fixed `rnd`.
+    pub fn sign_external_mu_derand(&self, mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_65_SIGNATURE_SIZE] {
+        self.sign_internal(mu, rnd)
+    }
+
+    fn sign_internal(&self, mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_65_SIGNATURE_SIZE] {
+        let a = &self.a;
+        let s1_hat = &self.s1_hat;
+        let s2_hat = &self.s2_hat;
+        let t0_hat = &self.t0_hat;
+
+        let gamma1 = GAMMA1;
+        let gamma1beta = gamma1 - BETA;
+        let gamma2 = GAMMA2;
+        let gamma2beta = gamma2 - BETA;
+
+        let mut h_shake = Shake256::new();
+        h_shake.absorb(&self.key_bytes);
+        h_shake.absorb(rnd);
+        h_shake.absorb(mu);
+        let mut nonce = [0u8; 64];
+        h_shake.squeeze(&mut nonce);
+
+        let mut kappa: usize = 0;
+
+        loop {
+            let mut y: [Poly; L] = core::array::from_fn(|_| Poly::default());
+            for r in 0..L {
+                y[r] = expand_mask(&nonce, kappa);
+                kappa += 1;
             }
-        }
-        if reject {
-            continue;
-        }
 
-        let mut ct0: [Poly; K] = core::array::from_fn(|_| Poly::default());
-        for i in 0..K {
-            ct0[i] = invntt(&ntt_mul(&c_hat, &t0_hat[i]));
-            if coefficients_exceed_bound(&ct0[i], gamma2) {
-                reject = true;
-                break;
+            let mut y_hat: [NttPoly; L] = Default::default();
+            for i in 0..L {
+                y_hat[i] = ntt(&y[i]);
             }
-        }
-        if reject {
-            continue;
-        }
 
-        let mut total_hints: usize = 0;
-        let mut h = [[0u8; N]; K];
-        for i in 0..K {
-            let (hi, count) = make_hint_vec(&ct0[i], &w[i], &cs2[i]);
-            h[i] = hi;
-            total_hints += count;
-        }
-        if total_hints > OMEGA {
-            continue;
-        }
+            let mut w: [Poly; K] = core::array::from_fn(|_| Poly::default());
+            for i in 0..K {
+                let mut w_hat = NttPoly::default();
+                for j in 0..L {
+                    w_hat = ntt_add(&w_hat, &ntt_mul(&a[i][j], &y_hat[j]));
+                }
+                w[i] = invntt(&w_hat);
+            }
 
-        return Ok(sig_encode(&ct, &z, &h));
+            let mut w1 = [[0u8; N]; K];
+            for i in 0..K {
+                w1[i] = highbits_vec(&w[i]);
+            }
+
+            let mut ch_shake = Shake256::new();
+            ch_shake.absorb(mu);
+            let w1_bytes = w1_encode_bytes(&w1);
+            ch_shake.absorb(&w1_bytes[..K * N / 2]);
+            let mut ct = [0u8; LAMBDA_OVER_4];
+            ch_shake.squeeze(&mut ct);
+
+            let c = sample_in_ball(&ct);
+            let c_hat = ntt(&c);
+
+            let mut cs1: [Poly; L] = core::array::from_fn(|_| Poly::default());
+            for i in 0..L {
+                cs1[i] = invntt(&ntt_mul(&c_hat, &s1_hat[i]));
+            }
+            let mut cs2: [Poly; K] = core::array::from_fn(|_| Poly::default());
+            for i in 0..K {
+                cs2[i] = invntt(&ntt_mul(&c_hat, &s2_hat[i]));
+            }
+
+            let mut z: [Poly; L] = core::array::from_fn(|_| Poly::default());
+            let mut reject = false;
+            for i in 0..L {
+                z[i] = poly_add(&y[i], &cs1[i]);
+                if coefficients_exceed_bound(&z[i], gamma1beta) {
+                    reject = true;
+                    break;
+                }
+            }
+            if reject {
+                continue;
+            }
+
+            for i in 0..K {
+                let r0 = poly_sub(&w[i], &cs2[i]);
+                if lowbits_exceed_bound(&r0, gamma2beta) {
+                    reject = true;
+                    break;
+                }
+            }
+            if reject {
+                continue;
+            }
+
+            let mut ct0: [Poly; K] = core::array::from_fn(|_| Poly::default());
+            for i in 0..K {
+                ct0[i] = invntt(&ntt_mul(&c_hat, &t0_hat[i]));
+                if coefficients_exceed_bound(&ct0[i], gamma2) {
+                    reject = true;
+                    break;
+                }
+            }
+            if reject {
+                continue;
+            }
+
+            let mut total_hints: usize = 0;
+            let mut h = [[0u8; N]; K];
+            for i in 0..K {
+                let (hi, count) = make_hint_vec(&ct0[i], &w[i], &cs2[i]);
+                h[i] = hi;
+                total_hints += count;
+            }
+            if total_hints > OMEGA {
+                continue;
+            }
+
+            return sig_encode(&ct, &z, &h);
+        }
     }
 }
 
-pub fn ml_dsa_65_verify(
+fn compute_matrix_a_into(a: &mut [[NttPoly; L]; K], rho: &[u8; 32]) {
+    for r in 0..K {
+        for s in 0..L {
+            a[r][s] = sample_ntt(rho, s as u8, r as u8);
+        }
+    }
+}
+
+fn verify_internal(
     pk: &[u8; ML_DSA_65_PUBLIC_KEY_SIZE],
-    message: &[u8],
+    mu: &[u8; 64],
     sig: &[u8; ML_DSA_65_SIGNATURE_SIZE],
-    ctx: &[u8],
 ) -> Result<(), MlDsaError> {
     let (rho, t1) = pk_decode(pk)?;
-    let a = compute_matrix_a(&rho);
-    let t1_hat = compute_t1_hat(&t1);
-
-    let tr = compute_pubkey_hash(pk);
-    let mu = compute_message_hash(&tr, message, ctx)?;
-
     let (ch, z, h) = sig_decode(sig)?;
 
     let gamma1 = GAMMA1;
@@ -1038,6 +1126,9 @@ pub fn ml_dsa_65_verify(
             return Err(MlDsaError::InvalidSignature);
         }
     }
+
+    let a = compute_matrix_a(&rho);
+    let t1_hat = compute_t1_hat(&t1);
 
     let c = sample_in_ball(&ch);
     let c_hat = ntt(&c);
@@ -1063,7 +1154,7 @@ pub fn ml_dsa_65_verify(
     }
 
     let mut ch_shake = Shake256::new();
-    ch_shake.absorb(&mu);
+    ch_shake.absorb(mu);
     let w1_bytes = w1_encode_bytes(&w1);
     ch_shake.absorb(&w1_bytes[..K * N / 2]);
     let mut computed_ch = [0u8; LAMBDA_OVER_4];
@@ -1076,6 +1167,36 @@ pub fn ml_dsa_65_verify(
     Ok(())
 }
 
+/// Verifies an ML-DSA-65 signature over `message` with the optional context
+/// `ctx`.
+///
+/// Returns [`MlDsaError::InvalidSignature`] if the signature is invalid,
+/// [`MlDsaError::InvalidSignatureLength`] if the signature has the wrong
+/// length, and [`MlDsaError::ContextTooLong`] if `ctx` exceeds 255 bytes.
+pub fn ml_dsa_65_verify(
+    pk: &[u8; ML_DSA_65_PUBLIC_KEY_SIZE],
+    message: &[u8],
+    sig: &[u8; ML_DSA_65_SIGNATURE_SIZE],
+    ctx: &[u8],
+) -> Result<(), MlDsaError> {
+    let tr = compute_pubkey_hash(pk);
+    let mu = compute_message_hash(&tr, message, ctx)?;
+    verify_internal(pk, &mu, sig)
+}
+
+/// Verifies an ML-DSA-65 signature over a precomputed 64-byte message
+/// representative `mu` (FIPS 204 "external mu" verification).
+///
+/// Returns [`MlDsaError::InvalidSignature`] if the signature is invalid or
+/// [`MlDsaError::InvalidSignatureLength`] if it has the wrong length.
+pub fn ml_dsa_65_verify_external_mu(
+    pk: &[u8; ML_DSA_65_PUBLIC_KEY_SIZE],
+    mu: &[u8; 64],
+    sig: &[u8; ML_DSA_65_SIGNATURE_SIZE],
+) -> Result<(), MlDsaError> {
+    verify_internal(pk, mu, sig)
+}
+
 #[cfg(test)]
 mod tests {
     use hex;
@@ -1083,60 +1204,57 @@ mod tests {
     use super::*;
     use crate::{Hasher, sha3::Sha3_256};
 
-    #[test]
-    fn test_ml_dsa_65_roundtrip() {
-        let (seed, pk) = ml_dsa_65_generate_keypair();
-        let msg = b"Hello, world!";
-        let sig = ml_dsa_65_sign(&seed, msg, &[]).unwrap();
-        ml_dsa_65_verify(&pk, msg, &sig, &[]).unwrap();
+    fn key_from_seed(seed: &[u8; 32]) -> MlDsa65SigningKey {
+        let mut sk = MlDsa65SigningKey::new();
+        sk.init(seed);
+        sk
+    }
 
-        let mut bad_sig = sig.clone();
+    #[cfg(feature = "random")]
+    fn random_key() -> MlDsa65SigningKey {
+        let mut sk = MlDsa65SigningKey::new();
+        sk.generate();
+        sk
+    }
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn test_ml_dsa_65_roundtrip() {
+        let sk = random_key();
+        let msg = b"Hello, world!";
+        let sig = sk.sign(msg, &[]).unwrap();
+        ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]).unwrap();
+
+        let mut bad_sig = sig;
         bad_sig[0] ^= 0xFF;
-        assert!(ml_dsa_65_verify(&pk, msg, &bad_sig, &[]).is_err());
+        assert!(ml_dsa_65_verify(sk.public_key(), msg, &bad_sig, &[]).is_err());
 
         let bad_msg = b"Wrong message";
-        assert!(ml_dsa_65_verify(&pk, bad_msg, &sig, &[]).is_err());
+        assert!(ml_dsa_65_verify(sk.public_key(), bad_msg, &sig, &[]).is_err());
 
-        let (_, pk2) = ml_dsa_65_generate_keypair();
-        assert!(ml_dsa_65_verify(&pk2, msg, &sig, &[]).is_err());
+        let sk2 = random_key();
+        assert!(ml_dsa_65_verify(sk2.public_key(), msg, &sig, &[]).is_err());
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_context() {
-        let (seed, pk) = ml_dsa_65_generate_keypair();
+        let sk = random_key();
         let msg = b"test";
         let ctx = b"myapp";
-        let sig = ml_dsa_65_sign(&seed, msg, ctx).unwrap();
-        ml_dsa_65_verify(&pk, msg, &sig, ctx).unwrap();
+        let sig = sk.sign(msg, ctx).unwrap();
+        ml_dsa_65_verify(sk.public_key(), msg, &sig, ctx).unwrap();
 
-        assert!(ml_dsa_65_verify(&pk, msg, &sig, &[]).is_err());
-        assert!(ml_dsa_65_verify(&pk, msg, &sig, b"other").is_err());
+        assert!(ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]).is_err());
+        assert!(ml_dsa_65_verify(sk.public_key(), msg, &sig, b"other").is_err());
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_empty_message() {
-        let (seed, pk) = ml_dsa_65_generate_keypair();
-        let sig = ml_dsa_65_sign(&seed, &[], &[]).unwrap();
-        ml_dsa_65_verify(&pk, &[], &sig, &[]).unwrap();
-    }
-
-    #[test]
-    fn test_ml_dsa_65_invalid_signature_length() {
-        let (_, pk) = ml_dsa_65_generate_keypair();
-        for len in [
-            0usize,
-            1,
-            100,
-            ML_DSA_65_SIGNATURE_SIZE - 1,
-            ML_DSA_65_SIGNATURE_SIZE + 1,
-        ] {
-            let sig = [0u8; ML_DSA_65_SIGNATURE_SIZE + 1];
-            let buf = &sig[..len];
-            assert!(
-                ml_dsa_65_verify(&pk, b"test", buf.try_into().unwrap_or(&[0u8; ML_DSA_65_SIGNATURE_SIZE]), &[])
-                    .is_err()
-            );
-        }
+        let sk = random_key();
+        let sig = sk.sign(&[], &[]).unwrap();
+        ml_dsa_65_verify(sk.public_key(), &[], &sig, &[]).unwrap();
     }
 
     #[test]
@@ -1147,13 +1265,13 @@ mod tests {
             seed[i] = (i * 7 + 1) as u8;
             rnd[i] = (i * 13 + 3) as u8;
         }
-        let (_, pk) = ml_dsa_65_keypair_derand(&seed);
+        let sk = key_from_seed(&seed);
 
-        let sig1 = ml_dsa_65_sign_derand(&seed, b"hello", &[], &rnd).unwrap();
-        let sig2 = ml_dsa_65_sign_derand(&seed, b"hello", &[], &rnd).unwrap();
+        let sig1 = sk.sign_derand(b"hello", &[], &rnd).unwrap();
+        let sig2 = sk.sign_derand(b"hello", &[], &rnd).unwrap();
         assert_eq!(sig1, sig2);
 
-        ml_dsa_65_verify(&pk, b"hello", &sig1, &[]).unwrap();
+        ml_dsa_65_verify(sk.public_key(), b"hello", &sig1, &[]).unwrap();
     }
 
     #[test]
@@ -1171,8 +1289,8 @@ mod tests {
 
                 let seed = hex::decode_array::<32>(seed_hex.as_bytes()).unwrap();
 
-                let (_, pk) = ml_dsa_65_keypair_derand(&seed);
-                let pk_hex = hex::encode(pk);
+                let sk = key_from_seed(&seed);
+                let pk_hex = hex::encode(sk.public_key());
                 assert_eq!(
                     pk_hex.to_uppercase(),
                     expected_pk_hex.to_uppercase(),
@@ -1183,64 +1301,49 @@ mod tests {
         }
     }
 
-    // Verify using sig-ver.json + key-gen.json.
-    // Key mapping: sigver ML-DSA-65 test at position i -> keygen ML-DSA-65 position i.
-    // sigver ML-DSA-65 tcId range: 16-30 (15 tests)
-    // keygen ML-DSA-65 tcId range: 26-50 (25 tests)
-    // offset = 26 - 16 = 10
+    // Verify using sig-ver.json, which provides the public key for each group.
+    //
+    // These are the NIST ACVP "internal projection" vectors: the `message`
+    // field is the message representative M' (the bytes fed to SHAKE256 after
+    // `tr`), so verification uses the external-mu path with mu = H(tr || M').
     #[test]
     fn test_ml_dsa_65_sigver_kat() {
-        use std::collections::HashMap;
-
-        let kg_rust: serde_json::Value = serde_json::from_str(include_str!("../testdata/mldsa/key-gen.json")).unwrap();
-        let sv_rust: serde_json::Value = serde_json::from_str(include_str!("../testdata/mldsa/sig-ver.json")).unwrap();
-
-        let mut seed_map: HashMap<u64, [u8; 32]> = HashMap::new();
-        for g in kg_rust["testGroups"].as_array().unwrap() {
-            if g["parameterSet"].as_str() != Some("ML-DSA-65") {
-                continue;
-            }
-            for t in g["tests"].as_array().unwrap() {
-                let tc = t["tcId"].as_u64().unwrap();
-                let seed = hex::decode_array::<32>(t["seed"].as_str().unwrap().as_bytes()).unwrap();
-                seed_map.insert(tc, seed);
-            }
-        }
+        let sig_ver_data = include_str!("../testdata/mldsa/sig-ver.json");
+        let v: serde_json::Value = serde_json::from_str(sig_ver_data).unwrap();
 
         let mut tested = 0;
-        for g in sv_rust["testGroups"].as_array().unwrap() {
-            if g["parameterSet"].as_str() != Some("ML-DSA-65") {
+        for group in v["testGroups"].as_array().unwrap() {
+            if group["parameterSet"].as_str() != Some("ML-DSA-65") {
                 continue;
             }
-            for t in g["tests"].as_array().unwrap() {
-                let sv_tc = t["tcId"].as_u64().unwrap();
-                let expected_pass = t["testPassed"].as_bool().unwrap_or(true);
-                let msg = hex::decode(t["message"].as_str().unwrap()).unwrap();
-                let sig: [u8; ML_DSA_65_SIGNATURE_SIZE] = hex::decode(t["signature"].as_str().unwrap())
+            let pk: [u8; ML_DSA_65_PUBLIC_KEY_SIZE] =
+                hex::decode(group["pk"].as_str().unwrap()).unwrap().try_into().unwrap();
+
+            for test in group["tests"].as_array().unwrap() {
+                let tc_id = test["tcId"].as_u64().unwrap();
+                let expected_pass = test["testPassed"].as_bool().unwrap_or(true);
+                let mp = hex::decode(test["message"].as_str().unwrap()).unwrap();
+                let sig: [u8; ML_DSA_65_SIGNATURE_SIZE] = hex::decode(test["signature"].as_str().unwrap())
                     .unwrap()
                     .try_into()
                     .unwrap();
 
-                let kg_tc = sv_tc + 10;
-                if let Some(seed) = seed_map.get(&kg_tc) {
-                    let (_, pk) = ml_dsa_65_keypair_derand(seed);
-                    let result = ml_dsa_65_verify(&pk, &msg, &sig, &[]);
-                    // tcId=20 expected pass but may mismatch due to cross-file key mapping.
-                    // The remaining 14 tests (11 fail + 3 pass at 21,25) validate correctly.
-                    if expected_pass {
-                        // Self-sign and verify to ensure our key/verify works correctly
-                        let self_sig = ml_dsa_65_sign_derand(seed, &msg, &[], &[0u8; 32]).unwrap();
-                        assert!(ml_dsa_65_verify(&pk, &msg, &self_sig, &[]).is_ok());
-                    } else {
-                        assert!(
-                            result.is_err(),
-                            "sigver KAT tcId={} (kg_tcId={}) expected fail but passed",
-                            sv_tc,
-                            kg_tc
-                        );
-                    }
-                    tested += 1;
-                }
+                let tr = compute_pubkey_hash(&pk);
+                let mut shake = Shake256::new();
+                shake.absorb(&tr);
+                shake.absorb(&mp);
+                let mut mu = [0u8; 64];
+                shake.squeeze(&mut mu);
+
+                let result = ml_dsa_65_verify_external_mu(&pk, &mu, &sig);
+                assert_eq!(
+                    result.is_ok(),
+                    expected_pass,
+                    "sigver KAT tcId={} reason={:?}",
+                    tc_id,
+                    test.get("reason")
+                );
+                tested += 1;
             }
         }
         assert_eq!(tested, 15, "all 15 ML-DSA-65 sigver tests should be run");
@@ -1272,12 +1375,12 @@ mod tests {
             let expected_vk_hash = record.sha3_256_hash_of_verification_key.to_lowercase();
             let expected_sig_hash = record.sha3_256_hash_of_signature.to_lowercase();
 
-            let (_, pk) = ml_dsa_65_keypair_derand(&seed);
-            let sig = ml_dsa_65_sign_derand(&seed, &msg, &[], &rnd).unwrap();
+            let sk = key_from_seed(&seed);
+            let sig = sk.sign_derand(&msg, &[], &rnd).unwrap();
 
             let vk_hash = hex::encode({
                 let mut h = Sha3_256::new();
-                h.update(&pk);
+                h.update(sk.public_key());
                 h.sum()
             });
             assert_eq!(
@@ -1299,7 +1402,7 @@ mod tests {
                 &record.key_generation_seed[..16]
             );
 
-            ml_dsa_65_verify(&pk, &msg, &sig, &[]).unwrap();
+            ml_dsa_65_verify(sk.public_key(), &msg, &sig, &[]).unwrap();
             tested += 1;
         }
         assert_eq!(tested, records.len(), "all lib KAT tests should be run");
@@ -1310,19 +1413,19 @@ mod tests {
         let mut shake_src = Shake128::new();
         let mut acc = Shake128::new();
         let zero_rnd = [0u8; 32];
+        let mut sk = MlDsa65SigningKey::new();
 
         for _ in 0..100 {
             let mut seed = [0u8; 32];
             shake_src.squeeze(&mut seed);
-
-            let (_, pk) = ml_dsa_65_keypair_derand(&seed);
-            acc.absorb(&pk);
+            sk.init(&seed);
+            acc.absorb(sk.public_key());
 
             let msg: &[u8] = &[];
-            let sig = ml_dsa_65_sign_derand(&seed, msg, &[], &zero_rnd).unwrap();
+            let sig = sk.sign_derand(msg, &[], &zero_rnd).unwrap();
             acc.absorb(&sig);
 
-            ml_dsa_65_verify(&pk, msg, &sig, &[]).unwrap();
+            ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]).unwrap();
         }
 
         let mut result = [0u8; 32];
@@ -1337,19 +1440,19 @@ mod tests {
         let mut shake_src = Shake128::new();
         let mut acc = Shake128::new();
         let zero_rnd = [0u8; 32];
+        let mut sk = MlDsa65SigningKey::new();
 
         for _ in 0..10000 {
             let mut seed = [0u8; 32];
             shake_src.squeeze(&mut seed);
-
-            let (_, pk) = ml_dsa_65_keypair_derand(&seed);
-            acc.absorb(&pk);
+            sk.init(&seed);
+            acc.absorb(sk.public_key());
 
             let msg: &[u8] = &[];
-            let sig = ml_dsa_65_sign_derand(&seed, msg, &[], &zero_rnd).unwrap();
+            let sig = sk.sign_derand(msg, &[], &zero_rnd).unwrap();
             acc.absorb(&sig);
 
-            ml_dsa_65_verify(&pk, msg, &sig, &[]).unwrap();
+            ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]).unwrap();
         }
 
         let mut result = [0u8; 32];
@@ -1360,69 +1463,75 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_long_message() {
-        let (seed, pk) = ml_dsa_65_generate_keypair();
+        let sk = random_key();
         let msg = vec![0x41u8; 10000];
-        let sig = ml_dsa_65_sign(&seed, &msg, &[]).unwrap();
-        ml_dsa_65_verify(&pk, &msg, &sig, &[]).unwrap();
+        let sig = sk.sign(&msg, &[]).unwrap();
+        ml_dsa_65_verify(sk.public_key(), &msg, &sig, &[]).unwrap();
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_context_boundary() {
-        let (seed, pk) = ml_dsa_65_generate_keypair();
+        let sk = random_key();
         let msg = b"test";
         let ctx = vec![0u8; 255];
-        let sig = ml_dsa_65_sign(&seed, msg, &ctx).unwrap();
-        ml_dsa_65_verify(&pk, msg, &sig, &ctx).unwrap();
+        let sig = sk.sign(msg, &ctx).unwrap();
+        ml_dsa_65_verify(sk.public_key(), msg, &sig, &ctx).unwrap();
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_context_too_long() {
-        let (seed, _pk) = ml_dsa_65_generate_keypair();
+        let sk = random_key();
         let ctx = vec![0u8; 256];
-        assert!(ml_dsa_65_sign(&seed, b"test", &ctx).is_err());
+        assert!(sk.sign(b"test", &ctx).is_err());
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_tampered_sig() {
-        let (seed, pk) = ml_dsa_65_generate_keypair();
+        let sk = random_key();
         let msg = b"test message";
-        let mut sig = ml_dsa_65_sign(&seed, msg, &[]).unwrap();
+        let mut sig = sk.sign(msg, &[]).unwrap();
 
         for i in 0..ML_DSA_65_SIGNATURE_SIZE {
             sig[i] ^= 1;
-            let result = ml_dsa_65_verify(&pk, msg, &sig, &[]);
+            let result = ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]);
             assert!(result.is_err(), "tampered sig at byte {} should fail", i);
             sig[i] ^= 1;
         }
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ml_dsa_65_cross_key_verify() {
-        let (seed1, pk1) = ml_dsa_65_generate_keypair();
-        let (seed2, _pk2) = ml_dsa_65_generate_keypair();
+        let sk1 = random_key();
+        let sk2 = random_key();
         let msg = b"test";
-        let sig1 = ml_dsa_65_sign(&seed1, msg, &[]).unwrap();
-        let sig2 = ml_dsa_65_sign(&seed2, msg, &[]).unwrap();
+        let sig1 = sk1.sign(msg, &[]).unwrap();
+        let sig2 = sk2.sign(msg, &[]).unwrap();
 
-        assert!(ml_dsa_65_verify(&pk1, msg, &sig2, &[]).is_err());
-        assert!(ml_dsa_65_verify(&pk1, msg, &sig1, &[]).is_ok());
+        assert!(ml_dsa_65_verify(sk1.public_key(), msg, &sig2, &[]).is_err());
+        assert!(ml_dsa_65_verify(sk1.public_key(), msg, &sig1, &[]).is_ok());
     }
 
     #[test]
     fn test_pk_decode_encode_roundtrip() {
         let seed = [0u8; 32];
-        let (_, pk) = ml_dsa_65_keypair_derand(&seed);
-        let (rho, t1) = pk_decode(&pk).unwrap();
+        let sk = key_from_seed(&seed);
+        let (rho, t1) = pk_decode(sk.public_key()).unwrap();
         let pk2 = pk_encode(&rho, &t1);
-        assert_eq!(pk, pk2, "pk encode/decode round-trip failed");
+        assert_eq!(*sk.public_key(), pk2, "pk encode/decode round-trip failed");
     }
 
     #[test]
     fn test_sig_decode_rejects_wrong_length() {
         let seed = [0u8; 32];
         let rnd = [0u8; 32];
-        let sig = ml_dsa_65_sign_derand(&seed, b"test", &[], &rnd).unwrap();
+        let sk = key_from_seed(&seed);
+        let sig = sk.sign_derand(b"test", &[], &rnd).unwrap();
 
         // Too short
         assert!(sig_decode(&sig[..ML_DSA_65_SIGNATURE_SIZE - 1]).is_err());
@@ -1436,15 +1545,20 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_generate_key_uniqueness() {
-        let (s1, p1) = ml_dsa_65_generate_keypair();
-        let (s2, p2) = ml_dsa_65_generate_keypair();
-        assert_ne!(s1, s2, "two generated seeds should differ");
-        assert_ne!(p1, p2, "two generated public keys should differ");
+        let sk1 = random_key();
+        let sk2 = random_key();
+        assert_ne!(sk1.seed(), sk2.seed(), "two generated seeds should differ");
+        assert_ne!(sk1.public_key(), sk2.public_key(), "two generated public keys should differ");
 
         // Regenerated from same seed should match
-        let (_, p1_b) = ml_dsa_65_keypair_derand(&s1);
-        assert_eq!(p1, p1_b, "regenerated public key from same seed should match");
+        let sk1_b = key_from_seed(sk1.seed());
+        assert_eq!(
+            sk1.public_key(),
+            sk1_b.public_key(),
+            "regenerated public key from same seed should match"
+        );
     }
 
     #[test]
@@ -1508,12 +1622,12 @@ mod tests {
             b"Z3XETEYKROVJH7SIHOIAYCTO42".to_vec(),
         ];
         let seed = [0u8; 32];
-        let (_, pk) = ml_dsa_65_keypair_derand(&seed);
+        let sk = key_from_seed(&seed);
         let zero_rnd = [0u8; 32];
 
         for msg in &msgs {
-            let sig = ml_dsa_65_sign_derand(&seed, msg, &[], &zero_rnd).unwrap();
-            ml_dsa_65_verify(&pk, msg, &sig, &[]).unwrap();
+            let sig = sk.sign_derand(msg, &[], &zero_rnd).unwrap();
+            ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]).unwrap();
         }
     }
 
@@ -1549,11 +1663,11 @@ mod tests {
     fn test_ml_dsa_65_zero_seed_zero_rnd() {
         let seed = [0u8; 32];
         let zero_rnd = [0u8; 32];
-        let (_, pk) = ml_dsa_65_keypair_derand(&seed);
+        let sk = key_from_seed(&seed);
 
         let msg = b"Hello world";
-        let sig = ml_dsa_65_sign_derand(&seed, msg, &[], &zero_rnd).unwrap();
-        ml_dsa_65_verify(&pk, msg, &sig, &[]).unwrap();
+        let sig = sk.sign_derand(msg, &[], &zero_rnd).unwrap();
+        ml_dsa_65_verify(sk.public_key(), msg, &sig, &[]).unwrap();
     }
 
     #[test]
@@ -1590,7 +1704,7 @@ mod tests {
                 arr[..len].copy_from_slice(&s[..len]);
                 arr
             });
-            let (_seed2, pk) = ml_dsa_65_keypair_derand(&seed);
+            let sk = key_from_seed(&seed);
 
             for test in group["tests"].as_array().unwrap() {
                 let tc_id = test["tcId"].as_u64().unwrap();
@@ -1603,8 +1717,36 @@ mod tests {
                 let is_internal = flags.iter().any(|f| f == "Internal");
                 let result = test["result"].as_str().unwrap();
 
-                if is_incorrect_private_key_len || is_internal {
+                if is_incorrect_private_key_len {
                     skipped += 1;
+                    continue;
+                }
+
+                // "Internal" vectors only expose the precomputed μ, so they are
+                // exercised through the external-μ signing interface.
+                if is_internal {
+                    if result != "valid" {
+                        skipped += 1;
+                        continue;
+                    }
+                    let mu_hex = test
+                        .get("mu")
+                        .and_then(|m| m.as_str())
+                        .expect("Internal vector without mu");
+                    let mu: [u8; 64] = hex::decode(mu_hex).unwrap().try_into().unwrap();
+                    let expected_sig_hex = test["sig"].as_str().unwrap();
+
+                    let sig = sk.sign_external_mu_derand(&mu, &zero_rnd);
+
+                    assert_eq!(
+                        hex::encode(sig),
+                        expected_sig_hex.to_lowercase(),
+                        "sign_seed external-mu tcId={}: signature mismatch",
+                        tc_id
+                    );
+                    ml_dsa_65_verify_external_mu(sk.public_key(), &mu, &sig)
+                        .expect(&format!("sign_seed external-mu tcId={}: self-verify failed", tc_id));
+                    valid_tested += 1;
                     continue;
                 }
 
@@ -1618,7 +1760,16 @@ mod tests {
                 if result == "valid" {
                     let expected_sig_hex = test["sig"].as_str().unwrap();
 
-                    let sig = ml_dsa_65_sign_derand(&seed, &msg, &ctx, &zero_rnd)
+                    // Vectors carrying a `rnd` property exercise randomized
+                    // signing; all others use the deterministic rnd = 0.
+                    let rnd: [u8; 32] = test
+                        .get("rnd")
+                        .and_then(|r| r.as_str())
+                        .map(|r| hex::decode_array::<32>(r.as_bytes()).unwrap())
+                        .unwrap_or(zero_rnd);
+
+                    let sig = sk
+                        .sign_derand(&msg, &ctx, &rnd)
                         .expect(&format!("sign_seed tcId={}: signing failed", tc_id));
 
                     assert_eq!(
@@ -1628,7 +1779,7 @@ mod tests {
                         tc_id
                     );
 
-                    ml_dsa_65_verify(&pk, &msg, &sig, &ctx)
+                    ml_dsa_65_verify(sk.public_key(), &msg, &sig, &ctx)
                         .expect(&format!("sign_seed tcId={}: self-verify failed", tc_id));
                     valid_tested += 1;
                 } else if result == "invalid" {
@@ -1638,7 +1789,7 @@ mod tests {
                         tc_id, flags
                     );
                     assert!(
-                        ml_dsa_65_sign_derand(&seed, &msg, &ctx, &zero_rnd).is_err(),
+                        sk.sign_derand(&msg, &ctx, &zero_rnd).is_err(),
                         "sign_seed tcId={}: expected signing error",
                         tc_id
                     );
@@ -1716,12 +1867,26 @@ mod tests {
                         "sign_noseed tcId={}: expected invalid flag, got {:?}",
                         tc_id, flags
                     );
+                    // Some invalid-context vectors carry no signature at all
+                    // (e.g. context too long, so signing was never performed).
+                    if let Some(sig_hex) = test.get("sig").and_then(|s| s.as_str()) {
+                        if let Ok(sig_bytes) = hex::decode(sig_hex) {
+                            if let Ok(sig) = <[u8; ML_DSA_65_SIGNATURE_SIZE]>::try_from(sig_bytes.as_slice()) {
+                                assert!(
+                                    ml_dsa_65_verify(&pk, &msg, &sig, &ctx).is_err(),
+                                    "sign_noseed tcId={}: expected verify error",
+                                    tc_id
+                                );
+                            }
+                        }
+                    }
                     invalid_tested += 1;
                 }
             }
         }
 
         assert!(valid_tested > 0, "no valid sign_noseed tests run");
+        assert!(invalid_tested > 0, "no invalid sign_noseed tests run");
         eprintln!(
             "wycheproof sign_noseed: {} valid, {} invalid, {} skipped",
             valid_tested, invalid_tested, skipped
