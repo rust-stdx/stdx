@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use constant_time_eq::constant_time_eq;
 use crypto::{
     Hash, Hasher,
@@ -88,15 +86,6 @@ impl<const N: usize> TryFrom<&[u8; N]> for Signature {
 
     #[inline]
     fn try_from(signature: &[u8; N]) -> Result<Self, Self::Error> {
-        signature.as_slice().try_into()
-    }
-}
-
-impl TryFrom<Vec<u8>> for Signature {
-    type Error = Error;
-
-    #[inline]
-    fn try_from(signature: Vec<u8>) -> Result<Self, Self::Error> {
         signature.as_slice().try_into()
     }
 }
