@@ -72,7 +72,7 @@ anyerr = { path = "anyerr" }
 antlr4rust = "=0.3.0-rc2"
 arbitrary = { version = "1", features = ["derive"] }
 axum = { version = "0.7", default-features = false, features = ["http1", "json", "tokio"] }
-blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "93a431c78a52d7ccf0f366f106467f5070e6075e" } # 1.8.5
+blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "f3149ec5bb5449af877ba20377a11008ff499fa2" } # 1.8.7
 bytes = { version = "1", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "oldtime", "serde", "std", ] }
 futures-util = "0.3"
@@ -94,7 +94,7 @@ serde = { version = "1", default-features = false }
 serde_bytes = "0.11"
 serde_json = "1"
 smallvec = { version = "2.0.0-alpha.12" }
-sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "3da582ad1dca5054ec8eda1c87b3b16ca079f47a" }
+sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "b54008a329541c0ce230d8b203e0c00fc8e8ea48" }
 thiserror = { path = "thiserror" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
@@ -105,7 +105,7 @@ zeroize = { version = "1", features = ["simd", "derive"] }
 
 
 # For macros
-syn = { version = "2", default-features = false, features = ["derive", "extra-traits", "parsing", "proc-macro", "printing"] }
+syn = { version = "3", default-features = false, features = ["derive", "extra-traits", "parsing", "proc-macro", "printing"] }
 quote = "1"
 proc-macro2 = "1"
 
