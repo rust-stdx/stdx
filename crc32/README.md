@@ -1,11 +1,11 @@
-# crc32fast [![Build Status][build-img]][build] [![Crates.io][crates-img]][crates] [![Documentation][docs-img]][docs]
+# crc32 [![Build Status][build-img]][build] [![Crates.io][crates-img]][crates] [![Documentation][docs-img]][docs]
 
 [build-img]: https://github.com/srijs/rust-crc32fast/actions/workflows/ci.yml/badge.svg
 [build]: https://github.com/srijs/rust-crc32fast/actions/workflows/ci.yml
-[crates-img]: https://img.shields.io/crates/v/crc32fast.svg
-[crates]: https://crates.io/crates/crc32fast
-[docs-img]: https://docs.rs/crc32fast/badge.svg
-[docs]: https://docs.rs/crc32fast
+[crates-img]: https://img.shields.io/crates/v/crc32.svg
+[crates]: https://crates.io/crates/crc32
+[docs-img]: https://docs.rs/crc32/badge.svg
+[docs]: https://docs.rs/crc32
 
 _Fast, SIMD-accelerated CRC32 (IEEE) checksum computation_
 
@@ -17,7 +17,7 @@ For simple use-cases, you can call the `hash` convenience function to
 directly compute the CRC32 checksum for a given byte slice:
 
 ```rust
-let checksum = crc32fast::hash(b"foo bar baz");
+let checksum = crc32::hash(b"foo bar baz");
 ```
 
 ### Advanced usage
@@ -26,7 +26,7 @@ For use-cases that require more flexibility or performance, for example when
 processing large amounts of data, you can create and manipulate a `Hasher`:
 
 ```rust
-use crc32fast::Hasher;
+use crc32::Hasher;
 
 let mut hasher = Hasher::new();
 hasher.update(b"foo bar baz");
@@ -47,8 +47,8 @@ optimal implementation for the current CPU feature set.
 | crate                               | version | variant   | ns/iter | MB/s |
 | ----------------------------------- | ------- | --------- | ------- | ---- |
 | [crc](https://crates.io/crates/crc) | 1.8.1   | n/a       | 4,926   | 207  |
-| crc32fast (this crate)              | 1.0.0   | baseline  | 683     | 1499 |
-| crc32fast (this crate)              | 1.0.0   | pclmulqdq | 140     | 7314 |
+| crc32 (this crate)                  | 1.0.0   | baseline  | 683     | 1499 |
+| crc32 (this crate)                  | 1.0.0   | pclmulqdq | 140     | 7314 |
 
 ## Memory Safety
 

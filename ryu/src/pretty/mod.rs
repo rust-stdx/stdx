@@ -3,9 +3,6 @@ mod mantissa;
 
 use core::ptr;
 
-#[cfg(feature = "no-panic")]
-use no_panic::no_panic;
-
 use self::{
     exponent::{write_exponent2, write_exponent3},
     mantissa::{write_mantissa, write_mantissa_long},
@@ -54,7 +51,6 @@ use crate::{
 /// }
 /// ```
 #[must_use]
-#[cfg_attr(feature = "no-panic", no_panic)]
 pub unsafe fn format64(f: f64, result: *mut u8) -> usize {
     unsafe {
         let bits = f.to_bits();
@@ -159,7 +155,6 @@ pub unsafe fn format64(f: f64, result: *mut u8) -> usize {
 /// }
 /// ```
 #[must_use]
-#[cfg_attr(feature = "no-panic", no_panic)]
 pub unsafe fn format32(f: f32, result: *mut u8) -> usize {
     unsafe {
         let bits = f.to_bits();

@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate afl;
-extern crate crc32fast;
+extern crate crc32;
 
-use crc32fast::Hasher;
+use crc32::Hasher;
 
 fn main() {
     let hasher_init = Hasher::internal_new_specialized(0, 0).unwrap();

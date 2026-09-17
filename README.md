@@ -25,7 +25,7 @@ base64 = { git = "https://git.[my-organization].com/[username]/stdx", branch = "
 Contrary to what the name may suggest, most packages also support `no_std` environments by disabling the default `std` feature, and some also work without `alloc` by disabling the `alloc` feature. Look at the documentation of individual packages to learn more.
 
 
-Other than crates in the `work_in_progress` folder, the `main` branch is considered stable. Minor breaking changes may happen from time to time, but we will do our best to reduce disruptions.
+Other than crates in the [`beta`](https://github.com/rust-stdx/beta) repository, the `main` branch is considered stable. Minor breaking changes may happen from time to time, but we will do our best to reduce disruptions.
 
 
 ### Supported platforms
@@ -102,10 +102,9 @@ Any contribution submitted for inclusion in this project shall be licensed as ab
 | --- | --- | --- | --- |
 | `bel` | https://github.com/cel-rust/cel-rust | 8287d04156a1b31efe0dd53db78e943fef15c59a | MIT |
 | `cron` | https://github.com/zslayton/cron | ?? | MIT |
-| `acme` | https://github.com/instant-labs/instant-acme | 5e12971830a5907f0aeba4dfd602ec26db4bc30c | Apache 2.0 |
 | `anyerr` | https://github.com/dtolnay/anyhow | 5a88bc48ca18c9720be292487dcdcbc93004d15a | MIT |
 | `constant_time_eq` | https://github.com/cesarb/constant_time_eq | 09a34625babf29e1b622ed46e959ea517986b12a | CC0-1.0 |
-| `crc32fast` | https://github.com/srijs/rust-crc32fast | 479ecdf0174dd3a0f7d48b2f66a386d8d2369963 | MIT |
+| `crc32` | https://github.com/srijs/rust-crc32fast | 479ecdf0174dd3a0f7d48b2f66a386d8d2369963 | MIT |
 | `embed` | https://github.com/pyrossh/rust-embed | 105fdfebab5820ea0628149ee62b34f6d2df3bb8 | MIT |
 | `derivative` | https://github.com/mcarton/rust-derivative | 5179a968ca6d70792f62dfe6727ab8d5b8b5cf5e | MIT |
 | `form_urlencoded` | https://github.com/servo/rust-url | 54346fa288e16b25b71c45149d7067c752b450e0 | MIT |

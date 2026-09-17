@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate bencher;
-extern crate crc32fast;
+extern crate crc32;
 extern crate rand;
 
 use bencher::Bencher;
-use crc32fast::Hasher;
+use crc32::Hasher;
 use rand::Rng;
 
 fn bench(b: &mut Bencher, size: usize, hasher_init: Hasher) {

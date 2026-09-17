@@ -19,7 +19,7 @@ crypto = { path = "../../crypto" }
 walkdir = { workspace = true }
 
 
-# mime_guess = { version = "2.0.4", optional = true }
+mime_guess = { path = "../../mime_guess", optional = true }
 
 # [dependencies.globset]
 # version = "0.4.8"
@@ -27,5 +27,5 @@ walkdir = { workspace = true }
 
 [features]
 debug-embed = []
-# mime-guess = ["mime_guess"]
+mime-guess = ["dep:mime_guess"]
 # include-exclude = ["globset"]

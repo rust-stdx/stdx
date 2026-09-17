@@ -8,7 +8,7 @@
 //! directly compute the CRC32 checksum for a given byte slice:
 //!
 //! ```rust
-//! let checksum = crc32fast::hash(b"foo bar baz");
+//! let checksum = crc32::hash(b"foo bar baz");
 //! ```
 //!
 //! ### Advanced usage
@@ -17,7 +17,7 @@
 //! processing large amounts of data, you can create and manipulate a [`Hasher`]:
 //!
 //! ```rust
-//! use crc32fast::Hasher;
+//! use crc32::Hasher;
 //!
 //! let mut hasher = Hasher::new();
 //! hasher.update(b"foo bar baz");
@@ -40,9 +40,6 @@
 // #[cfg(test)]
 // #[macro_use]
 // extern crate quickcheck;
-
-// #[macro_use]
-// extern crate cfg_if;
 
 use core::{fmt, hash};
 #[cfg(feature = "std")]
@@ -165,7 +162,7 @@ impl Hasher {
 
 impl fmt::Debug for Hasher {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("crc32fast::Hasher").finish()
+        f.debug_struct("crc32::Hasher").finish()
     }
 }
 
@@ -187,13 +184,13 @@ impl hash::Hasher for Hasher {
 
 #[cfg(test)]
 mod test {
-    use rand::{TryRngCore, rngs::OsRng};
+    use rand::{TryRng, rngs::SysRng};
 
     use super::Hasher;
 
     #[test]
     fn combine() {
-        let mut rand_generator = OsRng {};
+        let mut rand_generator = SysRng;
 
         let mut bytes_1 = vec![100];
         rand_generator.try_fill_bytes(&mut bytes_1).unwrap();
@@ -215,7 +212,7 @@ mod test {
 
     #[test]
     fn combine_from_len() {
-        let mut rand_generator = OsRng {};
+        let mut rand_generator = SysRng;
 
         let mut bytes_1 = vec![200];
         rand_generator.try_fill_bytes(&mut bytes_1).unwrap();

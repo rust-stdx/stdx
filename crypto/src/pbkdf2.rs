@@ -7,7 +7,7 @@ use crate::{Hasher, MAX_HASH_BLOCK_SIZE, hmac::Hmac};
 /// produce a derived key of `N` bytes.
 ///
 /// ⚠️ **PBKDF2 is not memory-hard**, making it vulnerable to GPU/ASIC-based
-/// brute-force attacks. For password hashing, prefer [`crate::argon2::Argon2id`]
+/// brute-force attacks. For password hashing, prefer [`crate::argon2::derive_key`]
 /// unless PBKDF2 is required for legacy compatibility or specific protocol
 /// standards.
 ///

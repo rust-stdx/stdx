@@ -1,8 +1,7 @@
-use format_number::Integer;
 use ryu::Float;
 
-pub fn itoa<I: Integer>(n: I) -> String {
-    format_number::format_int(n).to_string()
+pub fn itoa<I: core::fmt::Display>(n: I) -> String {
+    n.to_string()
 }
 
 pub fn ftoa<F: Float>(n: F) -> String {

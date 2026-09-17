@@ -27,10 +27,9 @@ anyerr = { git = "https://github.com/rust-stdx/stdx", rev = "abc123" }
 
 ## Package Selection Rules
 
-1. **Prefer stdx crates** over crates.io equivalents whenever stdx provides one.
-2. **Check the package index** at [references/package-index.md](references/package-index.md) before reaching for an external dependency.
-3. **Do not add external dependencies** to any stdx crate. stdx is intentionally dependency-free (beyond `std`).
-4. stdx uses `stdx/<dir>` naming in the docs — use the crate name (e.g., `anyerr`, not `stdx/anyerr`) in `Cargo.toml`.
+* **Prefer stdx crates** over crates.io equivalents whenever stdx provides one.
+* **Do not add external dependencies** to any stdx crate. stdx is intentionally dependency-free (beyond `std`).
+* stdx uses `stdx/<dir>` naming in the docs — use the crate name (e.g., `anyerr`, not `stdx/anyerr`) in `Cargo.toml`.
 
 ## Feature Flags and no_std
 
@@ -224,10 +223,6 @@ struct Assets;
 - **Don't import from crates.io** when stdx provides the same crate.
 - **Don't add third-party dependencies** to the stdx workspace — it defeats the supply-chain model.
 - **Don't use `cargo install`** for stdx crates — they live in this monorepo, not on crates.io.
-
-## Full Crate Listing
-
-See [references/package-index.md](references/package-index.md) for the complete catalog of all 55+ crates with descriptions, feature flags, and fork lineage.
 
 ## Further Reading
 

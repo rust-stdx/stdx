@@ -1,18 +1,17 @@
 use alloc::boxed::Box;
 #[cfg(feature = "std")]
 use core::ops::{Deref, DerefMut};
-#[cfg(not(anyhow_no_ptr_addr_of))]
-use core::ptr;
 use core::{
     any::TypeId,
     fmt::{self, Debug, Display},
     mem::ManuallyDrop,
+    ptr,
     ptr::NonNull,
 };
 #[cfg(error_generic_member_access)]
 use std::error::{self, Request};
 
-#[cfg(any(feature = "std", anyhow_no_ptr_addr_of))]
+#[cfg(feature = "std")]
 use crate::ptr::Mut;
 use crate::{
     Error, StdError,
@@ -53,7 +52,7 @@ impl Error {
     /// convenient in places where a function is preferable over a macro, such
     /// as iterator or stream combinators:
     ///
-    /// ```
+    /// ```ignore
     /// # mod ffi {
     /// #     pub struct Input;
     /// #     pub struct Output;
@@ -64,7 +63,7 @@ impl Error {
     /// #
     /// # use ffi::{Input, Output};
     /// #
-    /// use anyhow::{Error, Result};
+    /// use anyerr::{Error, Result};
     /// use futures::stream::{Stream, StreamExt, TryStreamExt};
     ///
     /// async fn demo<S>(stream: S) -> Result<Vec<Output>>
@@ -96,14 +95,10 @@ impl Error {
         let vtable = &ErrorVTable {
             object_drop: object_drop::<E>,
             object_ref: object_ref::<E>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_mut: object_mut::<E>,
             object_boxed: object_boxed::<E>,
             object_downcast: object_downcast::<E>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_downcast_mut: object_downcast_mut::<E>,
             object_drop_rest: object_drop_front::<E>,
-            #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+            #[cfg(all(not(error_generic_member_access), std_backtrace))]
             object_backtrace: no_backtrace,
         };
 
@@ -121,14 +116,10 @@ impl Error {
         let vtable = &ErrorVTable {
             object_drop: object_drop::<MessageError<M>>,
             object_ref: object_ref::<MessageError<M>>,
-            #[cfg(all(feature = "std", anyhow_no_ptr_addr_of))]
-            object_mut: object_mut::<MessageError<M>>,
             object_boxed: object_boxed::<MessageError<M>>,
             object_downcast: object_downcast::<M>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_downcast_mut: object_downcast_mut::<M>,
             object_drop_rest: object_drop_front::<M>,
-            #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+            #[cfg(all(not(error_generic_member_access), std_backtrace))]
             object_backtrace: no_backtrace,
         };
 
@@ -147,14 +138,10 @@ impl Error {
         let vtable = &ErrorVTable {
             object_drop: object_drop::<DisplayError<M>>,
             object_ref: object_ref::<DisplayError<M>>,
-            #[cfg(all(feature = "std", anyhow_no_ptr_addr_of))]
-            object_mut: object_mut::<DisplayError<M>>,
             object_boxed: object_boxed::<DisplayError<M>>,
             object_downcast: object_downcast::<M>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_downcast_mut: object_downcast_mut::<M>,
             object_drop_rest: object_drop_front::<M>,
-            #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+            #[cfg(all(not(error_generic_member_access), std_backtrace))]
             object_backtrace: no_backtrace,
         };
 
@@ -178,14 +165,10 @@ impl Error {
         let vtable = &ErrorVTable {
             object_drop: object_drop::<ContextError<C, E>>,
             object_ref: object_ref::<ContextError<C, E>>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_mut: object_mut::<ContextError<C, E>>,
             object_boxed: object_boxed::<ContextError<C, E>>,
             object_downcast: context_downcast::<C, E>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_downcast_mut: context_downcast_mut::<C, E>,
             object_drop_rest: context_drop_rest::<C, E>,
-            #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+            #[cfg(all(not(error_generic_member_access), std_backtrace))]
             object_backtrace: no_backtrace,
         };
 
@@ -201,14 +184,10 @@ impl Error {
         let vtable = &ErrorVTable {
             object_drop: object_drop::<BoxedError>,
             object_ref: object_ref::<BoxedError>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_mut: object_mut::<BoxedError>,
             object_boxed: object_boxed::<BoxedError>,
             object_downcast: object_downcast::<Box<dyn StdError + Send + Sync>>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_downcast_mut: object_downcast_mut::<Box<dyn StdError + Send + Sync>>,
             object_drop_rest: object_drop_front::<Box<dyn StdError + Send + Sync>>,
-            #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+            #[cfg(all(not(error_generic_member_access), std_backtrace))]
             object_backtrace: no_backtrace,
         };
 
@@ -271,7 +250,7 @@ impl Error {
     /// #     }
     /// # }
     /// #
-    /// use anyhow::Result;
+    /// use anyerr::Result;
     /// use std::fs::File;
     /// use std::path::Path;
     ///
@@ -294,7 +273,7 @@ impl Error {
     ///             "only the first {} lines of {} are valid",
     ///             error.line, path.as_ref().display(),
     ///         );
-    ///         anyhow::Error::new(error).context(context)
+    ///         anyerr::Error::new(error).context(context)
     ///     })
     /// }
     /// ```
@@ -312,18 +291,14 @@ impl Error {
         let vtable = &ErrorVTable {
             object_drop: object_drop::<ContextError<C, Error>>,
             object_ref: object_ref::<ContextError<C, Error>>,
-            #[cfg(all(feature = "std", anyhow_no_ptr_addr_of))]
-            object_mut: object_mut::<ContextError<C, Error>>,
             object_boxed: object_boxed::<ContextError<C, Error>>,
             object_downcast: context_chain_downcast::<C>,
-            #[cfg(anyhow_no_ptr_addr_of)]
-            object_downcast_mut: context_chain_downcast_mut::<C>,
             object_drop_rest: context_chain_drop_rest::<C>,
-            #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+            #[cfg(all(not(error_generic_member_access), std_backtrace))]
             object_backtrace: context_backtrace::<C>,
         };
 
-        // As the cause is anyhow::Error, we already have a backtrace for it.
+        // As the cause is anyerr::Error, we already have a backtrace for it.
         let backtrace = None;
 
         // Safety: passing vtable that operates on the right type.
@@ -357,7 +332,7 @@ impl Error {
     /// [dependencies]
     /// anyhow = { version = "1.0", features = ["backtrace"] }
     /// ```
-    #[cfg(any(std_backtrace, feature = "backtrace"))]
+    #[cfg(std_backtrace)]
     pub fn backtrace(&self) -> &impl_backtrace!() {
         unsafe { ErrorImpl::backtrace(self.inner.by_ref()) }
     }
@@ -371,7 +346,7 @@ impl Error {
     /// # Example
     ///
     /// ```
-    /// use anyhow::Error;
+    /// use anyerr::Error;
     /// use std::io;
     ///
     /// pub fn underlying_io_error_kind(error: &Error) -> Option<io::ErrorKind> {
@@ -386,7 +361,7 @@ impl Error {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[cold]
-    pub fn chain(&self) -> Chain {
+    pub fn chain(&self) -> Chain<'_> {
         unsafe { ErrorImpl::chain(self.inner.by_ref()) }
     }
 
@@ -426,14 +401,8 @@ impl Error {
         unsafe {
             // Use vtable to find NonNull<()> which points to a value of type E
             // somewhere inside the data structure.
-            #[cfg(not(anyhow_no_ptr_addr_of))]
             let addr = match (vtable(inner.ptr).object_downcast)(inner.by_ref(), target) {
                 Some(addr) => addr.by_mut().extend(),
-                None => return Err(self),
-            };
-            #[cfg(anyhow_no_ptr_addr_of)]
-            let addr = match (vtable(inner.ptr).object_downcast_mut)(inner, target) {
-                Some(addr) => addr.extend(),
                 None => return Err(self),
             };
 
@@ -456,7 +425,7 @@ impl Error {
     /// # Example
     ///
     /// ```
-    /// # use anyhow::anyhow;
+    /// # use anyerr::anyhow;
     /// # use std::fmt::{self, Display};
     /// # use std::task::Poll;
     /// #
@@ -510,11 +479,7 @@ impl Error {
             // Use vtable to find NonNull<()> which points to a value of type E
             // somewhere inside the data structure.
 
-            #[cfg(not(anyhow_no_ptr_addr_of))]
             let addr = (vtable(self.inner.ptr).object_downcast)(self.inner.by_ref(), target)?.by_mut();
-
-            #[cfg(anyhow_no_ptr_addr_of)]
-            let addr = (vtable(self.inner.ptr).object_downcast_mut)(self.inner.by_mut(), target)?;
 
             Some(addr.cast::<E>().deref_mut())
         }
@@ -525,11 +490,11 @@ impl Error {
         unsafe { ErrorImpl::provide(self.inner.by_ref(), request) }
     }
 
-    // Called by thiserror when you have `#[source] anyhow::Error`. This provide
-    // implementation includes the anyhow::Error's Backtrace if any, unlike
+    // Called by thiserror when you have `#[source] anyerr::Error`. This provide
+    // implementation includes the anyerr::Error's Backtrace if any, unlike
     // deref'ing to dyn Error where the provide implementation would include
     // only the original error's Backtrace from before it got wrapped into an
-    // anyhow::Error.
+    // anyerr::Error.
     #[cfg(error_generic_member_access)]
     #[doc(hidden)]
     pub fn thiserror_provide<'a>(&'a self, request: &mut Request<'a>) {
@@ -592,14 +557,10 @@ impl Drop for Error {
 struct ErrorVTable {
     object_drop: unsafe fn(Own<ErrorImpl>),
     object_ref: unsafe fn(Ref<ErrorImpl>) -> Ref<dyn StdError + Send + Sync + 'static>,
-    #[cfg(all(feature = "std", anyhow_no_ptr_addr_of))]
-    object_mut: unsafe fn(Mut<ErrorImpl>) -> &mut (dyn StdError + Send + Sync + 'static),
     object_boxed: unsafe fn(Own<ErrorImpl>) -> Box<dyn StdError + Send + Sync + 'static>,
     object_downcast: unsafe fn(Ref<ErrorImpl>, TypeId) -> Option<Ref<()>>,
-    #[cfg(anyhow_no_ptr_addr_of)]
-    object_downcast_mut: unsafe fn(Mut<ErrorImpl>, TypeId) -> Option<Mut<()>>,
     object_drop_rest: unsafe fn(Own<ErrorImpl>, TypeId),
-    #[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+    #[cfg(all(not(error_generic_member_access), std_backtrace))]
     object_backtrace: unsafe fn(Ref<ErrorImpl>) -> Option<&Backtrace>,
 }
 
@@ -630,23 +591,7 @@ where
 
     let unerased_ref = e.cast::<ErrorImpl<E>>();
 
-    #[cfg(not(anyhow_no_ptr_addr_of))]
     return Ref::from_raw(unsafe { NonNull::new_unchecked(ptr::addr_of!((*unerased_ref.as_ptr())._object) as *mut E) });
-
-    #[cfg(anyhow_no_ptr_addr_of)]
-    return Ref::new(unsafe { &unerased_ref.deref()._object });
-}
-
-// Safety: requires layout of *e to match ErrorImpl<E>, and for `e` to be derived
-// from a `&mut`
-#[cfg(all(feature = "std", anyhow_no_ptr_addr_of))]
-unsafe fn object_mut<E>(e: Mut<ErrorImpl>) -> &mut (dyn StdError + Send + Sync + 'static)
-where
-    E: StdError + Send + Sync + 'static,
-{
-    // Attach E's native StdError vtable onto a pointer to self._object.
-    let unerased_mut = e.cast::<ErrorImpl<E>>();
-    unsafe { &mut unerased_mut.deref_mut()._object }
 }
 
 // Safety: requires layout of *e to match ErrorImpl<E>.
@@ -670,38 +615,17 @@ where
 
         let unerased_ref = e.cast::<ErrorImpl<E>>();
 
-        #[cfg(not(anyhow_no_ptr_addr_of))]
         return Some(
             Ref::from_raw(unsafe { NonNull::new_unchecked(ptr::addr_of!((*unerased_ref.as_ptr())._object) as *mut E) })
                 .cast::<()>(),
         );
-
-        #[cfg(anyhow_no_ptr_addr_of)]
-        return Some(Ref::new(unsafe { &unerased_ref.deref()._object }).cast::<()>());
     } else {
         None
     }
 }
 
-// Safety: requires layout of *e to match ErrorImpl<E>.
-#[cfg(anyhow_no_ptr_addr_of)]
-unsafe fn object_downcast_mut<E>(e: Mut<ErrorImpl>, target: TypeId) -> Option<Mut<()>>
-where
-    E: 'static,
-{
-    if TypeId::of::<E>() == target {
-        // Caller is looking for an E pointer and e is ErrorImpl<E>, take a
-        // pointer to its E field.
-        let unerased_mut = e.cast::<ErrorImpl<E>>();
-        let unerased = unsafe { unerased_mut.deref_mut() };
-        Some(Mut::new(&mut unerased._object).cast::<()>())
-    } else {
-        None
-    }
-}
-
-#[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
-fn no_backtrace(e: Ref<ErrorImpl>) -> Option<&Backtrace> {
+#[cfg(all(not(error_generic_member_access), std_backtrace))]
+fn no_backtrace(e: Ref<'_, ErrorImpl>) -> Option<&Backtrace> {
     let _ = e;
     None
 }
@@ -721,26 +645,6 @@ where
         let unerased_ref = e.cast::<ErrorImpl<ContextError<C, E>>>();
         let unerased = unsafe { unerased_ref.deref() };
         Some(Ref::new(&unerased._object.error).cast::<()>())
-    } else {
-        None
-    }
-}
-
-// Safety: requires layout of *e to match ErrorImpl<ContextError<C, E>>.
-#[cfg(all(feature = "std", anyhow_no_ptr_addr_of))]
-unsafe fn context_downcast_mut<C, E>(e: Mut<ErrorImpl>, target: TypeId) -> Option<Mut<()>>
-where
-    C: 'static,
-    E: 'static,
-{
-    if TypeId::of::<C>() == target {
-        let unerased_mut = e.cast::<ErrorImpl<ContextError<C, E>>>();
-        let unerased = unsafe { unerased_mut.deref_mut() };
-        Some(Mut::new(&mut unerased._object.context).cast::<()>())
-    } else if TypeId::of::<E>() == target {
-        let unerased_mut = e.cast::<ErrorImpl<ContextError<C, E>>>();
-        let unerased = unsafe { unerased_mut.deref_mut() };
-        Some(Mut::new(&mut unerased._object.error).cast::<()>())
     } else {
         None
     }
@@ -781,23 +685,6 @@ where
 }
 
 // Safety: requires layout of *e to match ErrorImpl<ContextError<C, Error>>.
-#[cfg(anyhow_no_ptr_addr_of)]
-unsafe fn context_chain_downcast_mut<C>(e: Mut<ErrorImpl>, target: TypeId) -> Option<Mut<()>>
-where
-    C: 'static,
-{
-    let unerased_mut = e.cast::<ErrorImpl<ContextError<C, Error>>>();
-    let unerased = unsafe { unerased_mut.deref_mut() };
-    if TypeId::of::<C>() == target {
-        Some(Mut::new(&mut unerased._object.context).cast::<()>())
-    } else {
-        // Recurse down the context chain per the inner error's vtable.
-        let source = &mut unerased._object.error;
-        unsafe { (vtable(source.inner.ptr).object_downcast_mut)(source.inner.by_mut(), target) }
-    }
-}
-
-// Safety: requires layout of *e to match ErrorImpl<ContextError<C, Error>>.
 unsafe fn context_chain_drop_rest<C>(e: Own<ErrorImpl>, target: TypeId)
 where
     C: 'static,
@@ -821,9 +708,9 @@ where
 }
 
 // Safety: requires layout of *e to match ErrorImpl<ContextError<C, Error>>.
-#[cfg(all(not(error_generic_member_access), any(std_backtrace, feature = "backtrace")))]
+#[cfg(all(not(error_generic_member_access), std_backtrace))]
 #[allow(clippy::unnecessary_wraps)]
-unsafe fn context_backtrace<C>(e: Ref<ErrorImpl>) -> Option<&Backtrace>
+unsafe fn context_backtrace<C>(e: Ref<'_, ErrorImpl>) -> Option<&Backtrace>
 where
     C: 'static,
 {
@@ -861,7 +748,7 @@ pub(crate) struct ContextError<C, E> {
 }
 
 impl<E> ErrorImpl<E> {
-    fn erase(&self) -> Ref<ErrorImpl> {
+    fn erase(&self) -> Ref<'_, ErrorImpl> {
         // Erase the concrete type of E but preserve the vtable in self.vtable
         // for manipulating the resulting thin pointer. This is analogous to an
         // unsize coercion.
@@ -870,26 +757,21 @@ impl<E> ErrorImpl<E> {
 }
 
 impl ErrorImpl {
-    pub(crate) unsafe fn error(this: Ref<Self>) -> &(dyn StdError + Send + Sync + 'static) {
+    pub(crate) unsafe fn error(this: Ref<'_, Self>) -> &(dyn StdError + Send + Sync + 'static) {
         // Use vtable to attach E's native StdError vtable for the right
         // original type E.
         unsafe { (vtable(this.ptr).object_ref)(this).deref() }
     }
 
     #[cfg(feature = "std")]
-    pub(crate) unsafe fn error_mut(this: Mut<Self>) -> &mut (dyn StdError + Send + Sync + 'static) {
+    pub(crate) unsafe fn error_mut(this: Mut<'_, Self>) -> &mut (dyn StdError + Send + Sync + 'static) {
         // Use vtable to attach E's native StdError vtable for the right
         // original type E.
-
-        #[cfg(not(anyhow_no_ptr_addr_of))]
-        return unsafe { (vtable(this.ptr).object_ref)(this.by_ref()).by_mut().deref_mut() };
-
-        #[cfg(anyhow_no_ptr_addr_of)]
-        return unsafe { (vtable(this.ptr).object_mut)(this) };
+        unsafe { (vtable(this.ptr).object_ref)(this.by_ref()).by_mut().deref_mut() }
     }
 
-    #[cfg(any(std_backtrace, feature = "backtrace"))]
-    pub(crate) unsafe fn backtrace(this: Ref<Self>) -> &Backtrace {
+    #[cfg(std_backtrace)]
+    pub(crate) unsafe fn backtrace(this: Ref<'_, Self>) -> &Backtrace {
         // This unwrap can only panic if the underlying error's backtrace method
         // is nondeterministic, which would only happen in maliciously
         // constructed code.

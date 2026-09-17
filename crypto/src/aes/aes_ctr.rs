@@ -75,7 +75,7 @@ impl StreamCipher for Aes256Ctr {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Generic implementation of AES in counter mode.
-/// `N` is the number of rounds. 11 for AES-128 and 15 for AES-256
+/// `N` is the number of round keys. 11 for AES-128 and 15 for AES-256
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub(crate) struct AesCtr<const N: usize> {
     round_keys: RoundKeys<N>,

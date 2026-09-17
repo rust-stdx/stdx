@@ -6,7 +6,7 @@
 
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/unsafe-libyaml/0.2.11")]
-#![allow(non_camel_case_types, non_snake_case, unsafe_op_in_unsafe_fn)]
+#![allow(non_camel_case_types, non_snake_case, unsafe_op_in_unsafe_fn, unused_assignments)]
 #![warn(clippy::pedantic)]
 #![allow(
     clippy::bool_to_int_with_if,

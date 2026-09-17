@@ -1,17 +1,21 @@
 #![allow(clippy::zero_sized_map_values)]
 
-use indoc::indoc;
-use serde::de::Deserialize;
-#[cfg(not(miri))]
-use serde::de::{SeqAccess, Visitor};
-use serde_derive::{Deserialize, Serialize};
-use serde_yaml::value::{Tag, TaggedValue};
-use serde_yaml::{Deserializer, Value};
+#[macro_use]
+mod common;
+
 #[cfg(not(miri))]
 use std::collections::BTreeMap;
 #[cfg(not(miri))]
 use std::fmt;
 use std::fmt::Debug;
+
+#[cfg(not(miri))]
+use serde::de::{SeqAccess, Visitor};
+use serde::{Deserialize, Serialize};
+use serde_yaml::{
+    Deserializer, Value,
+    value::{Tag, TaggedValue},
+};
 
 fn test_error<'de, T>(yaml: &'de str, expected: &str)
 where
@@ -153,8 +157,7 @@ fn test_second_document_syntax_error() {
 
     let second_doc = de.next().unwrap();
     let result = <usize as serde::Deserialize>::deserialize(second_doc);
-    let expected =
-        "did not find expected node content at line 4 column 1, while parsing a block node";
+    let expected = "did not find expected node content at line 4 column 1, while parsing a block node";
     assert_eq!(expected, result.unwrap_err().to_string());
 }
 
@@ -195,7 +198,9 @@ fn test_serialize_nested_enum() {
     let error = serde_yaml::to_string(&e).unwrap_err();
     assert_eq!(error.to_string(), expected);
 
-    let e = Outer::Inner(Inner::Struct { x: 0 });
+    let e = Outer::Inner(Inner::Struct {
+        x: 0,
+    });
     let error = serde_yaml::to_string(&e).unwrap_err();
     assert_eq!(error.to_string(), expected);
 
@@ -365,10 +370,7 @@ fn test_infinite_recursion_objects() {
 #[test]
 fn test_infinite_recursion_arrays() {
     #[derive(Deserialize, Debug)]
-    pub struct S(
-        #[allow(dead_code)] pub usize,
-        #[allow(dead_code)] pub Option<Box<S>>,
-    );
+    pub struct S(#[allow(dead_code)] pub usize, #[allow(dead_code)] pub Option<Box<S>>);
 
     let yaml = "&a [0, *a]";
     let expected = "recursion limit exceeded";
@@ -404,10 +406,7 @@ fn test_finite_recursion_objects() {
 #[test]
 fn test_finite_recursion_arrays() {
     #[derive(Deserialize, Debug)]
-    pub struct S(
-        #[allow(dead_code)] pub usize,
-        #[allow(dead_code)] pub Option<Box<S>>,
-    );
+    pub struct S(#[allow(dead_code)] pub usize, #[allow(dead_code)] pub Option<Box<S>>);
 
     let yaml = "[0, ".repeat(1_000) + &"]".repeat(1_000);
     let expected = "recursion limit exceeded at line 1 column 513";

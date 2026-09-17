@@ -1,9 +1,15 @@
 #!/usr/bin/env node
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { argv, exit } from 'node:process';
 
 // A wrapper script to run WASM modules with either Wasmtime or Node.js
 // usage: ./tools/wasm_runner.ts my_wasm_module.wasm
+
+// V8's baseline compiler (Liftoff) produces very slow code for some 64-bit
+// integer workloads (e.g. SHA-512), and wasm functions are not reliably
+// promoted to the optimizing tier (TurboFan) during a benchmark run. Pinning
+// both tiers makes Node.js measure consistently optimized code.
+const NODE_V8_FLAGS = ['--no-liftoff', '--no-wasm-tier-up'];
 
 function wasmtimeAvailable() {
   try {
@@ -12,6 +18,20 @@ function wasmtimeAvailable() {
   } catch {
     return false;
   }
+}
+
+// Re-exec Node with `NODE_V8_FLAGS` if they are not already active. V8 only
+// reads these flags at startup, so they cannot be set from within the current
+// process. Does nothing (and does not recurse) once the flags are present.
+function ensureNodeOptimizingTier() {
+  if (NODE_V8_FLAGS.every((flag) => process.execArgv.includes(flag))) {
+    return;
+  }
+
+  const child = spawnSync(process.execPath, [...process.execArgv, ...NODE_V8_FLAGS, argv[1], ...argv.slice(2)], {
+    stdio: 'inherit',
+  });
+  exit(child.status ?? 1);
 }
 
 async function runWithWastime(wasmPath: string) {
@@ -52,6 +72,7 @@ if (wasmtimeAvailable()) {
   console.log('WASM runtime: Wasmtime');
   await runWithWastime(wasmPath);
 } else {
+  ensureNodeOptimizingTier();
   console.log(`WASM runtime: Node.js ${process.version}`);
   await runWithNode(wasmPath);
 }

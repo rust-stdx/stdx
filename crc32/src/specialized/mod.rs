@@ -1,36 +1,42 @@
-cfg_if::cfg_if! {
-    if #[cfg(all(
-        target_feature = "sse2",
-        any(target_arch = "x86", target_arch = "x86_64")
-    ))] {
-        mod pclmulqdq;
-        pub use self::pclmulqdq::State;
-    } else if #[cfg(all(feature = "nightly", target_arch = "aarch64"))] {
-        mod aarch64;
-        pub use self::aarch64::State;
-    } else {
-        #[derive(Clone)]
-        pub enum State {}
-        impl State {
-            pub fn new(_: u32) -> Option<Self> {
-                None
-            }
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+mod implementation {
+    pub use super::pclmulqdq::State;
+}
 
-            pub fn update(&mut self, _buf: &[u8]) {
-                match *self {}
-            }
+#[cfg(all(feature = "nightly", target_arch = "aarch64"))]
+mod implementation {
+    pub use super::aarch64::State;
+}
 
-            pub fn finalize(self) -> u32 {
-                match self{}
-            }
+#[cfg(not(any(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    all(feature = "nightly", target_arch = "aarch64"),
+)))]
+mod implementation {
+    #[derive(Clone)]
+    pub enum State {}
 
-            pub fn reset(&mut self) {
-                match *self {}
-            }
+    impl State {
+        pub fn new(_: u32) -> Option<Self> {
+            None
+        }
 
-            pub fn combine(&mut self, _other: u32, _amount: u64) {
-                match *self {}
-            }
+        pub fn update(&mut self, _buf: &[u8]) {
+            match *self {}
+        }
+
+        pub fn finalize(self) -> u32 {
+            match self {}
+        }
+
+        pub fn reset(&mut self) {
+            match *self {}
+        }
+
+        pub fn combine(&mut self, _other: u32, _amount: u64) {
+            match *self {}
         }
     }
 }
+
+pub use self::implementation::State;

@@ -8,7 +8,6 @@
 //! in lowercase and/or may only support looking up unicode
 //! domain names.
 
-#![no_std]
 #![forbid(unsafe_code)]
 
 use core::{

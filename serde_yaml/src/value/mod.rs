@@ -56,7 +56,6 @@ pub enum Value {
 /// # Examples
 ///
 /// ```
-/// # use serde_derive::Deserialize;
 /// use serde::Deserialize;
 /// use serde_yaml::Value;
 ///

@@ -233,26 +233,26 @@ impl Account {
     ///
     /// The returned [`AccountCredentials`] can be serialized and stored for later use.
     /// Use [`Account::from_credentials()`] to restore the account from the credentials.
-    #[cfg(feature = "hyper-rustls")]
-    pub async fn create(
-        account: &NewAccount<'_>,
-        server_url: &str,
-        external_account: Option<&ExternalAccountKey>,
-    ) -> Result<(Account, AccountCredentials), Error> {
-        Self::create_inner(
-            account,
-            external_account,
-            Client::new(server_url, Box::<DefaultClient>::default()).await?,
-            server_url,
-        )
-        .await
-    }
+    // #[cfg(feature = "hyper-rustls")]
+    // pub async fn create(
+    //     account: &NewAccount<'_>,
+    //     server_url: &str,
+    //     external_account: Option<&ExternalAccountKey>,
+    // ) -> Result<(Account, AccountCredentials), Error> {
+    //     Self::create_inner(
+    //         account,
+    //         external_account,
+    //         Client::new(server_url, Box::<DefaultClient>::default()).await?,
+    //         server_url,
+    //     )
+    //     .await
+    // }
 
     /// Create a new account with a custom HTTP client
     ///
     /// The returned [`AccountCredentials`] can be serialized and stored for later use.
     /// Use [`Account::from_credentials()`] to restore the account from the credentials.
-    pub async fn create_with_http(
+    pub async fn create(
         account: &NewAccount<'_>,
         server_url: &str,
         external_account: Option<&ExternalAccountKey>,
@@ -642,31 +642,31 @@ fn nonce_from_response(res: &Response) -> Option<String> {
         .map(|header| header.to_str().unwrap_or_default().to_string())
 }
 
-#[cfg(feature = "hyper-rustls")]
-struct DefaultClient(hyper::Client<hyper_rustls::HttpsConnector<HttpConnector>>);
+// #[cfg(feature = "hyper-rustls")]
+// struct DefaultClient(hyper::Client<hyper_rustls::HttpsConnector<HttpConnector>>);
 
-#[cfg(feature = "hyper-rustls")]
-impl HttpClient for DefaultClient {
-    fn request(&self, req: Request<Body>) -> Pin<Box<dyn Future<Output = hyper::Result<Response<Body>>> + Send>> {
-        Box::pin(self.0.request(req))
-    }
-}
+// #[cfg(feature = "hyper-rustls")]
+// impl HttpClient for DefaultClient {
+//     fn request(&self, req: Request<Body>) -> Pin<Box<dyn Future<Output = hyper::Result<Response<Body>>> + Send>> {
+//         Box::pin(self.0.request(req))
+//     }
+// }
 
-#[cfg(feature = "hyper-rustls")]
-impl Default for DefaultClient {
-    fn default() -> Self {
-        Self(
-            hyper::Client::builder().build(
-                hyper_rustls::HttpsConnectorBuilder::new()
-                    .with_native_roots()
-                    .https_only()
-                    .enable_http1()
-                    .enable_http2()
-                    .build(),
-            ),
-        )
-    }
-}
+// #[cfg(feature = "hyper-rustls")]
+// impl Default for DefaultClient {
+//     fn default() -> Self {
+//         Self(
+//             hyper::Client::builder().build(
+//                 hyper_rustls::HttpsConnectorBuilder::new()
+//                     .with_native_roots()
+//                     .https_only()
+//                     .enable_http1()
+//                     .enable_http2()
+//                     .build(),
+//             ),
+//         )
+//     }
+// }
 
 // /// A HTTP client based on [`hyper::Client`]
 // pub trait HttpClient: Send + Sync + 'static {

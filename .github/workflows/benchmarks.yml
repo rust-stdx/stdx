@@ -16,7 +16,7 @@ jobs:
     env:
       RUSTFLAGS: "-C target-cpu=native"
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
       - run: cat /proc/cpuinfo
@@ -24,19 +24,3 @@ jobs:
       - run: rustup update stable
       - run: cargo bench -p crypto
       - run: cargo bench -p xxhash
-      - run: cargo bench -p format_number
-
-  benchmarks_wasm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          submodules: recursive
-      # curl and xz-utils are needed to install wasmtime
-      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld curl xz-utils
-      - run: rustup update stable
-      - run: rustup target add wasm32-wasip1
-      - run: |
-          curl https://wasmtime.dev/install.sh -sSf | bash
-          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-      - run: RUSTFLAGS="-C target-feature=+simd128" cargo run --target=wasm32-wasip1 -p wasm_benchmarks_crypto

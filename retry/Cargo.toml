@@ -7,6 +7,3 @@ description = "Retry async operations with configurable backoff strategies"
 
 [dependencies]
 tokio = { workspace = true }
-
-[dev-dependencies]
-rand = { workspace = true }

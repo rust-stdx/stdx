@@ -9,4 +9,4 @@ path = "./dotenv.rs"
 
 [dependencies]
 dotenv_derive = { path = "./dotenv_derive" }
-memchr = "2"
+memchr = { workspace = true, features = ["std"] }

@@ -2,7 +2,7 @@ use core::ptr;
 
 use crate::digit_table::DIGIT_TABLE;
 
-#[cfg_attr(feature = "no-panic", inline)]
+#[inline]
 pub unsafe fn write_mantissa_long(mut output: u64, mut result: *mut u8) {
     unsafe {
         if (output >> 32) != 0 {
@@ -27,7 +27,7 @@ pub unsafe fn write_mantissa_long(mut output: u64, mut result: *mut u8) {
     }
 }
 
-#[cfg_attr(feature = "no-panic", inline)]
+#[inline]
 pub unsafe fn write_mantissa(mut output: u32, mut result: *mut u8) {
     unsafe {
         while output >= 10_000 {

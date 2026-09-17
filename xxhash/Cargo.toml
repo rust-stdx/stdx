@@ -7,9 +7,6 @@ license = "MIT"
 [lib]
 path = "./xxhash.rs"
 
-[dev-dependencies]
-rand = { workspace = true }
-
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 

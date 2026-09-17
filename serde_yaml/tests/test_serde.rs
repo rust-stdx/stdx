@@ -5,13 +5,13 @@
     clippy::shadow_unrelated
 )]
 
-use indoc::indoc;
-use serde::ser::SerializeMap;
-use serde_derive::{Deserialize, Serialize};
+#[macro_use]
+mod common;
+
+use std::{collections::BTreeMap, fmt::Debug, iter};
+
+use serde::{Deserialize, Serialize, ser::SerializeMap};
 use serde_yaml::{Mapping, Number, Value};
-use std::collections::BTreeMap;
-use std::fmt::Debug;
-use std::iter;
 
 fn test_serde<T>(thing: &T, yaml: &str)
 where
@@ -254,10 +254,7 @@ fn test_string_escapes() {
     let yaml = indoc! {r#"
         "\0\a\b\t\n\v\f\r\e\"\\\N\L\P"
     "#};
-    test_serde(
-        &"\0\u{7}\u{8}\t\n\u{b}\u{c}\r\u{1b}\"\\\u{85}\u{2028}\u{2029}".to_owned(),
-        yaml,
-    );
+    test_serde(&"\0\u{7}\u{8}\t\n\u{b}\u{c}\r\u{1b}\"\\\u{85}\u{2028}\u{2029}".to_owned(), yaml);
 
     let yaml = indoc! {r#"
         "\x1F\uFEFF"
@@ -341,7 +338,9 @@ fn test_nested_struct() {
         v: u16,
     }
     let thing = Outer {
-        inner: Inner { v: 512 },
+        inner: Inner {
+            v: 512,
+        },
     };
     let yaml = indoc! {"
         inner:
@@ -421,7 +420,9 @@ fn test_newtype_struct() {
     }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct NewType(OriginalType);
-    let thing = NewType(OriginalType { v: 1 });
+    let thing = NewType(OriginalType {
+        v: 1,
+    });
     let yaml = indoc! {"
         v: 1
     "};
@@ -541,14 +542,12 @@ fn test_mapping() {
     let mut thing = Data {
         substructure: Mapping::new(),
     };
-    thing.substructure.insert(
-        Value::String("a".to_owned()),
-        Value::String("foo".to_owned()),
-    );
-    thing.substructure.insert(
-        Value::String("b".to_owned()),
-        Value::String("bar".to_owned()),
-    );
+    thing
+        .substructure
+        .insert(Value::String("a".to_owned()), Value::String("foo".to_owned()));
+    thing
+        .substructure
+        .insert(Value::String("b".to_owned()), Value::String("bar".to_owned()));
 
     let yaml = indoc! {"
         substructure:

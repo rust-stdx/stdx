@@ -136,7 +136,7 @@
 //!   pub struct MyError {
 //!       msg: String,
 //!       #[source]  // optional if field name is `source`
-//!       source: anyhow::Error,
+//!       source: anyerr::Error,
 //!   }
 //!   #
 //!   # impl Display for MyError {
@@ -194,7 +194,7 @@
 //!       # */
 //!
 //!       #[error(transparent)]
-//!       Other(#[from] anyhow::Error),  // source and Display delegate to anyhow::Error
+//!       Other(#[from] anyerr::Error),  // source and Display delegate to anyerr::Error
 //!   }
 //!   ```
 //!
@@ -223,10 +223,10 @@
 //!   }
 //!   ```
 //!
-//! - See also the [`anyhow`] library for a convenient single error type to use
+//! - See also the [`anyerr`] library for a convenient single error type to use
 //!   in application code.
 //!
-//!   [`anyhow`]: https://github.com/dtolnay/anyhow
+//!   [`anyerr`]: https://github.com/rust-stdx/stdx
 
 #![doc(html_root_url = "https://docs.rs/thiserror/1.0.61")]
 #![allow(

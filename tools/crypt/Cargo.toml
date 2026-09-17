@@ -10,6 +10,5 @@ path = "crypt.rs"
 [dependencies]
 crypto = { path = "../../crypto" }
 term = { path = "../../term" }
-argon2 = "0.5"
 rand = { workspace = true }
 zeroize = { workspace = true }

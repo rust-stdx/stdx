@@ -50,4 +50,6 @@ node_modules/
 target/
 # Cargo.lock
 
-_ai/
+_dev/
+benchmarks/
+beta/

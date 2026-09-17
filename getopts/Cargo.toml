@@ -14,7 +14,7 @@ categories = ["command-line-interface"]
 edition = "2024"
 
 [dependencies]
-unicode-width = "0.1.5"
+unicode-width = { workspace = true }
 # std = { version = "1.0", package = "rustc-std-workspace-std", optional = true }
 # core = { version = "1.0", package = "rustc-std-workspace-core", optional = true }
 

@@ -1,8 +1,5 @@
 use core::{mem::MaybeUninit, slice, str};
 
-#[cfg(feature = "no-panic")]
-use no_panic::no_panic;
-
 use crate::raw;
 
 const NAN: &str = "NaN";
@@ -26,7 +23,6 @@ impl Buffer {
     /// This is a cheap operation; you don't need to worry about reusing buffers
     /// for efficiency.
     #[inline]
-    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn new() -> Self {
         let bytes = [MaybeUninit::<u8>::uninit(); 24];
         Buffer {
@@ -45,8 +41,7 @@ impl Buffer {
     /// If your input is known to be finite, you may get better performance by
     /// calling the `format_finite` method instead of `format` to avoid the
     /// checks for special cases.
-    #[cfg_attr(feature = "no-panic", inline)]
-    #[cfg_attr(feature = "no-panic", no_panic)]
+    #[inline]
     pub fn format<F: Float>(&mut self, f: F) -> &str {
         if f.is_nonfinite() {
             f.format_nonfinite()
@@ -71,7 +66,6 @@ impl Buffer {
     /// [`is_nan`]: https://doc.rust-lang.org/std/primitive.f64.html#method.is_nan
     /// [`is_infinite`]: https://doc.rust-lang.org/std/primitive.f64.html#method.is_infinite
     #[inline]
-    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn format_finite<F: Float>(&mut self, f: F) -> &str {
         unsafe {
             let n = f.write_to_ryu_buffer(self.bytes.as_mut_ptr() as *mut u8);
@@ -94,7 +88,6 @@ impl Clone for Buffer {
 
 impl Default for Buffer {
     #[inline]
-    #[cfg_attr(feature = "no-panic", no_panic)]
     fn default() -> Self {
         Buffer::new()
     }
@@ -124,7 +117,7 @@ impl Sealed for f32 {
     }
 
     #[cold]
-    #[cfg_attr(feature = "no-panic", inline)]
+    #[inline]
     fn format_nonfinite(self) -> &'static str {
         const MANTISSA_MASK: u32 = 0x007fffff;
         const SIGN_MASK: u32 = 0x80000000;
@@ -153,7 +146,7 @@ impl Sealed for f64 {
     }
 
     #[cold]
-    #[cfg_attr(feature = "no-panic", inline)]
+    #[inline]
     fn format_nonfinite(self) -> &'static str {
         const MANTISSA_MASK: u64 = 0x000fffffffffffff;
         const SIGN_MASK: u64 = 0x8000000000000000;

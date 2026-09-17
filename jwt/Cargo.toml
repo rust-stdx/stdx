@@ -20,5 +20,4 @@ serde = { workspace = true, default_features = false, features = ["alloc", "deri
 serde_json = { workspace = true }
 small_collections = { path = "../small_collections", default-features = false, features = ["serde"] }
 smallvec = { workspace = true, features = ["serde"] }
-heapless = { workspace = true }
 zeroize = { workspace = true, optional = true }

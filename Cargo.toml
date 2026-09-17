@@ -11,11 +11,9 @@ members = [
     "bel/examples",
     # "bel/fuzz",
     "big_number",
-    "cfg_if",
     "constant_time_eq",
     "countries",
-    "crc32fast",
-    "crypto_bench",
+    "crc32",
     "cron",
     "crypto",
     "csv",
@@ -26,7 +24,6 @@ members = [
     "embed/embed_impl",
     "errgroup",
     "embed/embed_utils",
-    "format_number",
     "form_urlencoded",
     "getopts",
     "hex",
@@ -67,49 +64,44 @@ members = [
     "tools/energy_bench",
     "unsafe_libyaml",
     "uuid",
-    "wasm_benchmarks/crypto",
-    # "work_in_progress/http",
-    "work_in_progress/pg",
-    "work_in_progress/pg_derive",
-    # "work_in_progress/quic",
-    # "work_in_progress/tls",
-    "work_in_progress/tls2",
-    "work_in_progress/x509",
     "xxhash",
 ]
 
 [workspace.dependencies]
-async-trait = "0.1"
+anyerr = { path = "anyerr" }
+antlr4rust = "=0.3.0-rc2"
+arbitrary = { version = "1", features = ["derive"] }
+axum = { version = "0.7", default-features = false, features = ["http1", "json", "tokio"] }
 blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "93a431c78a52d7ccf0f366f106467f5070e6075e" } # 1.8.5
 bytes = { version = "1", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "oldtime", "serde", "std", ] }
 futures-util = "0.3"
+getrandom = { version = "0.4", default-features = false }
 heapless = "0.9"
-hashbrown = { version = "0.15", default-features = false, features = ["alloc", "default-hasher"] }
 hyper = { version = "1", features = ["full"] }
 indexmap = { version = "2" }
 libc = "0.2"
-memchr = "2"
+memchr = { version = "2", default-features = false }
 mime = "0.3"
 nix = { version = "0.31", features = ["socket"] }
 nom = "8"
 paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
+quick-xml = { version = "0.38", features = ["serialize"] }
 rand = "0.10"
 regex = { version = "1" }
 reqwest = { version = "0.13", default-features = false, features = ["charset", "gzip", "http2", "multipart", "json", "rustls", "zstd"] }
-aws-lc-rs = { version = "1" }
 serde = { version = "1", default-features = false }
+serde_bytes = "0.11"
 serde_json = "1"
 smallvec = { version = "2.0.0-alpha.12" }
 sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "3da582ad1dca5054ec8eda1c87b3b16ca079f47a" }
-thiserror = "2"
+thiserror = { path = "thiserror" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
+unicode-width = "0.1"
+url = "2"
 walkdir = "2"
 zeroize = { version = "1", features = ["simd", "derive"] }
-rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "logging", "tls12"] }
-tokio-rustls = { version = "0.26" }
-lru = "0.18"
 
 
 # For macros
@@ -119,4 +111,3 @@ proc-macro2 = "1"
 
 # benchmarks
 criterion = { version = "0.8", features = ["html_reports"] }
-itoa = "1"

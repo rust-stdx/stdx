@@ -15,9 +15,22 @@ rust-version = "1.85"
 path = "./embed.rs"
 
 [dependencies]
-walkdir = { workspace = true }
 embed_impl = { path = "./embed_impl"}
 embed_utils = { path = "./embed_utils"}
+
+
+[features]
+debug-embed = ["embed_impl/debug-embed", "embed_utils/debug-embed"]
+#interpolate-folder-path = ["rust-embed-impl/interpolate-folder-path"]
+#compression = ["rust-embed-impl/compression", "include-flate"]
+mime-guess = ["embed_impl/mime-guess", "embed_utils/mime-guess"]
+#include-exclude = ["rust-embed-impl/include-exclude", "rust-embed-utils/include-exclude"]
+#actix = ["actix-web", "mime_guess"]
+#warp-ex = ["warp", "tokio", "mime_guess"]
+#axum-ex = ["axum", "tokio", "mime_guess"]
+#poem-ex = ["poem", "tokio", "mime_guess", "hex"]
+#salvo-ex = ["salvo", "tokio", "mime_guess", "hex"]
+
 
 
 #[[example]]
@@ -84,16 +97,4 @@ embed_utils = { path = "./embed_utils"}
 #[dev-dependencies]
 #sha2 = "0.10"
 #
-[features]
-debug-embed = ["embed_impl/debug-embed", "embed_utils/debug-embed"]
-#interpolate-folder-path = ["rust-embed-impl/interpolate-folder-path"]
-#compression = ["rust-embed-impl/compression", "include-flate"]
-#mime-guess = ["rust-embed-impl/mime-guess", "rust-embed-utils/mime-guess"]
-#include-exclude = ["rust-embed-impl/include-exclude", "rust-embed-utils/include-exclude"]
-#actix = ["actix-web", "mime_guess"]
-#warp-ex = ["warp", "tokio", "mime_guess"]
-#axum-ex = ["axum", "tokio", "mime_guess"]
-#poem-ex = ["poem", "tokio", "mime_guess", "hex"]
-#salvo-ex = ["salvo", "tokio", "mime_guess", "hex"]
-
 

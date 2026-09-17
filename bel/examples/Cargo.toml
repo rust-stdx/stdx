@@ -7,30 +7,22 @@ edition = "2024"
 axum = ["dep:axum", "dep:tokio", "dep:thiserror"]
 json = ["dep:serde_json", "bel/json"]
 time = ["dep:chrono", "bel/time"]
-anyhow = ["dep:anyhow"]
+anyhow = ["dep:anyerr"]
 regex = ["bel/regex"]
 ip = ["bel/ip"]
 
 [dependencies]
 bel = { path = "..", default-features = false }
 
-chrono = { version = "0.4", optional = true }
+chrono = { workspace = true, optional = true }
 
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", optional = true }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, optional = true }
 
-axum = { version = "0.7.5", default-features = false, features = [
-    "http1",
-    "json",
-    "tokio",
-], optional = true }
-tokio = { version = "1.38.0", default-features = false, features = [
-    "macros",
-    "net",
-    "rt-multi-thread",
-], optional = true }
-thiserror = { version = "1.0", optional = true }
-anyhow = { version = "1.0.98", optional = true }
+axum = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+anyerr = { workspace = true, optional = true }
 
 [[bin]]
 name = "simple"

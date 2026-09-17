@@ -20,7 +20,6 @@ quote = { workspace = true }
 proc-macro2 = { workspace = true }
 
 embed_utils = { path = "../embed_utils"}
-walkdir = { workspace = true }
 
 # [dependencies.shellexpand]
 # version = "3"
@@ -30,5 +29,5 @@ walkdir = { workspace = true }
 debug-embed = []
 # interpolate-folder-path = ["shellexpand"]
 # compression = []
-# mime-guess = ["rust-embed-utils/mime-guess"]
+mime-guess = ["embed_utils/mime-guess"]
 # include-exclude = ["rust-embed-utils/include-exclude"]

@@ -2,7 +2,7 @@ use core::ptr;
 
 use crate::digit_table::DIGIT_TABLE;
 
-#[cfg_attr(feature = "no-panic", inline)]
+#[inline]
 pub unsafe fn write_exponent3(mut k: isize, mut result: *mut u8) -> usize {
     unsafe {
         let sign = k < 0;
@@ -30,7 +30,7 @@ pub unsafe fn write_exponent3(mut k: isize, mut result: *mut u8) -> usize {
     }
 }
 
-#[cfg_attr(feature = "no-panic", inline)]
+#[inline]
 pub unsafe fn write_exponent2(mut k: isize, mut result: *mut u8) -> usize {
     unsafe {
         let sign = k < 0;

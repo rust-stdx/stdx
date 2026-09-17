@@ -1,69 +1,50 @@
 //! # Poly1305 MAC
+//!
+//! Poly1305 is a fast message-authentication code specified in RFC 8439. The
+//! 16-byte tag authenticates a message with a 32-byte key split into a
+//! polynomial part `r` and a one-time pad `s`.
+//!
+//! # Example
+//!
+//! ```
+//! use crypto::poly1305::Poly1305;
+//!
+//! let key = b"0123456789abcdef0123456789abcdef";
+//! let tag = Poly1305::mac(key, b"authenticate me");
+//! assert_eq!(tag.len(), 16);
+//! ```
+
+/// Clamping mask for the low 64 bits of `r` (RFC 8439 §2.5.1).
+const R_MASK_0: u64 = 0x0f_ff_ff_fc_0f_ff_ff_ff;
+/// Clamping mask for the high 64 bits of `r` (RFC 8439 §2.5.1).
+const R_MASK_1: u64 = 0x0f_ff_ff_fc_0f_ff_ff_fc;
+
+/// `2^130 − 5` split into three 64-bit little-endian limbs.
+const P_0: u64 = 0xff_ff_ff_ff_ff_ff_ff_fb;
+const P_1: u64 = 0xff_ff_ff_ff_ff_ff_ff_ff;
+const P_2: u64 = 0x3;
 
 /// Poly1305 streaming MAC state.
 ///
-/// Feeds data incrementally via `update()`, then produces the 16-byte
-/// authentication tag via `finalize()`.
+/// Feeds data incrementally via [`update`](Self::update), then produces the
+/// 16-byte authentication tag via [`finalize`](Self::finalize).
 pub struct Poly1305 {
-    r0: u64,
-    r1: u64,
-    r2: u64,
-    r3: u64,
-    r4: u64,
-    s1: u64,
-    s2: u64,
-    s3: u64,
-    s4: u64,
-    h0: u64,
-    h1: u64,
-    h2: u64,
-    h3: u64,
-    h4: u64,
-    s: [u8; 16],
+    h: [u64; 3],
+    r: [u64; 2],
+    s: [u64; 2],
     buffer: [u8; 16],
     buffer_len: usize,
 }
 
 impl Poly1305 {
     /// Creates a new Poly1305 MAC from a 32-byte key (`r || s`).
+    ///
+    /// The polynomial part `r` is clamped as specified in RFC 8439 §2.5.1.
     pub fn new(key: &[u8; 32]) -> Poly1305 {
-        let mut r_bytes = [0u8; 16];
-        r_bytes.copy_from_slice(&key[..16]);
-
-        // Clamp r per RFC 8439 section 2.5.1
-        r_bytes[3] &= 15;
-        r_bytes[7] &= 15;
-        r_bytes[11] &= 15;
-        r_bytes[15] &= 15;
-        r_bytes[4] &= 252;
-        r_bytes[8] &= 252;
-        r_bytes[12] &= 252;
-
-        let r = u128::from_le_bytes(r_bytes);
-        let r0 = (r & MASK26 as u128) as u64;
-        let r1 = ((r >> 26) & MASK26 as u128) as u64;
-        let r2 = ((r >> 52) & MASK26 as u128) as u64;
-        let r3 = ((r >> 78) & MASK26 as u128) as u64;
-        let r4 = ((r >> 104) & MASK26 as u128) as u64;
-
-        let mut s = [0u8; 16];
-        s.copy_from_slice(&key[16..]);
-
+        let (r, s) = key_init(key);
         return Poly1305 {
-            r0,
-            r1,
-            r2,
-            r3,
-            r4,
-            s1: r1 * 5,
-            s2: r2 * 5,
-            s3: r3 * 5,
-            s4: r4 * 5,
-            h0: 0,
-            h1: 0,
-            h2: 0,
-            h3: 0,
-            h4: 0,
+            h: [0, 0, 0],
+            r,
             s,
             buffer: [0u8; 16],
             buffer_len: 0,
@@ -71,9 +52,13 @@ impl Poly1305 {
     }
 
     /// Feeds additional data into the MAC.
+    #[inline]
     pub fn update(&mut self, data: &[u8]) {
+        // Any number of `update` calls may be chained; the internal 16-byte
+        // buffer keeps the state consistent across arbitrary chunk boundaries.
         let mut offset = 0;
 
+        // Flush a partially filled buffer.
         if self.buffer_len > 0 {
             let to_copy = (16 - self.buffer_len).min(data.len());
             self.buffer[self.buffer_len..self.buffer_len + to_copy].copy_from_slice(&data[..to_copy]);
@@ -81,157 +66,40 @@ impl Poly1305 {
             offset = to_copy;
 
             if self.buffer_len == 16 {
-                let mut block = [0u8; 17];
-                block[..16].copy_from_slice(&self.buffer);
-                block[16] = 1;
-                process_block(
-                    &mut self.h0,
-                    &mut self.h1,
-                    &mut self.h2,
-                    &mut self.h3,
-                    &mut self.h4,
-                    self.r0,
-                    self.r1,
-                    self.r2,
-                    self.r3,
-                    self.r4,
-                    self.s1,
-                    self.s2,
-                    self.s3,
-                    self.s4,
-                    &block,
-                );
+                let block = self.buffer;
+                blocks(&mut self.h, &self.r, &block);
                 self.buffer_len = 0;
             } else {
                 return;
             }
         }
 
-        while offset + 16 <= data.len() {
-            let mut block = [0u8; 17];
-            block[..16].copy_from_slice(&data[offset..offset + 16]);
-            block[16] = 1;
-            process_block(
-                &mut self.h0,
-                &mut self.h1,
-                &mut self.h2,
-                &mut self.h3,
-                &mut self.h4,
-                self.r0,
-                self.r1,
-                self.r2,
-                self.r3,
-                self.r4,
-                self.s1,
-                self.s2,
-                self.s3,
-                self.s4,
-                &block,
-            );
-            offset += 16;
+        // Process as many whole 16-byte blocks as possible.
+        let remaining = data.len() - offset;
+        let nblocks = remaining / 16;
+        if nblocks > 0 {
+            let blocks_slice = &data[offset..offset + nblocks * 16];
+            blocks(&mut self.h, &self.r, blocks_slice);
         }
 
-        let remaining = data.len() - offset;
-        if remaining > 0 {
-            self.buffer[..remaining].copy_from_slice(&data[offset..]);
-            self.buffer_len = remaining;
+        // Stash the trailing partial block.
+        let tail = &data[data.len() - (remaining % 16)..];
+        if !tail.is_empty() {
+            self.buffer[..tail.len()].copy_from_slice(tail);
+            self.buffer_len = tail.len();
         }
     }
 
     /// Finalizes the MAC and returns the 16-byte authentication tag.
+    #[inline]
     pub fn finalize(mut self) -> [u8; 16] {
+        // The secret pad `s` is added modulo 2^128 and the full reduction modulo
+        // `2^130 − 5` is performed in constant time.
         if self.buffer_len > 0 {
-            let mut block = [0u8; 17];
-            block[..self.buffer_len].copy_from_slice(&self.buffer[..self.buffer_len]);
-            block[self.buffer_len] = 1;
-
-            process_block(
-                &mut self.h0,
-                &mut self.h1,
-                &mut self.h2,
-                &mut self.h3,
-                &mut self.h4,
-                self.r0,
-                self.r1,
-                self.r2,
-                self.r3,
-                self.r4,
-                self.s1,
-                self.s2,
-                self.s3,
-                self.s4,
-                &block,
-            );
+            let partial = &self.buffer[..self.buffer_len];
+            final_block(&mut self.h, &self.r, partial);
         }
-
-        // Final carry propagation.
-        let mut c = self.h1 >> 26;
-        self.h1 &= MASK26;
-        self.h2 += c;
-        c = self.h2 >> 26;
-        self.h2 &= MASK26;
-        self.h3 += c;
-        c = self.h3 >> 26;
-        self.h3 &= MASK26;
-        self.h4 += c;
-        c = self.h4 >> 26;
-        self.h4 &= MASK26;
-        self.h0 += c * 5;
-        c = self.h0 >> 26;
-        self.h0 &= MASK26;
-        self.h1 += c;
-
-        // Compute h + -p and conditionally select the reduced value.
-        let mut g0 = self.h0 + 5;
-        c = g0 >> 26;
-        g0 &= MASK26;
-        let mut g1 = self.h1 + c;
-        c = g1 >> 26;
-        g1 &= MASK26;
-        let mut g2 = self.h2 + c;
-        c = g2 >> 26;
-        g2 &= MASK26;
-        let mut g3 = self.h3 + c;
-        c = g3 >> 26;
-        g3 &= MASK26;
-        let g4 = self.h4.wrapping_add(c).wrapping_sub(1 << 26);
-
-        let mask = (g4 >> 63).wrapping_sub(1);
-        let not_mask = !mask;
-
-        self.h0 = (self.h0 & not_mask) | (g0 & mask);
-        self.h1 = (self.h1 & not_mask) | (g1 & mask);
-        self.h2 = (self.h2 & not_mask) | (g2 & mask);
-        self.h3 = (self.h3 & not_mask) | (g3 & mask);
-        self.h4 = (self.h4 & not_mask) | (g4 & MASK26 & mask);
-
-        // Serialize h and add s modulo 2^128.
-        let mut f0 = (self.h0 | (self.h1 << 26)) & 0xffff_ffff;
-        let mut f1 = ((self.h1 >> 6) | (self.h2 << 20)) & 0xffff_ffff;
-        let mut f2 = ((self.h2 >> 12) | (self.h3 << 14)) & 0xffff_ffff;
-        let mut f3 = ((self.h3 >> 18) | (self.h4 << 8)) & 0xffff_ffff;
-
-        f0 += load_u32_le_padded(&self.s, 0) as u64;
-        c = f0 >> 32;
-        f0 &= 0xffff_ffff;
-
-        f1 += load_u32_le_padded(&self.s, 4) as u64 + c;
-        c = f1 >> 32;
-        f1 &= 0xffff_ffff;
-
-        f2 += load_u32_le_padded(&self.s, 8) as u64 + c;
-        c = f2 >> 32;
-        f2 &= 0xffff_ffff;
-
-        f3 += load_u32_le_padded(&self.s, 12) as u64 + c;
-        f3 &= 0xffff_ffff;
-
-        let mut tag = [0u8; 16];
-        tag[0..4].copy_from_slice(&(f0 as u32).to_le_bytes());
-        tag[4..8].copy_from_slice(&(f1 as u32).to_le_bytes());
-        tag[8..12].copy_from_slice(&(f2 as u32).to_le_bytes());
-        tag[12..16].copy_from_slice(&(f3 as u32).to_le_bytes());
-        return tag;
+        return finish(&mut self.h, &self.s);
     }
 
     /// Computes the Poly1305 message authentication code as specified in RFC 8439.
@@ -253,80 +121,140 @@ impl Poly1305 {
     }
 }
 
-const MASK26: u64 = 0x3ffffff;
-
+/// One 64×64→128 multiply, returned as (low, high) 64-bit limbs.
 #[inline]
-fn process_block(
-    h0: &mut u64,
-    h1: &mut u64,
-    h2: &mut u64,
-    h3: &mut u64,
-    h4: &mut u64,
-    r0: u64,
-    r1: u64,
-    r2: u64,
-    r3: u64,
-    r4: u64,
-    s1: u64,
-    s2: u64,
-    s3: u64,
-    s4: u64,
-    block: &[u8; 17],
-) {
-    let w0 = load_u32_le_padded(block, 0) as u64;
-    let w1 = load_u32_le_padded(block, 3) as u64;
-    let w2 = load_u32_le_padded(block, 6) as u64;
-    let w3 = load_u32_le_padded(block, 9) as u64;
-    let w4 = load_u32_le_padded(block, 12) as u64;
+fn mul64(a: u64, b: u64) -> (u64, u64) {
+    let p = (a as u128) * (b as u128);
+    (p as u64, (p >> 64) as u64)
+}
 
-    let m0 = w0 & MASK26;
-    let m1 = (w1 >> 2) & MASK26;
-    let m2 = (w2 >> 4) & MASK26;
-    let m3 = (w3 >> 6) & MASK26;
-    let m4 = ((w4 >> 8) | ((block[16] as u64) << 24)) & MASK26;
+/// `a + b + carry`, returned as (sum, carry_out).
+#[inline]
+fn add64(a: u64, b: u64, carry: u64) -> (u64, u64) {
+    let (s1, c1) = a.overflowing_add(b);
+    let (s2, c2) = s1.overflowing_add(carry);
+    (s2, (c1 as u8 + c2 as u8) as u64)
+}
 
-    *h0 += m0;
-    *h1 += m1;
-    *h2 += m2;
-    *h3 += m3;
-    *h4 += m4;
+/// `a − b − borrow`, returned as (diff, borrow_out).
+#[inline]
+fn sub64(a: u64, b: u64, borrow: u64) -> (u64, u64) {
+    let (d1, c1) = a.overflowing_sub(b);
+    let (d2, c2) = d1.overflowing_sub(borrow);
+    (d2, (c1 as u8 + c2 as u8) as u64)
+}
 
-    let d0 = (*h0 * r0) + (*h1 * s4) + (*h2 * s3) + (*h3 * s2) + (*h4 * s1);
-    let d1 = (*h0 * r1) + (*h1 * r0) + (*h2 * s4) + (*h3 * s3) + (*h4 * s2);
-    let d2 = (*h0 * r2) + (*h1 * r1) + (*h2 * r0) + (*h3 * s4) + (*h4 * s3);
-    let d3 = (*h0 * r3) + (*h1 * r2) + (*h2 * r1) + (*h3 * r0) + (*h4 * s4);
-    let d4 = (*h0 * r4) + (*h1 * r3) + (*h2 * r2) + (*h3 * r1) + (*h4 * r0);
+/// `x` if `v == 1` else `y`, in constant time (`v` must be 0 or 1).
+#[inline]
+fn select64(v: u64, x: u64, y: u64) -> u64 {
+    (!(v.wrapping_sub(1)) & x) | (v.wrapping_sub(1) & y)
+}
 
-    let mut c = d0 >> 26;
-    *h0 = d0 & MASK26;
-    let d1 = d1 + c;
-    c = d1 >> 26;
-    *h1 = d1 & MASK26;
-    let d2 = d2 + c;
-    c = d2 >> 26;
-    *h2 = d2 & MASK26;
-    let d3 = d3 + c;
-    c = d3 >> 26;
-    *h3 = d3 & MASK26;
-    let d4 = d4 + c;
-    c = d4 >> 26;
-    *h4 = d4 & MASK26;
-    *h0 += c * 5;
-    c = *h0 >> 26;
-    *h0 &= MASK26;
-    *h1 += c;
+/// Load `r` and `s` from a 32-byte key (`r || s`), clamping `r`.
+#[inline]
+fn key_init(key: &[u8; 32]) -> ([u64; 2], [u64; 2]) {
+    let r0 = u64::from_le_bytes(key[0..8].try_into().unwrap()) & R_MASK_0;
+    let r1 = u64::from_le_bytes(key[8..16].try_into().unwrap()) & R_MASK_1;
+    let s0 = u64::from_le_bytes(key[16..24].try_into().unwrap());
+    let s1 = u64::from_le_bytes(key[24..32].try_into().unwrap());
+    return ([r0, r1], [s0, s1]);
+}
+
+/// Absorb one 16-byte block: `h ← (h + m) * r`. When `hibit` is set the
+/// implicit 2^128 bit of a full message block is added; a trailing partial
+/// block must already contain its RFC 8439 padding byte and passes `false`.
+#[inline]
+fn absorb(h: &mut [u64; 3], r: &[u64; 2], t0: u64, t1: u64, hibit: bool) {
+    let (h0, c) = add64(h[0], t0, 0);
+    let (h1, c) = add64(h[1], t1, c);
+    let h2 = h[2] + c + (hibit as u64); // the 2^128 high bit
+
+    let (h0r0l, h0r0h) = mul64(h0, r[0]);
+    let (h1r0l, h1r0h) = mul64(h1, r[0]);
+    let (h2r0l, _) = mul64(h2, r[0]); // high limb is 0: h2 <= 7, r0 < 2^60
+    let (h0r1l, h0r1h) = mul64(h0, r[1]);
+    let (h1r1l, h1r1h) = mul64(h1, r[1]);
+    let (h2r1l, _) = mul64(h2, r[1]); // high limb is 0: h2 <= 7, r1 < 2^60
+
+    // m0 = h0*r0 ; m1 = h1*r0 + h0*r1 ; m2 = h2*r0 + h1*r1 ; m3 = h2*r1
+    let (m0l, m0h) = (h0r0l, h0r0h);
+    let (m1l, m1h) = add128(h1r0l, h1r0h, h0r1l, h0r1h);
+    let (m2l, m2h) = add128(h2r0l, 0, h1r1l, h1r1h);
+    let m3l = h2r1l; // the high limb of h2*r1 is 0
+
+    let (t0, _) = (m0l, 0u64);
+    let (t1, c) = add64(m1l, m0h, 0);
+    let (t2, c) = add64(m2l, m1h, c);
+    let (t3, _) = add64(m3l, m2h, c);
+
+    // h ← h mod (2^130 − 5): 2^130 ≡ 5.
+    let (h0, h1, h2) = (t0, t1, t2 & 3);
+    let cc = (t2 & !3, t3); // cc = 4 * (value >> 130)
+    let (nh0, c) = add64(h0, cc.0, 0);
+    let (nh1, c) = add64(h1, cc.1, c);
+    let nh2 = h2 + c;
+    let cc2 = ((cc.0 >> 2) | ((cc.1 & 3) << 62), cc.1 >> 2); // cc >> 2
+    let (h0, c) = add64(nh0, cc2.0, 0);
+    let (h1, c) = add64(nh1, cc2.1, c);
+    let h2 = nh2 + c;
+
+    h[0] = h0;
+    h[1] = h1;
+    h[2] = h2;
 }
 
 #[inline]
-fn load_u32_le_padded(bytes: &[u8], offset: usize) -> u32 {
-    let mut word = [0u8; 4];
-    if offset < bytes.len() {
-        let len = (bytes.len() - offset).min(4);
-        word[..len].copy_from_slice(&bytes[offset..offset + len]);
+fn add128(a_lo: u64, a_hi: u64, b_lo: u64, b_hi: u64) -> (u64, u64) {
+    let (lo, c) = a_lo.overflowing_add(b_lo);
+    (lo, a_hi + b_hi + (c as u64))
+}
+
+/// Process whole 16-byte blocks. `data.len()` must be a multiple of 16.
+#[inline(always)]
+fn blocks(h: &mut [u64; 3], r: &[u64; 2], data: &[u8]) {
+    for chunk in data.chunks_exact(16) {
+        let t0 = u64::from_le_bytes(chunk[0..8].try_into().unwrap());
+        let t1 = u64::from_le_bytes(chunk[8..16].try_into().unwrap());
+        absorb(h, r, t0, t1, true);
     }
-    u32::from_le_bytes(word)
 }
 
+/// Absorb a trailing partial block `0 < len < 16`, appending the RFC 8439
+/// padding byte `0x01` after the message bytes.
+#[inline]
+fn final_block(h: &mut [u64; 3], r: &[u64; 2], partial: &[u8]) {
+    debug_assert!(!partial.is_empty());
+    let mut m = [0u8; 16];
+    m[..partial.len()].copy_from_slice(partial);
+    m[partial.len()] = 1;
+    let t0 = u64::from_le_bytes(m[0..8].try_into().unwrap());
+    let t1 = u64::from_le_bytes(m[8..16].try_into().unwrap());
+    absorb(h, r, t0, t1, false);
+}
+
+/// Complete the reduction, add the secret pad `s` and serialize the 16-byte tag.
+fn finish(h: &mut [u64; 3], s: &[u64; 2]) -> [u8; 16] {
+    let h0 = h[0];
+    let h1 = h[1];
+    let h2 = h[2];
+
+    // h − (2^130 − 5), selecting h when the subtraction underflows.
+    let (hmp0, b) = sub64(h0, P_0, 0);
+    let (hmp1, b) = sub64(h1, P_1, b);
+    let (_, b) = sub64(h2, P_2, b);
+
+    let h0 = select64(b, h0, hmp0);
+    let h1 = select64(b, h1, hmp1);
+
+    // tag = (h + s) mod 2^128
+    let (t0, c) = add64(h0, s[0], 0);
+    let (t1, _) = add64(h1, s[1], c);
+
+    let mut out = [0u8; 16];
+    out[0..8].copy_from_slice(&t0.to_le_bytes());
+    out[8..16].copy_from_slice(&t1.to_le_bytes());
+    return out;
+}
 #[cfg(test)]
 mod tests {
     use super::Poly1305;

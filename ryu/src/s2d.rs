@@ -1,6 +1,3 @@
-#[cfg(feature = "no-panic")]
-use no_panic::no_panic;
-
 use crate::{
     common::{ceil_log2_pow5, log2_pow5},
     d2s,
@@ -14,7 +11,6 @@ fn floor_log2(value: u64) -> u32 {
     63_u32.wrapping_sub(value.leading_zeros())
 }
 
-#[cfg_attr(feature = "no-panic", no_panic)]
 pub fn s2d(buffer: &[u8]) -> Result<f64, Error> {
     let len = buffer.len();
     if len == 0 {

@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test_native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
+      - run: rustup update stable
+      - run: make check
+      - run: cargo test --workspace --target ${{ matrix.target }} --exclude crypt
+
+
+  test_wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
+      - run: rustup update stable
+      - run: rustup target add wasm32-wasip1
+      - run: node tools/wasm_test/wasm_test.js
+

@@ -28,11 +28,11 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 /// # Example
 ///
 /// ```
-/// use anyhow::Result;
+/// use std::error::Error;
 /// use serde::Serialize;
 /// use std::collections::BTreeMap;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> Result<(), Box<dyn Error>> {
 ///     let mut buffer = Vec::new();
 ///     let mut ser = serde_yaml::Serializer::new(&mut buffer);
 ///
@@ -200,81 +200,91 @@ where
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_i128(self, v: i128) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }
 
     fn serialize_u128(self, v: u128) -> Result<()> {
+        let mut buf = core::fmt::NumBuffer::new();
         self.emit_scalar(Scalar {
             tag: None,
-            value: &*format_number::format_int(v),
+            value: v.format_into(&mut buf),
             style: ScalarStyle::Plain,
         })
     }

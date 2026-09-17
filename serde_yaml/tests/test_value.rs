@@ -1,13 +1,9 @@
-#![allow(
-    clippy::derive_partial_eq_without_eq,
-    clippy::eq_op,
-    clippy::uninlined_format_args
-)]
+#![allow(clippy::derive_partial_eq_without_eq, clippy::eq_op, clippy::uninlined_format_args)]
 
-use indoc::indoc;
-use serde::de::IntoDeserializer;
-use serde::Deserialize;
-use serde_derive::{Deserialize, Serialize};
+#[macro_use]
+mod common;
+
+use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_yaml::{Number, Value};
 
 #[test]

@@ -39,7 +39,7 @@ impl ErrorImpl {
             }
         }
 
-        #[cfg(any(std_backtrace, feature = "backtrace"))]
+        #[cfg(std_backtrace)]
         {
             use alloc::string::ToString;
 

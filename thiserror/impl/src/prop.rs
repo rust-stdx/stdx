@@ -7,19 +7,19 @@ use crate::{
 };
 
 impl Struct<'_> {
-    pub(crate) fn from_field(&self) -> Option<&Field> {
+    pub(crate) fn from_field(&self) -> Option<&Field<'_>> {
         from_field(&self.fields)
     }
 
-    pub(crate) fn source_field(&self) -> Option<&Field> {
+    pub(crate) fn source_field(&self) -> Option<&Field<'_>> {
         source_field(&self.fields)
     }
 
-    pub(crate) fn backtrace_field(&self) -> Option<&Field> {
+    pub(crate) fn backtrace_field(&self) -> Option<&Field<'_>> {
         backtrace_field(&self.fields)
     }
 
-    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field> {
+    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field<'_>> {
         let backtrace_field = self.backtrace_field()?;
         distinct_backtrace_field(backtrace_field, self.from_field())
     }
@@ -45,19 +45,19 @@ impl Enum<'_> {
 }
 
 impl Variant<'_> {
-    pub(crate) fn from_field(&self) -> Option<&Field> {
+    pub(crate) fn from_field(&self) -> Option<&Field<'_>> {
         from_field(&self.fields)
     }
 
-    pub(crate) fn source_field(&self) -> Option<&Field> {
+    pub(crate) fn source_field(&self) -> Option<&Field<'_>> {
         source_field(&self.fields)
     }
 
-    pub(crate) fn backtrace_field(&self) -> Option<&Field> {
+    pub(crate) fn backtrace_field(&self) -> Option<&Field<'_>> {
         backtrace_field(&self.fields)
     }
 
-    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field> {
+    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field<'_>> {
         let backtrace_field = self.backtrace_field()?;
         distinct_backtrace_field(backtrace_field, self.from_field())
     }

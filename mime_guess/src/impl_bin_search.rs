@@ -1,4 +1,4 @@
-// use unicase::UniCase;
+use std::cmp::Ordering;
 
 include!("mime_types.rs");
 include!(env!("MIME_TYPES_GENERATED_PATH"));
@@ -31,12 +31,42 @@ pub fn get_extensions(toplevel: &str, sublevel: &str) -> Option<&'static [&'stat
     Some(&EXTS[sub.0..sub.1])
 }
 
+/// Looks up `key` in `map`, comparing ASCII letters case-insensitively.
+///
+/// `map` must be sorted by its keys in ascending byte order; stored keys are
+/// lowercase ASCII, so folding only the query keeps the ordering valid. No
+/// allocation is performed.
 fn map_lookup<K, V>(map: &'static [(K, V)], key: &str) -> Option<V>
 where
     K: Copy + Into<&'static str>,
     V: Copy,
 {
-    map.binary_search_by_key(&key, |(k, _)| (*k).into())
-        .ok()
-        .map(|i| map[i].1)
+    let mut left = 0;
+    let mut right = map.len();
+
+    while left < right {
+        let mid = left + (right - left) / 2;
+        match cmp_ignore_ascii_case(map[mid].0.into(), key) {
+            Ordering::Less => left = mid + 1,
+            Ordering::Greater => right = mid,
+            Ordering::Equal => return Some(map[mid].1),
+        }
+    }
+
+    None
+}
+
+/// Compares two strings byte-wise, folding ASCII letters to lowercase.
+fn cmp_ignore_ascii_case(a: &str, b: &str) -> Ordering {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    let common = a.len().min(b.len());
+
+    for i in 0..common {
+        let (ca, cb) = (a[i].to_ascii_lowercase(), b[i].to_ascii_lowercase());
+        if ca != cb {
+            return ca.cmp(&cb);
+        }
+    }
+
+    a.len().cmp(&b.len())
 }

@@ -120,7 +120,7 @@ pub enum DataStoreError {
   pub struct MyError {
       msg: String,
       #[source]  // optional if field name is `source`
-      source: anyhow::Error,
+      source: anyerr::Error,
   }
   ```
 
@@ -162,7 +162,7 @@ pub enum DataStoreError {
       ...
 
       #[error(transparent)]
-      Other(#[from] anyhow::Error),  // source and Display delegate to anyhow::Error
+      Other(#[from] anyerr::Error),  // source and Display delegate to anyerr::Error
   }
   ```
 
@@ -187,22 +187,22 @@ pub enum DataStoreError {
   }
   ```
 
-- See also the [`anyhow`] library for a convenient single error type to use in
+- See also the [`anyerr`] library for a convenient single error type to use in
   application code.
 
-  [`anyhow`]: https://github.com/dtolnay/anyhow
+  [`anyerr`]: https://github.com/rust-stdx/stdx
 
 <br>
 
-## Comparison to anyhow
+## Comparison to anyerr
 
 Use thiserror if you care about designing your own dedicated error type(s) so
 that the caller receives exactly the information that you choose in the event of
-failure. This most often applies to library-like code. Use [Anyhow] if you don't
+failure. This most often applies to library-like code. Use [anyerr] if you don't
 care what error type your functions return, you just want it to be easy. This is
 common in application-like code.
 
-[Anyhow]: https://github.com/dtolnay/anyhow
+[anyerr]: https://github.com/rust-stdx/stdx
 
 <br>
 

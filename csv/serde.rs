@@ -514,34 +514,44 @@ impl<'a, 'b> serde::Serializer for &'b mut StructSer<'a, 'b> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i16(self, v: i16) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i32(self, v: i32) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i64(self, v: i64) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i128(self, v: i128) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u8(self, v: u8) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u16(self, v: u16) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u32(self, v: u32) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u64(self, v: u64) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u128(self, v: u128) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_f32(self, v: f32) -> Result<(), CsvError> {
         let mut buf = ryu::Buffer::new();
@@ -766,34 +776,44 @@ impl<'a> serde::Serializer for &'a mut FieldCapture<'a> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i16(self, v: i16) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i32(self, v: i32) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i64(self, v: i64) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_i128(self, v: i128) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u8(self, v: u8) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u16(self, v: u16) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u32(self, v: u32) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u64(self, v: u64) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_u128(self, v: u128) -> Result<(), CsvError> {
-        self.serialize_str(&format_number::format_int(v))
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
     fn serialize_f32(self, v: f32) -> Result<(), CsvError> {
         let mut buf = ryu::Buffer::new();

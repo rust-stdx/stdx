@@ -49,43 +49,53 @@ impl<S: Sink> ser::Serializer for PartSerializer<S> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_i16(self, v: i16) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_i32(self, v: i32) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_i64(self, v: i64) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_u8(self, v: u8) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_u16(self, v: u16) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_u32(self, v: u32) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_u64(self, v: u64) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_u128(self, v: u128) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_i128(self, v: i128) -> Result<S::Ok, Error> {
-        self.serialize_integer(v)
+        let mut buf = core::fmt::NumBuffer::new();
+        self.serialize_str(v.format_into(&mut buf))
     }
 
     fn serialize_f32(self, v: f32) -> Result<S::Ok, Error> {
@@ -216,14 +226,6 @@ impl<S: Sink> ser::Serializer for PartSerializer<S> {
 }
 
 impl<S: Sink> PartSerializer<S> {
-    fn serialize_integer<I>(self, value: I) -> Result<S::Ok, Error>
-    where
-        I: format_number::Integer,
-    {
-        let part = &*format_number::format_int(value);
-        ser::Serializer::serialize_str(self, part)
-    }
-
     fn serialize_floating<F>(self, value: F) -> Result<S::Ok, Error>
     where
         F: ryu::Float,

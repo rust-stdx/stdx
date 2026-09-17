@@ -1,13 +1,8 @@
 #![forbid(unsafe_code)]
+pub use embed_utils::{EmbeddedFile, Metadata};
 #[cfg(feature = "compression")]
 #[cfg_attr(feature = "compression", doc(hidden))]
 pub use include_flate::flate;
-
-#[allow(unused_imports)]
-#[macro_use]
-extern crate embed_impl;
-pub use embed_impl::*;
-pub use embed_utils::{EmbeddedFile, Metadata};
 
 #[doc(hidden)]
 pub extern crate embed_utils as utils;
@@ -49,7 +44,7 @@ pub trait RustEmbed {
     fn iter() -> Filenames;
 }
 
-pub use RustEmbed as Embed;
+pub use embed_impl::RustEmbed as Embed;
 
 /// An iterator over filenames.
 ///

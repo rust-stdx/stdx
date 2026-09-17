@@ -6,7 +6,6 @@
 /// # Example
 ///
 /// ```
-/// # use serde_derive::{Deserialize, Serialize};
 /// use serde::{Deserialize, Serialize};
 ///
 /// #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -811,7 +810,6 @@ pub mod singleton_map {
 /// # Example
 ///
 /// ```
-/// # use serde_derive::{Deserialize, Serialize};
 /// use serde::{Deserialize, Serialize};
 ///
 /// #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -871,7 +869,6 @@ pub mod singleton_map {
 /// call, without `serde(with = …)`, as follows.
 ///
 /// ```
-/// # use serde_derive::{Deserialize, Serialize};
 /// # use serde::{Deserialize, Serialize};
 /// #
 /// # #[derive(Serialize, Deserialize, PartialEq, Debug)]

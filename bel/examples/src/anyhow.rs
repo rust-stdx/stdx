@@ -1,6 +1,6 @@
 use bel::Program;
 
-/// This example demonstrates that compilation errors can be reported with anyhow.
+/// This example demonstrates that compilation errors can be reported with anyerr.
 fn main() {
     if let Err(e) = evaluate() {
         // Prints
@@ -15,7 +15,7 @@ fn main() {
     }
 }
 
-fn evaluate() -> anyhow::Result<()> {
+fn evaluate() -> anyerr::Result<()> {
     Program::compile("1 @ 1")?;
     unreachable!()
 }

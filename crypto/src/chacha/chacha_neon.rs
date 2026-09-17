@@ -14,6 +14,12 @@ pub const SIMD_LANES: usize = 4;
 // [ block1 (32-bits) || block2 (32-bits) || block3 (32-bits) || block4 (32-bits) ]
 // then we perform the normal ChaCha operations on these vectors, meaning that we compute
 // 4 ChaCha blocks in parallel for every operation on these vectors.
+//
+// The ChaCha state is manipulated in a "word-major" layout (each vector holds word *i* of
+// the 4 blocks). Before the keystream can be XORed with the input, the word-major vectors
+// are transposed into "block-major" vectors (each holding 16 bytes of a single block) using
+// only VUZP1/VUZP2, so that a single vector load/xor/store can stream the keystream into
+// the input without materializing an intermediate byte buffer.
 #[target_feature(enable = "neon")]
 pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
     state: &mut [u32; STATE_WORDS],
@@ -25,6 +31,7 @@ pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
     } else {
         ((state[13] as u64) << 32) | (state[12] as u64)
     };
+    // only used for the final, partial chunk (see below)
     let mut keystream = [0u8; SIMD_LANES * BLOCK_SIZE];
 
     let w13 = if IS_IETF { state[13] } else { 0 };
@@ -56,37 +63,41 @@ pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
         ]
     };
 
-    for input_blocks in input.chunks_mut(BLOCK_SIZE * SIMD_LANES) {
-        // inject counters
-        // TODO: there should be a better / faster way
-        let mut counter_lane_low = [0u32; SIMD_LANES];
-        let mut counter_lane_high = [0u32; SIMD_LANES];
-        for i in 0..SIMD_LANES {
-            if IS_IETF {
-                counter_lane_low[i] = (counter as u32).wrapping_add(i as u32);
-            } else {
-                let counter_lane = counter.wrapping_add(i as u64);
-                counter_lane_low[i] = counter_lane as u32;
-                counter_lane_high[i] = (counter_lane >> 32) as u32;
-            }
-        }
-        unsafe {
-            state_simd[12] = vld1q_u32(counter_lane_low.as_ptr());
-            if !IS_IETF {
-                state_simd[13] = vld1q_u32(counter_lane_high.as_ptr());
-            }
-        }
+    // number of bytes that can be processed as full 4-block chunks
+    let full_len = (input.len() / (SIMD_LANES * BLOCK_SIZE)) * (SIMD_LANES * BLOCK_SIZE);
 
-        // compute 4 blocks in parallel
-        chacha_neon_4blocks::<ROUNDS>(state_simd, &mut keystream);
+    // process the full chunks by computing 4 blocks in parallel and XORing them directly
+    // into input (transpose + direct emit, one word group at a time to keep the register
+    // pressure low)
+    let mut offset = 0;
+    while offset < full_len {
+        inject_counter(&mut state_simd, counter, IS_IETF);
 
-        // XOR plaintext with keystream
-        input_blocks
+        // SAFETY: `offset` is always a multiple of the block batch size and stays within `input`
+        chacha_neon_emit::<ROUNDS>(state_simd, unsafe { input.as_mut_ptr().add(offset) });
+
+        counter = counter.wrapping_add(SIMD_LANES as u64);
+        offset += SIMD_LANES * BLOCK_SIZE;
+    }
+
+    // the final chunk (< 4 * 64 bytes) is XORed with a keystream materialized in a buffer:
+    // this preserves the unconsumed part of the last block for `keystream_leftover`.
+    if offset < input.len() {
+        inject_counter(&mut state_simd, counter, IS_IETF);
+
+        let mut keystream_vectors = chacha_neon_rounds::<ROUNDS>(state_simd);
+        // add the initial state to the working state to get the keystream
+        for i in 0..STATE_WORDS {
+            keystream_vectors[i] = vaddq_u32(keystream_vectors[i], state_simd[i]);
+        }
+        serialize_keystream(&keystream_vectors, &mut keystream);
+
+        input[offset..]
             .iter_mut()
             .zip(keystream)
             .for_each(|(plaintext, keystream)| *plaintext ^= keystream);
 
-        counter = counter.wrapping_add((input_blocks.len() as u64).div_ceil(BLOCK_SIZE as u64));
+        counter = counter.wrapping_add(((input.len() - offset) as u64).div_ceil(BLOCK_SIZE as u64));
     }
 
     state[12] = counter as u32;
@@ -103,14 +114,93 @@ pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
     }
 }
 
-/// Compute 4 64-byte ChaCha blocks in parallel using NEON vectors.
+/// Injects the counter into words 12 (and 13 for DJB) of the SIMD state.
+///
+/// Word 12 receives `counter..counter+SIMD_LANES` (one value per block). For the DJB
+/// variant, word 13 receives the high 32 bits of the 64-bit counter per block.
 #[inline(always)]
-fn chacha_neon_4blocks<const ROUNDS: usize>(
-    state: [uint32x4_t; STATE_WORDS],
-    keystream: &mut [u8; SIMD_LANES * BLOCK_SIZE],
-) {
-    let keystream_ptr = keystream.as_mut_ptr();
+fn inject_counter(state_simd: &mut [uint32x4_t; STATE_WORDS], counter: u64, is_ietf: bool) {
+    let mut counter_lane_low = [0u32; SIMD_LANES];
+    let mut counter_lane_high = [0u32; SIMD_LANES];
+    for i in 0..SIMD_LANES {
+        if is_ietf {
+            counter_lane_low[i] = (counter as u32).wrapping_add(i as u32);
+        } else {
+            let counter_lane = counter.wrapping_add(i as u64);
+            counter_lane_low[i] = counter_lane as u32;
+            counter_lane_high[i] = (counter_lane >> 32) as u32;
+        }
+    }
+    unsafe {
+        state_simd[12] = vld1q_u32(counter_lane_low.as_ptr());
+        if !is_ietf {
+            state_simd[13] = vld1q_u32(counter_lane_high.as_ptr());
+        }
+    }
+}
 
+/// Computes 4 64-byte ChaCha blocks in parallel and XORs them with the 4 input blocks at
+/// `input` (256 bytes) in place.
+///
+/// The state is kept in "word-major" layout (word *i* of all 4 blocks in a single vector).
+/// After the rounds, each group of 4 words is added to the initial state, transposed with
+/// `transpose4` into 4 block-major vectors (16 bytes of a single block), and XORed into
+/// the input with a single vector load/xor/store each. Processing one word group at a time
+/// keeps the number of live vectors low enough to avoid spilling keystream vectors to the
+/// stack. No intermediate keystream buffer is involved.
+#[inline(always)]
+fn chacha_neon_emit<const ROUNDS: usize>(state: [uint32x4_t; STATE_WORDS], input: *mut u8) {
+    let working = chacha_neon_rounds::<ROUNDS>(state);
+
+    // word group g: words 4g..4g+4 of every block -> bytes 16g..16g+16 of every block
+    for g in 0..4 {
+        let k0 = unsafe { vaddq_u32(working[4 * g], state[4 * g]) };
+        let k1 = unsafe { vaddq_u32(working[4 * g + 1], state[4 * g + 1]) };
+        let k2 = unsafe { vaddq_u32(working[4 * g + 2], state[4 * g + 2]) };
+        let k3 = unsafe { vaddq_u32(working[4 * g + 3], state[4 * g + 3]) };
+        let (t0, t1, t2, t3) = transpose4(k0, k1, k2, k3);
+        unsafe {
+            xor_store(input.add(g * 16), t0);
+            xor_store(input.add(BLOCK_SIZE + g * 16), t1);
+            xor_store(input.add(2 * BLOCK_SIZE + g * 16), t2);
+            xor_store(input.add(3 * BLOCK_SIZE + g * 16), t3);
+        }
+    }
+}
+
+/// Loads the 16 bytes at `ptr`, XORs them with `v`, and stores the result back.
+#[inline(always)]
+unsafe fn xor_store(ptr: *mut u8, v: uint32x4_t) {
+    let loaded = unsafe { vld1q_u32(ptr.cast::<u32>()) };
+    let result = unsafe { veorq_u32(loaded, v) };
+    unsafe { vst1q_u32(ptr.cast::<u32>(), result) };
+}
+
+/// Turns 4 word-major vectors (each holding word *i* of blocks `counter..counter+3`)
+/// into 4 block-major vectors (each holding 4 consecutive words of one block), using
+/// only VUZP1/VUZP2 (deinterleave even/odd).
+#[inline(always)]
+fn transpose4(
+    a: uint32x4_t,
+    b: uint32x4_t,
+    c: uint32x4_t,
+    d: uint32x4_t,
+) -> (uint32x4_t, uint32x4_t, uint32x4_t, uint32x4_t) {
+    let u0 = unsafe { vuzp1q_u32(a, b) };
+    let u1 = unsafe { vuzp2q_u32(a, b) };
+    let u2 = unsafe { vuzp1q_u32(c, d) };
+    let u3 = unsafe { vuzp2q_u32(c, d) };
+    unsafe { (vuzp1q_u32(u0, u2), vuzp1q_u32(u1, u3), vuzp2q_u32(u0, u2), vuzp2q_u32(u1, u3)) }
+}
+
+/// Computes the 4 64-byte ChaCha working states in parallel using NEON vectors.
+///
+/// Returns the state in word-major layout: `result[i]` holds word *i* of all 4 blocks,
+/// *before* the initial state is added back. The caller is responsible for adding the
+/// initial state and for reordering (`chacha_neon_emit`) or serializing
+/// (`serialize_keystream`) the resulting keystream into a byte stream.
+#[inline(always)]
+fn chacha_neon_rounds<const ROUNDS: usize>(state: [uint32x4_t; STATE_WORDS]) -> [uint32x4_t; STATE_WORDS] {
     // tmp_state is the "working state" where we perform the ChaCha operations
     let mut tmp_state = state;
 
@@ -128,22 +218,26 @@ fn chacha_neon_4blocks<const ROUNDS: usize>(
         quarter_round(&mut tmp_state, 3, 4, 9, 14);
     }
 
-    // serialize the keystream as follow:
-    // block1 || block2 || block3 || block4
+    tmp_state
+}
 
-    // Each iteration of the loop writes a 32-bit word for each block into keystream.
-    // The first iteration writes block1[0], block2[0], block3[0], block4[0]
-    // the second iterations writes block1[1], block2[1], block3[1], block4[1]
-    // and so on, for the 16 32-bit words of the ChaCha state
+/// Serializes the word-major keystream vectors into a block-major byte buffer:
+/// `block1 || block2 || block3 || block4`.
+///
+/// Each iteration of the loop writes a 32-bit word for each block into the buffer.
+/// The first iteration writes block1[0..4], block2[0..4], block3[0..4], block4[0..4],
+/// the second writes block1[4..8], block2[4..8], block3[4..8], block4[4..8], and so
+/// on, for the 16 32-bit words of the ChaCha state.
+#[inline(always)]
+fn serialize_keystream(keystream_vectors: &[uint32x4_t; STATE_WORDS], keystream: &mut [u8; SIMD_LANES * BLOCK_SIZE]) {
+    let keystream_ptr = keystream.as_mut_ptr();
+
     for word_index in 0..STATE_WORDS {
-        // add working state to initial state to get the keystream
-        let keystream_simd = unsafe { vaddq_u32(tmp_state[word_index], state[word_index]) };
         let mut lanes = [0u32; SIMD_LANES];
-        unsafe { vst1q_u32(lanes.as_mut_ptr(), keystream_simd) };
+        unsafe { vst1q_u32(lanes.as_mut_ptr(), keystream_vectors[word_index]) };
 
-        // TODO: there should be a fast way to directly XOR input with keystream SIMD here
+        // each lane is a 32-bit little-endian word
         for block in 0..SIMD_LANES {
-            // keystream[(block * STATE_WORDS) + word_index] = tmp[block].to_le();
             let byte_offset = (block * STATE_WORDS * 4) + (word_index * 4);
             unsafe {
                 core::ptr::copy_nonoverlapping(lanes[block].to_le_bytes().as_ptr(), keystream_ptr.add(byte_offset), 4);

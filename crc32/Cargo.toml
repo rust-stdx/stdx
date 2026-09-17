@@ -1,5 +1,5 @@
 [package]
-name = "crc32fast"
+name = "crc32"
 version = "1.4.2"
 license = "Apache-2.0"
 authors = [
@@ -11,9 +11,6 @@ readme = "README.md"
 keywords = ["hash", "crc", "crc32", "simd", "fast"]
 categories = ["algorithms", "no-std"]
 edition = "2024"
-
-[dependencies]
-cfg_if = { path = "../cfg_if" }
 
 [dev-dependencies]
 rand = { workspace = true }

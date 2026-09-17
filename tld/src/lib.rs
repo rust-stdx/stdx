@@ -1,10 +1,17 @@
 //! A native Rust library for Mozilla's Public Suffix List
 
+#![no_std]
+
+extern crate alloc;
+
+#[cfg(feature = "std")]
+extern crate std;
+
 mod error;
 mod types;
 
+use alloc::{collections::BTreeMap, string::ToString, vec::Vec};
 use core::str::{FromStr, from_utf8};
-use std::{collections::BTreeMap, sync::LazyLock};
 
 pub use error::Error;
 pub use types::{Domain, Info, List as Psl, Suffix, Type};
@@ -18,12 +25,9 @@ const WILDCARD: &str = "*";
 
 const PUBLIC_SUFFIX_LIST_DATA: &str = include_str!("./public_suffix_list.txt");
 
-pub static PUBLIC_SUFFIX_LIST: LazyLock<List> = LazyLock::new(|| {
-    let ret: List = PUBLIC_SUFFIX_LIST_DATA
-        .parse()
-        .unwrap_or_else(|err| panic!("tld: error parsing public suffic list: {err}"));
-    return ret;
-});
+pub fn public_suffix_list() -> Result<List, Error> {
+    PUBLIC_SUFFIX_LIST_DATA.parse()
+}
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 struct Node {
@@ -75,7 +79,7 @@ impl List {
         let mut is_exception = false;
         if rule.starts_with('!') {
             if !rule.contains('.') {
-                return Err(Error::ExceptionAtFirstLabel(rule.to_owned()));
+                return Err(Error::ExceptionAtFirstLabel(rule.to_string()));
             }
             is_exception = true;
             rule = &rule[1..];
@@ -84,13 +88,13 @@ impl List {
         let mut current = &mut self.rules;
         for label in rule.rsplit('.') {
             if label.is_empty() {
-                return Err(Error::EmptyLabel(rule.to_owned()));
+                return Err(Error::EmptyLabel(rule.to_string()));
             }
 
             #[cfg(not(feature = "anycase"))]
-            let key = label.as_bytes().to_owned();
+            let key = label.as_bytes().to_vec();
             #[cfg(feature = "anycase")]
-            let key = UniCase::new(Cow::from(label.to_owned()));
+            let key = UniCase::new(Cow::from(label.to_string()));
 
             current = current.children.entry(key).or_insert_with(Default::default);
         }

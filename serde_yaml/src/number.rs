@@ -304,8 +304,14 @@ impl Number {
 impl Display for Number {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self.n {
-            N::PosInt(i) => formatter.write_str(&*format_number::format_int(i)),
-            N::NegInt(i) => formatter.write_str(&*format_number::format_int(i)),
+            N::PosInt(i) => {
+                let mut buf = core::fmt::NumBuffer::new();
+                formatter.write_str(i.format_into(&mut buf))
+            }
+            N::NegInt(i) => {
+                let mut buf = core::fmt::NumBuffer::new();
+                formatter.write_str(i.format_into(&mut buf))
+            }
             N::Float(f) if f.is_nan() => formatter.write_str(".nan"),
             N::Float(f) if f.is_infinite() => {
                 if f.is_sign_negative() {
@@ -563,7 +569,7 @@ impl Hash for Number {
     }
 }
 
-pub(crate) fn unexpected(number: &Number) -> Unexpected {
+pub(crate) fn unexpected(number: &Number) -> Unexpected<'_> {
     match number.n {
         N::PosInt(u) => Unexpected::Unsigned(u),
         N::NegInt(i) => Unexpected::Signed(i),

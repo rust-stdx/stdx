@@ -261,11 +261,6 @@ impl<'a> TwoWaySearcher<'a> {
             // We have found a match!
             let match_pos = state.position;
 
-            state.position += self.needle.len();
-            if !long_period {
-                state.memory = 0; // set to needle.len() - self.period for overlapping matches
-            }
-
             return Some(match_pos);
         }
     }

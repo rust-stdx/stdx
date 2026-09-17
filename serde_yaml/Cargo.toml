@@ -12,15 +12,12 @@ rust-version = "1.85"
 
 [dependencies]
 indexmap = { workspace = true }
-format_number = { path = "../format_number" }
 ryu = { path = "../ryu" }
-serde = { workspace = true }
+serde = { workspace = true, features = ["std"] }
 unsafe_libyaml = { path = "../unsafe_libyaml" }
 
-# [dev-dependencies]
-# anyhow = "1.0.79"
-# indoc = "2.0"
-# serde_derive = "1.0.195"
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
 
 [lib]
 doc-scrape-examples = false

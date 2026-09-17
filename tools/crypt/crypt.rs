@@ -163,13 +163,21 @@ fn derive_key<const N: usize>(root_key: &[u8], info: &str) -> Zeroizing<[u8; N]>
 }
 
 fn argon2_derive_key(password: &[u8], salt: &[u8]) -> Result<Zeroizing<[u8; KEY_LENGTH]>, String> {
-    let params = argon2::Params::new(ARGON2_MEMORY_KB, ARGON2_ITERATIONS, ARGON2_LANES, Some(KEY_LENGTH))
-        .map_err(|e| format!("error creating argon2 params: {e}"))?;
-    let argon2_instance = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+    let params = crypto::argon2::Params {
+        iterations: ARGON2_ITERATIONS,
+        memory: ARGON2_MEMORY_KB,
+        parallelism: ARGON2_LANES,
+        tag_length: KEY_LENGTH as u32,
+    };
+
+    let derived = Zeroizing::new(
+        crypto::argon2::derive_key(password, salt, &[], &[], &params)
+            .map_err(|e| format!("error deriving key with argon2: {e}"))?,
+    );
+
     let mut key = Zeroizing::new([0u8; KEY_LENGTH]);
-    argon2_instance
-        .hash_password_into(password, salt, key.as_mut_slice())
-        .map_err(|e| format!("error deriving key with argon2: {e}"))?;
+    key.copy_from_slice(&derived);
+
     Ok(key)
 }
 

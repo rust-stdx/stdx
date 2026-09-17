@@ -11,5 +11,5 @@ default = ["std"]
 std = ["serde/std", "memchr/std"]
 
 [dependencies]
-memchr = { version = "2", default-features = false }
+memchr = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive", "alloc"] }

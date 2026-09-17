@@ -16,10 +16,10 @@ bytes = { workspace = true }
 crypto = { path = "../crypto" }
 futures-util = { workspace = true }
 hex = { path = "../hex" }
-quick-xml = { version = "0.38", features = ["serialize"] }
+quick-xml = { workspace = true }
 reqwest = { workspace = true, features = ["stream"], optional = true }
 serde = { workspace = true, features = ["derive"] }
-url = "2"
+url = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

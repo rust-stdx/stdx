@@ -6,11 +6,13 @@
     clippy::uninlined_format_args
 )]
 
-use indoc::indoc;
-use serde_derive::Deserialize;
+#[macro_use]
+mod common;
+
+use std::{collections::BTreeMap, fmt::Debug};
+
+use serde::Deserialize;
 use serde_yaml::{Deserializer, Number, Value};
-use std::collections::BTreeMap;
-use std::fmt::Debug;
 
 fn test_de<T>(yaml: &str, expected: &T)
 where
@@ -226,8 +228,14 @@ fn test_enum_representations() {
         Enum::Unit,
         Enum::Tuple(0, 0),
         Enum::Tuple(0, 0),
-        Enum::Struct { x: 0, y: 0 },
-        Enum::Struct { x: 0, y: 0 },
+        Enum::Struct {
+            x: 0,
+            y: 0,
+        },
+        Enum::Struct {
+            x: 0,
+            y: 0,
+        },
         Enum::String("...".to_owned()),
         Enum::String("...".to_owned()),
         Enum::Number(0.0),
@@ -438,8 +446,8 @@ fn test_numbers() {
 
     // NOT numbers.
     let cases = [
-        "0127", "+0127", "-0127", "++.inf", "+-.inf", "++1", "+-1", "-+1", "--1", "0x+1", "0x-1",
-        "-0x+1", "-0x-1", "++0x1", "+-0x1", "-+0x1", "--0x1",
+        "0127", "+0127", "-0127", "++.inf", "+-.inf", "++1", "+-1", "-+1", "--1", "0x+1", "0x-1", "-0x+1", "-0x-1",
+        "++0x1", "+-0x1", "-+0x1", "--0x1",
     ];
     for yaml in &cases {
         let value = serde_yaml::from_str::<Value>(yaml).unwrap();
@@ -453,12 +461,8 @@ fn test_numbers() {
 #[test]
 fn test_nan() {
     // There is no negative NaN in YAML.
-    assert!(serde_yaml::from_str::<f32>(".nan")
-        .unwrap()
-        .is_sign_positive());
-    assert!(serde_yaml::from_str::<f64>(".nan")
-        .unwrap()
-        .is_sign_positive());
+    assert!(serde_yaml::from_str::<f32>(".nan").unwrap().is_sign_positive());
+    assert!(serde_yaml::from_str::<f64>(".nan").unwrap().is_sign_positive());
 }
 
 #[test]
@@ -534,7 +538,9 @@ fn test_ignore_tag() {
     "};
 
     let expected = Data {
-        struc: Struc { x: 0 },
+        struc: Struc {
+            x: 0,
+        },
         tuple: Tuple(0, 0),
         newtype: Newtype(0),
         map: {
@@ -556,7 +562,9 @@ fn test_no_required_fields() {
     }
 
     for document in ["", "# comment\n"] {
-        let expected = NoRequiredFields { optional: None };
+        let expected = NoRequiredFields {
+            optional: None,
+        };
         let deserialized: NoRequiredFields = serde_yaml::from_str(document).unwrap();
         assert_eq!(expected, deserialized);
 
@@ -618,7 +626,9 @@ fn test_python_safe_dump() {
             7200
     "#};
 
-    let expected = Frob { foo: 7200 };
+    let expected = Frob {
+        foo: 7200,
+    };
     test_de(yaml, &expected);
 }
 

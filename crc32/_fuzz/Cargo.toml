@@ -5,4 +5,4 @@ authors = ["Sam Rijs <srijs@airpost.net>"]
 
 # [dependencies]
 # afl = "0.4.1"
-# crc32fast = { path = ".." }
+# crc32 = { path = ".." }

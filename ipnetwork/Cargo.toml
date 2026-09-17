@@ -11,7 +11,7 @@ edition = "2021"
 rust-version = "1.80.0"
 
 [dependencies]
-serde = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["std", "derive"] }
 # schemars = { version = "1.0.4", optional = true }
 
 [dev-dependencies]
@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 # Since most people add a dependency without `default-features = false` they involuntarily
 # pull in unused dependencies.
 default = []
+serde = ["dep:serde"]
 
 # [[bench]]
 # name = "parse_bench"

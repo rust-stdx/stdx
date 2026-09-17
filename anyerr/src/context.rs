@@ -71,7 +71,7 @@ where
 /// ```
 /// # type T = ();
 /// #
-/// use anyhow::{Context, Result};
+/// use anyerr::{Context, Result};
 ///
 /// fn maybe_get() -> Option<T> {
 ///     # const IGNORE: &str = stringify! {
