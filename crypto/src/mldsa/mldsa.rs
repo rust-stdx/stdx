@@ -1066,6 +1066,21 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
         unsafe { core::mem::zeroed() }
     }
 
+    /// Expands `seed` into a fresh signing key.
+    pub(crate) fn from_seed(params: &MlDsaParams, seed: &[u8; SEED_SIZE]) -> Self {
+        let mut this = Self::new();
+        this.init(params, seed);
+        this
+    }
+
+    /// Generates a fresh random signing key.
+    #[cfg(feature = "random")]
+    pub(crate) fn from_random(params: &MlDsaParams) -> Self {
+        let mut this = Self::new();
+        this.generate(params);
+        this
+    }
+
     /// Expands `seed` into a signing key, overwriting any previous state.
     pub(crate) fn init(&mut self, params: &MlDsaParams, seed: &[u8; SEED_SIZE]) {
         debug_assert_eq!(PK_SIZE, params.public_key_size);

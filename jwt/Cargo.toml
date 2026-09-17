@@ -10,7 +10,7 @@ path = "jwt.rs"
 default = ["std"]
 
 std = ["serde/std", "small_collections/std"]
-zeroize = ["dep:zeroize", "crypto/zeroize"]
+zeroize = ["crypto/zeroize"]
 
 [dependencies]
 base64 = { path = "../base64" }
@@ -20,4 +20,3 @@ serde = { workspace = true, default_features = false, features = ["alloc", "deri
 serde_json = { workspace = true }
 small_collections = { path = "../small_collections", default-features = false, features = ["serde"] }
 smallvec = { workspace = true, features = ["serde"] }
-zeroize = { workspace = true, optional = true }

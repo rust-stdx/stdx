@@ -3,19 +3,16 @@ use std::hint::black_box;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::{
     curve25519::ed25519::SecretKey,
-    mldsa::{MlDsa44SigningKey, MlDsa65SigningKey, MlDsa87SigningKey},
+    mldsa::{MlDsa44SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_sign(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
-    let mut mldsa44_sk = MlDsa44SigningKey::new();
-    mldsa44_sk.init(&[0u8; 32]);
-    let mut mldsa65_sk = MlDsa65SigningKey::new();
-    mldsa65_sk.init(&[0u8; 32]);
-    let mut mldsa87_sk = MlDsa87SigningKey::new();
-    mldsa87_sk.init(&[0u8; 32]);
+    let mldsa44_sk = MlDsa44SecretKey::new(&[0u8; 32]);
+    let mldsa65_sk = MlDsa65SecretKey::new(&[0u8; 32]);
+    let mldsa87_sk = MlDsa87SecretKey::new(&[0u8; 32]);
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(format!("sign/{size}"));
@@ -60,14 +57,11 @@ fn bench_verify(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
     let ed25519_pk = black_box(ed25519_sk.public_key());
 
-    let mut mldsa44_sk = MlDsa44SigningKey::new();
-    mldsa44_sk.init(&[0u8; 32]);
+    let mldsa44_sk = MlDsa44SecretKey::new(&[0u8; 32]);
     let mldsa44_pk = mldsa44_sk.public_key();
-    let mut mldsa65_sk = MlDsa65SigningKey::new();
-    mldsa65_sk.init(&[0u8; 32]);
+    let mldsa65_sk = MlDsa65SecretKey::new(&[0u8; 32]);
     let mldsa65_pk = mldsa65_sk.public_key();
-    let mut mldsa87_sk = MlDsa87SigningKey::new();
-    mldsa87_sk.init(&[0u8; 32]);
+    let mldsa87_sk = MlDsa87SecretKey::new(&[0u8; 32]);
     let mldsa87_pk = mldsa87_sk.public_key();
 
     for &size in DATA_SIZES {

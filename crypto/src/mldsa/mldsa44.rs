@@ -1,6 +1,6 @@
 //! ML-DSA-44 post-quantum signatures (FIPS 204, security category 2).
 //!
-//! See [`MlDsa44SigningKey`] and [`MlDsa44VerifyingKey`] for the signing and
+//! See [`MlDsa44SecretKey`] and [`MlDsa44PublicKey`] for the signing and
 //! verification APIs.
 
 use super::mldsa::{self, MlDsaError, MlDsaKeyMaterial, PARAMS_44};
@@ -17,27 +17,26 @@ pub const ML_DSA_44_CONTEXT_MAX_LEN: usize = mldsa::CONTEXT_MAX_LEN;
 const K: usize = 4;
 const L: usize = 4;
 
-/// An ML-DSA-44 verifying (public) key.
+/// An ML-DSA-44 public key.
 ///
-/// Verification is stateless. Use [`MlDsa44VerifyingKey::verify`] for a message
-/// and optional context, or [`MlDsa44VerifyingKey::verify_external_mu`] for a
+/// Verification is stateless. Use [`MlDsa44PublicKey::verify`] for a message
+/// and optional context, or [`MlDsa44PublicKey::verify_external_mu`] for a
 /// precomputed 64-byte message representative.
 ///
 /// ```
-/// # use crypto::mldsa::MlDsa44SigningKey;
+/// # use crypto::mldsa::MlDsa44SecretKey;
 /// # let seed = [0u8; 32];
-/// let mut key = MlDsa44SigningKey::new();
-/// key.init(&seed);
+/// let key = MlDsa44SecretKey::new(&seed);
 /// let signature = key.sign_derand(b"message", b"", &[0u8; 32]).unwrap();
 /// assert!(key.public_key().verify(b"message", &signature, b"").is_ok());
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MlDsa44VerifyingKey {
+pub struct MlDsa44PublicKey {
     bytes: [u8; ML_DSA_44_PUBLIC_KEY_SIZE],
 }
 
-impl MlDsa44VerifyingKey {
-    /// Creates a verifying key from its 1312-byte encoded form.
+impl MlDsa44PublicKey {
+    /// Creates a public key from its 1312-byte encoded form.
     pub fn from_bytes(bytes: &[u8; ML_DSA_44_PUBLIC_KEY_SIZE]) -> Self {
         Self {
             bytes: *bytes,
@@ -90,13 +89,13 @@ impl MlDsa44VerifyingKey {
     }
 }
 
-impl From<&[u8; ML_DSA_44_PUBLIC_KEY_SIZE]> for MlDsa44VerifyingKey {
+impl From<&[u8; ML_DSA_44_PUBLIC_KEY_SIZE]> for MlDsa44PublicKey {
     fn from(bytes: &[u8; ML_DSA_44_PUBLIC_KEY_SIZE]) -> Self {
         Self::from_bytes(bytes)
     }
 }
 
-impl TryFrom<&[u8]> for MlDsa44VerifyingKey {
+impl TryFrom<&[u8]> for MlDsa44PublicKey {
     type Error = MlDsaError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
@@ -105,63 +104,51 @@ impl TryFrom<&[u8]> for MlDsa44VerifyingKey {
     }
 }
 
-/// Size in bytes of an initialized [`MlDsa44SigningKey`].
+/// Size in bytes of an initialized [`MlDsa44SecretKey`].
 ///
-/// Useful for sizing `static`/arena storage on memory-constrained targets.
-pub const ML_DSA_44_SIGNING_KEY_SIZE: usize = core::mem::size_of::<MlDsa44SigningKey>();
+/// Useful for sizing caller-owned/arena storage on memory-constrained targets.
+pub const ML_DSA_44_SECRET_KEY_SIZE: usize = core::mem::size_of::<MlDsa44SecretKey>();
 
-/// An expanded ML-DSA-44 signing key.
+/// An expanded ML-DSA-44 secret key.
 ///
-/// This is the only way to sign: key generation runs once when the key is
-/// initialized, and the resulting matrix `A` and secret vectors in the NTT
-/// domain are cached, so signing does not repeat the expensive key generation.
+/// This is the only way to sign. Key generation runs once, in
+/// [`MlDsa44SecretKey::new`] or [`MlDsa44SecretKey::generate`], and the
+/// resulting matrix `A` and secret vectors in the NTT domain are cached, so
+/// signing does not repeat the expensive key generation.
 ///
-/// The key is a plain fixed-size value (about [`ML_DSA_44_SIGNING_KEY_SIZE`]
-/// bytes) and never allocates, which makes it usable on `no_std` and embedded
-/// targets. On constrained devices place it in a `static` with
-/// [`MlDsa44SigningKey::new`] and initialize it once with
-/// [`MlDsa44SigningKey::init`] or [`MlDsa44SigningKey::generate`]; signing then
-/// only needs a shared reference.
+/// The key is a plain fixed-size value (about [`ML_DSA_44_SECRET_KEY_SIZE`]
+/// bytes) that never allocates, which makes it usable on `no_std` and embedded
+/// targets.
 ///
 /// Secrets are zeroized on drop when the `zeroize` feature is enabled.
 #[derive(Debug)]
-pub struct MlDsa44SigningKey {
+pub struct MlDsa44SecretKey {
     inner: MlDsaKeyMaterial<K, L, ML_DSA_44_PUBLIC_KEY_SIZE>,
 }
 
-impl MlDsa44SigningKey {
-    /// Creates a zeroed, uninitialized signing key.
-    ///
-    /// This is a `const fn` so the (large) key can be placed in a `static` or
-    /// another caller-owned location. The key must be initialized with
-    /// [`MlDsa44SigningKey::init`] or [`MlDsa44SigningKey::generate`] before
-    /// signing; signing an uninitialized key yields a signature that does not
-    /// verify.
-    pub const fn new() -> Self {
+impl MlDsa44SecretKey {
+    /// Expands `seed` into a secret key, running the full FIPS 204 key
+    /// generation and caching the NTT-domain matrix and secret vectors.
+    pub fn new(seed: &[u8; ML_DSA_44_SEED_SIZE]) -> Self {
         Self {
-            inner: MlDsaKeyMaterial::new(),
+            inner: MlDsaKeyMaterial::from_seed(&PARAMS_44, seed),
         }
     }
 
-    /// Expands `seed` into a signing key, overwriting any previous state.
+    /// Generates a random secret key.
     ///
-    /// This runs the full FIPS 204 key generation and caches the NTT-domain
-    /// matrix and secret vectors. Call it once per key; re-initializing the
-    /// same value is allowed and simply replaces the previous key.
-    pub fn init(&mut self, seed: &[u8; ML_DSA_44_SEED_SIZE]) {
-        self.inner.init(&PARAMS_44, seed);
-    }
-
-    /// Generates a random seed, initializes the key from it, and returns the
-    /// seed so it can be persisted.
+    /// The seed can be retrieved afterwards with [`MlDsa44SecretKey::seed`]
+    /// so it can be persisted.
     #[cfg(feature = "random")]
-    pub fn generate(&mut self) -> [u8; ML_DSA_44_SEED_SIZE] {
-        self.inner.generate(&PARAMS_44)
+    pub fn generate() -> Self {
+        Self {
+            inner: MlDsaKeyMaterial::from_random(&PARAMS_44),
+        }
     }
 
-    /// Returns the verifying (public) key for this signing key.
-    pub fn public_key(&self) -> MlDsa44VerifyingKey {
-        MlDsa44VerifyingKey::from_bytes(self.inner.public_key())
+    /// Returns the public key for this secret key.
+    pub fn public_key(&self) -> MlDsa44PublicKey {
+        MlDsa44PublicKey::from_bytes(self.inner.public_key())
     }
 
     /// Returns the 32-byte seed this key was initialized from.

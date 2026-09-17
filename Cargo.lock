@@ -1628,7 +1628,6 @@ dependencies = [
  "serde_json",
  "small_collections",
  "smallvec 2.0.0-alpha.13",
- "zeroize",
 ]
 
 [[package]]

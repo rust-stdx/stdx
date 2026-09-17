@@ -481,8 +481,7 @@ fn wycheproof_verify<const PK: usize, const SIG: usize>(
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 fn pk44(seed: &[u8; 32]) -> [u8; ML_DSA_44_PUBLIC_KEY_SIZE] {
-    let mut sk = MlDsa44SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa44SecretKey::new(seed);
     sk.public_key().to_bytes()
 }
 
@@ -492,14 +491,12 @@ fn sign44(
     ctx: &[u8],
     rnd: &[u8; 32],
 ) -> Result<[u8; ML_DSA_44_SIGNATURE_SIZE], MlDsaError> {
-    let mut sk = MlDsa44SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa44SecretKey::new(seed);
     sk.sign_derand(msg, ctx, rnd)
 }
 
 fn sign44_mu(seed: &[u8; 32], mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_44_SIGNATURE_SIZE] {
-    let mut sk = MlDsa44SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa44SecretKey::new(seed);
     sk.sign_external_mu_derand(mu, rnd)
 }
 
@@ -509,7 +506,7 @@ fn verify44(
     sig: &[u8; ML_DSA_44_SIGNATURE_SIZE],
     ctx: &[u8],
 ) -> Result<(), MlDsaError> {
-    MlDsa44VerifyingKey::from_bytes(pk).verify(msg, sig, ctx)
+    MlDsa44PublicKey::from_bytes(pk).verify(msg, sig, ctx)
 }
 
 fn verify44_mu(
@@ -517,7 +514,7 @@ fn verify44_mu(
     mu: &[u8; 64],
     sig: &[u8; ML_DSA_44_SIGNATURE_SIZE],
 ) -> Result<(), MlDsaError> {
-    MlDsa44VerifyingKey::from_bytes(pk).verify_external_mu(mu, sig)
+    MlDsa44PublicKey::from_bytes(pk).verify_external_mu(mu, sig)
 }
 
 #[test]
@@ -590,15 +587,12 @@ fn mldsa44_wycheproof_verify() {
 #[test]
 #[cfg(feature = "random")]
 fn mldsa44_generate_uniqueness() {
-    let mut a = MlDsa44SigningKey::new();
-    let mut b = MlDsa44SigningKey::new();
-    a.generate();
-    b.generate();
+    let a = MlDsa44SecretKey::generate();
+    let b = MlDsa44SecretKey::generate();
     assert_ne!(a.seed(), b.seed());
     assert_ne!(a.public_key(), b.public_key());
 
-    let mut c = MlDsa44SigningKey::new();
-    c.init(a.seed());
+    let c = MlDsa44SecretKey::new(a.seed());
     assert_eq!(a.public_key(), c.public_key());
 }
 
@@ -607,8 +601,7 @@ fn mldsa44_generate_uniqueness() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 fn pk65(seed: &[u8; 32]) -> [u8; ML_DSA_65_PUBLIC_KEY_SIZE] {
-    let mut sk = MlDsa65SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa65SecretKey::new(seed);
     sk.public_key().to_bytes()
 }
 
@@ -618,14 +611,12 @@ fn sign65(
     ctx: &[u8],
     rnd: &[u8; 32],
 ) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
-    let mut sk = MlDsa65SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa65SecretKey::new(seed);
     sk.sign_derand(msg, ctx, rnd)
 }
 
 fn sign65_mu(seed: &[u8; 32], mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_65_SIGNATURE_SIZE] {
-    let mut sk = MlDsa65SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa65SecretKey::new(seed);
     sk.sign_external_mu_derand(mu, rnd)
 }
 
@@ -635,7 +626,7 @@ fn verify65(
     sig: &[u8; ML_DSA_65_SIGNATURE_SIZE],
     ctx: &[u8],
 ) -> Result<(), MlDsaError> {
-    MlDsa65VerifyingKey::from_bytes(pk).verify(msg, sig, ctx)
+    MlDsa65PublicKey::from_bytes(pk).verify(msg, sig, ctx)
 }
 
 fn verify65_mu(
@@ -643,7 +634,7 @@ fn verify65_mu(
     mu: &[u8; 64],
     sig: &[u8; ML_DSA_65_SIGNATURE_SIZE],
 ) -> Result<(), MlDsaError> {
-    MlDsa65VerifyingKey::from_bytes(pk).verify_external_mu(mu, sig)
+    MlDsa65PublicKey::from_bytes(pk).verify_external_mu(mu, sig)
 }
 
 #[test]
@@ -716,15 +707,12 @@ fn mldsa65_wycheproof_verify() {
 #[test]
 #[cfg(feature = "random")]
 fn mldsa65_generate_uniqueness() {
-    let mut a = MlDsa65SigningKey::new();
-    let mut b = MlDsa65SigningKey::new();
-    a.generate();
-    b.generate();
+    let a = MlDsa65SecretKey::generate();
+    let b = MlDsa65SecretKey::generate();
     assert_ne!(a.seed(), b.seed());
     assert_ne!(a.public_key(), b.public_key());
 
-    let mut c = MlDsa65SigningKey::new();
-    c.init(a.seed());
+    let c = MlDsa65SecretKey::new(a.seed());
     assert_eq!(a.public_key(), c.public_key());
 }
 
@@ -752,8 +740,7 @@ fn mldsa65_nistkats() {
         let expected_vk_hash = record.sha3_256_hash_of_verification_key.to_lowercase();
         let expected_sig_hash = record.sha3_256_hash_of_signature.to_lowercase();
 
-        let mut sk = MlDsa65SigningKey::new();
-        sk.init(&seed);
+        let sk = MlDsa65SecretKey::new(&seed);
         let sig = sk.sign_derand(&msg, &[], &rnd).unwrap();
 
         let vk_hash = hex::encode({
@@ -780,12 +767,11 @@ fn mldsa65_nistkats() {
 fn mldsa65_accumulated_100() {
     let mut shake_src = Shake128::new();
     let mut acc = Shake128::new();
-    let mut sk = MlDsa65SigningKey::new();
 
     for _ in 0..100 {
         let mut seed = [0u8; 32];
         shake_src.squeeze(&mut seed);
-        sk.init(&seed);
+        let sk = MlDsa65SecretKey::new(&seed);
         acc.absorb(&sk.public_key().to_bytes());
 
         let sig = sk.sign_derand(&[], &[], &ZERO_RND).unwrap();
@@ -807,12 +793,11 @@ fn mldsa65_accumulated_100() {
 fn mldsa65_accumulated_10k() {
     let mut shake_src = Shake128::new();
     let mut acc = Shake128::new();
-    let mut sk = MlDsa65SigningKey::new();
 
     for _ in 0..10000 {
         let mut seed = [0u8; 32];
         shake_src.squeeze(&mut seed);
-        sk.init(&seed);
+        let sk = MlDsa65SecretKey::new(&seed);
         acc.absorb(&sk.public_key().to_bytes());
 
         let sig = sk.sign_derand(&[], &[], &ZERO_RND).unwrap();
@@ -835,8 +820,7 @@ fn mldsa65_accumulated_10k() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 fn pk87(seed: &[u8; 32]) -> [u8; ML_DSA_87_PUBLIC_KEY_SIZE] {
-    let mut sk = MlDsa87SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa87SecretKey::new(seed);
     sk.public_key().to_bytes()
 }
 
@@ -846,14 +830,12 @@ fn sign87(
     ctx: &[u8],
     rnd: &[u8; 32],
 ) -> Result<[u8; ML_DSA_87_SIGNATURE_SIZE], MlDsaError> {
-    let mut sk = MlDsa87SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa87SecretKey::new(seed);
     sk.sign_derand(msg, ctx, rnd)
 }
 
 fn sign87_mu(seed: &[u8; 32], mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_87_SIGNATURE_SIZE] {
-    let mut sk = MlDsa87SigningKey::new();
-    sk.init(seed);
+    let sk = MlDsa87SecretKey::new(seed);
     sk.sign_external_mu_derand(mu, rnd)
 }
 
@@ -863,7 +845,7 @@ fn verify87(
     sig: &[u8; ML_DSA_87_SIGNATURE_SIZE],
     ctx: &[u8],
 ) -> Result<(), MlDsaError> {
-    MlDsa87VerifyingKey::from_bytes(pk).verify(msg, sig, ctx)
+    MlDsa87PublicKey::from_bytes(pk).verify(msg, sig, ctx)
 }
 
 fn verify87_mu(
@@ -871,7 +853,7 @@ fn verify87_mu(
     mu: &[u8; 64],
     sig: &[u8; ML_DSA_87_SIGNATURE_SIZE],
 ) -> Result<(), MlDsaError> {
-    MlDsa87VerifyingKey::from_bytes(pk).verify_external_mu(mu, sig)
+    MlDsa87PublicKey::from_bytes(pk).verify_external_mu(mu, sig)
 }
 
 #[test]
@@ -944,14 +926,11 @@ fn mldsa87_wycheproof_verify() {
 #[test]
 #[cfg(feature = "random")]
 fn mldsa87_generate_uniqueness() {
-    let mut a = MlDsa87SigningKey::new();
-    let mut b = MlDsa87SigningKey::new();
-    a.generate();
-    b.generate();
+    let a = MlDsa87SecretKey::generate();
+    let b = MlDsa87SecretKey::generate();
     assert_ne!(a.seed(), b.seed());
     assert_ne!(a.public_key(), b.public_key());
 
-    let mut c = MlDsa87SigningKey::new();
-    c.init(a.seed());
+    let c = MlDsa87SecretKey::new(a.seed());
     assert_eq!(a.public_key(), c.public_key());
 }

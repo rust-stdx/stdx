@@ -15,10 +15,11 @@
 //!
 //! ```
 //! use jwt::*;
+//! use crypto::curve25519::ed25519;
 //!
 //! fn main() -> Result<(), Error> {
 //!     // 1. Generate an Ed25519 secret key.
-//!     let secret_key = Ed25519SecretKey::generate();
+//!     let secret_key = ed25519::SecretKey::generate();
 //!
 //!     // 2. Build the header.
 //!     let header = Header {
@@ -63,29 +64,27 @@
 //!
 //! # JSON Web Key (JWK) import and export
 //!
-//! Keys can be exported to and imported from JSON Web Keys (JWK) for publishing or later re-use
-//! with [`Jwk::from`].
-//!
-//! The [`Key`] enum represents any supported cryptographic key. Convert a JWK
-//! into a [`Key`] with [`Key::try_from`]`(&Jwk)`, then use it directly with
-//! [`sign`] or [`parse_and_verify`] without knowing the concrete key type.
+//! Keys can be exported to and imported from JSON Web Keys (JWK) for publishing or later re-use.
+//! Every supported key type implements `From<&KeyType> for Jwk`, and the reverse conversion is
+//! available through `TryFrom<&Jwk>`. Use it when the key is only known at runtime, for example
+//! after fetching a JWKS document.
 //!
 //! ```
 //! use jwt::*;
+//! use crypto::p256;
 //!
 //! fn main() -> Result<(), Error> {
 //!     // Generate a P-256 key pair.
-//!     let secret_key = P256SecretKey::generate()?;
+//!     let secret_key = p256::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!     let public_key = secret_key.public_key();
 //!
 //!     // Convert to a JWK (e.g. for publishing in a JWKS endpoint).
 //!     let jwk = Jwk::from(&public_key);
 //!     assert_eq!(jwk.algorithm, Algorithm::ES256);
 //!
-//!     // Parse the JWK back into a Key (e.g. from a JWKS response).
-//!     let key = Key::try_from(&jwk)?;
+//!     // Parse the JWK back into a key (e.g. from a JWKS response).
+//!     let key = p256::PublicKey::try_from(&jwk)?;
 //!
-//!     // sign and parse_and_verify accept &Key directly.
 //!     let header = Header { typ: TokenType::JWT, alg: Algorithm::ES256, ..Default::default() };
 //!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
@@ -257,9 +256,11 @@ pub enum Algorithm {
     ES512,
 
     /// ML-DSA-44
+    #[serde(rename = "ML-DSA-44")]
     MlDsa44,
 
     /// ML-DSA-65
+    #[serde(rename = "ML-DSA-65")]
     MlDsa65,
 
     /// RSASSA-PKCS1-v1.5 with SHA-256
@@ -305,7 +306,6 @@ impl Algorithm {
             Algorithm::PS512 => 512,
             Algorithm::MlDsa44 => 2420,
             Algorithm::MlDsa65 => 3309,
-            // Algorithm::MlDsa87 => 4627,
         }
     }
 }
@@ -338,7 +338,26 @@ impl core::str::FromStr for Algorithm {
 
 impl core::fmt::Display for Algorithm {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{self:?}")
+        let name = match self {
+            Algorithm::BLAKE3 => "BLAKE3",
+            Algorithm::HS256 => "HS256",
+            Algorithm::HS384 => "HS384",
+            Algorithm::HS512 => "HS512",
+            Algorithm::EdDSA => "EdDSA",
+            Algorithm::ES256 => "ES256",
+            Algorithm::ES384 => "ES384",
+            Algorithm::ES512 => "ES512",
+            Algorithm::MlDsa44 => "ML-DSA-44",
+            Algorithm::MlDsa65 => "ML-DSA-65",
+            Algorithm::RS256 => "RS256",
+            Algorithm::RS384 => "RS384",
+            Algorithm::RS512 => "RS512",
+            Algorithm::PS256 => "PS256",
+            Algorithm::PS384 => "PS384",
+            Algorithm::PS512 => "PS512",
+        };
+
+        f.write_str(name)
     }
 }
 

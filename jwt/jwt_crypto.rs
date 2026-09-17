@@ -2,14 +2,17 @@ use alloc::vec::Vec;
 
 use constant_time_eq::constant_time_eq;
 use crypto::{
-    Hasher,
+    Hash, Hasher,
     blake3::Blake3,
     curve25519::ed25519,
     hmac::Hmac,
+    mldsa::{
+        ML_DSA_44_SIGNATURE_SIZE, ML_DSA_65_SIGNATURE_SIZE, MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey,
+        MlDsa65SecretKey,
+    },
     p256, rsa,
     sha2::{Sha256, Sha384, Sha512},
 };
-use smallvec::SmallVec;
 
 use crate::{Algorithm, Error};
 
@@ -99,118 +102,70 @@ impl TryFrom<Vec<u8>> for Signature {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// BLAKE3
+// Secret key (BLAKE3 / HMAC)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// A `BLAKE3` key.
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
-pub struct Blake3Key {
-    key: [u8; 32],
+/// A symmetric secret key used with the `BLAKE3`, `HS256`, `HS384`, and `HS512` algorithms.
+///
+/// The key is borrowed, so it must outlive any signing or verification.
+///
+/// Signing and verification fail with [`Error::InvalidKey`] if `algorithm` is not one of the
+/// supported MAC algorithms, if a `BLAKE3` key is not exactly 32 bytes long, or if an HMAC key is
+/// shorter than 16 bytes (128 bits).
+pub struct SecretKey<'a> {
+    pub(crate) key: &'a [u8],
+    pub(crate) algorithm: Algorithm,
 }
 
-impl Blake3Key {
-    /// Generates a random 256-bit [`Blake3Key`].
-    pub fn generate() -> Blake3Key {
-        let key = crypto::random_bytes();
-        return Blake3Key {
+impl<'a> SecretKey<'a> {
+    /// Creates a new [`SecretKey`] for `algorithm`.
+    #[inline(always)]
+    pub fn new(algorithm: Algorithm, key: &'a [u8]) -> Self {
+        Self {
             key,
-        };
+            algorithm,
+        }
     }
 
-    #[inline(always)]
-    pub fn from_bytes(key: &[u8; 32]) -> Blake3Key {
-        return Blake3Key {
-            key: *key,
-        };
+    /// Computes the message authentication code of `message`.
+    fn mac(&self, message: &[u8]) -> Result<Hash, Error> {
+        match self.algorithm {
+            Algorithm::BLAKE3 => {
+                let key: &[u8; 32] = self.key.try_into().map_err(|_| Error::InvalidKey)?;
+                Ok(Blake3::keyed_hash(key, message))
+            }
+            Algorithm::HS256 => self.hmac::<Sha256>(message),
+            Algorithm::HS384 => self.hmac::<Sha384>(message),
+            Algorithm::HS512 => self.hmac::<Sha512>(message),
+            _ => Err(Error::InvalidKey),
+        }
     }
 
-    #[inline(always)]
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        return &self.key;
-    }
-}
-
-impl Signer for Blake3Key {
-    fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
-        let signature = Blake3::keyed_hash(&self.key, message);
-        return signature.as_ref().try_into();
-    }
-
-    #[inline(always)]
-    fn algorithm(&self) -> Algorithm {
-        Algorithm::BLAKE3
-    }
-}
-
-impl Verifier for Blake3Key {
-    fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
-        let expected_signature = Blake3::keyed_hash(&self.key, message);
-        return match constant_time_eq(signature.as_ref(), &expected_signature) {
-            true => Ok(()),
-            false => Err(Error::InvalidSignature),
-        };
-    }
-
-    #[inline(always)]
-    fn algorithm(&self) -> Algorithm {
-        Algorithm::BLAKE3
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// HMAC-SHA-256
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// A `HS256` key.
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
-pub struct HmacSha256Key {
-    key: SmallVec<u8, 32>,
-}
-
-impl HmacSha256Key {
-    /// Generates a random 256-bit [`HmacSha256Key`].
-    pub fn generate() -> HmacSha256Key {
-        let key: [u8; 32] = crypto::random_bytes();
-        return HmacSha256Key {
-            key: key.into(),
-        };
-    }
-
-    /// Creates a new [`HmacSha256Key`] from bytes. Returns an error is the key is shorter than
-    /// 16 bytes (128 bits).
-    pub fn from_bytes(key: &[u8]) -> Result<HmacSha256Key, Error> {
-        // require at least a 128-bit key
-        if key.len() < 16 {
+    /// Computes the HMAC of `message` with `H`, requiring at least a 128-bit key.
+    fn hmac<H: Hasher>(&self, message: &[u8]) -> Result<Hash, Error> {
+        if self.key.len() < 16 {
             return Err(Error::InvalidKey);
         }
 
-        return Ok(HmacSha256Key {
-            key: SmallVec::from_slice_copy(key),
-        });
-    }
-
-    #[inline(always)]
-    pub fn as_bytes(&self) -> &[u8] {
-        return &self.key;
+        Ok(Hmac::<H>::mac(self.key, message))
     }
 }
 
-impl Signer for HmacSha256Key {
+impl Signer for SecretKey<'_> {
     fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
-        let signature = Hmac::<Sha256>::mac(&self.key, message);
-        return signature.as_ref().try_into();
+        return self.mac(message)?.as_ref().try_into();
     }
 
     #[inline(always)]
     fn algorithm(&self) -> Algorithm {
-        Algorithm::HS256
+        self.algorithm
     }
 }
 
-impl Verifier for HmacSha256Key {
+impl Verifier for SecretKey<'_> {
     fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
-        let message_mac = Hmac::<Sha256>::mac(&self.key, message);
-        return match constant_time_eq(&message_mac, signature) {
+        let mac = self.mac(message)?;
+        return match constant_time_eq(mac.as_ref(), signature) {
             true => Ok(()),
             false => Err(Error::InvalidSignature),
         };
@@ -218,72 +173,7 @@ impl Verifier for HmacSha256Key {
 
     #[inline(always)]
     fn algorithm(&self) -> Algorithm {
-        Algorithm::HS256
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// HMAC-SHA-512
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// A `HS512` key.
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
-pub struct HmacSha512Key {
-    key: SmallVec<u8, 32>,
-}
-
-impl HmacSha512Key {
-    /// Generates a random 256-bit [`HmacSha512Key`].
-    pub fn generate() -> HmacSha256Key {
-        let key: [u8; 32] = crypto::random_bytes();
-        return HmacSha256Key {
-            key: key.into(),
-        };
-    }
-
-    /// Creates a new [`HmacSha512Key`] from bytes. Returns an error is the key is shorter than
-    /// 16 bytes (128 bits).
-    pub fn from_bytes(key: &[u8]) -> Result<HmacSha512Key, Error> {
-        // require at least a 128-bit key
-        if key.len() < 16 {
-            return Err(Error::InvalidKey);
-        }
-
-        return Ok(HmacSha512Key {
-            key: SmallVec::from_slice_copy(key),
-        });
-    }
-
-    #[inline(always)]
-    pub fn as_bytes(&self) -> &[u8] {
-        return &self.key;
-    }
-}
-
-impl Signer for HmacSha512Key {
-    fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
-        let signature = Hmac::<Sha512>::mac(&self.key, message);
-        return signature.as_ref().try_into();
-    }
-
-    #[inline(always)]
-    fn algorithm(&self) -> Algorithm {
-        Algorithm::HS512
-    }
-}
-
-impl Verifier for HmacSha512Key {
-    fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
-        let message_mac = Hmac::<Sha512>::mac(&self.key, message);
-        return match constant_time_eq(&message_mac, signature) {
-            true => Ok(()),
-            false => Err(Error::InvalidSignature),
-        };
-    }
-
-    #[inline(always)]
-    fn algorithm(&self) -> Algorithm {
-        Algorithm::HS512
+        self.algorithm
     }
 }
 
@@ -291,53 +181,9 @@ impl Verifier for HmacSha512Key {
 // Ed25519
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: zeroize?
-pub struct Ed25519SecretKey {
-    pub(crate) key: ed25519::SecretKey,
-}
-
-impl Ed25519SecretKey {
-    /// Generates a random [`Ed25519SecretKey`].
-    pub fn generate() -> Ed25519SecretKey {
-        let key = ed25519::SecretKey::generate();
-        return Ed25519SecretKey {
-            key,
-        };
-    }
-
-    /// Imports the private key from a seed.
-    pub fn from_bytes(seed: &[u8; 32]) -> Result<Ed25519SecretKey, Error> {
-        let key = ed25519::SecretKey::from_bytes(seed);
-        return Ok(Ed25519SecretKey {
-            key,
-        });
-    }
-
-    /// Converts the private key to a byte array.
-    #[inline(always)]
-    pub(crate) fn to_bytes(&self) -> [u8; 32] {
-        return self.key.to_bytes();
-    }
-
-    #[inline(always)]
-    pub fn public_key(&self) -> Ed25519PublicKey {
-        return Ed25519PublicKey {
-            key: self.key.public_key(),
-        };
-    }
-}
-
-impl From<ed25519::SecretKey> for Ed25519SecretKey {
-    fn from(key: ed25519::SecretKey) -> Self {
-        Self {
-            key,
-        }
-    }
-}
-
-impl Signer for Ed25519SecretKey {
+impl Signer for ed25519::SecretKey {
     fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
-        return self.key.sign(message).as_ref().try_into();
+        return ed25519::SecretKey::sign(self, message).as_ref().try_into();
     }
 
     #[inline(always)]
@@ -346,40 +192,10 @@ impl Signer for Ed25519SecretKey {
     }
 }
 
-pub struct Ed25519PublicKey {
-    key: ed25519::PublicKey,
-}
-
-impl Ed25519PublicKey {
-    pub fn from_bytes(public_key: &[u8; 32]) -> Result<Ed25519PublicKey, Error> {
-        let key = ed25519::PublicKey::from_bytes(public_key).map_err(|_| Error::InvalidKey)?;
-        Ok(Ed25519PublicKey {
-            key,
-        })
-    }
-
-    /// Converts the public key to a byte array.
-    #[inline(always)]
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.key.to_bytes()
-    }
-}
-
-impl From<ed25519::PublicKey> for Ed25519PublicKey {
-    fn from(key: ed25519::PublicKey) -> Self {
-        Self {
-            key,
-        }
-    }
-}
-
-impl Verifier for Ed25519PublicKey {
+impl Verifier for ed25519::PublicKey {
     fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
         let signature = signature.try_into().map_err(|_| Error::InvalidSignature)?;
-        return self
-            .key
-            .verify(message, &signature)
-            .map_err(|_| Error::InvalidSignature);
+        return ed25519::PublicKey::verify(self, message, &signature).map_err(|_| Error::InvalidSignature);
     }
 
     #[inline(always)]
@@ -392,55 +208,9 @@ impl Verifier for Ed25519PublicKey {
 // P-256
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: zeroize
-pub struct P256SecretKey {
-    key: p256::SecretKey,
-}
-
-impl P256SecretKey {
-    /// Generates a random [`P256SecretKey`].
-    pub fn generate() -> Result<P256SecretKey, Error> {
-        let key = p256::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
-        return Ok(P256SecretKey {
-            key,
-        });
-    }
-
-    #[inline(always)]
-    pub fn from_bytes(bytes: &[u8; 32]) -> Result<P256SecretKey, Error> {
-        let key = p256::SecretKey::from_bytes(bytes).map_err(|_| Error::InvalidKey)?;
-        return Ok(P256SecretKey {
-            key,
-        });
-    }
-
-    /// Converts the secret key to byte array.
-    #[inline(always)]
-    pub(crate) fn to_bytes(&self) -> [u8; 32] {
-        return self.key.to_bytes();
-    }
-
-    #[inline(always)]
-    pub fn public_key(&self) -> P256PublicKey {
-        return P256PublicKey {
-            key: self.key.public_key(),
-        };
-    }
-}
-
-impl From<p256::SecretKey> for P256SecretKey {
-    fn from(key: p256::SecretKey) -> Self {
-        Self {
-            key,
-        }
-    }
-}
-
-impl Signer for P256SecretKey {
+impl Signer for p256::SecretKey {
     fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
-        return self
-            .key
-            .sign(message)
+        return p256::SecretKey::sign(self, message)
             .map_err(|err| Error::Unspecified(alloc::format!("error signing message: {err:?}")))?
             .as_ref()
             .try_into();
@@ -452,47 +222,10 @@ impl Signer for P256SecretKey {
     }
 }
 
-pub struct P256PublicKey {
-    pub(crate) key: p256::PublicKey,
-}
-
-impl P256PublicKey {
-    pub fn from_x_y(x: &[u8; 32], y: &[u8; 32]) -> Result<P256PublicKey, Error> {
-        let key = p256::PublicKey::from_x_y(x, y).map_err(|_| Error::InvalidKey)?;
-        Ok(P256PublicKey {
-            key,
-        })
-    }
-
-    pub fn from_bytes(public_key: &[u8]) -> Result<P256PublicKey, Error> {
-        let key = p256::PublicKey::from_bytes(public_key).map_err(|_| Error::InvalidKey)?;
-        Ok(P256PublicKey {
-            key,
-        })
-    }
-
-    // Converts the public key to a byte array.
-    // #[inline(always)]
-    // pub(crate) fn to_bytes(&self) -> [u8; 65] {
-    //     self.key.to_bytes()
-    // }
-}
-
-impl From<p256::PublicKey> for P256PublicKey {
-    fn from(key: p256::PublicKey) -> Self {
-        Self {
-            key,
-        }
-    }
-}
-
-impl Verifier for P256PublicKey {
+impl Verifier for p256::PublicKey {
     fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
         let signature = signature.try_into().map_err(|_| Error::InvalidSignature)?;
-        return self
-            .key
-            .verify(message, &signature)
-            .map_err(|_| Error::InvalidSignature);
+        return p256::PublicKey::verify(self, message, &signature).map_err(|_| Error::InvalidSignature);
     }
 
     #[inline(always)]
@@ -502,10 +235,73 @@ impl Verifier for P256PublicKey {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// ML-DSA-44
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl Signer for MlDsa44SecretKey {
+    fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
+        return MlDsa44SecretKey::sign(self, message, b"")
+            .map_err(|_| Error::InvalidSignature)?
+            .as_ref()
+            .try_into();
+    }
+
+    #[inline(always)]
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::MlDsa44
+    }
+}
+
+impl Verifier for MlDsa44PublicKey {
+    fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
+        let signature: &[u8; ML_DSA_44_SIGNATURE_SIZE] = signature.try_into().map_err(|_| Error::InvalidSignature)?;
+        return MlDsa44PublicKey::verify(self, message, signature, b"").map_err(|_| Error::InvalidSignature);
+    }
+
+    #[inline(always)]
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::MlDsa44
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ML-DSA-65
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl Signer for MlDsa65SecretKey {
+    fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
+        return MlDsa65SecretKey::sign(self, message, b"")
+            .map_err(|_| Error::InvalidSignature)?
+            .as_ref()
+            .try_into();
+    }
+
+    #[inline(always)]
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::MlDsa65
+    }
+}
+
+impl Verifier for MlDsa65PublicKey {
+    fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
+        let signature: &[u8; ML_DSA_65_SIGNATURE_SIZE] = signature.try_into().map_err(|_| Error::InvalidSignature)?;
+        return MlDsa65PublicKey::verify(self, message, signature, b"").map_err(|_| Error::InvalidSignature);
+    }
+
+    #[inline(always)]
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::MlDsa65
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // RSA
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// An RSA public key for JWT verification, supporting both PKCS#1 v1.5 and RSA-PSS signatures.
+///
+/// The algorithm is stored alongside the key because a bare [`rsa::PublicKey`] cannot tell
+/// whether it must verify `RS*` (PKCS#1 v1.5) or `PS*` (RSA-PSS) signatures, nor which hash to use.
 ///
 /// # Algorithms
 ///
