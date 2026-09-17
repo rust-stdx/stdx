@@ -3,9 +3,12 @@
 // their test suites.
 //
 // Usage:
-//   node tools/wasm_test/wasm_test.js [--target <triple>] [--exclude <crate>]... [--list] [--help]
+//   node tools/wasm_test/wasm_test.js [--target <triple>] [-p <crate>]... [--exclude <crate>]... [--list] [--help]
 //
 //   --target <triple>  Rust target to test (default: wasm32-wasip1)
+//   -p, --package <crate>
+//                      Only test the given crate (repeatable, comma-separated
+//                      values allowed). Like `cargo test -p`.
 //   --exclude <crate>  Skip a crate (repeatable, comma-separated values allowed)
 //   --list             Only print the crates that were selected, then exit
 //   --help             Print this help
@@ -33,7 +36,12 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const options = { target: 'wasm32-wasip1', exclude: new Set(), list: false, help: false };
+  const options = { target: 'wasm32-wasip1', packages: new Set(), exclude: new Set(), list: false, help: false };
+  const addPackages = (value) => {
+    for (const name of value.split(',').map((name) => name.trim()).filter(Boolean)) {
+      options.packages.add(name);
+    }
+  };
   const addExcludes = (value) => {
     for (const name of value.split(',').map((name) => name.trim()).filter(Boolean)) {
       options.exclude.add(name);
@@ -47,6 +55,14 @@ function parseArgs(argv) {
       options.target = value;
     } else if (arg.startsWith('--target=')) {
       options.target = arg.slice('--target='.length);
+    } else if (arg === '-p' || arg === '--package') {
+      const value = argv[++i];
+      if (!value) throw new Error(`${arg} requires a value`);
+      addPackages(value);
+    } else if (arg.startsWith('--package=')) {
+      addPackages(arg.slice('--package='.length));
+    } else if (arg.startsWith('-p=')) {
+      addPackages(arg.slice('-p='.length));
     } else if (arg === '--exclude') {
       const value = argv[++i];
       if (!value) throw new Error('--exclude requires a value');
@@ -66,8 +82,11 @@ function parseArgs(argv) {
 
 function help() {
   process.stdout.write(
-    `Usage: node tools/wasm_test/wasm_test.js [--target <triple>] [--exclude <crate>]... [--list] [--help]\n\n` +
+    `Usage: node tools/wasm_test/wasm_test.js [--target <triple>] [-p <crate>]... [--exclude <crate>]... [--list] [--help]\n\n` +
       `  --target <triple>  Rust target to test (default: wasm32-wasip1)\n` +
+      `  -p, --package <crate>\n` +
+      `                     Only test the given crate (repeatable, comma-separated\n` +
+      `                     values allowed). Like \`cargo test -p\`.\n` +
       `  --exclude <crate>  Skip a crate (repeatable, comma-separated values allowed)\n` +
       `  --list             Only print the selected crates, then exit\n` +
       `  --help             Print this help\n`,
@@ -146,6 +165,13 @@ function main() {
 
   const members = analyzeWorkspace();
 
+  const unknownPackages = [...options.packages].filter(
+    (name) => !members.some((member) => member.name === name),
+  );
+  if (unknownPackages.length > 0) {
+    throw new Error(`unknown crate(s) passed to --package: ${unknownPackages.join(', ')}`);
+  }
+
   const unknownExcludes = [...options.exclude].filter(
     (name) => !members.some((member) => member.name === name),
   );
@@ -153,14 +179,19 @@ function main() {
     throw new Error(`unknown crate(s) passed to --exclude: ${unknownExcludes.join(', ')}`);
   }
 
-  const skippedTokio = members.filter((member) => member.tokio);
+  const selected = (member) => options.packages.size === 0 || options.packages.has(member.name);
+
+  const skippedTokio = members.filter((member) => selected(member) && member.tokio);
+  const skippedProcMacro = members.filter(
+    (member) => selected(member) && !member.tokio && member.procMacroOnly,
+  );
   const skippedExcluded = members.filter(
-    (member) => !member.tokio && !member.procMacroOnly && options.exclude.has(member.name),
+    (member) => selected(member) && !member.tokio && !member.procMacroOnly && options.exclude.has(member.name),
   );
   const candidates = members.filter(
-    (member) => !member.tokio && !member.procMacroOnly && !options.exclude.has(member.name),
+    (member) =>
+      selected(member) && !member.tokio && !member.procMacroOnly && !options.exclude.has(member.name),
   );
-  const skippedProcMacro = members.filter((member) => !member.tokio && member.procMacroOnly);
 
   if (options.list) {
     for (const member of candidates) process.stdout.write(`${member.name}\n`);
