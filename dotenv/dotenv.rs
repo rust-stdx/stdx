@@ -552,11 +552,14 @@ mod tests {
         }
     }
 
-    // Unsafe helper for tests. Tests are single-threaded
+    // Unsafe helper for tests. Tests are single-threaded.
+    // Only used by the `load_*` tests, which are skipped on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     unsafe fn set_env(k: &str, v: &str) {
         unsafe { env::set_var(k, v) };
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     unsafe fn remove_env(k: &str) {
         unsafe { env::remove_var(k) };
     }
@@ -1016,6 +1019,8 @@ mod tests {
 
     // ── `load()` integration tests ─────────────────────────────────────────
 
+    // `env::temp_dir()` panics on WASI, so this test cannot run on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn load_sets_vars() {
         let dir = env::temp_dir().join(format!("dotenv_test_{}", std::process::id()));
@@ -1042,6 +1047,8 @@ mod tests {
         unsafe { remove_env("DOTENV_TEST_BAZ") };
     }
 
+    // `env::temp_dir()` panics on WASI, so this test cannot run on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn load_preserves_existing_env_vars() {
         unsafe { set_env("DOTENV_EXISTING", "original") };
@@ -1068,6 +1075,8 @@ mod tests {
         unsafe { remove_env("DOTENV_EXISTING") };
     }
 
+    // `env::temp_dir()` panics on WASI, so this test cannot run on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn load_first_declaration_wins() {
         let dir = env::temp_dir().join(format!("dotenv_test_first_{}", std::process::id()));
@@ -1092,6 +1101,8 @@ mod tests {
         unsafe { remove_env("DOTENV_DUP") };
     }
 
+    // `env::temp_dir()` panics on WASI, so this test cannot run on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn load_file_not_found() {
         let dir = env::temp_dir().join(format!("dotenv_test_missing_{}", std::process::id()));
@@ -1113,6 +1124,8 @@ mod tests {
         }
     }
 
+    // `env::temp_dir()` panics on WASI, so this test cannot run on wasm32.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn load_parse_error() {
         let dir = env::temp_dir().join(format!("dotenv_test_parse_err_{}", std::process::id()));
