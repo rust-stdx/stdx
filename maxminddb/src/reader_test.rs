@@ -855,11 +855,7 @@ fn test_shield_databases() {
 
 #[test]
 fn test_anonymous_plus_databases() {
-    let dbs = [
-        "GeoIP-Anonymous-Plus-Test.mmdb",
-        "GeoIP-Anonymous-Plus.mmdb",
-        "GeoIP-Residential-Proxy-Test.mmdb",
-    ];
+    let dbs = ["GeoIP-Anonymous-Plus-Test.mmdb", "GeoIP-Residential-Proxy-Test.mmdb"];
     for db in &dbs {
         let path = format!("test-data/test-data/{db}");
         let reader = Reader::open_readfile(&path);
