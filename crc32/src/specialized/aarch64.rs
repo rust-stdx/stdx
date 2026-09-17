@@ -80,22 +80,42 @@ pub unsafe fn calculate(crc: u32, data: &[u8]) -> u32 {
 
 #[cfg(test)]
 mod test {
-    quickcheck! {
-        fn check_against_baseline(init: u32, chunks: Vec<(Vec<u8>, usize)>) -> bool {
-            let mut baseline = super::super::super::baseline::State::new(init);
-            let mut aarch64 = super::State::new(init).expect("not supported");
-            for (chunk, mut offset) in chunks {
+    use rand::{TryRng, rngs::SysRng};
+
+    #[test]
+    fn check_against_baseline() {
+        let mut rng = SysRng;
+        for _ in 0..100 {
+            let mut init_bytes = [0u8; 4];
+            rng.try_fill_bytes(&mut init_bytes).unwrap();
+            let init = u32::from_le_bytes(init_bytes);
+
+            let mut baseline = crate::baseline::State::new(init);
+            let mut aarch64 = super::State::new(init).expect("crc not supported");
+
+            let mut chunks = [0u8; 1];
+            rng.try_fill_bytes(&mut chunks).unwrap();
+            for _ in 0..=(chunks[0] % 8) {
+                let mut len_bytes = [0u8; 2];
+                rng.try_fill_bytes(&mut len_bytes).unwrap();
+                let mut chunk = vec![0u8; (u16::from_le_bytes(len_bytes) % 512) as usize];
+                rng.try_fill_bytes(&mut chunk).unwrap();
+
                 // simulate random alignments by offsetting the slice by up to 15 bytes
-                offset &= 0xF;
-                if chunk.len() <= offset {
-                    baseline.update(&chunk);
-                    aarch64.update(&chunk);
+                let mut offset_bytes = [0u8; 1];
+                rng.try_fill_bytes(&mut offset_bytes).unwrap();
+                let offset = (offset_bytes[0] & 0xF) as usize;
+                let slice = if chunk.len() <= offset {
+                    &chunk[..]
                 } else {
-                    baseline.update(&chunk[offset..]);
-                    aarch64.update(&chunk[offset..]);
-                }
+                    &chunk[offset..]
+                };
+
+                baseline.update(slice);
+                aarch64.update(slice);
             }
-            aarch64.finalize() == baseline.finalize()
+
+            assert_eq!(aarch64.finalize(), baseline.finalize());
         }
     }
 }

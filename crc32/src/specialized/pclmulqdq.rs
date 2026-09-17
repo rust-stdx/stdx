@@ -82,10 +82,12 @@ unsafe fn debug(s: &str, a: arch::__m128i) -> arch::__m128i {
             a: arch::__m128i,
             b: [u8; 16],
         }
-        let x = A {
-            a,
-        }
-        .b;
+        let x = unsafe {
+            A {
+                a,
+            }
+            .b
+        };
         print!(" {:20} | ", s);
         for x in x.iter() {
             print!("{:02x} ", x);
@@ -102,124 +104,150 @@ unsafe fn debug(_s: &str, a: arch::__m128i) -> arch::__m128i {
 
 #[target_feature(enable = "pclmulqdq", enable = "sse2", enable = "sse4.1")]
 unsafe fn calculate(crc: u32, mut data: &[u8]) -> u32 {
-    // In theory we can accelerate smaller chunks too, but for now just rely on
-    // the fallback implementation as it's too much hassle and doesn't seem too
-    // beneficial.
-    if data.len() < 128 {
-        return crate::baseline::update_fast_16(crc, data);
-    }
+    unsafe {
+        // In theory we can accelerate smaller chunks too, but for now just rely on
+        // the fallback implementation as it's too much hassle and doesn't seem too
+        // beneficial.
+        if data.len() < 128 {
+            return crate::baseline::update_fast_16(crc, data);
+        }
 
-    // Step 1: fold by 4 loop
-    let mut x3 = get(&mut data);
-    let mut x2 = get(&mut data);
-    let mut x1 = get(&mut data);
-    let mut x0 = get(&mut data);
+        // Step 1: fold by 4 loop
+        let mut x3 = get(&mut data);
+        let mut x2 = get(&mut data);
+        let mut x1 = get(&mut data);
+        let mut x0 = get(&mut data);
 
-    // fold in our initial value, part of the incremental crc checksum
-    x3 = arch::_mm_xor_si128(x3, arch::_mm_cvtsi32_si128(!crc as i32));
+        // fold in our initial value, part of the incremental crc checksum
+        x3 = arch::_mm_xor_si128(x3, arch::_mm_cvtsi32_si128(!crc as i32));
 
-    let k1k2 = arch::_mm_set_epi64x(K2, K1);
-    while data.len() >= 64 {
-        x3 = reduce128(x3, get(&mut data), k1k2);
-        x2 = reduce128(x2, get(&mut data), k1k2);
-        x1 = reduce128(x1, get(&mut data), k1k2);
-        x0 = reduce128(x0, get(&mut data), k1k2);
-    }
+        let k1k2 = arch::_mm_set_epi64x(K2, K1);
+        while data.len() >= 64 {
+            x3 = reduce128(x3, get(&mut data), k1k2);
+            x2 = reduce128(x2, get(&mut data), k1k2);
+            x1 = reduce128(x1, get(&mut data), k1k2);
+            x0 = reduce128(x0, get(&mut data), k1k2);
+        }
 
-    let k3k4 = arch::_mm_set_epi64x(K4, K3);
-    let mut x = reduce128(x3, x2, k3k4);
-    x = reduce128(x, x1, k3k4);
-    x = reduce128(x, x0, k3k4);
+        let k3k4 = arch::_mm_set_epi64x(K4, K3);
+        let mut x = reduce128(x3, x2, k3k4);
+        x = reduce128(x, x1, k3k4);
+        x = reduce128(x, x0, k3k4);
 
-    // Step 2: fold by 1 loop
-    while data.len() >= 16 {
-        x = reduce128(x, get(&mut data), k3k4);
-    }
+        // Step 2: fold by 1 loop
+        while data.len() >= 16 {
+            x = reduce128(x, get(&mut data), k3k4);
+        }
 
-    debug("128 > 64 init", x);
+        debug("128 > 64 init", x);
 
-    // Perform step 3, reduction from 128 bits to 64 bits. This is
-    // significantly different from the paper and basically doesn't follow it
-    // at all. It's not really clear why, but implementations of this algorithm
-    // in Chrome/Linux diverge in the same way. It is beyond me why this is
-    // different than the paper, maybe the paper has like errata or something?
-    // Unclear.
-    //
-    // It's also not clear to me what's actually happening here and/or why, but
-    // algebraically what's happening is:
-    //
-    // x = (x[0:63] • K4) ^ x[64:127]           // 96 bit result
-    // x = ((x[0:31] as u64) • K5) ^ x[32:95]   // 64 bit result
-    //
-    // It's... not clear to me what's going on here. The paper itself is pretty
-    // vague on this part but definitely uses different constants at least.
-    // It's not clear to me, reading the paper, where the xor operations are
-    // happening or why things are shifting around. This implementation...
-    // appears to work though!
-    let x = arch::_mm_xor_si128(arch::_mm_clmulepi64_si128(x, k3k4, 0x10), arch::_mm_srli_si128(x, 8));
-    let x = arch::_mm_xor_si128(
-        arch::_mm_clmulepi64_si128(
-            arch::_mm_and_si128(x, arch::_mm_set_epi32(0, 0, 0, !0)),
-            arch::_mm_set_epi64x(0, K5),
-            0x00,
-        ),
-        arch::_mm_srli_si128(x, 4),
-    );
-    debug("128 > 64 xx", x);
+        // Perform step 3, reduction from 128 bits to 64 bits. This is
+        // significantly different from the paper and basically doesn't follow it
+        // at all. It's not really clear why, but implementations of this algorithm
+        // in Chrome/Linux diverge in the same way. It is beyond me why this is
+        // different than the paper, maybe the paper has like errata or something?
+        // Unclear.
+        //
+        // It's also not clear to me what's actually happening here and/or why, but
+        // algebraically what's happening is:
+        //
+        // x = (x[0:63] • K4) ^ x[64:127]           // 96 bit result
+        // x = ((x[0:31] as u64) • K5) ^ x[32:95]   // 64 bit result
+        //
+        // It's... not clear to me what's going on here. The paper itself is pretty
+        // vague on this part but definitely uses different constants at least.
+        // It's not clear to me, reading the paper, where the xor operations are
+        // happening or why things are shifting around. This implementation...
+        // appears to work though!
+        let x = arch::_mm_xor_si128(arch::_mm_clmulepi64_si128(x, k3k4, 0x10), arch::_mm_srli_si128(x, 8));
+        let x = arch::_mm_xor_si128(
+            arch::_mm_clmulepi64_si128(
+                arch::_mm_and_si128(x, arch::_mm_set_epi32(0, 0, 0, !0)),
+                arch::_mm_set_epi64x(0, K5),
+                0x00,
+            ),
+            arch::_mm_srli_si128(x, 4),
+        );
+        debug("128 > 64 xx", x);
 
-    // Perform a Barrett reduction from our now 64 bits to 32 bits. The
-    // algorithm for this is described at the end of the paper, and note that
-    // this also implements the "bit reflected input" variant.
-    let pu = arch::_mm_set_epi64x(U_PRIME, P_X);
+        // Perform a Barrett reduction from our now 64 bits to 32 bits. The
+        // algorithm for this is described at the end of the paper, and note that
+        // this also implements the "bit reflected input" variant.
+        let pu = arch::_mm_set_epi64x(U_PRIME, P_X);
 
-    // T1(x) = ⌊(R(x) % x^32)⌋ • μ
-    let t1 = arch::_mm_clmulepi64_si128(arch::_mm_and_si128(x, arch::_mm_set_epi32(0, 0, 0, !0)), pu, 0x10);
-    // T2(x) = ⌊(T1(x) % x^32)⌋ • P(x)
-    let t2 = arch::_mm_clmulepi64_si128(arch::_mm_and_si128(t1, arch::_mm_set_epi32(0, 0, 0, !0)), pu, 0x00);
-    // We're doing the bit-reflected variant, so get the upper 32-bits of the
-    // 64-bit result instead of the lower 32-bits.
-    //
-    // C(x) = R(x) ^ T2(x) / x^32
-    let c = arch::_mm_extract_epi32(arch::_mm_xor_si128(x, t2), 1) as u32;
+        // T1(x) = ⌊(R(x) % x^32)⌋ • μ
+        let t1 = arch::_mm_clmulepi64_si128(arch::_mm_and_si128(x, arch::_mm_set_epi32(0, 0, 0, !0)), pu, 0x10);
+        // T2(x) = ⌊(T1(x) % x^32)⌋ • P(x)
+        let t2 = arch::_mm_clmulepi64_si128(arch::_mm_and_si128(t1, arch::_mm_set_epi32(0, 0, 0, !0)), pu, 0x00);
+        // We're doing the bit-reflected variant, so get the upper 32-bits of the
+        // 64-bit result instead of the lower 32-bits.
+        //
+        // C(x) = R(x) ^ T2(x) / x^32
+        let c = arch::_mm_extract_epi32(arch::_mm_xor_si128(x, t2), 1) as u32;
 
-    if !data.is_empty() {
-        crate::baseline::update_fast_16(!c, data)
-    } else {
-        !c
+        if !data.is_empty() {
+            crate::baseline::update_fast_16(!c, data)
+        } else {
+            !c
+        }
     }
 }
 
 unsafe fn reduce128(a: arch::__m128i, b: arch::__m128i, keys: arch::__m128i) -> arch::__m128i {
-    let t1 = arch::_mm_clmulepi64_si128(a, keys, 0x00);
-    let t2 = arch::_mm_clmulepi64_si128(a, keys, 0x11);
-    arch::_mm_xor_si128(arch::_mm_xor_si128(b, t1), t2)
+    unsafe {
+        let t1 = arch::_mm_clmulepi64_si128(a, keys, 0x00);
+        let t2 = arch::_mm_clmulepi64_si128(a, keys, 0x11);
+        arch::_mm_xor_si128(arch::_mm_xor_si128(b, t1), t2)
+    }
 }
 
 unsafe fn get(a: &mut &[u8]) -> arch::__m128i {
-    debug_assert!(a.len() >= 16);
-    let r = arch::_mm_loadu_si128(a.as_ptr() as *const arch::__m128i);
-    *a = &a[16..];
-    return r;
+    unsafe {
+        debug_assert!(a.len() >= 16);
+        let r = arch::_mm_loadu_si128(a.as_ptr() as *const arch::__m128i);
+        *a = &a[16..];
+        return r;
+    }
 }
 
 #[cfg(test)]
 mod test {
-    quickcheck! {
-        fn check_against_baseline(init: u32, chunks: Vec<(Vec<u8>, usize)>) -> bool {
-            let mut baseline = super::super::super::baseline::State::new(init);
-            let mut pclmulqdq = super::State::new(init).expect("not supported");
-            for (chunk, mut offset) in chunks {
+    use rand::{TryRng, rngs::SysRng};
+
+    #[test]
+    fn check_against_baseline() {
+        let mut rng = SysRng;
+        for _ in 0..100 {
+            let mut init_bytes = [0u8; 4];
+            rng.try_fill_bytes(&mut init_bytes).unwrap();
+            let init = u32::from_le_bytes(init_bytes);
+
+            let mut baseline = crate::baseline::State::new(init);
+            let mut pclmulqdq = super::State::new(init).expect("pclmulqdq not supported");
+
+            let mut chunks = [0u8; 1];
+            rng.try_fill_bytes(&mut chunks).unwrap();
+            for _ in 0..=(chunks[0] % 8) {
+                let mut len_bytes = [0u8; 2];
+                rng.try_fill_bytes(&mut len_bytes).unwrap();
+                let mut chunk = vec![0u8; (u16::from_le_bytes(len_bytes) % 512) as usize];
+                rng.try_fill_bytes(&mut chunk).unwrap();
+
                 // simulate random alignments by offsetting the slice by up to 15 bytes
-                offset &= 0xF;
-                if chunk.len() <= offset {
-                    baseline.update(&chunk);
-                    pclmulqdq.update(&chunk);
+                let mut offset_bytes = [0u8; 1];
+                rng.try_fill_bytes(&mut offset_bytes).unwrap();
+                let offset = (offset_bytes[0] & 0xF) as usize;
+                let slice = if chunk.len() <= offset {
+                    &chunk[..]
                 } else {
-                    baseline.update(&chunk[offset..]);
-                    pclmulqdq.update(&chunk[offset..]);
-                }
+                    &chunk[offset..]
+                };
+
+                baseline.update(slice);
+                pclmulqdq.update(slice);
             }
-            pclmulqdq.finalize() == baseline.finalize()
+
+            assert_eq!(pclmulqdq.finalize(), baseline.finalize());
         }
     }
 }
