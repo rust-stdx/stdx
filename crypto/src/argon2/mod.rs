@@ -2,14 +2,33 @@
 //!
 //! Argon2id is a memory-hard password hashing function that provides resistance
 //! against both side-channel attacks and GPU/ASIC brute-force attacks.
+//!
+//! The memory-filling phase automatically selects the fastest compression
+//! kernel available on the running CPU: NEON (optionally with the SHA-3 `xar`
+//! extension) on AArch64, AVX2 on x86-64, and a portable scalar implementation
+//! everywhere else. When the `std` feature is enabled, the lanes are also
+//! filled in parallel; the worker threads are scoped to each call and never
+//! outlive it.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec, vec::Vec};
+use core::mem::MaybeUninit;
 
 use crate::{Hasher, blake2::Blake2b};
+
+mod fill;
+
+#[cfg(target_arch = "x86_64")]
+mod fill_avx2;
+
+#[cfg(target_arch = "aarch64")]
+mod fill_neon;
+
+#[cfg(test)]
+use fill::{compress, permutation_p};
 
 /// Argon2 version 1.3 (0x13)
 const VERSION: u32 = 0x13;
@@ -26,7 +45,14 @@ const ARGON2D: u32 = 0;
 const ARGON2I: u32 = 1;
 const ARGON2ID: u32 = 2;
 
+/// Default output length (in bytes) used by [`hash_password`].
+#[cfg(feature = "alloc")]
+const DEFAULT_TAG_LENGTH: usize = 64;
+
 /// Argon2id parameters (RFC 9106).
+///
+/// The output length is not part of the parameters: it is inferred from the
+/// length of the output buffer passed to [`derive_key`].
 ///
 /// # Example
 ///
@@ -37,7 +63,6 @@ const ARGON2ID: u32 = 2;
 ///     iterations: 3,
 ///     memory: 65536,
 ///     parallelism: 4,
-///     tag_length: 32,
 /// };
 /// ```
 #[derive(Debug, Clone)]
@@ -48,18 +73,15 @@ pub struct Params {
     pub memory: u32,
     /// Degree of parallelism (number of lanes). Must be >= 1.
     pub parallelism: u32,
-    /// Output tag length in bytes. Must be >= 4.
-    pub tag_length: u32,
 }
 
 impl Default for Params {
-    /// Default parameters: t=3, m=64 MiB, p=4, tag=32 bytes (SECOND RECOMMENDED option).
+    /// Default parameters: t=3, m=64 MiB, p=4 (SECOND RECOMMENDED option).
     fn default() -> Self {
         Params {
             iterations: 3,
             memory: 65536,
             parallelism: 4,
-            tag_length: 32,
         }
     }
 }
@@ -87,95 +109,207 @@ impl core::fmt::Display for Argon2Error {
     }
 }
 
-/// A 1024-byte block used in Argon2's memory matrix.
-#[derive(Clone)]
-struct Block {
-    v: [u64; 128],
-}
-
-impl Block {
-    fn zero() -> Self {
-        Block {
-            v: [0u64; 128],
-        }
-    }
-
-    fn xor_with(&mut self, other: &Block) {
-        for i in 0..128 {
-            self.v[i] ^= other.v[i];
-        }
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Self {
-        let mut block = Block::zero();
-        for i in 0..128 {
-            let offset = i * 8;
-            block.v[i] = u64::from_le_bytes([
-                bytes[offset],
-                bytes[offset + 1],
-                bytes[offset + 2],
-                bytes[offset + 3],
-                bytes[offset + 4],
-                bytes[offset + 5],
-                bytes[offset + 6],
-                bytes[offset + 7],
-            ]);
-        }
-        block
-    }
-
-    fn to_bytes(&self) -> [u8; BLOCK_SIZE] {
-        let mut out = [0u8; BLOCK_SIZE];
-        for i in 0..128 {
-            let bytes = self.v[i].to_le_bytes();
-            let offset = i * 8;
-            out[offset..offset + 8].copy_from_slice(&bytes);
-        }
-        out
-    }
-}
-
-// ============================================================
-// Core Argon2 algorithm
-// ============================================================
-
 /// Derive a key using Argon2id (RFC 9106).
 ///
-/// This is the main entry point for Argon2id key derivation.
+/// This is the main entry point for Argon2id key derivation. The derived key is
+/// written into `out`; its length determines the Argon2 output length and must
+/// be at least 4 bytes.
 ///
 /// # Arguments
+/// * `out` - Output buffer for the derived key. Its length is the tag length.
 /// * `password` - The password to hash
 /// * `salt` - Salt (recommended 16 bytes)
 /// * `secret` - Optional secret key (can be empty)
 /// * `ad` - Optional associated data (can be empty)
 /// * `params` - Argon2id parameters
 ///
-/// # Returns
-/// The derived key as a Vec<u8> of length `params.tag_length`.
+/// # Errors
+/// Returns [`Argon2Error::InvalidParams`] if `out` is shorter than 4 bytes or
+/// if `params` is invalid.
 ///
 /// # Example
 ///
 /// ```ignore
 /// use crypto::argon2::{derive_key, Params};
 ///
-/// let tag = derive_key(
+/// let mut tag = [0u8; 32];
+/// derive_key(
+///     &mut tag,
 ///     b"correct horse battery staple",
 ///     b"randomsalt123456",
 ///     &[],  // no secret
 ///     &[],  // no associated data
-///     &Params { iterations: 3, memory: 65536, parallelism: 4, tag_length: 32 },
+///     &Params { iterations: 3, memory: 65536, parallelism: 4 },
 /// ).unwrap();
 /// assert_eq!(tag.len(), 32);
 /// ```
 #[cfg(feature = "alloc")]
 pub fn derive_key(
+    out: &mut [u8],
     password: &[u8],
     salt: &[u8],
     secret: &[u8],
     ad: &[u8],
     params: &Params,
-) -> Result<Vec<u8>, Argon2Error> {
-    argon2_core(ARGON2ID, password, salt, secret, ad, params)
+) -> Result<(), Argon2Error> {
+    argon2_core(ARGON2ID, password, salt, secret, ad, params, out)
+}
+
+/// Hash a password and return the PHC-encoded string.
+///
+/// The output hash is 64 bytes long.
+///
+/// # Example
+///
+/// ```ignore
+/// use crypto::argon2::{hash_password, verify_password, Params};
+///
+/// let encoded = hash_password(
+///     b"correct horse battery staple",
+///     b"randomsalt123456",
+///     &Params { iterations: 3, memory: 65536, parallelism: 4 },
+/// ).unwrap();
+///
+/// assert!(verify_password(b"correct horse battery staple", &encoded).is_ok());
+/// assert!(verify_password(b"wrong password", &encoded).is_err());
+/// ```
+#[cfg(feature = "alloc")]
+pub fn hash_password(password: &[u8], salt: &[u8], params: &Params) -> Result<String, Argon2Error> {
+    let mut tag = vec![0u8; DEFAULT_TAG_LENGTH];
+    derive_key(&mut tag, password, salt, &[], &[], params)?;
+    Ok(encode_phc(params, salt, &tag))
+}
+
+/// Verify a password against a PHC-encoded hash string.
+///
+/// See [`hash_password`] for an example.
+#[cfg(feature = "alloc")]
+pub fn verify_password(password: &[u8], encoded: &str) -> Result<(), Argon2Error> {
+    let (params, salt, expected_tag) = decode_phc(encoded)?;
+    let mut computed_tag = vec![0u8; expected_tag.len()];
+    derive_key(&mut computed_tag, password, &salt, &[], &[], &params)?;
+    if constant_time_eq::constant_time_eq(&computed_tag, &expected_tag) {
+        Ok(())
+    } else {
+        Err(Argon2Error::VerifyMismatch)
+    }
+}
+
+// ============================================================
+// PHC String Format encode/decode
+// ============================================================
+
+/// Encode an Argon2id hash in the PHC string format:
+/// `$argon2id$v=19$m=<memory>,t=<iterations>,p=<parallelism>$<salt_b64>$<hash_b64>`
+///
+/// Uses base64 encoding without padding (standard alphabet with +/ replaced by the
+/// PHC-standard base64 which is actually the standard base64 without padding).
+#[cfg(feature = "alloc")]
+pub fn encode_phc(params: &Params, salt: &[u8], tag: &[u8]) -> String {
+    let salt_b64 = base64_encode_no_pad(salt);
+    let tag_b64 = base64_encode_no_pad(tag);
+    alloc::format!(
+        "$argon2id$v=19$m={},t={},p={}${}${}",
+        params.memory,
+        params.iterations,
+        params.parallelism,
+        salt_b64,
+        tag_b64
+    )
+}
+
+/// Decode an Argon2id PHC string format into (params, salt, tag).
+///
+/// Expected format: `$argon2id$v=19$m=<m>,t=<t>,p=<p>$<salt_b64>$<hash_b64>`
+#[cfg(feature = "alloc")]
+pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Error> {
+    let parts: Vec<&str> = encoded.split('$').collect();
+    // Parts: ["", "argon2id", "v=19", "m=...,t=...,p=...", "<salt>", "<hash>"]
+    if parts.len() != 6 {
+        return Err(Argon2Error::InvalidEncoding("invalid PHC string format"));
+    }
+    if parts[0] != "" {
+        return Err(Argon2Error::InvalidEncoding("must start with $"));
+    }
+    if parts[1] != "argon2id" {
+        return Err(Argon2Error::InvalidEncoding("unsupported algorithm"));
+    }
+    if parts[2] != "v=19" {
+        return Err(Argon2Error::InvalidEncoding("unsupported version"));
+    }
+
+    // Parse params
+    let param_parts: Vec<&str> = parts[3].split(',').collect();
+    if param_parts.len() != 3 {
+        return Err(Argon2Error::InvalidEncoding("invalid parameters"));
+    }
+
+    let memory = parse_param(param_parts[0], "m=")?;
+    let iterations = parse_param(param_parts[1], "t=")?;
+    let parallelism = parse_param(param_parts[2], "p=")?;
+
+    let salt = base64_decode_no_pad(parts[4]).map_err(|_| Argon2Error::InvalidEncoding("invalid base64 in salt"))?;
+    let tag = base64_decode_no_pad(parts[5]).map_err(|_| Argon2Error::InvalidEncoding("invalid base64 in hash"))?;
+
+    let params = Params {
+        iterations,
+        memory,
+        parallelism,
+    };
+
+    Ok((params, salt, tag))
+}
+
+// ============================================================
+// Core Argon2 algorithm
+// ============================================================
+
+/// A 1024-byte block used in Argon2's memory matrix.
+///
+/// The 64-byte alignment keeps every block cache-line aligned, which lets the
+/// SIMD backends use aligned loads/stores.
+#[derive(Clone)]
+#[repr(align(64))]
+struct Block {
+    v: [u64; 128],
+}
+
+impl Block {
+    #[inline(always)]
+    const fn zero() -> Self {
+        Block {
+            v: [0u64; 128],
+        }
+    }
+
+    #[inline(always)]
+    fn xor_with(&mut self, other: &Block) {
+        for (dest, source) in self.v.iter_mut().zip(other.v.iter()) {
+            *dest ^= *source;
+        }
+    }
+
+    /// Build a block from its canonical little-endian byte representation.
+    #[inline(always)]
+    fn from_bytes(bytes: &[u8; BLOCK_SIZE]) -> Self {
+        let mut v = [0u64; 128];
+        for (word, chunk) in v.iter_mut().zip(bytes.as_chunks::<8>().0) {
+            *word = u64::from_le_bytes(*chunk);
+        }
+        Block {
+            v,
+        }
+    }
+
+    /// Serialize the block to its canonical little-endian byte representation.
+    #[inline(always)]
+    fn to_bytes(&self) -> [u8; BLOCK_SIZE] {
+        let mut out = [0u8; BLOCK_SIZE];
+        for (chunk, word) in out.as_chunks_mut::<8>().0.iter_mut().zip(self.v.iter()) {
+            *chunk = word.to_le_bytes();
+        }
+        out
+    }
 }
 
 /// Internal function supporting all argon2 types (for testing).
@@ -187,7 +321,25 @@ fn argon2_core(
     secret: &[u8],
     ad: &[u8],
     params: &Params,
-) -> Result<Vec<u8>, Argon2Error> {
+    out: &mut [u8],
+) -> Result<(), Argon2Error> {
+    argon2_core_with_backend(argon_type, password, salt, secret, ad, params, out, detect_backend())
+}
+
+/// Like [`argon2_core`], but with an explicitly selected compression backend.
+/// Used to run the test vectors against every available implementation.
+#[cfg(feature = "alloc")]
+#[allow(clippy::too_many_arguments)]
+fn argon2_core_with_backend(
+    argon_type: u32,
+    password: &[u8],
+    salt: &[u8],
+    secret: &[u8],
+    ad: &[u8],
+    params: &Params,
+    out: &mut [u8],
+    backend: Backend,
+) -> Result<(), Argon2Error> {
     // Validate parameters
     if params.iterations < 1 {
         return Err(Argon2Error::InvalidParams("iterations must be >= 1"));
@@ -195,8 +347,8 @@ fn argon2_core(
     if params.parallelism < 1 {
         return Err(Argon2Error::InvalidParams("parallelism must be >= 1"));
     }
-    if params.tag_length < 4 {
-        return Err(Argon2Error::InvalidParams("tag_length must be >= 4"));
+    if out.len() < 4 {
+        return Err(Argon2Error::InvalidParams("output length must be >= 4"));
     }
     if params.memory < 8 * params.parallelism {
         return Err(Argon2Error::InvalidParams("memory must be >= 8*parallelism"));
@@ -205,7 +357,7 @@ fn argon2_core(
     let p = params.parallelism;
     let t = params.iterations;
     let m = params.memory;
-    let tag_length = params.tag_length;
+    let tag_length = out.len() as u32;
 
     // Step 1: Compute H_0
     let h0 = compute_h0(argon_type, password, salt, secret, ad, p, tag_length, m, t);
@@ -214,55 +366,170 @@ fn argon2_core(
     let m_prime = 4 * p * (m / (4 * p));
     let q = m_prime / p; // columns per lane
 
-    // Allocate memory as m' blocks
-    let mut memory: Vec<Block> = vec![Block::zero(); m_prime as usize];
+    // Allocate memory as m' blocks. This is the only heap allocation performed
+    // by the whole derivation; every other buffer lives on the stack. The arena
+    // is left uninitialized (see `Memory`).
+    let mem = Memory::uninit(m_prime as usize);
 
     // Step 3 & 4: Compute B[i][0] and B[i][1] for all lanes
     for i in 0..p {
+        let mut input = [0u8; 72];
+        input[..64].copy_from_slice(&h0);
+        input[68..72].copy_from_slice(&i.to_le_bytes());
+
+        let mut block_bytes = [0u8; BLOCK_SIZE];
+
         // B[i][0] = H'^(1024)(H_0 || LE32(0) || LE32(i))
-        let mut input = Vec::with_capacity(72);
-        input.extend_from_slice(&h0);
-        input.extend_from_slice(&0u32.to_le_bytes());
-        input.extend_from_slice(&i.to_le_bytes());
-        let block_bytes = variable_length_hash(&input, BLOCK_SIZE as u32);
-        memory[(i * q) as usize] = Block::from_bytes(&block_bytes);
+        input[64..68].copy_from_slice(&0u32.to_le_bytes());
+        variable_length_hash_into(&input, &mut block_bytes);
+        mem.write((i * q) as usize, Block::from_bytes(&block_bytes));
 
         // B[i][1] = H'^(1024)(H_0 || LE32(1) || LE32(i))
-        let mut input = Vec::with_capacity(72);
-        input.extend_from_slice(&h0);
-        input.extend_from_slice(&1u32.to_le_bytes());
-        input.extend_from_slice(&i.to_le_bytes());
-        let block_bytes = variable_length_hash(&input, BLOCK_SIZE as u32);
-        memory[(i * q + 1) as usize] = Block::from_bytes(&block_bytes);
+        input[64..68].copy_from_slice(&1u32.to_le_bytes());
+        variable_length_hash_into(&input, &mut block_bytes);
+        mem.write((i * q + 1) as usize, Block::from_bytes(&block_bytes));
     }
 
     // Steps 5-6: Fill memory
-    for pass in 0..t {
-        for slice in 0..SYNC_POINTS {
-            for lane in 0..p {
-                fill_segment(&mut memory, argon_type, pass, lane, slice, p, q, t, m_prime);
-            }
-        }
-    }
+    fill_memory(backend, &mem, argon_type, p, q, t, m_prime);
 
     // Step 7: Compute final block C = XOR of last column
-    let mut final_block = memory[(q - 1) as usize].clone();
+    let mut final_block = mem.get((q - 1) as usize).clone();
     for i in 1..p {
         let idx = (i * q + q - 1) as usize;
-        final_block.xor_with(&memory[idx]);
+        final_block.xor_with(mem.get(idx));
     }
 
     // Step 8: Output tag = H'^T(C)
     let final_bytes = final_block.to_bytes();
-    let tag = variable_length_hash(&final_bytes, tag_length);
+    variable_length_hash_into(&final_bytes, out);
 
-    Ok(tag)
+    Ok(())
 }
 
-/// Fill a segment of the memory matrix.
+/// Fill the whole memory matrix.
+///
+/// When the `std` feature is enabled (and the target is not wasm32) and each
+/// lane has enough work to amortize thread startup, every lane is filled by
+/// its own thread. The threads are scoped to this call: they are spawned here
+/// and joined before it returns, so no worker outlives the derivation. Lanes
+/// synchronize on a barrier at every slice boundary, which is exactly where
+/// Argon2 permits cross-lane reads.
 #[cfg(feature = "alloc")]
+fn fill_memory(backend: Backend, memory: &Memory, argon_type: u32, p: u32, q: u32, t: u32, m_prime: u32) {
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+    {
+        // Thread startup only pays off for reasonably large segments.
+        const MIN_PARALLEL_SEGMENT_LENGTH: u32 = 64;
+        let segment_length = q / SYNC_POINTS;
+        if p > 1 && segment_length >= MIN_PARALLEL_SEGMENT_LENGTH {
+            // The barrier lives in this frame, so it outlives the scope and its
+            // worker threads. The workers themselves never outlive this call.
+            let barrier = std::sync::Barrier::new(p as usize);
+            std::thread::scope(|scope| {
+                let barrier = &barrier;
+                for lane in 0..p {
+                    scope.spawn(move || {
+                        for pass in 0..t {
+                            for slice in 0..SYNC_POINTS {
+                                fill_segment(backend, memory, argon_type, pass, lane, slice, p, q, t, m_prime);
+                                barrier.wait();
+                            }
+                        }
+                    });
+                }
+            });
+            return;
+        }
+    }
+
+    for pass in 0..t {
+        for slice in 0..SYNC_POINTS {
+            for lane in 0..p {
+                fill_segment(backend, memory, argon_type, pass, lane, slice, p, q, t, m_prime);
+            }
+        }
+    }
+}
+
+/// Selects the SIMD kernel used to fill the memory matrix.
+///
+/// The choice is resolved once per derivation (never per block) and cached for
+/// the whole call.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[allow(dead_code)] // `Scalar` is unused when a SIMD backend is always selected.
+enum Backend {
+    /// Portable `u64` implementation. Always available.
+    Scalar,
+    /// AArch64 NEON, which is baseline on `aarch64`.
+    #[cfg(target_arch = "aarch64")]
+    Neon,
+    /// AArch64 NEON with the `sha3` extension, which lets LLVM fuse the
+    /// rotate-xor steps into a single `xar` instruction.
+    #[cfg(target_arch = "aarch64")]
+    NeonSha3,
+    /// x86-64 AVX2.
+    #[cfg(target_arch = "x86_64")]
+    Avx2,
+}
+
+/// Detect the fastest compression kernel available on the running CPU.
+///
+/// Depending on the target architecture and feature set, any one of the
+/// cfg-gated branches below is the terminal path, so they are written as
+/// explicit returns rather than trailing expressions.
+#[allow(clippy::needless_return)]
+fn detect_backend() -> Backend {
+    #[cfg(target_arch = "aarch64")]
+    {
+        #[cfg(feature = "std")]
+        {
+            if std::arch::is_aarch64_feature_detected!("sha3") {
+                return Backend::NeonSha3;
+            }
+            return Backend::Neon;
+        }
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+        return Backend::NeonSha3;
+
+        #[cfg(all(not(feature = "std"), not(target_feature = "sha3")))]
+        return Backend::Neon;
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        #[cfg(feature = "std")]
+        {
+            if std::arch::is_x86_feature_detected!("avx2") {
+                return Backend::Avx2;
+            }
+            return Backend::Scalar;
+        }
+
+        #[cfg(all(not(feature = "std"), target_feature = "avx2"))]
+        return Backend::Avx2;
+
+        #[cfg(all(not(feature = "std"), not(target_feature = "avx2")))]
+        return Backend::Scalar;
+    }
+
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    return Backend::Scalar;
+}
+
+/// Fill a segment of the memory matrix using the selected backend.
+///
+/// The compression kernel is called directly for the selected backend. The
+/// backend is loop-invariant, so the `match` can be hoisted out of the hot
+/// loop. The `#[target_feature]` kernels (`NeonSha3` and `Avx2`) remain
+/// separate calls, since a function compiled with a target feature is never
+/// inlined into a caller that does not enable it.
+#[cfg(feature = "alloc")]
+#[allow(clippy::too_many_arguments)]
 fn fill_segment(
-    memory: &mut [Block],
+    backend: Backend,
+    memory: &Memory,
     argon_type: u32,
     pass: u32,
     lane: u32,
@@ -274,13 +541,12 @@ fn fill_segment(
 ) {
     let segment_length = q / SYNC_POINTS;
 
-    // For Argon2i and Argon2id (first half of first pass), precompute pseudo-random values
-    let mut pseudo_rands: Vec<u64> = Vec::new();
+    // For Argon2i and Argon2id (first half of first pass), addresses are
+    // derived from a pseudo-random stream. It is produced 128 words at a time
+    // into a stack buffer, so no heap allocation is needed.
     let need_pseudo_rands = argon_type == ARGON2I || (argon_type == ARGON2ID && pass == 0 && slice < 2);
-
-    if need_pseudo_rands {
-        pseudo_rands = generate_addresses(pass, lane, slice, lanes, t, argon_type, m_prime, segment_length);
-    }
+    let mut addr_words = [0u64; 128];
+    let mut addr_chunk = u32::MAX;
 
     let start_index = if pass == 0 && slice == 0 { 2 } else { 0 };
 
@@ -297,12 +563,17 @@ fn fill_segment(
 
         // Determine J1 and J2
         let (j1, j2) = if need_pseudo_rands {
-            let val = pseudo_rands[s as usize];
+            let chunk = s / 128;
+            if chunk != addr_chunk {
+                generate_address_block(pass, lane, slice, t, argon_type, m_prime, (chunk + 1) as u64, &mut addr_words);
+                addr_chunk = chunk;
+            }
+            let val = addr_words[(s % 128) as usize];
             ((val & 0xFFFFFFFF) as u32, (val >> 32) as u32)
         } else {
             // Argon2d mode: use first 64 bits of previous block
-            let prev = &memory[prev_index];
-            (prev.v[0] as u32, (prev.v[0] >> 32) as u32)
+            let word = memory.first_word(prev_index);
+            (word as u32, (word >> 32) as u32)
         };
 
         // Map J1, J2 to reference block index
@@ -311,33 +582,44 @@ fn fill_segment(
         let ref_index = index_alpha(pass, slice, lanes, segment_length, s, q, ref_lane == lane, j1);
         let ref_block_index = (ref_lane * q + ref_index) as usize;
 
-        // Compute new block
-        let new_block = if pass == 0 {
-            compress(&memory[prev_index], &memory[ref_block_index])
-        } else {
-            let mut new = compress(&memory[prev_index], &memory[ref_block_index]);
-            new.xor_with(&memory[cur_index]);
-            new
-        };
-
-        memory[cur_index] = new_block;
+        // Argon2 never references the block currently being written, so
+        // `cur_index` differs from both `prev_index` and `ref_block_index`.
+        // Cross-lane reads target blocks finalized at this synchronization
+        // point, so they never race with a concurrent write.
+        //
+        // SAFETY: the two shared borrows and the raw pointer target
+        // pairwise-distinct blocks (see `Memory`), and `backend` is only ever
+        // one that `detect_backend` selected for this CPU.
+        unsafe {
+            let prev = memory.get(prev_index);
+            let reference = memory.get(ref_block_index);
+            let cur = memory.get_mut(cur_index);
+            match backend {
+                Backend::Scalar => fill::fill_block(prev, reference, cur, pass != 0),
+                #[cfg(target_arch = "aarch64")]
+                Backend::Neon => fill_neon::fill_block(prev, reference, cur, pass != 0),
+                #[cfg(target_arch = "aarch64")]
+                Backend::NeonSha3 => fill_neon::fill_block_sha3(prev, reference, cur, pass != 0),
+                #[cfg(target_arch = "x86_64")]
+                Backend::Avx2 => fill_avx2::fill_block(prev, reference, cur, pass != 0),
+            }
+        }
     }
 }
 
-/// Generate pseudo-random addresses for Argon2i/Argon2id data-independent addressing.
+/// Fill `out` with one 128-word block of pseudo-random addresses for
+/// Argon2i/Argon2id data-independent addressing.
 #[cfg(feature = "alloc")]
-fn generate_addresses(
+fn generate_address_block(
     pass: u32,
     lane: u32,
     slice: u32,
-    _lanes: u32,
     t: u32,
     argon_type: u32,
     m_prime: u32,
-    segment_length: u32,
-) -> Vec<u64> {
-    let mut pseudo_rands = Vec::with_capacity(segment_length as usize);
-
+    counter: u64,
+    out: &mut [u64; 128],
+) {
     // Build input block
     let mut input = Block::zero();
     input.v[0] = pass as u64;
@@ -346,25 +628,14 @@ fn generate_addresses(
     input.v[3] = m_prime as u64;
     input.v[4] = t as u64;
     input.v[5] = argon_type as u64;
+    input.v[6] = counter;
 
     let zero_block = Block::zero();
-    // Generate addresses in groups of 128 (each block gives 128 u64 values)
-    let mut counter = 1u64;
-    while pseudo_rands.len() < segment_length as usize {
-        input.v[6] = counter;
-        let tmp = compress(&zero_block, &input);
-        let addr_block = compress(&zero_block, &tmp);
-
-        for i in 0..128 {
-            if pseudo_rands.len() >= segment_length as usize {
-                break;
-            }
-            pseudo_rands.push(addr_block.v[i]);
-        }
-        counter += 1;
-    }
-
-    pseudo_rands
+    let mut tmp = Block::zero();
+    fill::fill_block_ref(&zero_block, &input, &mut tmp, false);
+    let mut addr_block = Block::zero();
+    fill::fill_block_ref(&zero_block, &tmp, &mut addr_block, false);
+    out.copy_from_slice(&addr_block.v);
 }
 
 /// Map J1 to a reference block index within the available set W.
@@ -462,241 +733,155 @@ fn compute_h0(
 
 /// Variable-length hash function H' as defined in RFC 9106 Section 3.3.
 ///
-/// Uses Blake2b to produce output of arbitrary length.
+/// Uses Blake2b to fill `out` (its length is the tag length `T`) without
+/// performing any heap allocation.
 #[cfg(feature = "alloc")]
-fn variable_length_hash(input: &[u8], tag_length: u32) -> Vec<u8> {
+fn variable_length_hash_into(input: &[u8], out: &mut [u8]) {
+    let tag_length = out.len();
+
     if tag_length <= 64 {
         // Short output: H'^T(A) = H^T(LE32(T)||A)
-        let mut blake = Blake2b::new_keyed(&[], tag_length as usize);
-        blake.update(&tag_length.to_le_bytes());
+        let mut blake = Blake2b::new_keyed(&[], tag_length);
+        blake.update(&(tag_length as u32).to_le_bytes());
         blake.update(input);
         let hash = blake.sum();
-        hash.as_ref()[..tag_length as usize].to_vec()
-    } else {
-        // Long output
-        // r = ceil(T/32) - 2
-        let r = ((tag_length + 31) / 32) - 2;
-
-        let mut result = Vec::with_capacity(tag_length as usize);
-
-        // V_1 = H^(64)(LE32(T)||A)
-        let mut blake = Blake2b::new_keyed(&[], 64);
-        blake.update(&tag_length.to_le_bytes());
-        blake.update(input);
-        let hash = blake.sum();
-        let mut v_prev = hash.as_ref()[..64].to_vec();
-
-        // W_1 = first 32 bytes of V_1
-        result.extend_from_slice(&v_prev[..32]);
-
-        // V_2 through V_r
-        for _ in 2..=r {
-            let mut blake = Blake2b::new_keyed(&[], 64);
-            blake.update(&v_prev);
-            let hash = blake.sum();
-            v_prev = hash.as_ref()[..64].to_vec();
-            result.extend_from_slice(&v_prev[..32]);
-        }
-
-        // V_{r+1} = H^(T-32*r)(V_r)
-        let remaining = tag_length - 32 * r;
-        let mut blake = Blake2b::new_keyed(&[], remaining as usize);
-        blake.update(&v_prev);
-        let hash = blake.sum();
-        result.extend_from_slice(&hash.as_ref()[..remaining as usize]);
-
-        result
+        out.copy_from_slice(&hash.as_ref()[..tag_length]);
+        return;
     }
+
+    // Long output
+    // r = ceil(T/32) - 2
+    let r = tag_length.div_ceil(32) - 2;
+
+    // V_1 = H^(64)(LE32(T)||A)
+    let mut v = [0u8; 64];
+    {
+        let mut blake = Blake2b::new_keyed(&[], 64);
+        blake.update(&(tag_length as u32).to_le_bytes());
+        blake.update(input);
+        let hash = blake.sum();
+        v.copy_from_slice(&hash.as_ref()[..64]);
+    }
+
+    // W_1 = first 32 bytes of V_1
+    out[..32].copy_from_slice(&v[..32]);
+
+    // V_2 through V_r
+    let mut offset = 32;
+    for _ in 2..=r {
+        let mut blake = Blake2b::new_keyed(&[], 64);
+        blake.update(&v);
+        let hash = blake.sum();
+        v.copy_from_slice(&hash.as_ref()[..64]);
+        out[offset..offset + 32].copy_from_slice(&v[..32]);
+        offset += 32;
+    }
+
+    // V_{r+1} = H^(T-32*r)(V_r)
+    let remaining = tag_length - 32 * r;
+    let mut blake = Blake2b::new_keyed(&[], remaining);
+    blake.update(&v);
+    let hash = blake.sum();
+    out[offset..offset + remaining].copy_from_slice(&hash.as_ref()[..remaining]);
 }
 
 // ============================================================
 // Compression function G and Permutation P
 // ============================================================
 
-/// Compression function G(X, Y) -> Z XOR R
+/// Argon2's block arena, and the only place where memory unsafety lives.
 ///
-/// Operates on two 1024-byte blocks.
-fn compress(x: &Block, y: &Block) -> Block {
-    // R = X XOR Y
-    let mut r = Block::zero();
-    for i in 0..128 {
-        r.v[i] = x.v[i] ^ y.v[i];
-    }
+/// Argon2 fills disjoint blocks concurrently while reading blocks that were
+/// finalized at an earlier synchronization point, an access pattern the borrow
+/// checker cannot describe directly. All of that unsafety is confined here:
+///
+/// * the arena is allocated uninitialized and written through a shared
+///   reference (every block is written before it is read);
+/// * [`Memory::get`] and [`Memory::get_mut`] hand out two shared borrows and a
+///   raw pointer to three pairwise-distinct blocks, so the kernel's reads and
+///   write do not alias;
+/// * lanes only ever write their own blocks, so concurrent calls from different
+///   lanes touch disjoint blocks.
+struct Memory {
+    blocks: Vec<MaybeUninit<Block>>,
+}
 
-    let mut q = r.clone();
+// SAFETY: concurrent access is always disjoint. Every write targets the calling
+// lane's own current block, while reads only target blocks finalized at an
+// earlier synchronization point or this lane's own previous block. See
+// `fill_segment`.
+unsafe impl Send for Memory {}
+unsafe impl Sync for Memory {}
 
-    // Apply P to each row of 8x8 matrix of 16-byte registers
-    // Each row has 8 registers of 16 bytes = 8*2 u64 = 16 u64 values
-    for row in 0..8 {
-        let base = row * 16;
-        permutation_p(&mut q.v[base..base + 16]);
-    }
-
-    // Apply P to each column
-    // Columns: position i in each row
-    for col in 0..8 {
-        let mut buf = [0u64; 16];
-        for row in 0..8 {
-            let src = row * 16 + col * 2;
-            buf[row * 2] = q.v[src];
-            buf[row * 2 + 1] = q.v[src + 1];
+impl Memory {
+    /// Allocate an uninitialized arena of `len` blocks.
+    ///
+    /// The contents are left uninitialized on purpose: Argon2 writes every
+    /// block before reading it, so zero-filling the arena would be a wasted
+    /// pass over the whole allocation.
+    fn uninit(len: usize) -> Self {
+        let mut blocks: Vec<MaybeUninit<Block>> = Vec::with_capacity(len);
+        // SAFETY: `Block` is plain-old-data (an array of `u64`), so every bit
+        // pattern is valid, and `MaybeUninit` tolerates uninitialized contents.
+        // The length is set to the capacity that was just reserved.
+        unsafe { blocks.set_len(len) };
+        Memory {
+            blocks,
         }
-        permutation_p(&mut buf);
-        for row in 0..8 {
-            let dst = row * 16 + col * 2;
-            q.v[dst] = buf[row * 2];
-            q.v[dst + 1] = buf[row * 2 + 1];
-        }
     }
 
-    // Z XOR R
-    for i in 0..128 {
-        q.v[i] ^= r.v[i];
+    /// Base pointer of the arena.
+    #[inline(always)]
+    fn base_ptr(&self) -> *mut Block {
+        self.blocks.as_ptr() as *mut Block
     }
 
-    q
-}
-
-/// Permutation P based on the round function of BLAKE2b.
-///
-/// Operates on 128 bytes (16 u64 values) viewed as a 4x4 matrix.
-fn permutation_p(v: &mut [u64]) {
-    // Column-wise
-    gb(v, 0, 4, 8, 12);
-    gb(v, 1, 5, 9, 13);
-    gb(v, 2, 6, 10, 14);
-    gb(v, 3, 7, 11, 15);
-
-    // Diagonal-wise
-    gb(v, 0, 5, 10, 15);
-    gb(v, 1, 6, 11, 12);
-    gb(v, 2, 7, 8, 13);
-    gb(v, 3, 4, 9, 14);
-}
-
-/// The GB mixing function for Argon2.
-///
-/// Unlike BLAKE2b's G, this uses multiplication for additional hardness.
-#[inline(always)]
-fn gb(v: &mut [u64], a: usize, b: usize, c: usize, d: usize) {
-    v[a] = v[a]
-        .wrapping_add(v[b])
-        .wrapping_add(2u64.wrapping_mul((v[a] as u32 as u64).wrapping_mul(v[b] as u32 as u64)));
-    v[d] = (v[d] ^ v[a]).rotate_right(32);
-    v[c] = v[c]
-        .wrapping_add(v[d])
-        .wrapping_add(2u64.wrapping_mul((v[c] as u32 as u64).wrapping_mul(v[d] as u32 as u64)));
-    v[b] = (v[b] ^ v[c]).rotate_right(24);
-
-    v[a] = v[a]
-        .wrapping_add(v[b])
-        .wrapping_add(2u64.wrapping_mul((v[a] as u32 as u64).wrapping_mul(v[b] as u32 as u64)));
-    v[d] = (v[d] ^ v[a]).rotate_right(16);
-    v[c] = v[c]
-        .wrapping_add(v[d])
-        .wrapping_add(2u64.wrapping_mul((v[c] as u32 as u64).wrapping_mul(v[d] as u32 as u64)));
-    v[b] = (v[b] ^ v[c]).rotate_right(63);
-}
-
-// ============================================================
-// PHC String Format encode/decode
-// ============================================================
-
-/// Encode an Argon2id hash in the PHC string format:
-/// `$argon2id$v=19$m=<memory>,t=<iterations>,p=<parallelism>$<salt_b64>$<hash_b64>`
-///
-/// Uses base64 encoding without padding (standard alphabet with +/ replaced by the
-/// PHC-standard base64 which is actually the standard base64 without padding).
-#[cfg(feature = "alloc")]
-pub fn encode_phc(params: &Params, salt: &[u8], tag: &[u8]) -> String {
-    let salt_b64 = base64_encode_no_pad(salt);
-    let tag_b64 = base64_encode_no_pad(tag);
-    alloc::format!(
-        "$argon2id$v=19$m={},t={},p={}${}${}",
-        params.memory,
-        params.iterations,
-        params.parallelism,
-        salt_b64,
-        tag_b64
-    )
-}
-
-/// Decode an Argon2id PHC string format into (params, salt, tag).
-///
-/// Expected format: `$argon2id$v=19$m=<m>,t=<t>,p=<p>$<salt_b64>$<hash_b64>`
-#[cfg(feature = "alloc")]
-pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Error> {
-    let parts: Vec<&str> = encoded.split('$').collect();
-    // Parts: ["", "argon2id", "v=19", "m=...,t=...,p=...", "<salt>", "<hash>"]
-    if parts.len() != 6 {
-        return Err(Argon2Error::InvalidEncoding("invalid PHC string format"));
-    }
-    if parts[0] != "" {
-        return Err(Argon2Error::InvalidEncoding("must start with $"));
-    }
-    if parts[1] != "argon2id" {
-        return Err(Argon2Error::InvalidEncoding("unsupported algorithm"));
-    }
-    if parts[2] != "v=19" {
-        return Err(Argon2Error::InvalidEncoding("unsupported version"));
+    /// Return the number of blocks in the arena.
+    #[inline(always)]
+    fn len(&self) -> usize {
+        self.blocks.len()
     }
 
-    // Parse params
-    let param_parts: Vec<&str> = parts[3].split(',').collect();
-    if param_parts.len() != 3 {
-        return Err(Argon2Error::InvalidEncoding("invalid parameters"));
+    /// Write `block` to `index`.
+    ///
+    /// The block at `index` may be uninitialized beforehand; its previous
+    /// contents are not read.
+    #[inline(always)]
+    fn write(&self, index: usize, block: Block) {
+        debug_assert!(index < self.len());
+        // SAFETY: `index` is in bounds and no other access to that block is
+        // live, so the write does not alias.
+        unsafe { core::ptr::write(self.base_ptr().add(index), block) };
     }
 
-    let memory = parse_param(param_parts[0], "m=")?;
-    let iterations = parse_param(param_parts[1], "t=")?;
-    let parallelism = parse_param(param_parts[2], "p=")?;
+    /// Read the block at `index`.
+    ///
+    /// Callers must only read blocks that have already been written and are not
+    /// concurrently written.
+    #[inline(always)]
+    fn get(&self, index: usize) -> &Block {
+        debug_assert!(index < self.len());
+        // SAFETY: `index` is in bounds, the block has been initialized, and it
+        // is not concurrently written (see the type-level invariant).
+        unsafe { &*self.base_ptr().add(index) }
+    }
 
-    let salt = base64_decode_no_pad(parts[4]).map_err(|_| Argon2Error::InvalidEncoding("invalid base64 in salt"))?;
-    let tag = base64_decode_no_pad(parts[5]).map_err(|_| Argon2Error::InvalidEncoding("invalid base64 in hash"))?;
+    /// First word of the block at `index` (used by Argon2d addressing).
+    #[inline(always)]
+    fn first_word(&self, index: usize) -> u64 {
+        self.get(index).v[0]
+    }
 
-    let params = Params {
-        iterations,
-        memory,
-        parallelism,
-        tag_length: tag.len() as u32,
-    };
-
-    Ok((params, salt, tag))
-}
-
-/// Hash a password and return the PHC-encoded string.
-///
-/// # Example
-///
-/// ```ignore
-/// use crypto::argon2::{hash_password, verify_password, Params};
-///
-/// let encoded = hash_password(
-///     b"correct horse battery staple",
-///     b"randomsalt123456",
-///     &Params { iterations: 3, memory: 65536, parallelism: 4, tag_length: 32 },
-/// ).unwrap();
-///
-/// assert!(verify_password(b"correct horse battery staple", &encoded).is_ok());
-/// assert!(verify_password(b"wrong password", &encoded).is_err());
-/// ```
-#[cfg(feature = "alloc")]
-pub fn hash_password(password: &[u8], salt: &[u8], params: &Params) -> Result<String, Argon2Error> {
-    let tag = derive_key(password, salt, &[], &[], params)?;
-    Ok(encode_phc(params, salt, &tag))
-}
-
-/// Verify a password against a PHC-encoded hash string.
-///
-/// See [`hash_password`] for an example.
-#[cfg(feature = "alloc")]
-pub fn verify_password(password: &[u8], encoded: &str) -> Result<(), Argon2Error> {
-    let (params, salt, expected_tag) = decode_phc(encoded)?;
-    let computed_tag = derive_key(password, &salt, &[], &[], &params)?;
-    if constant_time_eq::constant_time_eq(&computed_tag, &expected_tag) {
-        Ok(())
-    } else {
-        Err(Argon2Error::VerifyMismatch)
+    /// Raw pointer to the block at `index`, without dereferencing it.
+    ///
+    /// This may point at an uninitialized block (on the first pass) and is
+    /// handed to the compression kernel, which is responsible for writing it.
+    #[inline(always)]
+    fn get_mut(&self, index: usize) -> *mut Block {
+        debug_assert!(index < self.len());
+        // SAFETY: `index` is in bounds, so the offset stays within the
+        // allocation. The returned pointer is not dereferenced here.
+        unsafe { self.base_ptr().add(index) }
     }
 }
 
@@ -747,9 +932,110 @@ mod tests {
             iterations: iterations,
             memory: memory,
             parallelism: parallelism,
-            tag_length: tag_length,
         };
-        argon2_core(argon_type, password, salt, secret, ad, &params).unwrap()
+        let mut out = vec![0u8; tag_length as usize];
+        argon2_core(argon_type, password, salt, secret, ad, &params, &mut out).unwrap();
+        out
+    }
+
+    /// Like `derive_key_typed`, but with an explicit backend.
+    #[allow(clippy::too_many_arguments)]
+    fn derive_key_typed_backend(
+        backend: Backend,
+        argon_type: u32,
+        password: &[u8],
+        salt: &[u8],
+        secret: &[u8],
+        ad: &[u8],
+        iterations: u32,
+        memory: u32,
+        parallelism: u32,
+        tag_length: u32,
+    ) -> Vec<u8> {
+        let params = Params {
+            iterations,
+            memory,
+            parallelism,
+        };
+        let mut out = vec![0u8; tag_length as usize];
+        argon2_core_with_backend(argon_type, password, salt, secret, ad, &params, &mut out, backend).unwrap();
+        out
+    }
+
+    /// Every backend compiled into this build and actually supported by the
+    /// running CPU.
+    fn available_backends() -> Vec<Backend> {
+        let mut backends = vec![Backend::Scalar];
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            backends.push(Backend::Neon);
+            #[cfg(feature = "std")]
+            if std::arch::is_aarch64_feature_detected!("sha3") {
+                backends.push(Backend::NeonSha3);
+            }
+        }
+
+        #[cfg(target_arch = "x86_64")]
+        {
+            #[cfg(feature = "std")]
+            if std::arch::is_x86_feature_detected!("avx2") {
+                backends.push(Backend::Avx2);
+            }
+        }
+
+        backends
+    }
+
+    /// Every SIMD backend must reproduce the scalar kernel bit-for-bit, for
+    /// all three Argon2 types, multiple passes and multiple lanes.
+    #[test]
+    fn test_backends_match_reference() {
+        let password = b"password";
+        let salt = b"somesalt";
+        for backend in available_backends() {
+            for v in GO_VECTORS.iter() {
+                let expected = hex::decode(v.hash).unwrap();
+                let result = derive_key_typed_backend(
+                    backend,
+                    v.mode,
+                    password,
+                    salt,
+                    &[],
+                    &[],
+                    v.time,
+                    v.memory,
+                    v.threads,
+                    expected.len() as u32,
+                );
+                assert_eq!(
+                    result, expected,
+                    "backend {:?} failed Go vector (mode={}, t={}, m={}, p={})",
+                    backend, v.mode, v.time, v.memory, v.threads
+                );
+            }
+        }
+    }
+
+    /// Convenience wrapper around `derive_key` that returns an allocated tag.
+    fn derive_key_vec(
+        tag_length: usize,
+        password: &[u8],
+        salt: &[u8],
+        secret: &[u8],
+        ad: &[u8],
+        params: &Params,
+    ) -> Vec<u8> {
+        let mut out = vec![0u8; tag_length];
+        derive_key(&mut out, password, salt, secret, ad, params).unwrap();
+        out
+    }
+
+    /// Convenience wrapper around `variable_length_hash_into` returning a Vec.
+    fn variable_length_hash_vec(input: &[u8], tag_length: usize) -> Vec<u8> {
+        let mut out = vec![0u8; tag_length];
+        variable_length_hash_into(input, &mut out);
+        out
     }
 
     // ================================================================
@@ -1202,7 +1488,6 @@ mod tests {
             iterations: 3,
             memory: 65536,
             parallelism: 4,
-            tag_length: 32,
         };
         let salt = b"somesalt12345678";
         let tag = vec![0xAB; 32];
@@ -1212,7 +1497,6 @@ mod tests {
         assert_eq!(dp.iterations, 3);
         assert_eq!(dp.memory, 65536);
         assert_eq!(dp.parallelism, 4);
-        assert_eq!(dp.tag_length, 32);
         assert_eq!(ds, salt);
         assert_eq!(dt, tag);
     }
@@ -1225,7 +1509,6 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         let encoded = hash_password(password, salt, &params).unwrap();
         assert!(verify_password(password, &encoded).is_ok());
@@ -1242,8 +1525,10 @@ mod tests {
 
     #[test]
     fn test_invalid_params() {
+        let mut out = [0u8; 32];
         assert!(
             derive_key(
+                &mut out,
                 b"password",
                 b"salt",
                 &[],
@@ -1251,14 +1536,14 @@ mod tests {
                 &Params {
                     iterations: 0,
                     memory: 64,
-                    parallelism: 1,
-                    tag_length: 32
+                    parallelism: 1
                 }
             )
             .is_err()
         );
         assert!(
             derive_key(
+                &mut out,
                 b"password",
                 b"salt",
                 &[],
@@ -1266,14 +1551,16 @@ mod tests {
                 &Params {
                     iterations: 1,
                     memory: 4,
-                    parallelism: 1,
-                    tag_length: 32
+                    parallelism: 1
                 }
             )
             .is_err()
         );
+        // The output buffer must be at least 4 bytes long.
+        let mut short = [0u8; 3];
         assert!(
             derive_key(
+                &mut short,
                 b"password",
                 b"salt",
                 &[],
@@ -1281,8 +1568,7 @@ mod tests {
                 &Params {
                     iterations: 1,
                     memory: 64,
-                    parallelism: 1,
-                    tag_length: 3
+                    parallelism: 1
                 }
             )
             .is_err()
@@ -1292,23 +1578,24 @@ mod tests {
     #[test]
     fn test_variable_length_hash_short() {
         let input = b"test input";
-        let r32 = variable_length_hash(input, 32);
+        let r32 = variable_length_hash_vec(input, 32);
         assert_eq!(r32.len(), 32);
-        assert_eq!(variable_length_hash(input, 32), r32);
-        let r48 = variable_length_hash(input, 48);
+        assert_eq!(variable_length_hash_vec(input, 32), r32);
+        let r48 = variable_length_hash_vec(input, 48);
         assert_eq!(r48.len(), 48);
         assert_ne!(&r32[..], &r48[..32]);
     }
 
     #[test]
     fn test_variable_length_hash_long() {
-        assert_eq!(variable_length_hash(b"test input for long hash", 128).len(), 128);
-        assert_eq!(variable_length_hash(b"test input for long hash", 1024).len(), 1024);
+        assert_eq!(variable_length_hash_vec(b"test input for long hash", 128).len(), 128);
+        assert_eq!(variable_length_hash_vec(b"test input for long hash", 1024).len(), 1024);
     }
 
     #[test]
     fn test_argon2id_min_memory() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            32,
             b"password",
             b"saltsalt",
             &[],
@@ -1317,32 +1604,26 @@ mod tests {
                 iterations: 1,
                 memory: 8,
                 parallelism: 1,
-                tag_length: 32,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 32);
     }
 
     #[test]
     fn test_argon2id_multiple_lanes() {
-        assert_eq!(
-            derive_key(
-                b"password",
-                b"saltsaltsaltsalt",
-                &[],
-                &[],
-                &Params {
-                    iterations: 1,
-                    memory: 64,
-                    parallelism: 4,
-                    tag_length: 32
-                }
-            )
-            .unwrap()
-            .len(),
-            32
+        let result = derive_key_vec(
+            32,
+            b"password",
+            b"saltsaltsaltsalt",
+            &[],
+            &[],
+            &Params {
+                iterations: 1,
+                memory: 64,
+                parallelism: 4,
+            },
         );
+        assert_eq!(result.len(), 32);
     }
 
     #[test]
@@ -1351,11 +1632,10 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         assert_ne!(
-            derive_key(b"password1", b"saltsaltsaltsalt", &[], &[], &p).unwrap(),
-            derive_key(b"password2", b"saltsaltsaltsalt", &[], &[], &p).unwrap()
+            derive_key_vec(32, b"password1", b"saltsaltsaltsalt", &[], &[], &p),
+            derive_key_vec(32, b"password2", b"saltsaltsaltsalt", &[], &[], &p)
         );
     }
 
@@ -1365,17 +1645,17 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         assert_ne!(
-            derive_key(b"password", b"salt1234salt1234", &[], &[], &p).unwrap(),
-            derive_key(b"password", b"salt5678salt5678", &[], &[], &p).unwrap()
+            derive_key_vec(32, b"password", b"salt1234salt1234", &[], &[], &p),
+            derive_key_vec(32, b"password", b"salt5678salt5678", &[], &[], &p)
         );
     }
 
     #[test]
     fn test_long_tag() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            64,
             b"password",
             b"saltsaltsaltsalt",
             &[],
@@ -1384,10 +1664,8 @@ mod tests {
                 iterations: 1,
                 memory: 64,
                 parallelism: 1,
-                tag_length: 64,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 64);
     }
 
@@ -1399,9 +1677,8 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 24,
         };
-        let tag = derive_key(password, salt, &[], &[], &params).unwrap();
+        let tag = derive_key_vec(24, password, salt, &[], &[], &params);
         let encoded = encode_phc(&params, salt, &tag);
         let (dp, ds, dt) = decode_phc(&encoded).unwrap();
         assert_eq!(dp.memory, params.memory);
@@ -1429,39 +1706,37 @@ mod tests {
         let p = params.parallelism;
         let t = params.iterations;
         let m = params.memory;
-        let tag_length = params.tag_length;
+        let tag_length = 32u32;
 
         let h0 = compute_h0(argon_type, password, salt, secret, ad, p, tag_length, m, t);
         let m_prime = 4 * p * (m / (4 * p));
         let q = m_prime / p;
 
-        let mut memory: Vec<Block> = vec![Block::zero(); m_prime as usize];
+        let mem = Memory::uninit(m_prime as usize);
 
+        let mut input = [0u8; 72];
+        input[..64].copy_from_slice(&h0);
+        let mut block_bytes = [0u8; BLOCK_SIZE];
         for i in 0..p {
-            let mut input = Vec::with_capacity(72);
-            input.extend_from_slice(&h0);
-            input.extend_from_slice(&0u32.to_le_bytes());
-            input.extend_from_slice(&i.to_le_bytes());
-            let block_bytes = variable_length_hash(&input, BLOCK_SIZE as u32);
-            memory[(i * q) as usize] = Block::from_bytes(&block_bytes);
+            input[68..72].copy_from_slice(&i.to_le_bytes());
 
-            let mut input = Vec::with_capacity(72);
-            input.extend_from_slice(&h0);
-            input.extend_from_slice(&1u32.to_le_bytes());
-            input.extend_from_slice(&i.to_le_bytes());
-            let block_bytes = variable_length_hash(&input, BLOCK_SIZE as u32);
-            memory[(i * q + 1) as usize] = Block::from_bytes(&block_bytes);
+            input[64..68].copy_from_slice(&0u32.to_le_bytes());
+            variable_length_hash_into(&input, &mut block_bytes);
+            mem.write((i * q) as usize, Block::from_bytes(&block_bytes));
+
+            input[64..68].copy_from_slice(&1u32.to_le_bytes());
+            variable_length_hash_into(&input, &mut block_bytes);
+            mem.write((i * q + 1) as usize, Block::from_bytes(&block_bytes));
         }
 
         let mut pass_snapshots = Vec::new();
-
         for pass in 0..t {
             for slice in 0..SYNC_POINTS {
                 for lane in 0..p {
-                    fill_segment(&mut memory, argon_type, pass, lane, slice, p, q, t, m_prime);
+                    fill_segment(Backend::Scalar, &mem, argon_type, pass, lane, slice, p, q, t, m_prime);
                 }
             }
-            pass_snapshots.push(memory.clone());
+            pass_snapshots.push((0..mem.len()).map(|i| mem.get(i).clone()).collect());
         }
 
         pass_snapshots
@@ -1485,7 +1760,6 @@ mod tests {
             iterations: 3,
             memory: 32,
             parallelism: 4,
-            tag_length: 32,
         };
         let passes = argon2_core_with_passes(ARGON2D, &pwd, &salt, &secret, &ad, &params);
 
@@ -1513,7 +1787,6 @@ mod tests {
             iterations: 3,
             memory: 32,
             parallelism: 4,
-            tag_length: 32,
         };
         let passes = argon2_core_with_passes(ARGON2I, &pwd, &salt, &secret, &ad, &params);
 
@@ -1563,33 +1836,14 @@ mod tests {
 
     #[test]
     fn test_argon2id_empty_secret_and_ad() {
-        let result = derive_key(
-            b"password",
-            b"saltsaltsaltsalt",
-            &[],
-            &[],
-            &Params {
-                iterations: 1,
-                memory: 64,
-                parallelism: 1,
-                tag_length: 32,
-            },
-        )
-        .unwrap();
+        let params = Params {
+            iterations: 1,
+            memory: 64,
+            parallelism: 1,
+        };
+        let result = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &params);
         assert_eq!(result.len(), 32);
-        let result2 = derive_key(
-            b"password",
-            b"saltsaltsaltsalt",
-            &[],
-            &[],
-            &Params {
-                iterations: 1,
-                memory: 64,
-                parallelism: 1,
-                tag_length: 32,
-            },
-        )
-        .unwrap();
+        let result2 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &params);
         assert_eq!(result, result2);
     }
 
@@ -1599,10 +1853,9 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
-        let without_secret = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p).unwrap();
-        let with_secret = derive_key(b"password", b"saltsaltsaltsalt", b"secret", &[], &p).unwrap();
+        let without_secret = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p);
+        let with_secret = derive_key_vec(32, b"password", b"saltsaltsaltsalt", b"secret", &[], &p);
         assert_ne!(without_secret, with_secret);
     }
 
@@ -1612,16 +1865,16 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
-        let without_ad = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p).unwrap();
-        let with_ad = derive_key(b"password", b"saltsaltsaltsalt", &[], b"associated data", &p).unwrap();
+        let without_ad = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p);
+        let with_ad = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], b"associated data", &p);
         assert_ne!(without_ad, with_ad);
     }
 
     #[test]
     fn test_argon2id_tag_length_4() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            4,
             b"password",
             b"saltsaltsaltsalt",
             &[],
@@ -1630,16 +1883,15 @@ mod tests {
                 iterations: 1,
                 memory: 64,
                 parallelism: 1,
-                tag_length: 4,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 4);
     }
 
     #[test]
     fn test_argon2id_tag_length_128() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            128,
             b"password",
             b"saltsaltsaltsalt",
             &[],
@@ -1648,16 +1900,15 @@ mod tests {
                 iterations: 1,
                 memory: 64,
                 parallelism: 1,
-                tag_length: 128,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 128);
     }
 
     #[test]
     fn test_argon2id_tag_length_256() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            256,
             b"password",
             b"saltsaltsaltsalt",
             &[],
@@ -1666,10 +1917,8 @@ mod tests {
                 iterations: 1,
                 memory: 64,
                 parallelism: 1,
-                tag_length: 256,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 256);
     }
 
@@ -1679,10 +1928,9 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 100,
         };
-        let r1 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p).unwrap();
-        let r2 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p).unwrap();
+        let r1 = derive_key_vec(100, b"password", b"saltsaltsaltsalt", &[], &[], &p);
+        let r2 = derive_key_vec(100, b"password", b"saltsaltsaltsalt", &[], &[], &p);
         assert_eq!(r1, r2);
         assert_eq!(r1.len(), 100);
     }
@@ -1693,12 +1941,12 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 100,
         };
-        let r1 = argon2_core(ARGON2I, b"password", b"saltsaltsaltsalt", &[], &[], &params).unwrap();
-        let r2 = argon2_core(ARGON2I, b"password", b"saltsaltsaltsalt", &[], &[], &params).unwrap();
+        let mut r1 = [0u8; 100];
+        let mut r2 = [0u8; 100];
+        argon2_core(ARGON2I, b"password", b"saltsaltsaltsalt", &[], &[], &params, &mut r1).unwrap();
+        argon2_core(ARGON2I, b"password", b"saltsaltsaltsalt", &[], &[], &params, &mut r2).unwrap();
         assert_eq!(r1, r2);
-        assert_eq!(r1.len(), 100);
     }
 
     #[test]
@@ -1707,17 +1955,18 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 100,
         };
-        let r1 = argon2_core(ARGON2D, b"password", b"saltsaltsaltsalt", &[], &[], &params).unwrap();
-        let r2 = argon2_core(ARGON2D, b"password", b"saltsaltsaltsalt", &[], &[], &params).unwrap();
+        let mut r1 = [0u8; 100];
+        let mut r2 = [0u8; 100];
+        argon2_core(ARGON2D, b"password", b"saltsaltsaltsalt", &[], &[], &params, &mut r1).unwrap();
+        argon2_core(ARGON2D, b"password", b"saltsaltsaltsalt", &[], &[], &params, &mut r2).unwrap();
         assert_eq!(r1, r2);
-        assert_eq!(r1.len(), 100);
     }
 
     #[test]
     fn test_argon2id_single_pass() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            32,
             b"password",
             b"saltsalt",
             &[],
@@ -1726,16 +1975,15 @@ mod tests {
                 iterations: 1,
                 memory: 32,
                 parallelism: 1,
-                tag_length: 32,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 32);
     }
 
     #[test]
     fn test_argon2id_high_parallelism() {
-        let result = derive_key(
+        let result = derive_key_vec(
+            32,
             b"password",
             b"saltsaltsaltsalt",
             &[],
@@ -1744,10 +1992,8 @@ mod tests {
                 iterations: 1,
                 memory: 64,
                 parallelism: 8,
-                tag_length: 32,
             },
-        )
-        .unwrap();
+        );
         assert_eq!(result.len(), 32);
     }
 
@@ -1766,26 +2012,26 @@ mod tests {
     #[test]
     fn test_variable_length_hash_exact_64() {
         let input = b"test";
-        let result = variable_length_hash(input, 64);
+        let result = variable_length_hash_vec(input, 64);
         assert_eq!(result.len(), 64);
     }
 
     #[test]
     fn test_variable_length_hash_65_bytes() {
         let input = b"test";
-        let result = variable_length_hash(input, 65);
+        let result = variable_length_hash_vec(input, 65);
         assert_eq!(result.len(), 65);
-        let result2 = variable_length_hash(input, 65);
+        let result2 = variable_length_hash_vec(input, 65);
         assert_eq!(result, result2);
     }
 
     #[test]
     fn test_variable_length_hash_deterministic() {
         for len in [4, 16, 32, 48, 64, 65, 96, 128, 256, 512, 1024] {
-            let r1 = variable_length_hash(b"determinism test", len);
-            let r2 = variable_length_hash(b"determinism test", len);
+            let r1 = variable_length_hash_vec(b"determinism test", len);
+            let r2 = variable_length_hash_vec(b"determinism test", len);
             assert_eq!(r1, r2, "variable_length_hash not deterministic for len={}", len);
-            assert_eq!(r1.len(), len as usize);
+            assert_eq!(r1.len(), len);
         }
     }
 
@@ -1821,16 +2067,14 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         let p2 = Params {
             iterations: 2,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
-        let r1 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p1).unwrap();
-        let r2 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p2).unwrap();
+        let r1 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p1);
+        let r2 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p2);
         assert_ne!(r1, r2);
     }
 
@@ -1840,16 +2084,14 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         let p2 = Params {
             iterations: 1,
             memory: 128,
             parallelism: 1,
-            tag_length: 32,
         };
-        let r1 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p1).unwrap();
-        let r2 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p2).unwrap();
+        let r1 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p1);
+        let r2 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p2);
         assert_ne!(r1, r2);
     }
 
@@ -1859,16 +2101,14 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         let p2 = Params {
             iterations: 1,
             memory: 64,
             parallelism: 2,
-            tag_length: 32,
         };
-        let r1 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p1).unwrap();
-        let r2 = derive_key(b"password", b"saltsaltsaltsalt", &[], &[], &p2).unwrap();
+        let r1 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p1);
+        let r2 = derive_key_vec(32, b"password", b"saltsaltsaltsalt", &[], &[], &p2);
         assert_ne!(r1, r2);
     }
 
@@ -1902,7 +2142,6 @@ mod tests {
             iterations: 1,
             memory: 64,
             parallelism: 1,
-            tag_length: 32,
         };
         let encoded = hash_password(password, salt, &params).unwrap();
         assert!(verify_password(password, &encoded).is_ok());
@@ -1916,7 +2155,6 @@ mod tests {
                 iterations: 1,
                 memory: 64,
                 parallelism: 1,
-                tag_length: tag_len,
             };
             let salt = b"testsalt12345678";
             let tag = vec![0xAB; tag_len as usize];
@@ -1925,7 +2163,6 @@ mod tests {
             assert_eq!(dp.memory, 64);
             assert_eq!(dp.iterations, 1);
             assert_eq!(dp.parallelism, 1);
-            assert_eq!(dp.tag_length, tag_len);
             assert_eq!(ds, salt);
             assert_eq!(dt, tag);
         }
@@ -1944,13 +2181,13 @@ mod tests {
     }
 
     #[test]
-    fn test_gb_known_values() {
+    fn test_permutation_p_changes_values() {
         let mut v = [0u64; 16];
         v[0] = 1;
         v[1] = 2;
         v[2] = 3;
         v[3] = 4;
-        gb(&mut v, 0, 1, 2, 3);
+        permutation_p(&mut v);
         assert_ne!(v[0], 1);
         assert_ne!(v[1], 2);
         assert_ne!(v[2], 3);
@@ -1959,8 +2196,11 @@ mod tests {
 
     #[test]
     fn test_permutation_p_deterministic() {
-        let mut v1: Vec<u64> = (0..16).collect();
-        let mut v2: Vec<u64> = (0..16).collect();
+        let mut v1 = [0u64; 16];
+        for (i, word) in v1.iter_mut().enumerate() {
+            *word = i as u64;
+        }
+        let mut v2 = v1;
         permutation_p(&mut v1);
         permutation_p(&mut v2);
         assert_eq!(v1, v2);

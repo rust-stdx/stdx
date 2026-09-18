@@ -13,6 +13,11 @@ const IV: [u64; 8] = [
     0x5BE0CD19137E2179,
 ];
 
+/// Message-word permutation schedule from RFC 7693.
+///
+/// The compression function hard-codes these permutations, so this table is
+/// retained only as a reference for readers and tests.
+#[allow(dead_code)]
 const SIGMA: [[u8; 16]; 12] = [
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
@@ -39,6 +44,96 @@ pub struct Blake2b {
     key_pending: bool,
 }
 
+/// Load 16 little-endian 64-bit words from a 128-byte block.
+#[inline(always)]
+fn load_block(block: &[u8; 128]) -> [u64; 16] {
+    let mut m = [0u64; 16];
+    for (word, chunk) in m.iter_mut().zip(block.chunks_exact(8)) {
+        *word = u64::from_le_bytes(chunk.try_into().unwrap());
+    }
+    m
+}
+
+/// The core BLAKE2b compression function (RFC 7693 Section 3.2).
+///
+/// Folds one 128-byte `block` into the 8-word chaining state `h`. `total_len`
+/// is the total number of bytes hashed so far, including this block. When
+/// `last` is set, the finalization flag is applied.
+#[inline(always)]
+fn compress(h: &mut [u64; 8], total_len: u128, block: &[u8; 128], last: bool) {
+    let m = load_block(block);
+
+    let mut v0 = h[0];
+    let mut v1 = h[1];
+    let mut v2 = h[2];
+    let mut v3 = h[3];
+    let mut v4 = h[4];
+    let mut v5 = h[5];
+    let mut v6 = h[6];
+    let mut v7 = h[7];
+    let mut v8 = IV[0];
+    let mut v9 = IV[1];
+    let mut v10 = IV[2];
+    let mut v11 = IV[3];
+    let mut v12 = IV[4] ^ (total_len as u64);
+    let mut v13 = IV[5] ^ ((total_len >> 64) as u64);
+    let mut v14 = IV[6];
+    let mut v15 = IV[7];
+
+    if last {
+        v14 = !v14;
+    }
+
+    macro_rules! g {
+        ($a:ident, $b:ident, $c:ident, $d:ident, $x:expr, $y:expr) => {
+            $a = $a.wrapping_add($b).wrapping_add($x);
+            $d = ($d ^ $a).rotate_right(32);
+            $c = $c.wrapping_add($d);
+            $b = ($b ^ $c).rotate_right(24);
+            $a = $a.wrapping_add($b).wrapping_add($y);
+            $d = ($d ^ $a).rotate_right(16);
+            $c = $c.wrapping_add($d);
+            $b = ($b ^ $c).rotate_right(63);
+        };
+    }
+
+    macro_rules! round {
+        ($s0:expr, $s1:expr, $s2:expr, $s3:expr, $s4:expr, $s5:expr, $s6:expr, $s7:expr, $s8:expr, $s9:expr,
+         $s10:expr, $s11:expr, $s12:expr, $s13:expr, $s14:expr, $s15:expr) => {{
+            g!(v0, v4, v8, v12, m[$s0], m[$s1]);
+            g!(v1, v5, v9, v13, m[$s2], m[$s3]);
+            g!(v2, v6, v10, v14, m[$s4], m[$s5]);
+            g!(v3, v7, v11, v15, m[$s6], m[$s7]);
+            g!(v0, v5, v10, v15, m[$s8], m[$s9]);
+            g!(v1, v6, v11, v12, m[$s10], m[$s11]);
+            g!(v2, v7, v8, v13, m[$s12], m[$s13]);
+            g!(v3, v4, v9, v14, m[$s14], m[$s15]);
+        }};
+    }
+
+    round!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+    round!(14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3);
+    round!(11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4);
+    round!(7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8);
+    round!(9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13);
+    round!(2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9);
+    round!(12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11);
+    round!(13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10);
+    round!(6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5);
+    round!(10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0);
+    round!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+    round!(14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3);
+
+    h[0] ^= v0 ^ v8;
+    h[1] ^= v1 ^ v9;
+    h[2] ^= v2 ^ v10;
+    h[3] ^= v3 ^ v11;
+    h[4] ^= v4 ^ v12;
+    h[5] ^= v5 ^ v13;
+    h[6] ^= v6 ^ v14;
+    h[7] ^= v7 ^ v15;
+}
+
 impl Blake2b {
     pub fn new_keyed(key: &[u8], outlen: usize) -> Self {
         assert!(outlen >= 1 && outlen <= 64);
@@ -62,60 +157,10 @@ impl Blake2b {
         state
     }
 
-    #[inline]
-    fn g(v: &mut [u64; 16], a: usize, b: usize, c: usize, d: usize, x: u64, y: u64) {
-        v[a] = v[a].wrapping_add(v[b]).wrapping_add(x);
-        v[d] = (v[d] ^ v[a]).rotate_right(32);
-        v[c] = v[c].wrapping_add(v[d]);
-        v[b] = (v[b] ^ v[c]).rotate_right(24);
-        v[a] = v[a].wrapping_add(v[b]).wrapping_add(y);
-        v[d] = (v[d] ^ v[a]).rotate_right(16);
-        v[c] = v[c].wrapping_add(v[d]);
-        v[b] = (v[b] ^ v[c]).rotate_right(63);
-    }
-
-    fn compress(&mut self, last: bool) {
-        let mut v: [u64; 16] = [0u64; 16];
-        v[..8].copy_from_slice(&self.h);
-        v[8..16].copy_from_slice(&IV);
-
-        v[12] ^= self.total_len as u64;
-        v[13] ^= (self.total_len >> 64) as u64;
-
-        if last {
-            v[14] = !v[14];
-        }
-
-        let mut m = [0u64; 16];
-        for i in 0..16 {
-            let offset = i * 8;
-            m[i] = u64::from_le_bytes([
-                self.buffer[offset],
-                self.buffer[offset + 1],
-                self.buffer[offset + 2],
-                self.buffer[offset + 3],
-                self.buffer[offset + 4],
-                self.buffer[offset + 5],
-                self.buffer[offset + 6],
-                self.buffer[offset + 7],
-            ]);
-        }
-
-        for i in 0..12 {
-            let s = &SIGMA[i];
-            Self::g(&mut v, 0, 4, 8, 12, m[s[0] as usize], m[s[1] as usize]);
-            Self::g(&mut v, 1, 5, 9, 13, m[s[2] as usize], m[s[3] as usize]);
-            Self::g(&mut v, 2, 6, 10, 14, m[s[4] as usize], m[s[5] as usize]);
-            Self::g(&mut v, 3, 7, 11, 15, m[s[6] as usize], m[s[7] as usize]);
-            Self::g(&mut v, 0, 5, 10, 15, m[s[8] as usize], m[s[9] as usize]);
-            Self::g(&mut v, 1, 6, 11, 12, m[s[10] as usize], m[s[11] as usize]);
-            Self::g(&mut v, 2, 7, 8, 13, m[s[12] as usize], m[s[13] as usize]);
-            Self::g(&mut v, 3, 4, 9, 14, m[s[14] as usize], m[s[15] as usize]);
-        }
-
-        for i in 0..8 {
-            self.h[i] ^= v[i] ^ v[i + 8];
-        }
+    /// Compress the current 128-byte buffered block into the chaining state.
+    #[inline(always)]
+    fn compress_buffer(&mut self, last: bool) {
+        compress(&mut self.h, self.total_len, &self.buffer, last);
     }
 }
 
@@ -145,7 +190,7 @@ impl Hasher for Blake2b {
 
         if self.key_pending {
             self.total_len = self.total_len.wrapping_add(128);
-            self.compress(false);
+            self.compress_buffer(false);
             self.key_pending = false;
             self.buffer_len = 0;
         }
@@ -158,15 +203,15 @@ impl Hasher for Blake2b {
 
             if self.buffer_len == 128 && !data.is_empty() {
                 self.total_len = self.total_len.wrapping_add(128);
-                self.compress(false);
+                self.compress_buffer(false);
                 self.buffer_len = 0;
             }
         }
 
         while data.len() > 128 {
-            self.buffer[..128].copy_from_slice(&data[..128]);
+            let block: &[u8; 128] = data[..128].try_into().unwrap();
             self.total_len = self.total_len.wrapping_add(128);
-            self.compress(false);
+            compress(&mut self.h, self.total_len, block, false);
             data = &data[128..];
         }
 
@@ -180,16 +225,13 @@ impl Hasher for Blake2b {
     fn sum(mut self) -> Hash {
         if self.key_pending {
             self.total_len = self.total_len.wrapping_add(128);
-            for i in self.buffer_len..128 {
-                self.buffer[i] = 0;
-            }
         } else {
             self.total_len = self.total_len.wrapping_add(self.buffer_len as u128);
-            for i in self.buffer_len..128 {
-                self.buffer[i] = 0;
-            }
         }
-        self.compress(true);
+        for i in self.buffer_len..128 {
+            self.buffer[i] = 0;
+        }
+        self.compress_buffer(true);
 
         let mut out = [0u8; 64];
         for i in 0..self.outlen {

@@ -4,6 +4,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use crypto::{
     Hasher,
     ascon::AsconHash256,
+    blake2::Blake2b,
     blake3::Blake3,
     sha2::{Sha256, Sha512},
     sha3::{Sha3_256, Sha3_512, Shake256},
@@ -51,6 +52,12 @@ fn bench_hashes(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("BLAKE3"), &data, |b, data| {
             b.iter(|| {
                 let _ = Blake3::hash(black_box(data.as_slice()));
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("BLAKE2b-512"), &data, |b, data| {
+            b.iter(|| {
+                let _ = Blake2b::hash(black_box(data.as_slice()));
             });
         });
 

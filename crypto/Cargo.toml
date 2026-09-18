@@ -43,6 +43,10 @@ name = "hash"
 harness = false
 
 [[bench]]
+name = "kdf"
+harness = false
+
+[[bench]]
 name = "mac"
 harness = false
 

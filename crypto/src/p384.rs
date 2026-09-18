@@ -112,12 +112,34 @@ impl PublicKey {
         })
     }
 
+    /// Build a public key from raw affine x and y coordinates (both
+    /// big-endian, 48 bytes each). Returns `InvalidKey` if the coordinates
+    /// are not a valid point on the P-384 curve.
+    ///
+    /// This is useful when importing keys from formats like JWK where `x`
+    /// and `y` are available directly.
+    #[inline]
+    pub fn from_x_y(x_bytes: &[u8; 48], y_bytes: &[u8; 48]) -> Result<PublicKey, EllipticCurveError> {
+        let x = FieldElement::from_bytes(x_bytes).ok_or(EllipticCurveError::InvalidKey)?;
+        let y = FieldElement::from_bytes(y_bytes).ok_or(EllipticCurveError::InvalidKey)?;
+        let point = AffinePoint::new(x, y).ok_or(EllipticCurveError::InvalidKey)?;
+        Ok(PublicKey {
+            point,
+        })
+    }
+
     pub fn verify(&self, message: &[u8], signature: &[u8; SIGNATURE_SIZE]) -> Result<(), EllipticCurveError> {
         ecdsa_verify_inner(&self.point, message, signature)
     }
 
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE] {
         self.point.to_uncompressed_bytes()
+    }
+
+    /// Returns the `X` and `Y` points as big-endian arrays.
+    #[inline]
+    pub fn x_y(&self) -> ([u8; 48], [u8; 48]) {
+        (self.point.x.to_bytes(), self.point.y.to_bytes())
     }
 }
 
@@ -1557,6 +1579,37 @@ mod tests {
         let bytes = pub_key.to_bytes();
         let pub_key2 = PublicKey::from_bytes(&bytes).unwrap();
         assert_eq!(pub_key.to_bytes(), pub_key2.to_bytes());
+    }
+
+    #[test]
+    fn x_y_round_trip() {
+        let key = PrivateKey::generate().unwrap();
+        let pub_key = key.public_key();
+        let (x, y) = pub_key.x_y();
+        let pub_key2 = PublicKey::from_x_y(&x, &y).unwrap();
+        assert_eq!(pub_key.to_bytes(), pub_key2.to_bytes());
+    }
+
+    #[test]
+    fn from_x_y_matches_generator() {
+        let key = PublicKey::from_x_y(
+            &decode_hex::<48>(
+                "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a38\
+                 5502f25dbf55296c3a545e3872760ab7",
+            ),
+            &decode_hex::<48>(
+                "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c0\
+                 0a60b1ce1d7e819d7a431d7c90ea0e5f",
+            ),
+        )
+        .unwrap();
+        let from_sec1 = PublicKey::from_bytes(&key.to_bytes()).unwrap();
+        assert_eq!(key, from_sec1);
+    }
+
+    #[test]
+    fn from_x_y_rejects_off_curve() {
+        assert!(PublicKey::from_x_y(&[0u8; 48], &[0u8; 48]).is_err());
     }
 
     #[test]
