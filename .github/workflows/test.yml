@@ -35,4 +35,3 @@ jobs:
       - run: rustup update stable
       - run: rustup target add wasm32-wasip1
       - run: node tools/wasm_test/wasm_test.js
-
