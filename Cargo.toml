@@ -67,6 +67,12 @@ members = [
     "xxhash",
 ]
 
+[profile.test.package.crypto]
+opt-level = 3
+
+[profile.test.package.jwt]
+opt-level = 3
+
 [workspace.dependencies]
 anyerr = { path = "anyerr" }
 antlr4rust = "=0.3.0-rc2"
