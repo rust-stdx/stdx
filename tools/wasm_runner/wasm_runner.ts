@@ -9,8 +9,8 @@ import { argv, exit } from 'node:process';
 // integer workloads (e.g. SHA-512), and wasm functions are not reliably
 // promoted to the optimizing tier (TurboFan) during a benchmark run. Pinning
 // both tiers makes Node.js measure consistently optimized code.
-// const NODE_V8_FLAGS = ['--no-liftoff', '--no-wasm-tier-up'];
-const NODE_V8_FLAGS = ['--liftoff', '--no-wasm-tier-up', '--no-capture'];
+const NODE_V8_FLAGS = ['--no-liftoff', '--no-wasm-tier-up'];
+// const NODE_V8_FLAGS = ['--liftoff', '--no-wasm-tier-up'];
 
 function wasmtimeAvailable() {
   try {
