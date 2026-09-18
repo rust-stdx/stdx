@@ -1,7 +1,9 @@
 use crypto::{
     curve25519::ed25519,
-    mldsa::{MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey},
-    p256,
+    mldsa::{
+        MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey, MlDsa87PublicKey, MlDsa87SecretKey,
+    },
+    p256, p384,
 };
 use serde::{Deserialize, Serialize};
 use small_collections::SmallString;
@@ -122,12 +124,15 @@ impl core::fmt::Display for OkpCurve {
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum EcCurve {
     /// P-256 and SHA-256
+    #[serde(rename = "P-256")]
     P256,
 
     /// P-384 and SHA-384
+    #[serde(rename = "P-384")]
     P384,
 
     /// P-521 and SHA-512
+    #[serde(rename = "P-521")]
     P521,
 }
 
@@ -321,6 +326,48 @@ impl TryFrom<&Jwk> for p256::PublicKey {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// P-384
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl From<&p384::PublicKey> for Jwk {
+    #[inline]
+    fn from(key: &p384::PublicKey) -> Self {
+        let (x, y) = key.x_y();
+        return Jwk {
+            kid: SmallString::new(),
+            r#use: KeyUse::Sign,
+            algorithm: Algorithm::ES384,
+            crypto: JwkCrypto::Ec {
+                curve: EcCurve::P384,
+                x: x.into(),
+                y: y.into(),
+                d: None,
+            },
+        };
+    }
+}
+
+impl TryFrom<&Jwk> for p384::PublicKey {
+    type Error = Error;
+
+    fn try_from(jwk: &Jwk) -> Result<Self, Self::Error> {
+        match &jwk.crypto {
+            JwkCrypto::Ec {
+                curve: EcCurve::P384,
+                x,
+                y,
+                ..
+            } => {
+                let x: [u8; 48] = x.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
+                let y: [u8; 48] = y.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
+                p384::PublicKey::from_x_y(&x, &y).map_err(|_| Error::InvalidKey)
+            }
+            _ => Err(Error::InvalidKey),
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // RSA
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -486,6 +533,76 @@ impl TryFrom<&Jwk> for MlDsa65SecretKey {
             } => {
                 let seed: [u8; 32] = seed.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
                 Ok(MlDsa65SecretKey::new(&seed))
+            }
+            _ => Err(Error::InvalidKey),
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ML-DSA-87
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl From<&MlDsa87PublicKey> for Jwk {
+    fn from(key: &MlDsa87PublicKey) -> Self {
+        Jwk {
+            kid: SmallString::new(),
+            r#use: KeyUse::Sign,
+            algorithm: Algorithm::MlDsa87,
+            crypto: JwkCrypto::Akp {
+                pub_key: key.to_bytes().into(),
+                private_key: None,
+            },
+        }
+    }
+}
+
+impl From<&MlDsa87SecretKey> for Jwk {
+    fn from(key: &MlDsa87SecretKey) -> Self {
+        Jwk {
+            kid: SmallString::new(),
+            r#use: KeyUse::Sign,
+            algorithm: Algorithm::MlDsa87,
+            crypto: JwkCrypto::Akp {
+                pub_key: key.public_key().to_bytes().into(),
+                private_key: Some(key.seed().as_slice().into()),
+            },
+        }
+    }
+}
+
+impl TryFrom<&Jwk> for MlDsa87PublicKey {
+    type Error = Error;
+
+    fn try_from(jwk: &Jwk) -> Result<Self, Self::Error> {
+        if jwk.algorithm != Algorithm::MlDsa87 {
+            return Err(Error::InvalidKey);
+        }
+
+        match &jwk.crypto {
+            JwkCrypto::Akp {
+                pub_key, ..
+            } => MlDsa87PublicKey::try_from(pub_key.as_slice()).map_err(|_| Error::InvalidKey),
+            _ => Err(Error::InvalidKey),
+        }
+    }
+}
+
+impl TryFrom<&Jwk> for MlDsa87SecretKey {
+    type Error = Error;
+
+    fn try_from(jwk: &Jwk) -> Result<Self, Self::Error> {
+        if jwk.algorithm != Algorithm::MlDsa87 {
+            return Err(Error::InvalidKey);
+        }
+
+        match &jwk.crypto {
+            JwkCrypto::Akp {
+                private_key: Some(seed),
+                ..
+            } => {
+                let seed: [u8; 32] = seed.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
+                Ok(MlDsa87SecretKey::new(&seed))
             }
             _ => Err(Error::InvalidKey),
         }

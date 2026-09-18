@@ -21,7 +21,7 @@ serde_json = { workspace = true, optional = true }
 
 axum = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
-thiserror = { workspace = true, optional = true }
+thiserror = { path = "../../thiserror", optional = true }
 anyerr = { workspace = true, optional = true }
 
 [[bin]]

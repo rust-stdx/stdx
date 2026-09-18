@@ -67,7 +67,7 @@
 //! Keys can be exported to and imported from JSON Web Keys (JWK) for publishing or later re-use.
 //! Every supported key type implements `From<&KeyType> for Jwk`, and the reverse conversion is
 //! available through `TryFrom<&Jwk>`. Use it when the key is only known at runtime, for example
-//! after fetching a JWKS document.
+//! after fetching a JWKS document. P-256 and P-384 public keys are both supported.
 //!
 //! ```
 //! use jwt::*;
@@ -87,6 +87,55 @@
 //!
 //!     let header = Header { typ: TokenType::JWT, alg: Algorithm::ES256, ..Default::default() };
 //!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
+//!     let parsed_header = parse_header(&token)?;
+//!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! When the key type is not known ahead of time (for example a JWKS document that may contain
+//! several kinds of keys), use the [`Key`] enum. It inspects the JWK's `kty` and `crv` and selects the
+//! matching concrete key, preferring the secret variant when both halves are present. [`Key`]
+//! implements both [`Signer`] and [`Verifier`], so it can be passed straight to [`sign`] or
+//! [`parse_and_verify`]:
+//!
+//! ```
+//! use jwt::*;
+//! use crypto::curve25519::ed25519;
+//!
+//! fn main() -> Result<(), Error> {
+//!     let secret_key = ed25519::SecretKey::generate();
+//!
+//!     // A JWKS entry whose key type is only known at runtime.
+//!     let jwk = Jwk::from(&secret_key.public_key());
+//!     let key = Key::try_from(&jwk)?;
+//!     assert!(matches!(key, Key::Ed25519Public(_)));
+//!
+//!     let header = Header { typ: TokenType::JWT, alg: Algorithm::EdDSA, ..Default::default() };
+//!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
+//!     let parsed_header = parse_header(&token)?;
+//!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! When a JWK derived from a secret key is decoded, the secret variant is preferred, so the same
+//! [`Key`] can be used for signing:
+//!
+//! ```
+//! use jwt::*;
+//! use crypto::curve25519::ed25519;
+//!
+//! fn main() -> Result<(), Error> {
+//!     let secret_key = ed25519::SecretKey::generate();
+//!     let jwk = Jwk::from(&secret_key);
+//!     let key = Key::try_from(&jwk)?;
+//!     assert!(matches!(key, Key::Ed25519Secret(_)));
+//!
+//!     let header = Header { typ: TokenType::JWT, alg: Algorithm::EdDSA, ..Default::default() };
+//!     let token = sign(&key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
 //!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
 //!
@@ -263,6 +312,10 @@ pub enum Algorithm {
     #[serde(rename = "ML-DSA-65")]
     MlDsa65,
 
+    /// ML-DSA-87
+    #[serde(rename = "ML-DSA-87")]
+    MlDsa87,
+
     /// RSASSA-PKCS1-v1.5 with SHA-256
     RS256,
 
@@ -306,6 +359,7 @@ impl Algorithm {
             Algorithm::PS512 => 512,
             Algorithm::MlDsa44 => 2420,
             Algorithm::MlDsa65 => 3309,
+            Algorithm::MlDsa87 => 4627,
         }
     }
 }
@@ -325,6 +379,7 @@ impl core::str::FromStr for Algorithm {
             "EdDSA" => Ok(Algorithm::EdDSA),
             "ML-DSA-44" => Ok(Algorithm::MlDsa44),
             "ML-DSA-65" => Ok(Algorithm::MlDsa65),
+            "ML-DSA-87" => Ok(Algorithm::MlDsa87),
             "RS256" => Ok(Algorithm::RS256),
             "RS384" => Ok(Algorithm::RS384),
             "RS512" => Ok(Algorithm::RS512),
@@ -349,6 +404,7 @@ impl core::fmt::Display for Algorithm {
             Algorithm::ES512 => "ES512",
             Algorithm::MlDsa44 => "ML-DSA-44",
             Algorithm::MlDsa65 => "ML-DSA-65",
+            Algorithm::MlDsa87 => "ML-DSA-87",
             Algorithm::RS256 => "RS256",
             Algorithm::RS384 => "RS384",
             Algorithm::RS512 => "RS512",

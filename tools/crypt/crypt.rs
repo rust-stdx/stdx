@@ -76,19 +76,33 @@ fn process_file(
     write_result
 }
 
+/// Production Argon2id parameters used by the CLI.
+fn production_params() -> crypto::argon2::Params {
+    crypto::argon2::Params {
+        iterations: ARGON2_ITERATIONS,
+        memory: ARGON2_MEMORY_KB,
+        parallelism: ARGON2_LANES,
+    }
+}
+
 // Returns nonce_seed (32 bytes) || chacha20_blake3_ciphertext
 //
 // chacha20_blake3_nonce = derive_key(nonce_seed, "...", 24)
 // aes_nonce             = derive_key(nonce_seed, "...", 12)
 // argon2_salt           = derive_key(nonce_seed, "...", 32)
 fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
+    encrypt_with_params(password, plaintext, &production_params())
+}
+
+/// Encrypt `plaintext` with `password` using explicit Argon2id parameters.
+fn encrypt_with_params(password: &[u8], plaintext: &[u8], params: &crypto::argon2::Params) -> Result<Vec<u8>, String> {
     let nonce_seed: [u8; NONCE_SEED_LENGTH] = rand::random();
 
     let chacha20_nonce = derive_key::<CHACHA20_BLAKE3_NONCE_LENGTH>(&nonce_seed, KDF_INFO_CHACHA20_BLAKE3_NONCE);
     let aes_nonce = derive_key::<AES_NONCE_LENGTH>(&nonce_seed, KDF_INFO_AES_NONCE);
     let argon2_salt = derive_key::<ARGON2_SALT_LENGTH>(&nonce_seed, KDF_INFO_ARGON2_SALT);
 
-    let root_key = argon2_derive_key(password, argon2_salt.as_slice())?;
+    let root_key = argon2_derive_key(password, argon2_salt.as_slice(), params)?;
 
     let aes_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_AES_KEY);
     let chacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_CHACHA20_BLAKE3_KEY);
@@ -111,6 +125,11 @@ fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 fn decrypt(password: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+    decrypt_with_params(password, ciphertext, &production_params())
+}
+
+/// Decrypt `ciphertext` with `password` using explicit Argon2id parameters.
+fn decrypt_with_params(password: &[u8], ciphertext: &[u8], params: &crypto::argon2::Params) -> Result<Vec<u8>, String> {
     if ciphertext.len() < (NONCE_SEED_LENGTH + ChaCha20Blake3::TAG_SIZE) {
         return Err("ciphertext is too short".to_string());
     }
@@ -122,7 +141,7 @@ fn decrypt(password: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     let aes_nonce = derive_key::<AES_NONCE_LENGTH>(&nonce_seed, KDF_INFO_AES_NONCE);
     let argon2_salt = derive_key::<ARGON2_SALT_LENGTH>(&nonce_seed, KDF_INFO_ARGON2_SALT);
 
-    let root_key = argon2_derive_key(password, argon2_salt.as_slice())?;
+    let root_key = argon2_derive_key(password, argon2_salt.as_slice(), params)?;
 
     let aes_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_AES_KEY);
     let chacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_CHACHA20_BLAKE3_KEY);
@@ -162,21 +181,14 @@ fn derive_key<const N: usize>(root_key: &[u8], info: &str) -> Zeroizing<[u8; N]>
     return out;
 }
 
-fn argon2_derive_key(password: &[u8], salt: &[u8]) -> Result<Zeroizing<[u8; KEY_LENGTH]>, String> {
-    let params = crypto::argon2::Params {
-        iterations: ARGON2_ITERATIONS,
-        memory: ARGON2_MEMORY_KB,
-        parallelism: ARGON2_LANES,
-        tag_length: KEY_LENGTH as u32,
-    };
-
-    let derived = Zeroizing::new(
-        crypto::argon2::derive_key(password, salt, &[], &[], &params)
-            .map_err(|e| format!("error deriving key with argon2: {e}"))?,
-    );
-
+fn argon2_derive_key(
+    password: &[u8],
+    salt: &[u8],
+    params: &crypto::argon2::Params,
+) -> Result<Zeroizing<[u8; KEY_LENGTH]>, String> {
     let mut key = Zeroizing::new([0u8; KEY_LENGTH]);
-    key.copy_from_slice(&derived);
+    crypto::argon2::derive_key(key.as_mut_slice(), password, salt, &[], &[], params)
+        .map_err(|e| format!("error deriving key with argon2: {e}"))?;
 
     Ok(key)
 }
@@ -243,43 +255,69 @@ mod tests {
         ]
     }
 
+    /// Lightweight Argon2id parameters so the test suite stays fast and
+    /// memory-friendly. The full production parameters are exercised by
+    /// `test_encrypt_decrypt_full_params`, which is ignored by default.
+    fn test_params() -> crypto::argon2::Params {
+        crypto::argon2::Params {
+            iterations: 2,
+            memory: 64,
+            parallelism: 1,
+        }
+    }
+
+    fn roundtrip(test: &TestCase, params: &crypto::argon2::Params, i: usize) {
+        let password = test.password.as_bytes();
+        let data = test.data.as_bytes();
+
+        let ciphertext = encrypt_with_params(password, data, params)
+            .unwrap_or_else(|e| panic!("error encrypting data [{}]: {}", i, e));
+
+        // Ciphertext must not equal plaintext
+        assert!(
+            ciphertext != data && (data.is_empty() || &ciphertext[..data.len()] != data),
+            "ciphertext == data for {}",
+            i
+        );
+
+        let plaintext = decrypt_with_params(password, &ciphertext, params)
+            .unwrap_or_else(|e| panic!("error decrypting data [{}]: {}", i, e));
+
+        // Wrong password must fail
+        let mut wrong_password = test.password.to_string();
+        wrong_password.push('1');
+        let ciphertext2 = ciphertext.clone();
+        let wrong_result = decrypt_with_params(wrong_password.as_bytes(), &ciphertext2, params);
+        assert!(
+            wrong_result.is_err(),
+            "expected error when using invalid password decrypting data for [{}]",
+            i
+        );
+
+        assert_eq!(
+            plaintext,
+            data,
+            "data ({}) != decrypted plaintext ({}) for {}",
+            test.data,
+            String::from_utf8_lossy(&plaintext),
+            i
+        );
+    }
+
     #[test]
     fn test_encrypt_decrypt() {
+        let params = test_params();
         for (i, test) in test_cases().iter().enumerate() {
-            let password = test.password.as_bytes();
-            let data = test.data.as_bytes();
-
-            let ciphertext = encrypt(password, data).unwrap_or_else(|e| panic!("error encrypting data [{}]: {}", i, e));
-
-            // Ciphertext must not equal plaintext
-            assert!(
-                ciphertext != data && (data.is_empty() || &ciphertext[..data.len()] != data),
-                "ciphertext == data for {}",
-                i
-            );
-
-            let plaintext =
-                decrypt(password, &ciphertext).unwrap_or_else(|e| panic!("error decrypting data [{}]: {}", i, e));
-
-            // Wrong password must fail
-            let mut wrong_password = test.password.to_string();
-            wrong_password.push('1');
-            let ciphertext2 = ciphertext.clone();
-            let wrong_result = decrypt(wrong_password.as_bytes(), &ciphertext2);
-            assert!(
-                wrong_result.is_err(),
-                "expected error when using invalid password decrypting data for [{}]",
-                i
-            );
-
-            assert_eq!(
-                plaintext,
-                data,
-                "data ({}) != decrypted plaintext ({}) for {}",
-                test.data,
-                String::from_utf8_lossy(&plaintext),
-                i
-            );
+            roundtrip(test, &params, i);
         }
+    }
+
+    #[test]
+    #[ignore = "uses production Argon2id parameters (1 GiB, 8 passes); run manually with --ignored"]
+    fn test_encrypt_decrypt_full_params() {
+        let params = production_params();
+        // A single case is enough to validate the production profile without
+        // dominating the test runtime.
+        roundtrip(&test_cases()[3], &params, 3);
     }
 }

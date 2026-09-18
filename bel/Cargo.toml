@@ -20,7 +20,7 @@ time = ["dep:chrono"]
 [dependencies]
 base64 = { path = "../base64", optional = true }
 ipnetwork = { path = "../ipnetwork", optional = true, features = ["serde"] }
-thiserror = { workspace = true }
+thiserror = { path = "../thiserror" }
 
 antlr4rust = { workspace = true }
 nom = { workspace = true }

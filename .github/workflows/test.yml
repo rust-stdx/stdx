@@ -22,7 +22,7 @@ jobs:
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       - run: rustup update stable
       - run: make check
-      - run: cargo test --workspace --target ${{ matrix.target }} --exclude crypt
+      - run: cargo test --workspace --target ${{ matrix.target }}
 
 
   test_wasm:
@@ -34,5 +34,5 @@ jobs:
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       - run: rustup update stable
       - run: rustup target add wasm32-wasip1
-      - run: node tools/wasm_test/wasm_test.js --exclude crypt
+      - run: node tools/wasm_test/wasm_test.js
 

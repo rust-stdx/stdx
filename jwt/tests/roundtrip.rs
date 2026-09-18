@@ -1,7 +1,9 @@
 use crypto::{
     curve25519::ed25519,
-    mldsa::{MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey},
-    p256,
+    mldsa::{
+        MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey, MlDsa87PublicKey, MlDsa87SecretKey,
+    },
+    p256, p384,
 };
 use jwt::*;
 
@@ -35,6 +37,58 @@ fn p256_roundtrip() {
     let secret_key = p256::SecretKey::generate().unwrap();
     let public_key = secret_key.public_key();
     assert_sign_verify(&secret_key, &public_key, Algorithm::ES256);
+}
+
+fn sign_es384(secret_key: &p384::PrivateKey, header: &Header, claims: &serde_json::Value) -> String {
+    let header_base64 = base64::encode(
+        serde_json::to_string(header).unwrap().as_bytes(),
+        base64::Alphabet::UrlNoPadding,
+    );
+    let claims_base64 = base64::encode(
+        serde_json::to_string(claims).unwrap().as_bytes(),
+        base64::Alphabet::UrlNoPadding,
+    );
+    let signing_input = format!("{header_base64}.{claims_base64}");
+    let signature = secret_key.sign(signing_input.as_bytes()).unwrap();
+    format!("{signing_input}.{}", base64::encode(signature, base64::Alphabet::UrlNoPadding))
+}
+
+#[test]
+fn p384_public_verify() {
+    let secret_key = p384::PrivateKey::generate().unwrap();
+    let public_key = secret_key.public_key();
+    let header = Header {
+        alg: Algorithm::ES384,
+        ..Default::default()
+    };
+    let token = sign_es384(&secret_key, &header, &claims());
+
+    let parsed_header = parse_header(&token).unwrap();
+    assert_eq!(parsed_header.alg, Algorithm::ES384);
+
+    let verified: serde_json::Value =
+        parse_and_verify(&public_key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"], "user123");
+}
+
+#[test]
+fn p384_tampered_token_is_rejected() {
+    let secret_key = p384::PrivateKey::generate().unwrap();
+    let public_key = secret_key.public_key();
+    let header = Header {
+        alg: Algorithm::ES384,
+        ..Default::default()
+    };
+    let token = sign_es384(&secret_key, &header, &claims());
+
+    let mut tampered = token.clone();
+    let last = tampered.pop().unwrap();
+    tampered.push(if last == 'A' { 'B' } else { 'A' });
+
+    let parsed_header = parse_header(&tampered).unwrap();
+    let result: Result<serde_json::Value, _> =
+        parse_and_verify(&public_key, &parsed_header, &tampered, &VerifyOptions::default());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -122,6 +176,13 @@ fn mldsa65_roundtrip() {
 }
 
 #[test]
+fn mldsa87_roundtrip() {
+    let secret_key = MlDsa87SecretKey::new(&[3u8; 32]);
+    let public_key = secret_key.public_key();
+    assert_sign_verify(&secret_key, &public_key, Algorithm::MlDsa87);
+}
+
+#[test]
 fn tampered_token_is_rejected() {
     let secret_key = ed25519::SecretKey::generate();
     let public_key = secret_key.public_key();
@@ -165,6 +226,20 @@ fn jwk_roundtrip_p256() {
     let secret_jwk = Jwk::from(&secret_key);
     let secret_key2 = p256::SecretKey::try_from(&secret_jwk).unwrap();
     assert_eq!(secret_key2.to_bytes(), secret_key.to_bytes());
+}
+
+#[test]
+fn jwk_roundtrip_p384_public() {
+    let secret_key = p384::PrivateKey::generate().unwrap();
+
+    let public_jwk = Jwk::from(&secret_key.public_key());
+    assert_eq!(public_jwk.algorithm, Algorithm::ES384);
+
+    let json = serde_json::to_string(&public_jwk).unwrap();
+    assert!(json.contains(r#""crv":"P-384""#), "{json}");
+
+    let public_key = p384::PublicKey::try_from(&public_jwk).unwrap();
+    assert_eq!(public_key.to_bytes(), secret_key.public_key().to_bytes());
 }
 
 #[test]
@@ -219,6 +294,25 @@ fn jwk_roundtrip_mldsa65() {
 }
 
 #[test]
+fn jwk_roundtrip_mldsa87() {
+    let secret_key = MlDsa87SecretKey::new(&[3u8; 32]);
+
+    let public_jwk = Jwk::from(&secret_key.public_key());
+    let public_key = MlDsa87PublicKey::try_from(&public_jwk).unwrap();
+    assert_eq!(public_key.to_bytes(), secret_key.public_key().to_bytes());
+
+    let secret_jwk = Jwk::from(&secret_key);
+    let secret_key2 = MlDsa87SecretKey::try_from(&secret_jwk).unwrap();
+    assert_eq!(secret_key2.public_key().to_bytes(), secret_key.public_key().to_bytes());
+
+    let json = serde_json::to_string(&secret_jwk).unwrap();
+    assert!(json.contains(r#""kty":"AKP""#), "{json}");
+    assert!(json.contains(r#""alg":"ML-DSA-87""#), "{json}");
+    assert!(json.contains(r#""pub":"#), "{json}");
+    assert!(json.contains(r#""priv":"#), "{json}");
+}
+
+#[test]
 fn jwk_wrong_algorithm_is_rejected() {
     let secret_key = ed25519::SecretKey::generate();
     let jwk = Jwk::from(&secret_key.public_key());
@@ -239,6 +333,7 @@ fn algorithm_display_roundtrips() {
         Algorithm::ES512,
         Algorithm::MlDsa44,
         Algorithm::MlDsa65,
+        Algorithm::MlDsa87,
         Algorithm::RS256,
         Algorithm::RS384,
         Algorithm::RS512,
@@ -248,4 +343,195 @@ fn algorithm_display_roundtrips() {
     ] {
         assert_eq!(alg.to_string().parse::<Algorithm>().unwrap(), alg);
     }
+}
+
+fn assert_key_roundtrip(signing_key: &dyn Signer, jwk: &Jwk, alg: Algorithm) {
+    let key = Key::try_from(jwk).unwrap();
+    assert_eq!(Verifier::algorithm(&key), alg);
+    assert_eq!(Signer::algorithm(&key), alg);
+
+    let header = Header {
+        alg,
+        ..Default::default()
+    };
+    let token = sign(signing_key, &header, &claims()).unwrap();
+    let parsed_header = parse_header(&token).unwrap();
+    let verified: serde_json::Value =
+        parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"], "user123");
+}
+
+#[test]
+fn key_decodes_ed25519() {
+    let secret_key = ed25519::SecretKey::generate();
+
+    assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::Ed25519Secret(_)));
+    assert!(matches!(
+        Key::try_from(&Jwk::from(&secret_key.public_key())).unwrap(),
+        Key::Ed25519Public(_)
+    ));
+
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key), Algorithm::EdDSA);
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key.public_key()), Algorithm::EdDSA);
+}
+
+#[test]
+fn key_decodes_p256() {
+    let secret_key = p256::SecretKey::generate().unwrap();
+
+    assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::P256Secret(_)));
+    assert!(matches!(
+        Key::try_from(&Jwk::from(&secret_key.public_key())).unwrap(),
+        Key::P256Public(_)
+    ));
+
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key), Algorithm::ES256);
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key.public_key()), Algorithm::ES256);
+}
+
+#[test]
+fn key_decodes_p384() {
+    let secret_key = p384::PrivateKey::generate().unwrap();
+    let jwk = Jwk::from(&secret_key.public_key());
+
+    let key = Key::try_from(&jwk).unwrap();
+    assert!(matches!(key, Key::P384Public(_)));
+    assert_eq!(Verifier::algorithm(&key), Algorithm::ES384);
+    assert!(!key.is_secret_key());
+
+    let header = Header {
+        alg: Algorithm::ES384,
+        ..Default::default()
+    };
+    let token = sign_es384(&secret_key, &header, &claims());
+    let parsed_header = parse_header(&token).unwrap();
+    let verified: serde_json::Value =
+        parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"], "user123");
+}
+
+#[test]
+fn key_decodes_oct() {
+    let key_bytes = [7u8; 32];
+
+    for algorithm in [Algorithm::BLAKE3, Algorithm::HS256, Algorithm::HS384, Algorithm::HS512] {
+        let secret_key = SecretKey::new(algorithm, &key_bytes);
+        let jwk = Jwk::from(&secret_key);
+
+        assert!(matches!(Key::try_from(&jwk).unwrap(), Key::Secret(_)));
+        assert_key_roundtrip(&secret_key, &jwk, algorithm);
+    }
+}
+
+#[test]
+fn key_decodes_mldsa44() {
+    let secret_key = MlDsa44SecretKey::new(&[1u8; 32]);
+
+    assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::MlDsa44Secret(_)));
+    assert!(matches!(
+        Key::try_from(&Jwk::from(&secret_key.public_key())).unwrap(),
+        Key::MlDsa44Public(_)
+    ));
+
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key), Algorithm::MlDsa44);
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key.public_key()), Algorithm::MlDsa44);
+}
+
+#[test]
+fn key_decodes_mldsa65() {
+    let secret_key = MlDsa65SecretKey::new(&[2u8; 32]);
+
+    assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::MlDsa65Secret(_)));
+    assert!(matches!(
+        Key::try_from(&Jwk::from(&secret_key.public_key())).unwrap(),
+        Key::MlDsa65Public(_)
+    ));
+
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key), Algorithm::MlDsa65);
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key.public_key()), Algorithm::MlDsa65);
+}
+
+#[test]
+fn key_decodes_mldsa87() {
+    let secret_key = MlDsa87SecretKey::new(&[3u8; 32]);
+
+    assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::MlDsa87Secret(_)));
+    assert!(matches!(
+        Key::try_from(&Jwk::from(&secret_key.public_key())).unwrap(),
+        Key::MlDsa87Public(_)
+    ));
+
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key), Algorithm::MlDsa87);
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key.public_key()), Algorithm::MlDsa87);
+}
+
+#[test]
+fn key_enum_size_is_bounded() {
+    assert!(
+        core::mem::size_of::<Key<'_>>() < 32 * 1024,
+        "Key grew to {} bytes; box any large new variant",
+        core::mem::size_of::<Key<'_>>()
+    );
+}
+
+#[test]
+fn key_secret_signs_and_verifies() {
+    let secret_key = ed25519::SecretKey::generate();
+    let jwk = Jwk::from(&secret_key);
+    let key = Key::try_from(&jwk).unwrap();
+
+    let header = Header {
+        alg: Algorithm::EdDSA,
+        ..Default::default()
+    };
+    let token = sign(&key, &header, &claims()).unwrap();
+    let parsed_header = parse_header(&token).unwrap();
+    let verified: serde_json::Value =
+        parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"], "user123");
+}
+
+#[test]
+fn key_public_only_cannot_sign() {
+    let secret_key = ed25519::SecretKey::generate();
+    let jwk = Jwk::from(&secret_key.public_key());
+    let key = Key::try_from(&jwk).unwrap();
+
+    let header = Header {
+        alg: Algorithm::EdDSA,
+        ..Default::default()
+    };
+    assert!(matches!(sign(&key, &header, &claims()), Err(Error::InvalidKey)));
+}
+
+#[test]
+fn key_unsupported_curve_is_rejected() {
+    let jwk = Jwk {
+        kid: Default::default(),
+        r#use: KeyUse::Sign,
+        algorithm: Algorithm::ES512,
+        crypto: JwkCrypto::Ec {
+            curve: EcCurve::P521,
+            x: smallvec::SmallVec::from_slice_copy(&[0u8; 32]),
+            y: smallvec::SmallVec::from_slice_copy(&[0u8; 32]),
+            d: None,
+        },
+    };
+
+    assert!(matches!(Key::try_from(&jwk), Err(Error::InvalidKey)));
+}
+
+#[test]
+fn key_akp_with_wrong_algorithm_is_rejected() {
+    let jwk = Jwk {
+        kid: Default::default(),
+        r#use: KeyUse::Sign,
+        algorithm: Algorithm::ES256,
+        crypto: JwkCrypto::Akp {
+            pub_key: smallvec::SmallVec::from_slice_copy(&[0u8; 4]),
+            private_key: None,
+        },
+    };
+
+    assert!(matches!(Key::try_from(&jwk), Err(Error::InvalidKey)));
 }
