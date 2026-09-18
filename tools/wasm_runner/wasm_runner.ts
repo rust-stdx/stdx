@@ -10,7 +10,7 @@ import { argv, exit } from 'node:process';
 // promoted to the optimizing tier (TurboFan) during a benchmark run. Pinning
 // both tiers makes Node.js measure consistently optimized code.
 // const NODE_V8_FLAGS = ['--no-liftoff', '--no-wasm-tier-up'];
-const NODE_V8_FLAGS = ['--liftoff', '--no-wasm-tier-up'];
+const NODE_V8_FLAGS = ['--liftoff', '--no-wasm-tier-up', '--no-capture'];
 
 function wasmtimeAvailable() {
   try {
