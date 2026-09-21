@@ -22,6 +22,9 @@ jobs:
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       - run: rustup update stable
       - run: make check
+      # Check that some packages compile for no_std targets.
+      - run: rustup target add thumbv7em-none-eabi
+      - run: make check_no_std
       - run: cargo test --workspace --target ${{ matrix.target }}
 
 

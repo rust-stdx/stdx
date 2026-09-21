@@ -25,6 +25,12 @@ check:
 	cargo check --no-default-features
 
 
+# Check that some package compile for no_std targets
+.PHONY: check_no_std
+check_no_std:
+	cargo check --no-default-features --target thumbv7em-none-eabi -p crypto
+
+
 .PHONY: check_all
 check_all: check
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
