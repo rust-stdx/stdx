@@ -1040,9 +1040,7 @@ fn compute_t1_hat<const K: usize>(t1: &[[u16; N]; K]) -> [NttPoly; K] {
 /// domain are cached, so signing does not repeat the expensive key generation.
 ///
 /// The value is a plain fixed-size type that never allocates, so it can live in
-/// a `static` on `no_std` and embedded targets. Secrets are zeroized on drop
-/// when the `zeroize` feature is enabled.
-#[derive(Debug)]
+/// a `static` on `no_std` and embedded targets.
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub(crate) struct MlDsaKeyMaterial<const K: usize, const L: usize, const PK_SIZE: usize> {
     seed: [u8; SEED_SIZE],

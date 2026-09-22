@@ -8,5 +8,9 @@ path = "./big_number.rs"
 
 [features]
 default = ["std"]
-alloc = []
+alloc = ["zeroize?/alloc"]
 std = ["alloc"]
+zeroize = ["dep:zeroize", "zeroize/derive"]
+
+[dependencies]
+zeroize = { workspace = true, optional = true }

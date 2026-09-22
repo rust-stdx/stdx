@@ -15,11 +15,11 @@ pub const CIPHERTEXT_SIZE_1024: usize = 1568;
 /// use crypto::mlkem::{SecretKey1024, generate_keypair_1024};
 ///
 /// let (secret_key, public_key) = generate_keypair_1024();
-/// let (ciphertext, shared_secret) = public_key.encapsulate();
+/// let (shared_secret, ciphertext) = public_key.encapsulate();
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey1024 {
     bytes: [u8; SECRET_KEY_SIZE_1024],
@@ -114,12 +114,12 @@ impl PublicKey1024 {
     }
 
     #[cfg(feature = "random")]
-    pub fn encapsulate(&self) -> ([u8; CIPHERTEXT_SIZE_1024], [u8; SHARED_SECRET_SIZE]) {
+    pub fn encapsulate(&self) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]) {
         let coins: [u8; 32] = crate::random::random_bytes();
         self.encapsulate_derand(&coins)
     }
 
-    fn encapsulate_derand(&self, coins: &[u8; 32]) -> ([u8; CIPHERTEXT_SIZE_1024], [u8; SHARED_SECRET_SIZE]) {
+    fn encapsulate_derand(&self, coins: &[u8; 32]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]) {
         crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &self.bytes, coins)
     }
 }
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn ml_kem_1024_round_trip() {
         let (private_key, public_key) = generate_keypair_1024();
-        let (ciphertext, encapsulated_secret) = public_key.encapsulate();
+        let (encapsulated_secret, ciphertext) = public_key.encapsulate();
         let decapsulated_secret = private_key.decapsulate(&ciphertext).unwrap();
 
         assert_eq!(encapsulated_secret, decapsulated_secret);
@@ -163,7 +163,7 @@ mod tests {
         let enc_coins = [5u8; 32];
         let (secret_key, public_key) =
             crypto_kem_keypair_derand::<4, SECRET_KEY_SIZE_1024, PUBLIC_KEY_SIZE_1024>(&ML_KEM_1024, &key_coins);
-        let (ciphertext, shared_secret) = crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(
+        let (shared_secret, ciphertext) = crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(
             &ML_KEM_1024,
             &public_key,
             &enc_coins,
@@ -213,7 +213,7 @@ mod tests {
 
             let (dk, ek) =
                 crypto_kem_keypair_derand::<4, SECRET_KEY_SIZE_1024, PUBLIC_KEY_SIZE_1024>(&ML_KEM_1024, &coins);
-            let (ct, k_encaps) =
+            let (k_encaps, ct) =
                 crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &ek, &m);
 
             let k_decaps =
@@ -250,7 +250,7 @@ mod tests {
         coins[32..].copy_from_slice(&z);
 
         let (dk, ek) = crypto_kem_keypair_derand::<4, SECRET_KEY_SIZE_1024, PUBLIC_KEY_SIZE_1024>(&ML_KEM_1024, &coins);
-        let (ct, k) = crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &ek, &m);
+        let (k, ct) = crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &ek, &m);
 
         assert_eq!(
             sha3_256_hex(&ek),
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn ml_kem_1024_decapsulation_rejects_tampered_ciphertext() {
         let (private_key, public_key) = generate_keypair_1024();
-        let (mut ciphertext, encapsulated_secret) = public_key.encapsulate();
+        let (encapsulated_secret, mut ciphertext) = public_key.encapsulate();
 
         ciphertext[0] ^= 0x80;
 
@@ -286,7 +286,7 @@ mod tests {
     fn ml_kem_1024_decapsulation_with_wrong_key_rejects() {
         let (_, alice_pk) = generate_keypair_1024();
         let (bob_sk, _bob_pk) = generate_keypair_1024();
-        let (ct, _alice_ss) = alice_pk.encapsulate();
+        let (_alice_ss, ct) = alice_pk.encapsulate();
 
         let wrong_ss = bob_sk.decapsulate(&ct).unwrap();
         assert_ne!(_alice_ss, wrong_ss);
@@ -296,7 +296,7 @@ mod tests {
     fn ml_kem_1024_round_trip_many() {
         for _ in 0..100 {
             let (sk, pk) = generate_keypair_1024();
-            let (ct, ss_enc) = pk.encapsulate();
+            let (ss_enc, ct) = pk.encapsulate();
             let ss_dec = sk.decapsulate(&ct).unwrap();
             assert_eq!(ss_enc, ss_dec);
         }
@@ -334,7 +334,7 @@ mod tests {
         let pk_bytes = pk.to_bytes();
         assert_eq!(sk_bytes.len(), SECRET_KEY_SIZE_1024);
         assert_eq!(pk_bytes.len(), PUBLIC_KEY_SIZE_1024);
-        let (ct, _) = pk.encapsulate();
+        let (_, ct) = pk.encapsulate();
         assert_eq!(ct.len(), CIPHERTEXT_SIZE_1024);
     }
 
@@ -344,9 +344,9 @@ mod tests {
         let key_coins = [3u8; 64];
         let (_sk, pk) =
             crypto_kem_keypair_derand::<4, SECRET_KEY_SIZE_1024, PUBLIC_KEY_SIZE_1024>(&ML_KEM_1024, &key_coins);
-        let (ct1, ss1) =
+        let (ss1, ct1) =
             crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &pk, &enc_coins);
-        let (ct2, ss2) =
+        let (ss2, ct2) =
             crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &pk, &enc_coins);
         assert_eq!(ct1, ct2);
         assert_eq!(ss1, ss2);
@@ -356,7 +356,7 @@ mod tests {
     fn ml_kem_1024_decapsulation_with_wrong_key_is_deterministic() {
         let (_, pk_a) = generate_keypair_1024();
         let (sk_b, _pk_b) = generate_keypair_1024();
-        let (ct, _) = pk_a.encapsulate();
+        let (_, ct) = pk_a.encapsulate();
 
         let ss1 = sk_b.decapsulate(&ct).unwrap();
         let ss2 = sk_b.decapsulate(&ct).unwrap();
@@ -489,7 +489,7 @@ mod tests {
 
                 if result == "valid" {
                     let m = decode_hex_array::<32>(m_hex);
-                    let (c, k) =
+                    let (k, c) =
                         crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &ek, &m);
                     let c_hex_out = hex::encode(c);
                     let k_hex_out = hex::encode(k);

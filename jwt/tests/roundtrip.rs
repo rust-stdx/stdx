@@ -3,7 +3,7 @@ use crypto::{
     mldsa::{
         MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey, MlDsa87PublicKey, MlDsa87SecretKey,
     },
-    p256, p384,
+    p256, p384, p521,
 };
 use jwt::*;
 
@@ -39,7 +39,14 @@ fn p256_roundtrip() {
     assert_sign_verify(&secret_key, &public_key, Algorithm::ES256);
 }
 
-fn sign_es384(secret_key: &p384::PrivateKey, header: &Header, claims: &serde_json::Value) -> String {
+#[test]
+fn p521_roundtrip() {
+    let secret_key = p521::SecretKey::generate().unwrap();
+    let public_key = secret_key.public_key();
+    assert_sign_verify(&secret_key, &public_key, Algorithm::ES512);
+}
+
+fn sign_es384(secret_key: &p384::SecretKey, header: &Header, claims: &serde_json::Value) -> String {
     let header_base64 = base64::encode(
         serde_json::to_string(header).unwrap().as_bytes(),
         base64::Alphabet::UrlNoPadding,
@@ -55,7 +62,7 @@ fn sign_es384(secret_key: &p384::PrivateKey, header: &Header, claims: &serde_jso
 
 #[test]
 fn p384_public_verify() {
-    let secret_key = p384::PrivateKey::generate().unwrap();
+    let secret_key = p384::SecretKey::generate().unwrap();
     let public_key = secret_key.public_key();
     let header = Header {
         alg: Algorithm::ES384,
@@ -73,7 +80,7 @@ fn p384_public_verify() {
 
 #[test]
 fn p384_tampered_token_is_rejected() {
-    let secret_key = p384::PrivateKey::generate().unwrap();
+    let secret_key = p384::SecretKey::generate().unwrap();
     let public_key = secret_key.public_key();
     let header = Header {
         alg: Algorithm::ES384,
@@ -230,7 +237,7 @@ fn jwk_roundtrip_p256() {
 
 #[test]
 fn jwk_roundtrip_p384_public() {
-    let secret_key = p384::PrivateKey::generate().unwrap();
+    let secret_key = p384::SecretKey::generate().unwrap();
 
     let public_jwk = Jwk::from(&secret_key.public_key());
     assert_eq!(public_jwk.algorithm, Algorithm::ES384);
@@ -240,6 +247,24 @@ fn jwk_roundtrip_p384_public() {
 
     let public_key = p384::PublicKey::try_from(&public_jwk).unwrap();
     assert_eq!(public_key.to_bytes(), secret_key.public_key().to_bytes());
+}
+
+#[test]
+fn jwk_roundtrip_p521() {
+    let secret_key = p521::SecretKey::generate().unwrap();
+
+    let public_jwk = Jwk::from(&secret_key.public_key());
+    assert_eq!(public_jwk.algorithm, Algorithm::ES512);
+
+    let json = serde_json::to_string(&public_jwk).unwrap();
+    assert!(json.contains(r#""crv":"P-521""#), "{json}");
+
+    let public_key = p521::PublicKey::try_from(&public_jwk).unwrap();
+    assert_eq!(public_key.to_bytes(), secret_key.public_key().to_bytes());
+
+    let secret_jwk = Jwk::from(&secret_key);
+    let secret_key2 = p521::SecretKey::try_from(&secret_jwk).unwrap();
+    assert_eq!(secret_key2.to_bytes(), secret_key.to_bytes());
 }
 
 #[test]
@@ -391,7 +416,7 @@ fn key_decodes_p256() {
 
 #[test]
 fn key_decodes_p384() {
-    let secret_key = p384::PrivateKey::generate().unwrap();
+    let secret_key = p384::SecretKey::generate().unwrap();
     let jwk = Jwk::from(&secret_key.public_key());
 
     let key = Key::try_from(&jwk).unwrap();
@@ -408,6 +433,20 @@ fn key_decodes_p384() {
     let verified: serde_json::Value =
         parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
     assert_eq!(verified["sub"], "user123");
+}
+
+#[test]
+fn key_decodes_p521() {
+    let secret_key = p521::SecretKey::generate().unwrap();
+
+    assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::P521Secret(_)));
+    assert!(matches!(
+        Key::try_from(&Jwk::from(&secret_key.public_key())).unwrap(),
+        Key::P521Public(_)
+    ));
+
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key), Algorithm::ES512);
+    assert_key_roundtrip(&secret_key, &Jwk::from(&secret_key.public_key()), Algorithm::ES512);
 }
 
 #[test]
@@ -505,7 +544,9 @@ fn key_public_only_cannot_sign() {
 }
 
 #[test]
-fn key_unsupported_curve_is_rejected() {
+fn key_malformed_ec_key_is_rejected() {
+    // A P-521 JWK whose coordinates are too short to be valid affine values
+    // must be rejected instead of silently truncated.
     let jwk = Jwk {
         kid: Default::default(),
         r#use: KeyUse::Sign,

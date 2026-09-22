@@ -118,7 +118,7 @@ pub(crate) fn crypto_kem_enc_derand<const K: usize, const PUBLIC_KEY_SIZE: usize
     params: &MlKemParams<K>,
     public_key: &[u8; PUBLIC_KEY_SIZE],
     coins: &[u8; 32],
-) -> ([u8; CIPHERTEXT_SIZE], [u8; SHARED_SECRET_SIZE]) {
+) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
     let mut ciphertext = [0u8; CIPHERTEXT_SIZE];
     let mut buf = [0u8; 64];
     let mut kr = [0u8; 64];
@@ -131,7 +131,7 @@ pub(crate) fn crypto_kem_enc_derand<const K: usize, const PUBLIC_KEY_SIZE: usize
 
     let mut shared_secret = [0u8; SHARED_SECRET_SIZE];
     shared_secret.copy_from_slice(&kr[..32]);
-    (ciphertext, shared_secret)
+    (shared_secret, ciphertext)
 }
 
 #[inline]
@@ -1252,7 +1252,7 @@ mod tests {
         coins[32..].copy_from_slice(&z);
 
         let (dk, ek) = crypto_kem_keypair_derand::<3, 2400, 1184>(&ML_KEM_768, &coins);
-        let (ct, k) = crypto_kem_enc_derand::<3, 1184, 1088>(&ML_KEM_768, &ek, &m);
+        let (k, ct) = crypto_kem_enc_derand::<3, 1184, 1088>(&ML_KEM_768, &ek, &m);
 
         // Verify public key hash matches NIST vector
         assert_eq!(
@@ -1292,7 +1292,7 @@ mod tests {
         coins[32..].copy_from_slice(&z);
 
         let (dk, ek) = crypto_kem_keypair_derand::<4, 3168, 1568>(&ML_KEM_1024, &coins);
-        let (ct, k) = crypto_kem_enc_derand::<4, 1568, 1568>(&ML_KEM_1024, &ek, &m);
+        let (k, ct) = crypto_kem_enc_derand::<4, 1568, 1568>(&ML_KEM_1024, &ek, &m);
 
         assert_eq!(
             sha3_256_hex(&ek),

@@ -53,7 +53,8 @@ impl core::fmt::Display for XWingError {
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey {
     bytes: [u8; SECRET_KEY_SIZE],
     x25519_secret_key: x25519::SecretKey,
@@ -71,7 +72,12 @@ impl SecretKey {
         let ct_x = x25519::PublicKey::from_bytes(&ct[mlkem::CIPHERTEXT_SIZE_768..].try_into().unwrap());
 
         let ss_m = self.mlkem_secret_key.decapsulate(&ct_m)?;
-        let ss_x = self.x25519_secret_key.ecdh(&ct_x);
+        // A low-order `ct_x` yields an all-zero (non-contributory) X25519 shared
+        // secret. X-Wing is safe here because the combiner binds `ct_x` and the
+        // recipient's `pk_x`, and the draft specifies that Decapsulate always
+        // returns a shared secret, so the degenerate value is absorbed rather
+        // than treated as an error.
+        let ss_x = self.x25519_secret_key.ecdh(&ct_x).unwrap_or_default();
 
         Ok(combiner(&ss_m, &ss_x, &ct_x.to_bytes(), &self.x25519_public_key_bytes))
     }
@@ -103,10 +109,12 @@ impl PublicKey {
     fn encapsulate_derand(&self, eseed: &[u8; 64]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
         let ek_x = x25519::SecretKey::from_bytes(&eseed[32..64].try_into().unwrap());
         let ct_x = ek_x.public_key();
-        let ss_x = ek_x.ecdh(&self.x25519_public_key);
+        // See `decapsulate`: an all-zero X25519 shared secret (low-order peer
+        // key) is safe to absorb because the combiner binds `ct_x` and `pk_x`.
+        let ss_x = ek_x.ecdh(&self.x25519_public_key).unwrap_or_default();
 
         let m = &eseed[..32].try_into().unwrap();
-        let (ct_m, ss_m) = self.mlkem_public_key.encapsulate_derand(&m);
+        let (ss_m, ct_m) = self.mlkem_public_key.encapsulate_derand(&m);
 
         let ss = combiner(&ss_m, &ss_x, &ct_x.to_bytes(), &self.x25519_public_key.to_bytes());
 
@@ -195,6 +203,17 @@ mod tests {
     fn constants() {
         assert!(PUBLIC_KEY_SIZE == 1216);
         assert!(CIPHERTEXT_SIZE == 1120);
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn secret_key_zeroize_clears_bytes() {
+        use zeroize::Zeroize;
+
+        let (mut secret_key, _) = generate_keypair_derand(&[1u8; SECRET_KEY_SIZE]);
+        assert_ne!(secret_key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+        secret_key.zeroize();
+        assert_eq!(secret_key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
     }
 
     struct TestVector {
@@ -313,8 +332,8 @@ mod tests {
 
         let (sk_m1, sk_x1, pk_m1, pk_x1) = expand_decapsulation_key(&seed);
         let (sk_m2, sk_x2, pk_m2, pk_x2) = expand_decapsulation_key(&seed);
-        assert_eq!(sk_m1, sk_m2);
-        assert_eq!(sk_x1, sk_x2);
+        assert_eq!(sk_m1.to_bytes(), sk_m2.to_bytes());
+        assert_eq!(sk_x1.to_bytes(), sk_x2.to_bytes());
         assert_eq!(pk_m1, pk_m2);
         assert_eq!(pk_x1, pk_x2);
     }

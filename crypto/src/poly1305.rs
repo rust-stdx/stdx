@@ -14,6 +14,9 @@
 //! assert_eq!(tag.len(), 16);
 //! ```
 
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 /// Clamping mask for the low 64 bits of `r` (RFC 8439 §2.5.1).
 const R_MASK_0: u64 = 0x0f_ff_ff_fc_0f_ff_ff_ff;
 /// Clamping mask for the high 64 bits of `r` (RFC 8439 §2.5.1).
@@ -28,6 +31,10 @@ const P_2: u64 = 0x3;
 ///
 /// Feeds data incrementally via [`update`](Self::update), then produces the
 /// 16-byte authentication tag via [`finalize`](Self::finalize).
+///
+/// When the `zeroize` feature is enabled the secret state (`r`, `s`, `h` and
+/// the buffered tail) is wiped when the value is dropped.
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct Poly1305 {
     h: [u64; 3],
     r: [u64; 2],
@@ -258,6 +265,24 @@ fn finish(h: &mut [u64; 3], s: &[u64; 2]) -> [u8; 16] {
 #[cfg(test)]
 mod tests {
     use super::Poly1305;
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn poly1305_zeroize_clears_secret_state() {
+        use zeroize::Zeroize;
+
+        let key = [0x42u8; 32];
+        let mut mac = Poly1305::new(&key);
+        mac.update(b"a");
+
+        assert_eq!(mac.buffer_len, 1);
+        mac.zeroize();
+        assert_eq!(mac.h, [0, 0, 0]);
+        assert_eq!(mac.r, [0, 0]);
+        assert_eq!(mac.s, [0, 0]);
+        assert_eq!(mac.buffer, [0u8; 16]);
+        assert_eq!(mac.buffer_len, 0);
+    }
 
     struct TestVector {
         source: &'static str,

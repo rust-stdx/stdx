@@ -119,9 +119,7 @@ pub const ML_DSA_65_SECRET_KEY_SIZE: usize = core::mem::size_of::<MlDsa65SecretK
 /// The key is a plain fixed-size value (about [`ML_DSA_65_SECRET_KEY_SIZE`]
 /// bytes) that never allocates, which makes it usable on `no_std` and embedded
 /// targets.
-///
-/// Secrets are zeroized on drop when the `zeroize` feature is enabled.
-#[derive(Debug)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct MlDsa65SecretKey {
     inner: MlDsaKeyMaterial<K, L, ML_DSA_65_PUBLIC_KEY_SIZE>,
 }

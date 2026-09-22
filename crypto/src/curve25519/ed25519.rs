@@ -107,8 +107,8 @@ const BASEPOINT: EdwardsPoint = EdwardsPoint {
 /// let sig = priv_key.sign(b"message");
 /// assert!(pub_key.verify(b"message", &sig).is_ok());
 /// ```
-// TODO: zeroize
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey {
     seed: [u8; SECRET_KEY_SIZE],
     scalar: Scalar,
@@ -188,6 +188,12 @@ impl TryFrom<&[u8]> for SecretKey {
 
 /// Ed25519 public key for signature verification (RFC 8032).
 ///
+/// Public keys are decoded with the strict RFC 8032 rules: non-canonical
+/// encodings and small-order points (the identity and other low-order torsion
+/// points) are rejected, as the latter would otherwise permit trivial
+/// signature forgeries. Honest Ed25519 public keys are always in the
+/// prime-order subgroup and are accepted.
+///
 /// # Verifying a signature
 ///
 /// ```ignore
@@ -214,8 +220,17 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    /// Decodes a public key from its 32-byte encoding.
+    ///
+    /// Returns [`EllipticCurveError::InvalidKey`] if the input is not a
+    /// canonically encoded curve point, or if it decodes to a small-order
+    /// point (which has a torsion component that can be used to forge
+    /// signatures).
     pub fn from_bytes(key: &[u8; PUBLIC_KEY_SIZE]) -> Result<PublicKey, EllipticCurveError> {
         let point = EdwardsPoint::from_bytes(key.try_into().unwrap()).ok_or(EllipticCurveError::InvalidKey)?;
+        if point.is_small_order() {
+            return Err(EllipticCurveError::InvalidKey);
+        }
         Ok(PublicKey {
             point,
             bytes: *key,
@@ -249,6 +264,7 @@ impl TryFrom<&[u8]> for PublicKey {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 struct Scalar(U256);
 
 impl Scalar {
@@ -330,6 +346,7 @@ impl Scalar {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 struct EdwardsPoint {
     x: FieldElement,
     y: FieldElement,
@@ -439,6 +456,18 @@ impl EdwardsPoint {
     #[inline]
     fn mul_by_cofactor(&self) -> Self {
         self.double().double().double()
+    }
+
+    /// Returns `true` if this point has small order, i.e. `[8]P == identity`.
+    ///
+    /// Such points (the identity or one of the order-2/4/8 torsion points) are
+    /// never produced by Ed25519 key generation. Accepting them as public keys
+    /// is unsafe: the torsion component can be cancelled out of the
+    /// verification equation, allowing forgeries.
+    #[inline]
+    fn is_small_order(&self) -> bool {
+        let p = self.mul_by_cofactor();
+        p.x.is_zero() && p.y.ct_eq(&p.z)
     }
 }
 
@@ -571,10 +600,16 @@ fn ed25519_verify(
         message,
     ]);
 
-    let lhs = scalar_mul_base(&s).mul_by_cofactor();
-    let rhs = r.add(&scalar_mul(point, &k)).mul_by_cofactor();
+    // RFC 8032 section 5.1.7 permits either the cofactored check
+    // `[8][S]B == [8]R + [8][k]A` or the stricter cofactorless check
+    // `[S]B == R + [k]A`. The cofactorless equation is used here, matching
+    // the common ref10-derived implementations and rejecting the
+    // `low_order_residue` edge cases.
+    let lhs = scalar_mul_base(&s);
+    let rhs = r.add(&scalar_mul(point, &k));
 
-    // SAFETY: this is okay to use non-contant time compare because
+    // Point encodings are public data, but the comparison is done in
+    // constant time for consistency with the rest of the crate.
     match (lhs.to_bytes(), rhs.to_bytes()) {
         (Some(lhs), Some(rhs)) if constant_time_eq(&lhs, &rhs) => Ok(()),
         _ => Err(EllipticCurveError::InvalidSignature),
@@ -585,6 +620,17 @@ fn ed25519_verify(
 mod tests {
     use super::*;
     use crate::curve25519::x25519;
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn secret_key_zeroize_clears_seed() {
+        use zeroize::Zeroize;
+
+        let mut key = SecretKey::from_bytes(&[1u8; SECRET_KEY_SIZE]);
+        assert_ne!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+        key.zeroize();
+        assert_eq!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+    }
 
     const BASEPOINT_COMPRESSED: [u8; 32] = [
         0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
@@ -741,6 +787,68 @@ mod tests {
     }
 
     #[test]
+    fn rejects_low_order_public_keys() {
+        // Canonical encodings of the edwards25519 low-order points (order 1, 2,
+        // 4 and 8), listed in the CCTV ed25519 vector documentation. None of
+        // them is a valid Ed25519 public key.
+        let low_order_points: [&str; 8] = [
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "0000000000000000000000000000000000000000000000000000000000000080",
+            "0100000000000000000000000000000000000000000000000000000000000000",
+            "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+            "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
+            "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+            "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        ];
+
+        for hex_key in low_order_points {
+            let bytes = decode_hex::<32>(hex_key);
+            assert!(
+                PublicKey::from_bytes(&bytes).is_err(),
+                "low-order public key {hex_key} must be rejected",
+            );
+        }
+    }
+
+    #[test]
+    fn is_small_order_detects_torsion_points() {
+        assert!(!BASEPOINT.is_small_order());
+        assert!(EdwardsPoint::identity().is_small_order());
+
+        // Order-2 point y = p - 1.
+        let order_two = EdwardsPoint::from_bytes(&decode_hex::<32>(
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        ))
+        .unwrap();
+        assert!(order_two.is_small_order());
+    }
+
+    #[test]
+    fn rejects_low_order_key_forgery() {
+        // H-03: with a small-order public key A, `R = [s]B` verifies for any
+        // `s` and message under the cofactored equation. Rejecting the key at
+        // import means the forgery never reaches verification.
+        let identity = decode_hex::<32>("0100000000000000000000000000000000000000000000000000000000000000");
+        let order_two = decode_hex::<32>("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
+
+        for key in [identity, order_two] {
+            assert!(PublicKey::from_bytes(&key).is_err());
+        }
+
+        // The forged signature is well-formed, but only a small-order key would
+        // accept it; a genuine key rejects it.
+        let s = Scalar::from_canonical_bytes(&[7u8; 32]).expect("7...7 is a valid scalar");
+        let mut forged_signature = [0u8; SIGNATURE_SIZE];
+        forged_signature[..32].copy_from_slice(&scalar_mul_base(&s).to_bytes().unwrap());
+        forged_signature[32..].copy_from_slice(&s.to_bytes());
+
+        let genuine_seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let genuine = SecretKey::from_bytes(&genuine_seed).public_key();
+        assert!(genuine.verify(b"forged message", &forged_signature).is_err());
+    }
+
+    #[test]
     fn cctv_ed25519_vectors() {
         let data = include_str!("../../testdata/ed25519/cctv_vectors.txt");
 
@@ -761,7 +869,13 @@ mod tests {
 
             let has_non_canonical_a = flags.contains(&"non_canonical_A");
             let has_non_canonical_r = flags.contains(&"non_canonical_R");
-            let should_reject = has_non_canonical_a || has_non_canonical_r;
+            // Small-order public keys are rejected at import (torsion forgery),
+            // and the cofactorless equation rejects the `low_order_residue`
+            // cases. This matches the strict profile of libsodium and
+            // ed25519-dalek's `verify_strict`.
+            let has_low_order_a = flags.contains(&"low_order_A");
+            let has_low_order_residue = flags.contains(&"low_order_residue");
+            let should_reject = has_non_canonical_a || has_non_canonical_r || has_low_order_a || has_low_order_residue;
 
             let public_key = decode_hex::<32>(key_hex);
             let signature = decode_hex::<64>(sig_hex);

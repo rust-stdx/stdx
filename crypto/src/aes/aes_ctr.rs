@@ -1,6 +1,6 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
-use super::aes::{encrypt_block, expand_key};
+use super::aes::expand_key;
 use crate::{StreamCipher, aes::RoundKeys};
 
 /// AES-128 in CTR mode.
@@ -9,6 +9,11 @@ use crate::{StreamCipher, aes::RoundKeys};
 /// [`xor_keystream`](StreamCipher::xor_keystream) to encrypt or decrypt
 /// (CTR mode is symmetric).
 /// You can move in the keystream with [`set_counter`](Aes128Ctr::set_counter).
+///
+/// The counter is a full 128-bit big-endian block and is incremented as a
+/// whole (NIST SP 800-38A §5.1) after every block, so the keystream would only
+/// repeat after 2¹²⁸ blocks. Encrypting more than 2³² blocks under one key and
+/// counter is therefore not silently truncated at the 32-bit boundary.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Ctr(pub(crate) AesCtr<11>);
 
@@ -43,6 +48,10 @@ impl StreamCipher for Aes128Ctr {
 /// [`xor_keystream`](StreamCipher::xor_keystream) to encrypt or decrypt
 /// (CTR mode is symmetric).
 /// You can move in the keystream with [`set_counter`](Aes256Ctr::set_counter).
+///
+/// The counter is a full 128-bit big-endian block and is incremented as a
+/// whole (NIST SP 800-38A §5.1) after every block, so the keystream would only
+/// repeat after 2¹²⁸ blocks.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Ctr(pub(crate) AesCtr<15>);
 
@@ -148,18 +157,6 @@ impl<const N: usize> AesCtr<N> {
         }
     }
 
-    /// Create a new cipher from pre-computed round keys.
-    /// It's useful to re-use AES-CTR in another cipher such AES-GCM
-    #[inline]
-    pub(crate) fn from_round_keys(round_keys: RoundKeys<N>) -> Self {
-        const { assert!(N == 11 || N == 15) };
-
-        Self {
-            round_keys,
-            counter: [0u8; 16],
-        }
-    }
-
     pub(crate) fn xor_keystream(&mut self, in_out: &mut [u8]) {
         match &self.round_keys {
             #[cfg(target_arch = "aarch64")]
@@ -186,30 +183,26 @@ impl<const N: usize> AesCtr<N> {
 }
 
 fn xor_keystream_soft<const N: usize>(round_keys: &[[u8; 16]; N], counter: &mut [u8; 16], in_out: &mut [u8]) {
-    let n = in_out.len();
-    let mut i = 0;
-
-    while i + 16 <= n {
-        let ks = encrypt_block(&round_keys, counter);
-        for k in 0..16 {
-            in_out[i + k] ^= ks[k];
-        }
-        increment_counter(counter);
-        i += 16;
-    }
-
-    if i < n {
-        let ks = encrypt_block(&round_keys, counter);
-        for k in 0..n - i {
-            in_out[i + k] ^= ks[k];
-        }
-    }
+    super::aes_ct::xor_keystream_soft(round_keys, counter, in_out);
 }
 
+/// Increment the 16-byte big-endian counter block by one.
+///
+/// This is the NIST SP 800-38A §5.1 standard incrementing function applied to
+/// the full 128-bit block: a carry propagates through the whole block instead
+/// of wrapping the low 32 bits. The keystream therefore only repeats after
+/// 2¹²⁸ blocks. The counter is public data, so the data-dependent early exit
+/// is not a timing concern.
+#[cfg(test)]
 #[inline]
 fn increment_counter(counter: &mut [u8; 16]) {
-    let counter_value = u32::from_be_bytes(counter[12..16].try_into().unwrap());
-    counter[12..16].copy_from_slice(&counter_value.wrapping_add(1).to_be_bytes());
+    for byte in counter.iter_mut().rev() {
+        let (value, carry) = byte.overflowing_add(1);
+        *byte = value;
+        if !carry {
+            break;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -283,7 +276,7 @@ mod tests {
         },
     ];
 
-    use super::super::aes::expand_key;
+    use super::super::aes::{encrypt_block, expand_key};
 
     fn run_ctr_vector_128(v: &CtrVector) {
         let key: [u8; 16] = hex::decode_array::<16>(v.key.as_bytes()).unwrap();
@@ -486,9 +479,47 @@ mod tests {
         increment_counter(&mut ctr);
         assert_eq!(ctr, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
 
+        // Full 128-bit wrap: all-ones becomes all-zeros (no 32-bit truncation).
         let mut ctr2 = [0xffu8; 16];
         increment_counter(&mut ctr2);
-        let expected: [u8; 16] = hex::decode_array::<16>(b"ffffffffffffffffffffffff00000000").unwrap();
-        assert_eq!(ctr2, expected);
+        assert_eq!(ctr2, [0u8; 16]);
+
+        // Carry propagates out of the low 32-bit word.
+        let mut ctr3 = [0u8; 16];
+        ctr3[12..16].copy_from_slice(&u32::MAX.to_be_bytes());
+        increment_counter(&mut ctr3);
+        let mut expected3 = [0u8; 16];
+        expected3[11] = 1;
+        assert_eq!(ctr3, expected3);
+    }
+
+    #[test]
+    fn aes128_ctr_no_32bit_wrap() {
+        // Starting from low word 0xFFFFFFFF, the second block must use the
+        // counter with a carry into byte 11 instead of reusing counter 0.
+        let key: [u8; 16] = hex::decode_array::<16>(b"2b7e151628aed2a6abf7158809cf4f3c").unwrap();
+        let mut counter0 = [0u8; 16];
+        counter0[12..16].copy_from_slice(&u32::MAX.to_be_bytes());
+        let mut counter1 = [0u8; 16];
+        counter1[11] = 1;
+
+        let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
+        let ks0 = encrypt_block(&rk, &counter0);
+        let ks1 = encrypt_block(&rk, &counter1);
+
+        let mut expected = [0u8; 32];
+        expected[..16].copy_from_slice(&ks0);
+        expected[16..].copy_from_slice(&ks1);
+
+        let mut buf = [0u8; 32];
+        let mut cipher = Aes128Ctr::new(&key);
+        cipher.set_counter(&counter0);
+        cipher.xor_keystream(&mut buf);
+        assert_eq!(buf, expected, "dispatch must carry the counter into byte 11");
+
+        let mut buf_soft = [0u8; 32];
+        let mut ctr_soft = counter0;
+        xor_keystream_soft(&rk, &mut ctr_soft, &mut buf_soft);
+        assert_eq!(buf_soft, expected, "soft path must carry the counter into byte 11");
     }
 }

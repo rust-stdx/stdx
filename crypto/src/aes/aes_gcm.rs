@@ -2,11 +2,11 @@ use constant_time_eq::constant_time_eq;
 
 use super::{
     aes::{GCM_MAX_LEN, encrypt_block, expand_key},
-    ghash::{GHashPowers, compute_tag, precompute_ghash_powers, precompute_ghash_table},
+    ghash::{GHashPowers, compute_tag, precompute_ghash_powers},
 };
 use crate::{
     Aead, AeadError, Hash,
-    aes::{RoundKeys, aes::RoundKeysSoftware, aes_ctr::AesCtr, ghash::GhashTable},
+    aes::{RoundKeys, aes::RoundKeysSoftware},
 };
 
 /// AES-128-GCM authenticated cipher.
@@ -37,12 +37,17 @@ impl Aead for Aes128Gcm {
 
     #[inline]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-        self.0.encrypt_in_place(in_out, nonce, aad)
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce).unwrap();
+
+        self.0.encrypt_in_place(in_out, nonce_arr, aad)
     }
 
     #[inline]
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
-        self.0.decrypt_in_place(in_out, nonce, aad, tag)
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
+        let tag_arr: &[u8; 16] = tag.try_into().map_err(|_| AeadError::InvalidCiphertext)?;
+
+        self.0.decrypt_in_place(in_out, nonce_arr, aad, tag_arr)
     }
 }
 
@@ -74,12 +79,17 @@ impl Aead for Aes256Gcm {
 
     #[inline]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-        self.0.encrypt_in_place(in_out, nonce, aad)
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce).unwrap();
+
+        self.0.encrypt_in_place(in_out, nonce_arr, aad)
     }
 
     #[inline]
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
-        self.0.decrypt_in_place(in_out, nonce, aad, tag)
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
+        let tag_arr: &[u8; 16] = tag.try_into().map_err(|_| AeadError::InvalidCiphertext)?;
+
+        self.0.decrypt_in_place(in_out, nonce_arr, aad, tag_arr)
     }
 }
 
@@ -120,8 +130,6 @@ impl AesGcm<15> {
 }
 
 impl<const N: usize> AesGcm<N> {
-    const TAG_SIZE: usize = 16;
-
     fn new_inner(key: &[u8]) -> Self {
         const { assert!(N == 11 || N == 15) };
 
@@ -190,57 +198,58 @@ impl<const N: usize> AesGcm<N> {
 
         AesGcm {
             round_keys: RoundKeys::Software(round_keys_software),
-            h_powers: GHashPowers::Software(precompute_ghash_table(&round_keys_software)),
+            h_powers: GHashPowers::Software(encrypt_block(&round_keys_software, &[0u8; 16])),
         }
     }
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Hash {
         assert!(
             in_out.len() as u64 <= GCM_MAX_LEN,
             "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
         );
 
-        let nonce_arr: &[u8; 12] = nonce.try_into().expect("AES-GCM nonce must be 12 bytes");
-
         match (&self.round_keys, &self.h_powers) {
             #[cfg(target_arch = "aarch64")]
             (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
-                gcm_encrypt_armv8(round_keys, &h_powers, in_out, nonce_arr, aad)
+                gcm_encrypt_armv8(round_keys, &h_powers, in_out, nonce, aad)
             },
             #[cfg(target_arch = "x86_64")]
             (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
-                gcm_encrypt_aesni(&round_keys, &h_powers, in_out, nonce_arr, aad)
+                gcm_encrypt_aesni(&round_keys, &h_powers, in_out, nonce, aad)
             },
-            (RoundKeys::Software(round_keys), GHashPowers::Software(ghash_table)) => {
-                self.encrypt_in_place_soft(in_out, round_keys, ghash_table, nonce_arr, aad)
+            (RoundKeys::Software(round_keys), GHashPowers::Software(h)) => {
+                self.encrypt_in_place_soft(in_out, round_keys, h, nonce, aad)
             }
             _ => unreachable!(),
         }
     }
 
-    fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
-        if in_out.len() as u64 > GCM_MAX_LEN + Self::TAG_SIZE as u64 {
+    fn decrypt_in_place(
+        &self,
+        in_out: &mut [u8],
+        nonce: &[u8; 12],
+        aad: &[u8],
+        tag: &[u8; 16],
+    ) -> Result<(), AeadError> {
+        if in_out.len() as u64 > GCM_MAX_LEN {
             return Err(AeadError::InvalidCiphertext);
         }
-
-        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
-        let tag_arr: &[u8; 16] = tag.try_into().expect("AES-GCM tag must be 16 bytes");
 
         match (&self.round_keys, &self.h_powers) {
             #[cfg(target_arch = "aarch64")]
             (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
-                gcm_decrypt_armv8(round_keys, &h_powers, in_out, tag_arr, nonce_arr, aad)
+                gcm_decrypt_armv8(round_keys, &h_powers, in_out, tag, nonce, aad)
             },
             #[cfg(target_arch = "x86_64")]
             (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
-                gcm_decrypt_aesni(&round_keys, &h_powers, in_out, tag_arr, nonce_arr, aad)
+                gcm_decrypt_aesni(&round_keys, &h_powers, in_out, tag, nonce, aad)
             },
-            (RoundKeys::Software(round_keys), GHashPowers::Software(ghash_table)) => {
-                self.decrypt_in_place_soft(in_out, round_keys, ghash_table, tag_arr, nonce_arr, aad)
+            (RoundKeys::Software(round_keys), GHashPowers::Software(h)) => {
+                self.decrypt_in_place_soft(in_out, round_keys, h, tag, nonce, aad)
             }
             _ => unreachable!(),
         }
@@ -251,7 +260,7 @@ impl<const N: usize> AesGcm<N> {
         &self,
         in_out: &mut [u8],
         round_keys: &RoundKeysSoftware<N>,
-        ghash_table: &GhashTable,
+        h: &[u8; 16],
         nonce: &[u8; 12],
         aad: &[u8],
     ) -> Hash {
@@ -259,14 +268,11 @@ impl<const N: usize> AesGcm<N> {
         j0[..12].copy_from_slice(nonce);
         j0[15] = 1;
 
-        let ej0 = encrypt_block(&round_keys, &j0);
+        let ej0 = encrypt_block(round_keys, &j0);
 
         j0[15] = 2;
-
-        let mut aes_ctr = AesCtr::from_round_keys(self.round_keys.clone());
-        aes_ctr.set_counter(&j0);
-        aes_ctr.xor_keystream(in_out);
-        compute_tag(&ghash_table, aad, in_out, &ej0)
+        super::aes_ct::xor_keystream_soft(round_keys, &mut j0, in_out);
+        compute_tag(h, aad, in_out, &ej0)
     }
 
     /// Pure-Rust decrypt implementation.
@@ -274,7 +280,7 @@ impl<const N: usize> AesGcm<N> {
         &self,
         in_out: &mut [u8],
         round_keys: &RoundKeysSoftware<N>,
-        ghash_table: &GhashTable,
+        h: &[u8; 16],
         tag: &[u8; 16],
         nonce: &[u8; 12],
         aad: &[u8],
@@ -283,18 +289,16 @@ impl<const N: usize> AesGcm<N> {
         j0[..12].copy_from_slice(nonce);
         j0[15] = 1;
 
-        let ej0 = encrypt_block(&round_keys, &j0);
+        let ej0 = encrypt_block(round_keys, &j0);
 
-        let expected_tag = compute_tag(&ghash_table, aad, in_out, &ej0);
+        let expected_tag = compute_tag(h, aad, in_out, &ej0);
 
         if !constant_time_eq(tag, &expected_tag) {
             return Err(AeadError::InvalidCiphertext);
         }
 
         j0[15] = 2;
-        let mut aes_ctr = AesCtr::from_round_keys(self.round_keys.clone());
-        aes_ctr.set_counter(&j0);
-        aes_ctr.xor_keystream(in_out);
+        super::aes_ct::xor_keystream_soft(round_keys, &mut j0, in_out);
 
         Ok(())
     }
@@ -307,10 +311,7 @@ mod tests_128 {
     use super::*;
     use crate::{
         Aead,
-        aes::{
-            aes::{TE0, TE1, TE2, TE3, encrypt_block, expand_key},
-            ghash::precompute_ghash_table,
-        },
+        aes::aes::{encrypt_block, expand_key},
     };
 
     include!("aes_gcm_128_vectors.rs");
@@ -337,7 +338,7 @@ mod tests_128 {
         assert_eq!(rk_hex[2], "f2c295f27a96b9435935807a7359f67f", "rk2");
 
         let ct = encrypt_block::<11>(&rk, &pt);
-        let ct_hex = hex::encode(&ct);
+        let ct_hex = hex::encode(ct);
         assert_eq!(
             ct_hex, "3925841d02dc09fbdc118597196a0b32",
             "AES-128 FIPS 197 encrypt failed, rk3={}",
@@ -353,21 +354,19 @@ mod tests_128 {
         let expected_ct = hex::decode(v.ct).unwrap();
         let expected_tag: [u8; 16] = hex::decode_array::<16>(v.tag.as_bytes()).unwrap();
         let round_keys = expand_key::<11>(&key);
-        let ghash_table = precompute_ghash_table(&round_keys);
+        let h = encrypt_block::<11>(&round_keys, &[0u8; 16]);
 
         let cipher = Aes128Gcm::new(&key);
 
         let mut buf = pt.clone();
-        let tag = cipher
-            .0
-            .encrypt_in_place_soft(&mut buf, &round_keys, &ghash_table, &nonce, &aad);
+        let tag = cipher.0.encrypt_in_place_soft(&mut buf, &round_keys, &h, &nonce, &aad);
         assert_eq!(buf, expected_ct, "ciphertext mismatch for key={}", v.key);
         assert_eq!(tag.as_ref(), &expected_tag[..], "tag mismatch for key={}", v.key);
 
         let mut buf2 = expected_ct.clone();
         cipher
             .0
-            .decrypt_in_place_soft(&mut buf2, &round_keys, &ghash_table, &expected_tag, &nonce, &aad)
+            .decrypt_in_place_soft(&mut buf2, &round_keys, &h, &expected_tag, &nonce, &aad)
             .expect("decrypt failed");
         assert_eq!(buf2, pt, "plaintext mismatch after decrypt for key={}", v.key);
     }
@@ -413,7 +412,7 @@ mod tests_128 {
         let mut bad_tag: [u8; 16] = tag.as_ref().try_into().unwrap();
         bad_tag[0] ^= 0xff;
         let mut buf2 = buf.clone();
-        assert!(cipher.0.decrypt_in_place(&mut buf2, &bad_tag, &nonce, &[]).is_err());
+        assert!(cipher.0.decrypt_in_place(&mut buf2, &nonce, &[], &bad_tag).is_err());
     }
 
     #[test]
@@ -434,43 +433,13 @@ mod tests_128 {
     }
 
     #[test]
-    fn aes128_debug_round_state() {
+    fn aes128_zero_key_zero_pt_vector() {
         let key = [0u8; 16];
         let pt = [0u8; 16];
         let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
-
-        let mut s = pt;
-        for i in 0..16 {
-            s[i] ^= rk[0][i];
-        }
-        assert_eq!(s, [0; 16], "after AddRoundKey with K=0, state should be all zeros");
-
-        let r = 1usize;
-        let t0 = TE0[s[0] as usize]
-            ^ TE1[s[5] as usize]
-            ^ TE2[s[10] as usize]
-            ^ TE3[s[15] as usize]
-            ^ u32::from_ne_bytes(rk[r][0..4].try_into().unwrap());
-
-        let rk1word0 = u32::from_ne_bytes([0x62, 0x63, 0x63, 0x63]);
-        assert_eq!(rk1word0, 0x63636362, "rk[1] word 0 on LE should be 0x63636362");
-        let te0_0 = TE0[0];
-        let te1_0 = TE1[0];
-        let te2_0 = TE2[0];
-        let te3_0 = TE3[0];
-        assert_eq!(te0_0, 0xa56363c6, "TE0[0]");
-        assert_eq!(te1_0, 0x6363c6a5, "TE1[0]");
-        assert_eq!(te2_0, 0x63c6a563, "TE2[0]");
-        assert_eq!(te3_0, 0xc6a56363, "TE3[0]");
-
-        let expected_t0 = 0xa56363c6u32 ^ 0x6363c6a5u32 ^ 0x63c6a563u32 ^ 0xc6a56363u32;
-        assert_eq!(expected_t0, 0x63636363u32, "TE0^TE1^TE2^TE3 should be 0x63636363");
-        assert_eq!(t0, 0x63636363u32 ^ 0x63636362u32, "t0 after XOR with rk");
-        assert_eq!(t0, 0x00000001u32, "t0 should be 1");
-
         let ct = encrypt_block::<11>(&rk, &pt);
-        let ct_hex = hex::encode(&ct);
-        assert_eq!(ct_hex, "66e94bd4ef8a2c3b884cfa59ca342b2e", "AES-128 K=0 P=0 full encrypt fails");
+        let ct_hex = hex::encode(ct);
+        assert_eq!(ct_hex, "66e94bd4ef8a2c3b884cfa59ca342b2e", "AES-128 K=0 P=0 encrypt failed");
     }
 
     #[test]
@@ -537,10 +506,7 @@ mod tests_256 {
     use hex;
 
     use super::*;
-    use crate::{
-        Aead,
-        aes::{expand_key, ghash::precompute_ghash_table},
-    };
+    use crate::Aead;
 
     include!("aes_gcm_256_vectors.rs");
 
@@ -552,21 +518,19 @@ mod tests_256 {
         let expected_ct = hex::decode(v.ct).unwrap();
         let expected_tag: [u8; 16] = hex::decode_array::<16>(v.tag.as_bytes()).unwrap();
         let round_keys = expand_key(&key);
-        let ghash_table = precompute_ghash_table(&round_keys);
+        let h = encrypt_block(&round_keys, &[0u8; 16]);
 
         let cipher = Aes256Gcm::new(&key);
 
         let mut buf = pt.clone();
-        let tag = cipher
-            .0
-            .encrypt_in_place_soft(&mut buf, &round_keys, &ghash_table, &nonce, &aad);
+        let tag = cipher.0.encrypt_in_place_soft(&mut buf, &round_keys, &h, &nonce, &aad);
         assert_eq!(buf, expected_ct, "ciphertext mismatch for key={}", v.key);
         assert_eq!(tag.as_ref(), &expected_tag[..], "tag mismatch for key={}", v.key);
 
         let mut buf2 = expected_ct.clone();
         cipher
             .0
-            .decrypt_in_place_soft(&mut buf2, &round_keys, &ghash_table, &expected_tag, &nonce, &aad)
+            .decrypt_in_place_soft(&mut buf2, &round_keys, &h, &expected_tag, &nonce, &aad)
             .expect("decrypt failed");
         assert_eq!(buf2, pt, "plaintext mismatch after decrypt for key={}", v.key);
     }
@@ -598,17 +562,15 @@ mod tests_256 {
         let aad = b"additional data";
         let plaintext: Vec<u8> = (0u8..=255u8).cycle().take(1024).collect();
         let round_keys = expand_key(&key);
-        let ghash_table = precompute_ghash_table(&round_keys);
+        let h = encrypt_block(&round_keys, &[0u8; 16]);
 
         let cipher = Aes256Gcm::new(&key);
         let mut buf = plaintext.clone();
-        let tag = cipher
-            .0
-            .encrypt_in_place_soft(&mut buf, &round_keys, &ghash_table, &nonce, aad);
+        let tag = cipher.0.encrypt_in_place_soft(&mut buf, &round_keys, &h, &nonce, aad);
         let tag_bytes: [u8; 16] = tag.as_ref().try_into().unwrap();
         cipher
             .0
-            .decrypt_in_place_soft(&mut buf, &round_keys, &ghash_table, &tag_bytes, &nonce, aad)
+            .decrypt_in_place_soft(&mut buf, &round_keys, &h, &tag_bytes, &nonce, aad)
             .expect("decrypt failed");
         assert_eq!(buf, plaintext);
     }
@@ -620,16 +582,14 @@ mod tests_256 {
         let nonce: [u8; 12] = hex::decode_array::<12>(b"cafebabefacedbaddecaf888").unwrap();
         let aad = hex::decode("feedfacedeadbeeffeedfacedeadbeef").unwrap();
         let round_keys = expand_key(&key);
-        let ghash_table = precompute_ghash_table(&round_keys);
+        let h = encrypt_block(&round_keys, &[0u8; 16]);
         let cipher = Aes256Gcm::new(&key);
         let mut buf: Vec<u8> = vec![];
-        let tag = cipher
-            .0
-            .encrypt_in_place_soft(&mut buf, &round_keys, &ghash_table, &nonce, &aad);
+        let tag = cipher.0.encrypt_in_place_soft(&mut buf, &round_keys, &h, &nonce, &aad);
         let tag_bytes: [u8; 16] = tag.as_ref().try_into().unwrap();
         cipher
             .0
-            .decrypt_in_place_soft(&mut buf, &round_keys, &ghash_table, &tag_bytes, &nonce, &aad)
+            .decrypt_in_place_soft(&mut buf, &round_keys, &h, &tag_bytes, &nonce, &aad)
             .expect("decrypt failed");
     }
 

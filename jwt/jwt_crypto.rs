@@ -10,7 +10,7 @@ use crypto::{
         ML_DSA_44_SIGNATURE_SIZE, ML_DSA_65_SIGNATURE_SIZE, ML_DSA_87_SIGNATURE_SIZE, MlDsa44PublicKey,
         MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey, MlDsa87PublicKey, MlDsa87SecretKey,
     },
-    p256, p384, rsa,
+    p256, p384, p521, rsa,
     sha2::{Sha256, Sha384, Sha512},
 };
 
@@ -136,6 +136,12 @@ pub enum Key<'a> {
     /// P-384 public key for `ES384`.
     P384Public(p384::PublicKey),
 
+    /// P-521 public key for `ES512`.
+    P521Public(p521::PublicKey),
+
+    /// P-521 secret key for `ES512`.
+    P521Secret(p521::SecretKey),
+
     /// RSA public key for the `RS*` and `PS*` algorithms.
     Rsa(RsaPublicKey),
 
@@ -192,6 +198,14 @@ impl<'a> TryFrom<&'a Jwk> for Key<'a> {
             JwkCrypto::Ec {
                 curve: EcCurve::P384, ..
             } => Ok(Key::P384Public(p384::PublicKey::try_from(jwk)?)),
+            JwkCrypto::Ec {
+                curve: EcCurve::P521,
+                d: Some(_),
+                ..
+            } => Ok(Key::P521Secret(p521::SecretKey::try_from(jwk)?)),
+            JwkCrypto::Ec {
+                curve: EcCurve::P521, ..
+            } => Ok(Key::P521Public(p521::PublicKey::try_from(jwk)?)),
             JwkCrypto::Rsa {
                 ..
             } => Ok(Key::Rsa(RsaPublicKey::try_from(jwk)?)),
@@ -211,7 +225,6 @@ impl<'a> TryFrom<&'a Jwk> for Key<'a> {
                 Algorithm::MlDsa87 => Ok(Key::MlDsa87Public(MlDsa87PublicKey::try_from(jwk)?)),
                 _ => Err(Error::InvalidKey),
             },
-            _ => Err(Error::InvalidKey),
         }
     }
 }
@@ -224,6 +237,7 @@ impl Key<'_> {
             Key::Ed25519Public(_) | Key::Ed25519Secret(_) => Algorithm::EdDSA,
             Key::P256Public(_) | Key::P256Secret(_) => Algorithm::ES256,
             Key::P384Public(_) => Algorithm::ES384,
+            Key::P521Public(_) | Key::P521Secret(_) => Algorithm::ES512,
             Key::Rsa(key) => Verifier::algorithm(key),
             Key::MlDsa44Public(_) | Key::MlDsa44Secret(_) => Algorithm::MlDsa44,
             Key::MlDsa65Public(_) | Key::MlDsa65Secret(_) => Algorithm::MlDsa65,
@@ -237,6 +251,7 @@ impl Key<'_> {
             Key::Secret(_)
             | Key::Ed25519Secret(_)
             | Key::P256Secret(_)
+            | Key::P521Secret(_)
             | Key::MlDsa44Secret(_)
             | Key::MlDsa65Secret(_)
             | Key::MlDsa87Secret(_) => true,
@@ -251,6 +266,7 @@ impl Signer for Key<'_> {
             Key::Secret(key) => Signer::sign(key, message),
             Key::Ed25519Secret(key) => Signer::sign(key, message),
             Key::P256Secret(key) => Signer::sign(key, message),
+            Key::P521Secret(key) => Signer::sign(key, message),
             Key::MlDsa44Secret(key) => Signer::sign(key, message),
             Key::MlDsa65Secret(key) => Signer::sign(key.as_ref(), message),
             Key::MlDsa87Secret(key) => Signer::sign(key.as_ref(), message),
@@ -273,6 +289,8 @@ impl Verifier for Key<'_> {
             Key::P256Public(key) => Verifier::verify(key, message, signature),
             Key::P256Secret(key) => Verifier::verify(&key.public_key(), message, signature),
             Key::P384Public(key) => Verifier::verify(key, message, signature),
+            Key::P521Public(key) => Verifier::verify(key, message, signature),
+            Key::P521Secret(key) => Verifier::verify(&key.public_key(), message, signature),
             Key::Rsa(key) => Verifier::verify(key, message, signature),
             Key::MlDsa44Public(key) => Verifier::verify(key, message, signature),
             Key::MlDsa44Secret(key) => Verifier::verify(&key.public_key(), message, signature),
@@ -298,6 +316,8 @@ impl core::fmt::Debug for Key<'_> {
             Key::P256Public(_) => "Key::P256Public",
             Key::P256Secret(_) => "Key::P256Secret",
             Key::P384Public(_) => "Key::P384Public",
+            Key::P521Public(_) => "Key::P521Public",
+            Key::P521Secret(_) => "Key::P521Secret",
             Key::Rsa(_) => "Key::Rsa",
             Key::MlDsa44Public(_) => "Key::MlDsa44Public",
             Key::MlDsa44Secret(_) => "Key::MlDsa44Secret",
@@ -455,6 +475,36 @@ impl Verifier for p384::PublicKey {
     #[inline(always)]
     fn algorithm(&self) -> Algorithm {
         Algorithm::ES384
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// P-521
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl Signer for p521::SecretKey {
+    fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
+        return p521::SecretKey::sign(self, message)
+            .map_err(|err| Error::Unspecified(alloc::format!("error signing message: {err:?}")))?
+            .as_ref()
+            .try_into();
+    }
+
+    #[inline(always)]
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::ES512
+    }
+}
+
+impl Verifier for p521::PublicKey {
+    fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
+        let signature = signature.try_into().map_err(|_| Error::InvalidSignature)?;
+        return p521::PublicKey::verify(self, message, &signature).map_err(|_| Error::InvalidSignature);
+    }
+
+    #[inline(always)]
+    fn algorithm(&self) -> Algorithm {
+        Algorithm::ES512
     }
 }
 

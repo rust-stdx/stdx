@@ -36,13 +36,12 @@ pub mod xwing;
 
 #[cfg(feature = "alloc")]
 pub mod encoding;
-pub mod p224;
-pub mod p256;
-pub mod p384;
+mod p_curves;
 pub mod pbkdf2;
 pub mod rsa;
 pub(crate) use bytes::Bytes;
 pub use bytes::Hash;
+pub use p_curves::{p224, p256, p384, p521};
 #[cfg(feature = "random")]
 pub use random::{random_bytes, random_fill};
 
@@ -97,6 +96,7 @@ pub enum EllipticCurveError {
     InvalidKey,
     Unspecified,
     InvalidSignature,
+    InvalidSharedSecret,
 }
 
 impl core::fmt::Display for EllipticCurveError {
@@ -105,6 +105,7 @@ impl core::fmt::Display for EllipticCurveError {
             EllipticCurveError::InvalidKey => write!(f, "key is not valid"),
             EllipticCurveError::Unspecified => write!(f, "unknown error"),
             EllipticCurveError::InvalidSignature => write!(f, "signature is not valid"),
+            EllipticCurveError::InvalidSharedSecret => write!(f, "shared secret is not valid"),
         }
     }
 }
@@ -207,6 +208,7 @@ pub trait Zeroize {}
 #[cfg(not(feature = "zeroize"))]
 impl<T> Zeroize for T {}
 
+/// `Zeroize` is a no-op when the `zeroize` feature is not enabled.
 pub trait Hasher: Clone + Zeroize {
     /// The internal block size of the hash function
     const BLOCK_SIZE: usize;

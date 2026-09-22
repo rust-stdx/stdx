@@ -1,3 +1,5 @@
+use constant_time_eq::constant_time_eq;
+
 use super::{
     curve25519::{FieldElement, U256},
     ed25519,
@@ -33,9 +35,31 @@ const BASEPOINT_U: [u8; 32] = {
 ///
 /// let alice = SecretKey::generate();
 /// let bob = SecretKey::generate();
-/// let alice_shared = alice.ecdh(&bob.public_key());
-/// let bob_shared = bob.ecdh(&alice.public_key());
+/// let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
+/// let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
 /// assert_eq!(alice_shared, bob_shared);
+/// ```
+///
+/// [`ecdh`](Self::ecdh) returns [`EllipticCurveError::InvalidSharedSecret`]
+/// when the computed shared secret is all zeros. This happens whenever the
+/// peer public key is a low-order point (`u = 0`, `u = 1`, `u = p - 1`, or
+/// one of the two order-8 points), because the clamped scalar is a multiple
+/// of the curve's cofactor and therefore annihilates such a point.
+///
+/// **Security impact:** an all-zero shared secret is not secret at all. Every
+/// peer that sends a low-order public key — including a malicious one — knows
+/// the value, so any key derived from it (even through a KDF) is known to the
+/// attacker. This yields a complete confidentiality and authentication break
+/// for protocols that do not independently detect the degenerate output.
+/// Callers should therefore treat the error as a fatal protocol failure and
+/// abort the handshake.
+///
+/// If the caller's protocol already binds both public keys into the derived
+/// key (so that a non-contributory secret cannot be exploited), the error can
+/// be deliberately ignored by substituting the all-zero secret:
+///
+/// ```ignore
+/// let shared = alice.ecdh(&bob.public_key()).unwrap_or_default();
 /// ```
 ///
 /// # Conversion from Ed25519
@@ -47,7 +71,8 @@ const BASEPOINT_U: [u8; 32] = {
 ///
 /// The shared secret produced by [`ecdh`](Self::ecdh) **must not** be used
 /// directly as an encryption key. Apply a KDF (e.g. HKDF) first.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey {
     bytes: [u8; KEY_SIZE],
     public_key: FieldElement,
@@ -83,9 +108,21 @@ impl SecretKey {
     /// Perform a Diffie-Hellman key exchange to derive a shared secret.
     /// The shared secret **IS NOT SAFE** to use directly as an encryption key and an additional
     /// key derivation operation must be applied to it.
-    pub fn ecdh(&self, peer: &PublicKey) -> [u8; SHARED_SECRET_SIZE] {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EllipticCurveError::InvalidSharedSecret`] if the computed
+    /// shared secret is all zeros, which occurs when `peer` is a low-order
+    /// public key. Such a secret is publicly known and must not be used to
+    /// derive keys unless the protocol independently binds the peer public
+    /// key into the derivation. See the [type-level documentation](SecretKey)
+    /// for details.
+    pub fn ecdh(&self, peer: &PublicKey) -> Result<[u8; SHARED_SECRET_SIZE], EllipticCurveError> {
         let result = x25519_inner(&self.bytes, peer.u);
-        result.to_bytes()
+        if result.is_zero() {
+            return Err(EllipticCurveError::InvalidSharedSecret);
+        }
+        Ok(result.to_bytes())
     }
 }
 
@@ -143,6 +180,39 @@ pub struct PublicKey {
     u: FieldElement,
 }
 
+/// Canonical u-coordinates of the low-order points on Curve25519.
+///
+/// These are the points whose order divides the curve cofactor (8). Because
+/// X25519 clamps the scalar to a multiple of 8, multiplying any of them by a
+/// valid scalar yields the point at infinity, encoded as `u = 0`. Non-canonical
+/// encodings (`u >= p`) are reduced by [`FieldElement::from_relaxed_bytes`]
+/// before this comparison, so they are covered too.
+const LOW_ORDER_U: [[u8; KEY_SIZE]; 5] = [
+    // u = 0
+    [0u8; KEY_SIZE],
+    // u = 1
+    {
+        let mut u = [0u8; KEY_SIZE];
+        u[0] = 1;
+        u
+    },
+    // u = p - 1
+    [
+        0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+    ],
+    // order-8 point
+    [
+        0xe0, 0xeb, 0x7a, 0x7c, 0x3b, 0x41, 0xb8, 0xae, 0x16, 0x56, 0xe3, 0xfa, 0xf1, 0x9f, 0xc4, 0x6a, 0xda, 0x09,
+        0x8d, 0xeb, 0x9c, 0x32, 0xb1, 0xfd, 0x86, 0x62, 0x05, 0x16, 0x5f, 0x49, 0xb8, 0x00,
+    ],
+    // order-8 point
+    [
+        0x5f, 0x9c, 0x95, 0xbc, 0xa3, 0x50, 0x8c, 0x24, 0xb1, 0xd0, 0xb1, 0x55, 0x9c, 0x83, 0xef, 0x5b, 0x04, 0x44,
+        0x5c, 0xc4, 0x58, 0x1c, 0x8e, 0x86, 0xd8, 0x22, 0x4e, 0xdd, 0xd0, 0x9f, 0x11, 0x57,
+    ],
+];
+
 impl PublicKey {
     pub fn from_bytes(bytes: &[u8; KEY_SIZE]) -> Self {
         let u = FieldElement::from_relaxed_bytes(bytes);
@@ -154,6 +224,21 @@ impl PublicKey {
     #[inline]
     pub fn to_bytes(&self) -> [u8; KEY_SIZE] {
         self.u.to_bytes()
+    }
+
+    /// Returns `true` if this public key is a low-order point on Curve25519.
+    ///
+    /// Low-order public keys are never produced by honest key generation.
+    /// Passing one to [`SecretKey::ecdh`] produces an all-zero, publicly known
+    /// shared secret, so it must be rejected or otherwise neutralized. The
+    /// comparison is constant-time with respect to the key bytes.
+    pub fn is_low_order(&self) -> bool {
+        let bytes = self.u.to_bytes();
+        let mut found = 0u8;
+        for candidate in &LOW_ORDER_U {
+            found |= constant_time_eq(&bytes, candidate) as u8;
+        }
+        found != 0
     }
 }
 
@@ -251,10 +336,30 @@ mod tests {
     use super::*;
     use crate::curve25519::curve25519::{P, U256};
 
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn secret_key_zeroize_clears_bytes() {
+        use zeroize::Zeroize;
+
+        let mut key = SecretKey::from_bytes(&[1u8; KEY_SIZE]);
+        assert_ne!(key.to_bytes(), [0u8; KEY_SIZE]);
+        key.zeroize();
+        assert_eq!(key.to_bytes(), [0u8; KEY_SIZE]);
+    }
+
     fn x25519(private_key: &[u8; KEY_SIZE], public_key: &[u8; KEY_SIZE]) -> [u8; SHARED_SECRET_SIZE] {
         let priv_key = SecretKey::from_bytes(private_key);
         let pub_key = PublicKey::from_bytes(public_key);
-        priv_key.ecdh(&pub_key)
+        priv_key
+            .ecdh(&pub_key)
+            .expect("test vector must have a non-zero shared secret")
+    }
+
+    fn x25519_checked(
+        private_key: &[u8; KEY_SIZE],
+        public_key: &[u8; KEY_SIZE],
+    ) -> Result<[u8; SHARED_SECRET_SIZE], EllipticCurveError> {
+        SecretKey::from_bytes(private_key).ecdh(&PublicKey::from_bytes(public_key))
     }
 
     fn decode_hex<const N: usize>(hex_str: &str) -> [u8; N] {
@@ -287,8 +392,8 @@ mod tests {
         assert_eq!(alice.public_key().to_bytes(), expected_alice_pub);
         assert_eq!(bob.public_key().to_bytes(), expected_bob_pub);
 
-        let alice_shared = alice.ecdh(&bob.public_key());
-        let bob_shared = bob.ecdh(&alice.public_key());
+        let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
+        let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
 
         assert_eq!(alice_shared, expected_shared);
         assert_eq!(bob_shared, expected_shared);
@@ -299,8 +404,8 @@ mod tests {
         let alice = SecretKey::generate();
         let bob = SecretKey::generate();
 
-        let alice_shared = alice.ecdh(&bob.public_key());
-        let bob_shared = bob.ecdh(&alice.public_key());
+        let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
+        let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
         assert_eq!(alice_shared, bob_shared);
         assert_eq!(alice_shared.len(), 32);
     }
@@ -344,8 +449,8 @@ mod tests {
         let x_alice_pub = PublicKey::try_from(&ed_alice.public_key()).unwrap();
         let x_bob_pub = PublicKey::try_from(&ed_bob.public_key()).unwrap();
 
-        let alice_shared = x_alice.ecdh(&x_bob_pub);
-        let bob_shared = x_bob.ecdh(&x_alice_pub);
+        let alice_shared = x_alice.ecdh(&x_bob_pub).unwrap();
+        let bob_shared = x_bob.ecdh(&x_alice_pub).unwrap();
         assert_eq!(alice_shared, bob_shared);
     }
 
@@ -450,8 +555,11 @@ mod tests {
     fn low_order_point_zero() {
         let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
         let all_zero = [0u8; 32];
-        let output = x25519(&scalar, &all_zero);
-        assert_eq!(output, [0u8; 32], "X25519 with u=0 must produce all-zero output");
+        assert_eq!(
+            x25519_checked(&scalar, &all_zero),
+            Err(EllipticCurveError::InvalidSharedSecret),
+            "X25519 with u=0 must be rejected"
+        );
     }
 
     #[test]
@@ -459,8 +567,61 @@ mod tests {
         let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
         let mut u_one = [0u8; 32];
         u_one[0] = 1;
-        let output = x25519(&scalar, &u_one);
-        let _ = output;
+        assert_eq!(
+            x25519_checked(&scalar, &u_one),
+            Err(EllipticCurveError::InvalidSharedSecret),
+            "X25519 with u=1 must be rejected"
+        );
+    }
+
+    #[test]
+    fn low_order_points_are_rejected() {
+        let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        for u in LOW_ORDER_U {
+            assert!(
+                PublicKey::from_bytes(&u).is_low_order(),
+                "u={} must be low order",
+                hex::encode(u)
+            );
+            assert_eq!(
+                x25519_checked(&scalar, &u),
+                Err(EllipticCurveError::InvalidSharedSecret),
+                "low-order u={} must be rejected",
+                hex::encode(u)
+            );
+        }
+    }
+
+    #[test]
+    fn non_canonical_low_order_points_are_rejected() {
+        let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        // `u = p` reduces to 0 and `u = p + 1` reduces to 1; both are low order.
+        let non_canonical = [
+            decode_hex::<32>("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
+            decode_hex::<32>("eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
+        ];
+        for u in non_canonical {
+            assert!(
+                PublicKey::from_bytes(&u).is_low_order(),
+                "u={} must be low order",
+                hex::encode(u)
+            );
+            assert_eq!(
+                x25519_checked(&scalar, &u),
+                Err(EllipticCurveError::InvalidSharedSecret),
+                "non-canonical low-order u={} must be rejected",
+                hex::encode(u)
+            );
+        }
+    }
+
+    #[test]
+    fn is_low_order_false_for_honest_keys() {
+        let basepoint = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
+        assert!(!PublicKey::from_bytes(&basepoint).is_low_order());
+        for _ in 0..16 {
+            assert!(!SecretKey::generate().public_key().is_low_order());
+        }
     }
 
     #[test]
@@ -517,23 +678,17 @@ mod tests {
     fn wycheproof_low_order_and_zero_shared() {
         let private = decode_hex::<32>("786a33a4f7af297a20e7642925932bf509e7070fa1bc36986af1eb13f4f50b55");
 
-        let shared = x25519(
-            &private,
-            &decode_hex::<32>("0000000000000000000000000000000000000000000000000000000000000000"),
-        );
-        assert_eq!(shared, [0u8; 32]);
-
-        let shared = x25519(
-            &private,
-            &decode_hex::<32>("0100000000000000000000000000000000000000000000000000000000000000"),
-        );
-        assert_eq!(shared, [0u8; 32]);
-
-        let shared = x25519(
-            &private,
-            &decode_hex::<32>("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
-        );
-        assert_eq!(shared, [0u8; 32]);
+        for u in [
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "0100000000000000000000000000000000000000000000000000000000000000",
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        ] {
+            assert_eq!(
+                x25519_checked(&private, &decode_hex::<32>(u)),
+                Err(EllipticCurveError::InvalidSharedSecret),
+                "low-order u={u} must be rejected"
+            );
+        }
     }
 
     #[test]
@@ -666,7 +821,7 @@ mod tests {
     fn x25519_self_ecdh_consistency() {
         let alice = SecretKey::generate();
         let alice_pub = alice.public_key();
-        let alice_shared = alice.ecdh(&alice_pub);
+        let alice_shared = alice.ecdh(&alice_pub).unwrap();
         assert_eq!(alice_shared.len(), 32);
     }
 
@@ -704,19 +859,28 @@ mod tests {
                 let public_key = decode_hex::<32>(public_hex);
                 let private_key = decode_hex::<32>(private_hex);
 
-                let shared = x25519(&private_key, &public_key);
-                // assert!(shared.is_ok(), "wycheproof x25519 tcId={} returned error", test["tcId"]);
-                // let shared = shared.unwrap();
-                let shared_hex = hex::encode(shared);
+                let shared = x25519_checked(&private_key, &public_key);
 
                 if result == "valid" {
+                    let shared = shared.expect("valid wycheproof x25519 vector must not error");
                     assert_eq!(
-                        shared_hex, expected_shared_hex,
+                        hex::encode(shared),
+                        expected_shared_hex,
                         "wycheproof x25519 tcId={} shared secret mismatch",
                         test["tcId"]
                     );
                     valid_tested += 1;
                 } else {
+                    // Non-valid vectors (typically low-order public keys) may be
+                    // rejected or, if accepted, must match the expected secret.
+                    if let Ok(shared) = shared {
+                        assert_eq!(
+                            hex::encode(shared),
+                            expected_shared_hex,
+                            "wycheproof x25519 tcId={} acceptable shared secret mismatch",
+                            test["tcId"]
+                        );
+                    }
                     acceptable_tested += 1;
                 }
             }

@@ -1,5 +1,11 @@
+//! P-256 (secp256r1) ECDSA and ECDH.
+//!
+//! See [`SecretKey`] and [`PublicKey`] for the signing, verification and key
+//! agreement APIs.
+
 use big_number::{Uint, mac};
 
+use super::p_curves::{self, Curve, UintOps, field_pow};
 use crate::{EllipticCurveError, Hasher, hmac::Hmac, sha2::Sha256};
 
 /// Size of a P-256 secret key in bytes (32 bytes).
@@ -21,19 +27,19 @@ pub const ECDH_SHARED_SECRET_SIZE: usize = 32;
 /// # Signing
 ///
 /// ```ignore
-/// use crypto::p256::PrivateKey;
+/// use crypto::p256::SecretKey;
 ///
-/// let key = PrivateKey::generate().unwrap();
+/// let key = SecretKey::generate().unwrap();
 /// let signature = key.sign(b"message").unwrap();
 /// ```
 ///
 /// # ECDH key exchange
 ///
 /// ```ignore
-/// use crypto::p256::PrivateKey;
+/// use crypto::p256::SecretKey;
 ///
-/// let alice = PrivateKey::generate().unwrap();
-/// let bob = PrivateKey::generate().unwrap();
+/// let alice = SecretKey::generate().unwrap();
+/// let bob = SecretKey::generate().unwrap();
 /// let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
 /// let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
 /// assert_eq!(alice_shared, bob_shared);
@@ -43,47 +49,58 @@ pub const ECDH_SHARED_SECRET_SIZE: usize = 32;
 ///
 /// The raw shared secret from [`ecdh`](Self::ecdh) **must not** be used
 /// directly as an encryption key. Apply a KDF (e.g. HKDF) first.
-// TODO: zeroize
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SecretKey {
-    scalar: Scalar,
-    public_point: AffinePoint,
-}
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub struct SecretKey(p_curves::SecretKey<P256>);
 
 impl SecretKey {
+    /// Generates a fresh random secret key.
     #[cfg(feature = "random")]
     pub fn generate() -> Result<SecretKey, EllipticCurveError> {
-        let key: [u8; SECRET_KEY_SIZE] = crate::random::random_bytes();
-        Self::from_bytes(&key)
+        Ok(SecretKey(p_curves::SecretKey::generate()?))
     }
 
+    /// Builds a secret key from its 32-byte big-endian scalar.
+    ///
+    /// Returns [`EllipticCurveError::InvalidKey`] when the scalar is zero or
+    /// greater than or equal to the group order.
     pub fn from_bytes(key: &[u8; SECRET_KEY_SIZE]) -> Result<SecretKey, EllipticCurveError> {
-        let scalar = Scalar::from_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
-        let public_point = scalar_mul_generator(&scalar)
-            .to_affine()
-            .ok_or(EllipticCurveError::Unspecified)?;
-        Ok(SecretKey {
-            scalar,
-            public_point,
-        })
+        Ok(SecretKey(p_curves::SecretKey::from_bytes(key)?))
     }
 
+    /// Returns the corresponding public key.
     pub fn public_key(&self) -> PublicKey {
-        PublicKey {
-            point: self.public_point,
-        }
+        PublicKey(self.0.public_key())
     }
 
+    /// Signs `message` with ECDSA using SHA-256 and deterministic (RFC 6979)
+    /// nonces.
+    ///
+    /// The emitted signature is always in canonical low-s form (`s <= n / 2`),
+    /// so a given key and message always produce the exact same signature
+    /// bytes. This prevents signature malleability for systems that hash the
+    /// signature bytes (e.g. transaction ids, replay caches).
+    ///
+    /// Verification remains permissive by default (both `s` and `n - s` are
+    /// accepted); use [`PublicKey::verify_strict`] if high-s signatures must be
+    /// rejected.
     pub fn sign(&self, message: &[u8]) -> Result<[u8; SIGNATURE_SIZE], EllipticCurveError> {
-        ecdsa_sign_inner(&self.scalar, message)
+        self.0.sign(message)
     }
 
+    /// Computes the ECDH shared secret with `peer_public`.
+    ///
+    /// # Security
+    ///
+    /// The raw shared secret **must not** be used directly as an encryption
+    /// key. Apply a KDF (e.g. HKDF) first.
     pub fn ecdh(&self, peer_public: &PublicKey) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-        ecdh_inner(&self.scalar, &peer_public.point)
+        self.0.ecdh(&peer_public.0)
     }
 
+    /// Returns the secret scalar as 32 big-endian bytes.
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_SIZE] {
-        self.scalar.to_bytes()
+        self.0.to_bytes()
     }
 }
 
@@ -94,27 +111,26 @@ impl SecretKey {
 /// # Verification
 ///
 /// ```ignore
-/// use crypto::p256::PrivateKey;
+/// use crypto::p256::SecretKey;
 ///
-/// let key = PrivateKey::generate().unwrap();
+/// let key = SecretKey::generate().unwrap();
 /// let signature = key.sign(b"message").unwrap();
 /// assert!(key.public_key().verify(b"message", &signature).is_ok());
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PublicKey {
-    point: AffinePoint,
-}
+pub struct PublicKey(p_curves::PublicKey<P256>);
 
 impl PublicKey {
+    /// Parses a compressed (33-byte) or uncompressed (65-byte) SEC1 encoding.
+    ///
+    /// Returns [`EllipticCurveError::InvalidKey`] when the encoding is not a
+    /// valid point on the P-256 curve.
     #[inline]
     pub fn from_bytes(key: &[u8]) -> Result<PublicKey, EllipticCurveError> {
-        let point = AffinePoint::from_sec1_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
-        Ok(PublicKey {
-            point,
-        })
+        Ok(PublicKey(p_curves::PublicKey::from_bytes(key)?))
     }
 
-    /// Build a public key from raw affine x and y coordinates (both
+    /// Builds a public key from raw affine x and y coordinates (both
     /// big-endian, 32 bytes each). Returns `InvalidKey` if the coordinates
     /// are not a valid point on the P-256 curve.
     ///
@@ -122,87 +138,118 @@ impl PublicKey {
     /// and `y` are available directly.
     #[inline]
     pub fn from_x_y(x_bytes: &[u8; 32], y_bytes: &[u8; 32]) -> Result<PublicKey, EllipticCurveError> {
-        let x = FieldElement::from_bytes(x_bytes).ok_or(EllipticCurveError::InvalidKey)?;
-        let y = FieldElement::from_bytes(y_bytes).ok_or(EllipticCurveError::InvalidKey)?;
-        let point = AffinePoint::new(x, y).ok_or(EllipticCurveError::InvalidKey)?;
-        Ok(PublicKey {
-            point,
-        })
+        Ok(PublicKey(p_curves::PublicKey::from_x_y(x_bytes, y_bytes)?))
     }
 
+    /// Verifies an ECDSA signature over `message` using SHA-256.
+    ///
+    /// Both canonical low-s and non-canonical high-s signatures are accepted,
+    /// matching typical ECDSA interoperability. Use [`Self::verify_strict`] to
+    /// additionally reject high-s signatures.
     pub fn verify(&self, message: &[u8], signature: &[u8; SIGNATURE_SIZE]) -> Result<(), EllipticCurveError> {
-        ecdsa_verify_inner(&self.point, message, signature)
+        self.0.verify(message, signature)
     }
 
+    /// Verifies an ECDSA signature over `message` using SHA-256, additionally
+    /// rejecting non-canonical high-s signatures (`s > n / 2`).
+    ///
+    /// Use this when signature malleability must be excluded (Bitcoin/EIP-2
+    /// style). Note that some third-party signers emit high-s signatures, which
+    /// this method will reject; [`Self::verify`] accepts both forms.
+    pub fn verify_strict(&self, message: &[u8], signature: &[u8; SIGNATURE_SIZE]) -> Result<(), EllipticCurveError> {
+        self.0.verify_strict(message, signature)
+    }
+
+    /// Returns the 65-byte uncompressed SEC1 encoding (`0x04 || x || y`).
     #[inline]
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE] {
-        self.point.to_uncompressed_bytes()
+        self.0.to_bytes()
+    }
+
+    /// Returns the 33-byte compressed SEC1 encoding (`0x02`/`0x03 || x`).
+    #[inline]
+    pub fn to_compressed_bytes(&self) -> [u8; PUBLIC_KEY_COMPRESSED_SIZE] {
+        self.0.to_compressed_bytes()
     }
 
     /// Returns the `X` and `Y` points as big-endian arrays.
     #[inline]
     pub fn x_y(&self) -> ([u8; 32], [u8; 32]) {
-        (self.point.x.to_bytes(), self.point.y.to_bytes())
+        self.0.x_y()
     }
 }
 
-type U256 = Uint<256, 4>;
+/// Marker type carrying the P-256 curve parameters.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct P256;
 
-const MODULUS_P: U256 = U256::from_limbs([
+type U256 = Uint<256, 4>;
+type CurveUint = U256;
+
+const MODULUS_P: CurveUint = CurveUint::from_limbs([
     0xffff_ffff_ffff_ffff,
     0x0000_0000_ffff_ffff,
     0x0000_0000_0000_0000,
     0xffff_ffff_0000_0001,
 ]);
 
-const MODULUS_N: U256 = U256::from_limbs([
+const MODULUS_N: CurveUint = CurveUint::from_limbs([
     0xf3b9_cac2_fc63_2551,
     0xbce6_faad_a717_9e84,
     0xffff_ffff_ffff_ffff,
     0xffff_ffff_0000_0000,
 ]);
 
-const P_MINUS_TWO: U256 = U256::from_limbs([
+// floor(n / 2). A signature scalar `s` is "high" when `s > N_HALF`, in which
+// case it is normalized to `n - s` so that signatures are non-malleable.
+const N_HALF: CurveUint = CurveUint::from_limbs([
+    0x79dc_e561_7e31_92a8,
+    0xde73_7d56_d38b_cf42,
+    0x7fff_ffff_ffff_ffff,
+    0x7fff_ffff_8000_0000,
+]);
+
+const P_MINUS_TWO: CurveUint = CurveUint::from_limbs([
     0xffff_ffff_ffff_fffd,
     0x0000_0000_ffff_ffff,
     0x0000_0000_0000_0000,
     0xffff_ffff_0000_0001,
 ]);
 
-const P_PLUS_ONE_OVER_FOUR: U256 = U256::from_limbs([
+const P_PLUS_ONE_OVER_FOUR: CurveUint = CurveUint::from_limbs([
     0x0000_0000_0000_0000,
     0x0000_0000_4000_0000,
     0x4000_0000_0000_0000,
     0x3fff_ffff_c000_0000,
 ]);
 
-const N_MINUS_TWO: U256 = U256::from_limbs([
+const N_MINUS_TWO: CurveUint = CurveUint::from_limbs([
     0xf3b9_cac2_fc63_254f,
     0xbce6_faad_a717_9e84,
     0xffff_ffff_ffff_ffff,
     0xffff_ffff_0000_0000,
 ]);
 
-const CURVE_B: FieldElement = FieldElement(U256::from_limbs([
+const CURVE_B: CurveUint = CurveUint::from_limbs([
     0x3bce_3c3e_27d2_604b,
     0x651d_06b0_cc53_b0f6,
     0xb3eb_bd55_7698_86bc,
     0x5ac6_35d8_aa3a_93e7,
-]));
+]);
 
-const GENERATOR_X: FieldElement = FieldElement(U256::from_limbs([
+const GENERATOR_X: CurveUint = CurveUint::from_limbs([
     0xf4a1_3945_d898_c296,
     0x7703_7d81_2deb_33a0,
     0xf8bc_e6e5_63a4_40f2,
     0x6b17_d1f2_e12c_4247,
-]));
+]);
 
-const GENERATOR_Y: FieldElement = FieldElement(U256::from_limbs([
+const GENERATOR_Y: CurveUint = CurveUint::from_limbs([
     0xcbb6_4068_37bf_51f5,
     0x2bce_3357_6b31_5ece,
     0x8ee7_eb4a_7c0f_9e16,
     0x4fe3_42e2_fe1a_7f9b,
-]));
+]);
 
 // P-256 fast reduction constants: S^i = 2^(64i) mod p
 // Verified against Python with 100k random tests.
@@ -243,7 +290,7 @@ fn ct_select_u128(a: u128, b: u128, choice: bool) -> u128 {
 
 // P-256 fast modular multiplication using u128 accumulators.
 // All loops run fixed iteration counts with ct_select for constant-time.
-fn p256_fast_mul_mod(a: &U256, b: &U256) -> U256 {
+fn p256_fast_mul_mod(a: &CurveUint, b: &CurveUint) -> CurveUint {
     let al = a.limbs;
     let bl = b.limbs;
 
@@ -310,104 +357,58 @@ fn p256_fast_mul_mod(a: &U256, b: &U256) -> U256 {
     }
 
     // Fixed 8 conditional subtractions (result may be up to ~16×p).
-    let mut result = U256::from_limbs([r0 as u64, r1 as u64, r2 as u64, r3 as u64]);
+    let mut result = CurveUint::from_limbs([r0 as u64, r1 as u64, r2 as u64, r3 as u64]);
     for _ in 0..8 {
         let (sub, borrow) = result.sub_raw(&MODULUS_P);
-        result = U256::ct_select(&sub, &result, borrow == 0);
+        result = CurveUint::ct_select(&sub, &result, borrow == 0);
     }
     result
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct FieldElement(U256);
+// Reduce a big-endian value modulo n, accepting zero and values >= n.
+#[inline]
+fn reduce_mod(value: CurveUint) -> CurveUint {
+    let (sub_value, _) = value.sub_raw(&MODULUS_N);
+    CurveUint::ct_select(&sub_value, &value, value.ct_ge(&MODULUS_N))
+}
 
-impl FieldElement {
-    const ZERO: Self = Self(U256::ZERO);
-    const ONE: Self = Self(U256::ONE);
+impl Curve for P256 {
+    type U = CurveUint;
+    type FieldBytes = [u8; SECRET_KEY_SIZE];
+    type DigestBytes = [u8; 32];
+    type CompressedBytes = [u8; PUBLIC_KEY_COMPRESSED_SIZE];
+    type UncompressedBytes = [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE];
+    type SignatureBytes = [u8; SIGNATURE_SIZE];
+
+    const FIELD_BITS: usize = 256;
+    const FIELD_BYTES: usize = SECRET_KEY_SIZE;
+    const DIGEST_BYTES: usize = 32;
+    const COMPRESSED_BYTES: usize = PUBLIC_KEY_COMPRESSED_SIZE;
+    const UNCOMPRESSED_BYTES: usize = PUBLIC_KEY_UNCOMPRESSED_SIZE;
+
+    const MODULUS_P: CurveUint = MODULUS_P;
+    const MODULUS_N: CurveUint = MODULUS_N;
+    const N_HALF: CurveUint = N_HALF;
+    const P_MINUS_TWO: CurveUint = P_MINUS_TWO;
+    const N_MINUS_TWO: CurveUint = N_MINUS_TWO;
+    const CURVE_B: CurveUint = CURVE_B;
+    const GENERATOR_X: CurveUint = GENERATOR_X;
+    const GENERATOR_Y: CurveUint = GENERATOR_Y;
 
     #[inline]
-    fn from_bytes(bytes: &[u8; 32]) -> Option<Self> {
-        let value = U256::from_be_slice(bytes);
-        if value.ct_ge(&MODULUS_P) {
-            None
-        } else {
-            Some(Self(value))
-        }
+    fn field_mul(a: &Self::U, b: &Self::U) -> Self::U {
+        p256_fast_mul_mod(a, b)
     }
 
     #[inline]
-    fn to_bytes(self) -> [u8; 32] {
-        self.0.to_be_bytes_fixed::<32>()
+    fn scalar_mul(a: &Self::U, b: &Self::U) -> Self::U {
+        a.mul_mod(b, &MODULUS_N)
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.0.is_zero()
-    }
-
-    #[inline]
-    fn is_odd(&self) -> bool {
-        self.0.is_odd()
-    }
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self {
-        Self(self.0.add_mod(&rhs.0, &MODULUS_P))
-    }
-
-    #[inline]
-    fn sub(self, rhs: Self) -> Self {
-        Self(self.0.sub_mod(&rhs.0, &MODULUS_P))
-    }
-
-    #[inline]
-    fn double(self) -> Self {
-        Self(self.0.double_mod(&MODULUS_P))
-    }
-
-    #[inline]
-    fn square(self) -> Self {
-        self.mul(self)
-    }
-
-    #[inline]
-    fn mul(self, rhs: Self) -> Self {
-        Self(p256_fast_mul_mod(&self.0, &rhs.0))
-    }
-
-    #[inline]
-    fn triple(self) -> Self {
-        self.double().add(self)
-    }
-
-    #[inline]
-    fn negate(self) -> Self {
-        let (diff, _) = MODULUS_P.sub_raw(&self.0);
-        Self(U256::ct_select(&U256::ZERO, &diff, self.is_zero()))
-    }
-
-    #[inline]
-    fn pow(self, exponent: &U256) -> Self {
-        let mut result = Self::ONE;
-        let mut i = 256usize;
-        while i > 0 {
-            i -= 1;
-            result = result.square();
-            let product = result.mul(self);
-            result = Self::select(&product, &result, exponent.bit(i));
-        }
-        result
-    }
-
-    #[inline]
-    fn invert(self) -> Option<Self> {
-        Some(self.pow(&P_MINUS_TWO))
-    }
-
-    #[inline]
-    fn sqrt(self) -> Option<Self> {
-        let candidate = self.pow(&P_PLUS_ONE_OVER_FOUR);
-        if U256::ct_eq(&self.0, &candidate.square().0) {
+    fn field_sqrt(a: Self::U) -> Option<Self::U> {
+        let candidate = field_pow::<Self>(a, &P_PLUS_ONE_OVER_FOUR);
+        if a.ct_eq(&Self::field_mul(&candidate, &candidate)) {
             Some(candidate)
         } else {
             None
@@ -415,545 +416,121 @@ impl FieldElement {
     }
 
     #[inline]
-    fn select(a: &Self, b: &Self, choice: bool) -> Self {
-        Self(U256::ct_select(&a.0, &b.0, choice))
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Scalar(U256);
-
-impl Scalar {
-    const ZERO: Self = Self(U256::ZERO);
-    const ONE: Self = Self(U256::ONE);
-
-    #[inline]
-    fn from_bytes(bytes: &[u8; 32]) -> Option<Self> {
-        let value = U256::from_be_slice(bytes);
-        if value.is_zero() || value.ct_ge(&MODULUS_N) {
-            None
-        } else {
-            Some(Self(value))
-        }
+    fn hash(data: &[u8]) -> Self::DigestBytes {
+        Sha256::hash(data).as_ref().try_into().unwrap()
     }
 
     #[inline]
-    fn from_hash(hash: &[u8; 32]) -> Self {
-        let value = U256::from_be_slice(hash);
-        let (sub_value, _) = value.sub_raw(&MODULUS_N);
-        let reduced = U256::ct_select(&sub_value, &value, value.ct_ge(&MODULUS_N));
-        Self(reduced)
+    fn hmac(key: &[u8], data: &[u8]) -> Self::DigestBytes {
+        Hmac::<Sha256>::mac(key, data).as_ref().try_into().unwrap()
     }
 
     #[inline]
-    fn to_bytes(self) -> [u8; 32] {
-        self.0.to_be_bytes_fixed::<32>()
+    fn scalar_from_digest(digest: &Self::DigestBytes) -> Self::U {
+        reduce_mod(CurveUint::read_be(digest.as_ref()))
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.0.is_zero()
+    fn scalar_from_field_bytes(bytes: &Self::FieldBytes) -> Self::U {
+        reduce_mod(CurveUint::read_be(bytes.as_ref()))
     }
 
+    #[cfg(feature = "random")]
     #[inline]
-    fn bit(&self, index: usize) -> bool {
-        self.0.bit(index)
-    }
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self {
-        Self(self.0.add_mod(&rhs.0, &MODULUS_N))
-    }
-
-    #[cfg(test)]
-    #[inline]
-    fn sub(self, rhs: Self) -> Self {
-        Self(self.0.sub_mod(&rhs.0, &MODULUS_N))
-    }
-
-    #[inline]
-    fn mul(self, rhs: Self) -> Self {
-        Self(self.0.mul_mod(&rhs.0, &MODULUS_N))
-    }
-
-    #[inline]
-    fn invert(self) -> Option<Self> {
-        Some(Self(self.scalar_pow(&N_MINUS_TWO)))
-    }
-
-    #[inline]
-    fn scalar_pow(self, exponent: &U256) -> U256 {
-        let mut result = Scalar::ONE;
-        let mut i = 256usize;
-        while i > 0 {
-            i -= 1;
-            result = result.mul(result);
-            let product = result.mul(self);
-            result = Scalar::select(&product, &result, exponent.bit(i));
-        }
-        result.0
-    }
-
-    #[inline]
-    fn select(a: &Self, b: &Self, choice: bool) -> Self {
-        Self(U256::ct_select(&a.0, &b.0, choice))
+    fn random_secret_key() -> Self::FieldBytes {
+        crate::random::random_bytes()
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct AffinePoint {
-    x: FieldElement,
-    y: FieldElement,
-    infinity: bool,
-}
-
-impl AffinePoint {
-    const GENERATOR: Self = Self {
-        x: GENERATOR_X,
-        y: GENERATOR_Y,
-        infinity: false,
-    };
-
-    #[inline]
-    fn new(x: FieldElement, y: FieldElement) -> Option<Self> {
-        let point = Self {
-            x,
-            y,
-            infinity: false,
-        };
-        if point.is_on_curve() { Some(point) } else { None }
-    }
-
-    #[inline]
-    fn is_on_curve(&self) -> bool {
-        if self.infinity {
-            return false;
-        }
-        let x2 = self.x.square();
-        let x3 = x2.mul(self.x);
-        let rhs = x3.sub(self.x.triple()).add(CURVE_B);
-        self.y.square() == rhs
-    }
-
-    #[inline]
-    fn to_uncompressed_bytes(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE] {
-        let mut out = [0u8; PUBLIC_KEY_UNCOMPRESSED_SIZE];
-        out[0] = 0x04;
-        out[1..33].copy_from_slice(&self.x.to_bytes());
-        out[33..65].copy_from_slice(&self.y.to_bytes());
-        out
-    }
-
-    #[cfg(test)]
-    #[inline]
-    fn to_compressed_bytes(&self) -> [u8; PUBLIC_KEY_COMPRESSED_SIZE] {
-        let mut out = [0u8; PUBLIC_KEY_COMPRESSED_SIZE];
-        out[0] = if self.y.is_odd() { 0x03 } else { 0x02 };
-        out[1..33].copy_from_slice(&self.x.to_bytes());
-        out
-    }
-
-    fn from_sec1_bytes(bytes: &[u8]) -> Option<Self> {
-        match bytes.len() {
-            PUBLIC_KEY_UNCOMPRESSED_SIZE if bytes[0] == 0x04 => {
-                let x = FieldElement::from_bytes(bytes[1..33].try_into().unwrap())?;
-                let y = FieldElement::from_bytes(bytes[33..65].try_into().unwrap())?;
-                Self::new(x, y)
-            }
-            PUBLIC_KEY_COMPRESSED_SIZE if bytes[0] == 0x02 || bytes[0] == 0x03 => {
-                let x = FieldElement::from_bytes(bytes[1..33].try_into().unwrap())?;
-                let rhs = x.square().mul(x).sub(x.triple()).add(CURVE_B);
-                let y = rhs.sqrt()?;
-                let y_is_odd = y.is_odd();
-                let select_neg = y_is_odd != (bytes[0] == 0x03);
-                let y = FieldElement::select(&y.negate(), &y, select_neg);
-                Self::new(x, y)
-            }
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct ProjectivePoint {
-    x: FieldElement,
-    y: FieldElement,
-    z: FieldElement,
-}
-
-impl ProjectivePoint {
-    const IDENTITY: Self = Self {
-        x: FieldElement::ZERO,
-        y: FieldElement::ONE,
-        z: FieldElement::ZERO,
-    };
-
-    #[cfg(test)]
-    #[inline]
-    fn from_affine(point: &AffinePoint) -> Self {
-        if point.infinity {
-            Self::IDENTITY
-        } else {
-            Self {
-                x: point.x,
-                y: point.y,
-                z: FieldElement::ONE,
-            }
-        }
-    }
-
-    #[inline]
-    fn is_identity(&self) -> bool {
-        self.z.is_zero()
-    }
-
-    #[inline]
-    fn select(a: &Self, b: &Self, choice: bool) -> Self {
-        Self {
-            x: FieldElement::select(&a.x, &b.x, choice),
-            y: FieldElement::select(&a.y, &b.y, choice),
-            z: FieldElement::select(&a.z, &b.z, choice),
-        }
-    }
-
-    #[inline]
-    fn to_affine(&self) -> Option<AffinePoint> {
-        if self.is_identity() {
-            return None;
-        }
-        let z_inv = self.z.invert()?;
-        AffinePoint::new(self.x.mul(z_inv), self.y.mul(z_inv))
-    }
-
-    fn add(&self, rhs: &Self) -> Self {
-        let xx = self.x.mul(rhs.x);
-        let yy = self.y.mul(rhs.y);
-        let zz = self.z.mul(rhs.z);
-        let xy_pairs = self.x.add(self.y).mul(rhs.x.add(rhs.y)).sub(xx.add(yy));
-        let yz_pairs = self.y.add(self.z).mul(rhs.y.add(rhs.z)).sub(yy.add(zz));
-        let xz_pairs = self.x.add(self.z).mul(rhs.x.add(rhs.z)).sub(xx.add(zz));
-
-        let bzz_part = xz_pairs.sub(CURVE_B.mul(zz));
-        let bzz3_part = bzz_part.triple();
-        let yy_m_bzz3 = yy.sub(bzz3_part);
-        let yy_p_bzz3 = yy.add(bzz3_part);
-
-        let zz3 = zz.triple();
-        let bxz_part = CURVE_B.mul(xz_pairs).sub(zz3.add(xx));
-        let bxz3_part = bxz_part.triple();
-        let xx3_m_zz3 = xx.triple().sub(zz3);
-
-        Self {
-            x: yy_p_bzz3.mul(xy_pairs).sub(yz_pairs.mul(bxz3_part)),
-            y: yy_p_bzz3.mul(yy_m_bzz3).add(xx3_m_zz3.mul(bxz3_part)),
-            z: yy_m_bzz3.mul(yz_pairs).add(xy_pairs.mul(xx3_m_zz3)),
-        }
-    }
-
-    fn add_mixed(&self, rhs: &AffinePoint) -> Self {
-        if rhs.infinity {
-            return *self;
-        }
-
-        let xx = self.x.mul(rhs.x);
-        let yy = self.y.mul(rhs.y);
-        let xy_pairs = self.x.add(self.y).mul(rhs.x.add(rhs.y)).sub(xx.add(yy));
-        let yz_pairs = rhs.y.mul(self.z).add(self.y);
-        let xz_pairs = rhs.x.mul(self.z).add(self.x);
-
-        let bz_part = xz_pairs.sub(CURVE_B.mul(self.z));
-        let bz3_part = bz_part.triple();
-        let yy_m_bzz3 = yy.sub(bz3_part);
-        let yy_p_bzz3 = yy.add(bz3_part);
-
-        let z3 = self.z.triple();
-        let bxz_part = CURVE_B.mul(xz_pairs).sub(z3.add(xx));
-        let bxz3_part = bxz_part.triple();
-        let xx3_m_zz3 = xx.triple().sub(z3);
-
-        Self {
-            x: yy_p_bzz3.mul(xy_pairs).sub(yz_pairs.mul(bxz3_part)),
-            y: yy_p_bzz3.mul(yy_m_bzz3).add(xx3_m_zz3.mul(bxz3_part)),
-            z: yy_m_bzz3.mul(yz_pairs).add(xy_pairs.mul(xx3_m_zz3)),
-        }
-    }
-
-    fn double(&self) -> Self {
-        let xx = self.x.square();
-        let yy = self.y.square();
-        let zz = self.z.square();
-        let xy2 = self.x.mul(self.y).double();
-        let xz2 = self.x.mul(self.z).double();
-
-        let bzz_part = CURVE_B.mul(zz).sub(xz2);
-        let bzz3_part = bzz_part.triple();
-        let yy_m_bzz3 = yy.sub(bzz3_part);
-        let yy_p_bzz3 = yy.add(bzz3_part);
-        let y_frag = yy_p_bzz3.mul(yy_m_bzz3);
-        let x_frag = yy_m_bzz3.mul(xy2);
-
-        let zz3 = zz.triple();
-        let bxz2_part = CURVE_B.mul(xz2).sub(zz3.add(xx));
-        let bxz6_part = bxz2_part.triple();
-        let xx3_m_zz3 = xx.triple().sub(zz3);
-
-        let y = y_frag.add(xx3_m_zz3.mul(bxz6_part));
-        let yz2 = self.y.mul(self.z).double();
-        let x = x_frag.sub(bxz6_part.mul(yz2));
-        let z = yz2.mul(yy).double().double();
-
-        Self {
-            x,
-            y,
-            z,
-        }
-    }
-}
-
-fn scalar_mul_generator(scalar: &Scalar) -> ProjectivePoint {
-    scalar_mul_affine(&AffinePoint::GENERATOR, scalar)
-}
-
-fn scalar_mul_affine(base: &AffinePoint, scalar: &Scalar) -> ProjectivePoint {
-    let mut acc = ProjectivePoint::IDENTITY;
-    let mut bit = 256usize;
-    while bit > 0 {
-        bit -= 1;
-        acc = acc.double();
-        let candidate = acc.add_mixed(base);
-        acc = ProjectivePoint::select(&candidate, &acc, scalar.bit(bit));
-    }
-    acc
-}
-
-#[inline]
-fn hash_message(message: &[u8]) -> [u8; 32] {
-    let digest = Sha256::hash(message);
-    return digest.as_ref().try_into().unwrap();
-}
-
-#[inline]
-fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
-    let mac = Hmac::<Sha256>::mac(key, data);
-    return mac.as_ref().try_into().unwrap();
-}
-
-fn bits2octets(hash: &[u8; 32]) -> [u8; 32] {
-    Scalar::from_hash(hash).to_bytes()
-}
-
-fn rfc6979_init_state(private_key: &Scalar, message_hash: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
-    let x = private_key.to_bytes();
-    let h1 = bits2octets(message_hash);
-
-    let mut v = [0x01u8; 32];
-    let mut k = [0u8; 32];
-
-    let mut buf = [0u8; 97];
-    buf[..32].copy_from_slice(&v);
-    buf[32] = 0x00;
-    buf[33..65].copy_from_slice(&x);
-    buf[65..97].copy_from_slice(&h1);
-    k = hmac_sha256(&k, &buf);
-    v = hmac_sha256(&k, &v);
-
-    buf[..32].copy_from_slice(&v);
-    buf[32] = 0x01;
-    k = hmac_sha256(&k, &buf);
-    v = hmac_sha256(&k, &v);
-
-    (k, v)
-}
-
-fn rfc6979_retry(k: &mut [u8; 32], v: &mut [u8; 32]) {
-    let mut retry_buf = [0u8; 33];
-    retry_buf[..32].copy_from_slice(v);
-    retry_buf[32] = 0x00;
-    *k = hmac_sha256(k, &retry_buf);
-    *v = hmac_sha256(k, v);
-}
-
-// Returns the post-retry state without mutating, for constant-time selection.
-fn rfc6979_retry_clone(k: &[u8; 32], v: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
-    let mut retry_buf = [0u8; 33];
-    retry_buf[..32].copy_from_slice(v);
-    retry_buf[32] = 0x00;
-    let k_new = hmac_sha256(k, &retry_buf);
-    let v_new = hmac_sha256(&k_new, v);
-    (k_new, v_new)
-}
-
-// Branch-free byte-level select: returns a[i] if choice else b[i].
-fn ct_select_bytes<const N: usize>(a: &[u8; N], b: &[u8; N], choice: bool) -> [u8; N] {
-    let mask = (choice as u8).wrapping_neg();
-    let mut out = [0u8; N];
-    for i in 0..N {
-        out[i] = (a[i] & mask) | (b[i] & !mask);
-    }
-    out
-}
-
-fn rfc6979_generate_k(private_key: &Scalar, message_hash: &[u8; 32]) -> Scalar {
-    let (mut k, mut v) = rfc6979_init_state(private_key, message_hash);
-
-    // Fixed 3 iterations with constant-time state selection.
-    // In each iteration we generate one HMAC output, check validity,
-    // and ct_select between keeping the original state (k valid) or
-    // replacing it with the retry state (k invalid).
-    //
-    // The FIRST valid candidate is captured and returned after the loop.
-    // On the first iteration this matches the original RFC 6979 behavior.
-    let mut candidate = [0u8; 32];
-    let mut found = false;
-
-    for _ in 0..3 {
-        v = hmac_sha256(&k, &v);
-        let val = U256::from_be_slice(&v);
-        let is_valid = !val.is_zero() && !val.ct_ge(&MODULUS_N);
-
-        // Capture the first valid candidate (ct_select: if valid and not yet found, take v)
-        let take = is_valid && !found;
-        candidate = ct_select_bytes(&v, &candidate, take);
-        found = found || is_valid;
-
-        // Advance DRBG: if invalid, replace state with retry state
-        let (k_retry, v_retry) = rfc6979_retry_clone(&k, &v);
-        k = ct_select_bytes(&k, &k_retry, !is_valid);
-        v = ct_select_bytes(&v, &v_retry, !is_valid);
-    }
-
-    if found {
-        // Safety: candidate was produced by Scalar::from_bytes succeeding above.
-        return Scalar::from_bytes(&candidate).unwrap_or(Scalar::ZERO);
-    }
-
-    // Fallback (P > 2^-96): one more HMAC step
-    v = hmac_sha256(&k, &v);
-    if let Some(sc) = Scalar::from_bytes(&v) {
-        return sc;
-    }
-
-    // Astronomically unlikely retry loop
-    loop {
-        v = hmac_sha256(&k, &v);
-        if let Some(sc) = Scalar::from_bytes(&v) {
-            return sc;
-        }
-        rfc6979_retry(&mut k, &mut v);
-    }
-}
-
-fn parse_secret_key(private_key: &[u8; SECRET_KEY_SIZE]) -> Result<Scalar, EllipticCurveError> {
-    Scalar::from_bytes(private_key).ok_or(EllipticCurveError::InvalidKey)
-}
-
-fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, EllipticCurveError> {
-    AffinePoint::from_sec1_bytes(public_key).ok_or(EllipticCurveError::InvalidKey)
-}
-
-#[cfg(test)]
-fn derive_public_key_uncompressed(
-    private_key: &[u8; SECRET_KEY_SIZE],
-) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], EllipticCurveError> {
-    let scalar = parse_secret_key(private_key)?;
-    let point = scalar_mul_generator(&scalar)
-        .to_affine()
-        .ok_or(EllipticCurveError::Unspecified)?;
-    Ok(point.to_uncompressed_bytes())
-}
-
-#[cfg(test)]
-fn derive_public_key_compressed(
-    private_key: &[u8; SECRET_KEY_SIZE],
-) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], EllipticCurveError> {
-    let scalar = parse_secret_key(private_key)?;
-    let point = scalar_mul_generator(&scalar)
-        .to_affine()
-        .ok_or(EllipticCurveError::Unspecified)?;
-    Ok(point.to_compressed_bytes())
-}
-
-fn ecdh_inner(scalar: &Scalar, peer_point: &AffinePoint) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-    let shared_point = scalar_mul_affine(peer_point, scalar)
-        .to_affine()
-        .ok_or(EllipticCurveError::Unspecified)?;
-    Ok(shared_point.x.to_bytes())
-}
-
-pub fn ecdh(
-    secret_key: &[u8; SECRET_KEY_SIZE],
-    peer_public_key: &[u8],
-) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-    let scalar = parse_secret_key(secret_key)?;
-    let peer_point = parse_public_key(peer_public_key)?;
-    ecdh_inner(&scalar, &peer_point)
-}
-
-fn ecdsa_sign_inner(scalar: &Scalar, message: &[u8]) -> Result<[u8; SIGNATURE_SIZE], EllipticCurveError> {
-    let message_hash = hash_message(message);
-    let z = Scalar::from_hash(&message_hash);
-
-    // Fixed 2-iteration loop for r=0/s=0 retry:
-    // First iteration almost always succeeds (r=0 probability ≈ 2^-256).
-    // Second iteration is only reached if the first produced r=0 or s=0,
-    // which is astronomically unlikely. The fixed count avoids timing leaks.
-    for _ in 0..2 {
-        let k = rfc6979_generate_k(scalar, &message_hash);
-
-        let r_point = scalar_mul_generator(&k)
-            .to_affine()
-            .ok_or(EllipticCurveError::Unspecified)?;
-        let r = Scalar::from_hash(&r_point.x.to_bytes());
-        if r.is_zero() {
-            continue;
-        }
-
-        let kinv = k.invert().ok_or(EllipticCurveError::Unspecified)?;
-        let s = kinv.mul(z.add(r.mul(*scalar)));
-        if s.is_zero() {
-            continue;
-        }
-
-        let mut out = [0u8; SIGNATURE_SIZE];
-        out[..32].copy_from_slice(&r.to_bytes());
-        out[32..].copy_from_slice(&s.to_bytes());
-        return Ok(out);
-    }
-
-    Err(EllipticCurveError::Unspecified)
-}
-
-fn ecdsa_verify_inner(
-    public_point: &AffinePoint,
-    message: &[u8],
-    signature: &[u8; SIGNATURE_SIZE],
-) -> Result<(), EllipticCurveError> {
-    let r = Scalar::from_bytes(signature[..32].try_into().unwrap()).ok_or(EllipticCurveError::Unspecified)?;
-    let s = Scalar::from_bytes(signature[32..].try_into().unwrap()).ok_or(EllipticCurveError::Unspecified)?;
-    let z = Scalar::from_hash(&hash_message(message));
-
-    let w = s.invert().ok_or(EllipticCurveError::Unspecified)?;
-    let u1 = z.mul(w);
-    let u2 = r.mul(w);
-
-    let point = scalar_mul_generator(&u1).add(&scalar_mul_affine(public_point, &u2));
-    let affine = point.to_affine().ok_or(EllipticCurveError::Unspecified)?;
-    let x_mod_n = Scalar::from_hash(&affine.x.to_bytes());
-
-    if x_mod_n == r {
-        Ok(())
-    } else {
-        Err(EllipticCurveError::Unspecified)
-    }
-}
-
+/// Returns `true` when `public_key` is a valid SEC1 encoding of a point on the
+/// P-256 curve.
 pub fn is_valid_public_key(public_key: &[u8]) -> bool {
-    AffinePoint::from_sec1_bytes(public_key).is_some()
+    p_curves::is_valid_public_key::<P256>(public_key)
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
     use super::*;
+    use crate::p_curves::p_curves;
+
+    type FieldElement = p_curves::FieldElement<P256>;
+    type Scalar = p_curves::Scalar<P256>;
+    type AffinePoint = p_curves::AffinePoint<P256>;
+    type ProjectivePoint = p_curves::ProjectivePoint<P256>;
+    type Rfc6979 = p_curves::Rfc6979<P256>;
+
+    // Concrete wrappers around the generic core helpers.
+    fn hash_message(message: &[u8]) -> [u8; 32] {
+        p_curves::hash_message::<P256>(message)
+    }
+
+    fn hmac_digest(key: &[u8], data: &[u8]) -> [u8; 32] {
+        p_curves::hmac_digest::<P256>(key, data)
+    }
+
+    fn bits2octets(hash: &[u8; 32]) -> [u8; SECRET_KEY_SIZE] {
+        p_curves::bits2octets::<P256>(hash)
+    }
+
+    fn derive_public_key_uncompressed(
+        private_key: &[u8; SECRET_KEY_SIZE],
+    ) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], crate::EllipticCurveError> {
+        p_curves::derive_public_key_uncompressed::<P256>(private_key)
+    }
+
+    fn derive_public_key_compressed(
+        private_key: &[u8; SECRET_KEY_SIZE],
+    ) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], crate::EllipticCurveError> {
+        p_curves::derive_public_key_compressed::<P256>(private_key)
+    }
+
+    fn ecdsa_sign_inner_impl(
+        scalar: &Scalar,
+        message: &[u8],
+        force_first_retry: bool,
+    ) -> Result<[u8; SIGNATURE_SIZE], crate::EllipticCurveError> {
+        p_curves::ecdsa_sign_inner_impl::<P256>(scalar, message, force_first_retry)
+    }
+
+    fn ecdsa_verify_inner(
+        public_point: &AffinePoint,
+        message: &[u8],
+        signature: &[u8; SIGNATURE_SIZE],
+    ) -> Result<(), crate::EllipticCurveError> {
+        p_curves::ecdsa_verify_inner::<P256>(public_point, message, signature)
+    }
+
+    fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, crate::EllipticCurveError> {
+        p_curves::parse_public_key::<P256>(public_key)
+    }
+
+    fn scalar_mul_generator(scalar: &Scalar) -> ProjectivePoint {
+        p_curves::scalar_mul_generator::<P256>(scalar)
+    }
+
+    fn scalar_mul_affine(base: &AffinePoint, scalar: &Scalar) -> ProjectivePoint {
+        p_curves::scalar_mul_affine::<P256>(base, scalar)
+    }
+
+    // Raw-byte ECDH built from the public method, for the vector tests.
+    fn ecdh(
+        secret_key: &[u8; SECRET_KEY_SIZE],
+        peer_public_key: &[u8],
+    ) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], crate::EllipticCurveError> {
+        SecretKey::from_bytes(secret_key)?.ecdh(&PublicKey::from_bytes(peer_public_key)?)
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn secret_key_zeroize_clears_scalar() {
+        use zeroize::Zeroize;
+
+        let mut key = SecretKey::from_bytes(&[1u8; SECRET_KEY_SIZE]).unwrap();
+        assert_ne!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+        key.zeroize();
+        assert_eq!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+    }
 
     fn decode_hex<const N: usize>(hex_bytes: &str) -> [u8; N] {
         let bytes = hex::decode(hex_bytes).unwrap();
@@ -1131,11 +708,6 @@ mod tests {
     }
 
     #[test]
-    fn from_x_y_rejects_off_curve() {
-        assert!(PublicKey::from_x_y(&[0u8; 32], &[0u8; 32]).is_err());
-    }
-
-    #[test]
     fn derive_public_key_generator_matches_sec1_base_point() {
         let mut private_key = [0u8; 32];
         private_key[31] = 1;
@@ -1165,10 +737,12 @@ mod tests {
     fn ecdsa_sign_matches_rfc6979_vectors() {
         let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
         let key = SecretKey::from_bytes(&private_key).unwrap();
+        // The raw RFC 6979 "sample" signature has high s (f7cb…cda8); the
+        // expected value below is its canonical low-s form (n - s).
         let sample_signature = key.sign(b"sample").unwrap();
         let expected_sample = decode_hex::<64>(
             "efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716\
-             f7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8",
+             0834e36ad29a83bf2bc9385e491d6099c8fdf9d1ed67aa7ea5f51f93782857a9",
         );
         assert_eq!(sample_signature, expected_sample);
 
@@ -1178,6 +752,43 @@ mod tests {
              019f4113742a2b14bd25926b49c649155f267e60d3814b4c0cc84250e46f0083",
         );
         assert_eq!(test_signature, expected_test);
+    }
+
+    #[test]
+    fn ecdsa_sign_emits_canonical_low_s() {
+        let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
+        let key = SecretKey::from_bytes(&private_key).unwrap();
+        for msg in [&b"sample"[..], b"test", b"", b"another message"] {
+            let sig = key.sign(msg).unwrap();
+            let s = Scalar::from_bytes(sig[32..].try_into().unwrap()).unwrap();
+            assert!(!s.is_high(), "sign produced a high-s signature for {:?}", msg);
+        }
+    }
+
+    #[test]
+    fn ecdsa_verify_strict_rejects_high_s() {
+        let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
+        let key = SecretKey::from_bytes(&private_key).unwrap();
+        let public_key = key.public_key();
+        let signature = key.sign(b"sample").unwrap();
+
+        // Canonical low-s signature passes both permissive and strict verification.
+        assert!(public_key.verify(b"sample", &signature).is_ok());
+        assert!(public_key.verify_strict(b"sample", &signature).is_ok());
+
+        // The malleable counterpart (r, n - s) must be rejected by strict verify
+        // but remains accepted by the permissive default.
+        let r = Scalar::from_bytes(signature[..32].try_into().unwrap()).unwrap();
+        let s = Scalar::from_bytes(signature[32..].try_into().unwrap()).unwrap();
+        let high_s = Scalar::ZERO.sub(s);
+        assert!(high_s.is_high());
+
+        let mut malleable = [0u8; SIGNATURE_SIZE];
+        malleable[..32].copy_from_slice(&r.to_bytes());
+        malleable[32..].copy_from_slice(&high_s.to_bytes());
+
+        assert!(public_key.verify(b"sample", &malleable).is_ok());
+        assert!(public_key.verify_strict(b"sample", &malleable).is_err());
     }
 
     #[test]
@@ -1198,9 +809,50 @@ mod tests {
         .unwrap();
         let hash = hash_message(b"sample");
         assert_eq!(
-            rfc6979_generate_k(&private_key, &hash).to_bytes(),
+            Rfc6979::new(&private_key, &hash).generate().to_bytes(),
             decode_hex::<32>("a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60")
         );
+    }
+
+    #[test]
+    fn rfc6979_retry_advances_drbg() {
+        let private_key = Scalar::from_bytes(&decode_hex::<32>(
+            "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721",
+        ))
+        .unwrap();
+        let hash = hash_message(b"sample");
+
+        let mut drbg = Rfc6979::new(&private_key, &hash);
+        let k1 = drbg.generate();
+        assert_eq!(
+            k1.to_bytes(),
+            decode_hex::<32>("a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60")
+        );
+
+        // RFC 6979 §3.2 h.3: an r=0/s=0 retry must continue the DRBG, not
+        // reproduce the same nonce.
+        drbg.retry();
+        let k2 = drbg.generate();
+        assert_ne!(k1.to_bytes(), k2.to_bytes());
+        assert_eq!(
+            k2.to_bytes(),
+            decode_hex::<32>("8e83dc490bc5fc4d5992bd63cd87f254adffcb930f8a8011702a88870f638fdb")
+        );
+    }
+
+    #[test]
+    fn ecdsa_forced_retry_uses_fresh_nonce() {
+        let private_key = decode_hex::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
+        let key = SecretKey::from_bytes(&private_key).unwrap();
+        let scalar = Scalar::from_bytes(&private_key).unwrap();
+
+        let normal = key.sign(b"sample").unwrap();
+        // Force the r=0/s=0 retry path. The signature must be produced with the
+        // next DRBG nonce; repeating the first nonce would yield `normal`.
+        let retried = ecdsa_sign_inner_impl(&scalar, b"sample", true).unwrap();
+
+        assert_ne!(normal, retried);
+        assert!(key.public_key().verify(b"sample", &retried).is_ok());
     }
 
     #[test]
@@ -1215,12 +867,12 @@ mod tests {
         buf[32] = 0x00;
         buf[33..65].copy_from_slice(&x);
         buf[65..97].copy_from_slice(&h1);
-        k = hmac_sha256(&k, &buf);
+        k = hmac_digest(&k, &buf);
         assert_eq!(
             k,
             decode_hex::<32>("122db1de98dae4dfa33f2da8e98494c80bff807b479fd79261b37e25f267ee58")
         );
-        v = hmac_sha256(&k, &v);
+        v = hmac_digest(&k, &v);
         assert_eq!(
             v,
             decode_hex::<32>("c9947803a747fc60c23535fdcc13b5ca566b48221ca67d4964d22daa48275844")
@@ -1228,17 +880,17 @@ mod tests {
 
         buf[..32].copy_from_slice(&v);
         buf[32] = 0x01;
-        k = hmac_sha256(&k, &buf);
+        k = hmac_digest(&k, &buf);
         assert_eq!(
             k,
             decode_hex::<32>("b6d4f98ebae70aa15a2238ade4e20ab323fc1e777d22f0c582d8ef2e6ba73569")
         );
-        v = hmac_sha256(&k, &v);
+        v = hmac_digest(&k, &v);
         assert_eq!(
             v,
             decode_hex::<32>("bae57fe256de2de806b10635497237e7bae96754582566384c47c6c3416494d1")
         );
-        v = hmac_sha256(&k, &v);
+        v = hmac_digest(&k, &v);
         assert_eq!(
             v,
             decode_hex::<32>("a6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60")
@@ -1312,7 +964,7 @@ mod tests {
     #[test]
     fn wycheproof_ecdsa_p256_sha256_p1363() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json"
+            "../../testdata/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json"
         ))
         .unwrap();
         let mut valid_tested = 0u64;
@@ -1606,11 +1258,6 @@ mod tests {
     }
 
     #[test]
-    fn generator_point_is_on_curve() {
-        assert!(AffinePoint::GENERATOR.is_on_curve());
-    }
-
-    #[test]
     fn p256_fast_mul_mod_matches_generic() {
         // Verify that the P-256 fast mul matches the generic bit-serial mul_mod
         // for many random inputs
@@ -1672,9 +1319,9 @@ mod tests {
         ))
         .unwrap();
         let result = scalar_mul_generator(&n_minus_1).to_affine().unwrap();
-        assert_eq!(result.x, GENERATOR_X);
+        assert_eq!(result.x, FieldElement::from_uint(GENERATOR_X));
         // y should be -Gy mod p
-        let neg_gy = GENERATOR_Y.negate();
+        let neg_gy = FieldElement::from_uint(GENERATOR_Y).negate();
         assert_eq!(result.y, neg_gy);
     }
 
@@ -1744,50 +1391,6 @@ mod tests {
 
         let shared = ecdh(&priv_alice, &bob_pub_compressed).unwrap();
         assert_eq!(shared, expected_shared);
-    }
-
-    #[test]
-    fn ecdh_round_trip_alice_bob() {
-        // Full round-trip ECDH key exchange with randomly generated keys
-        let alice = SecretKey::generate().unwrap();
-        let bob = SecretKey::generate().unwrap();
-
-        let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
-        let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
-
-        assert_eq!(alice_shared, bob_shared);
-        assert_eq!(alice_shared.len(), 32);
-    }
-
-    #[test]
-    fn ecdh_rejects_off_curve_peer_public_key() {
-        let alice = SecretKey::generate().unwrap();
-        let mut bad_pub = alice.public_key().to_bytes().to_vec();
-        // Flip a bit in y to take it off the curve
-        bad_pub[64] ^= 0x01;
-        assert!(!is_valid_public_key(&bad_pub));
-        assert!(ecdh(&alice.to_bytes(), &bad_pub).is_err());
-    }
-
-    #[test]
-    fn ecdh_rejects_infinity_peer_public_key() {
-        let alice = SecretKey::generate().unwrap();
-        // Infinity encoding (0x00) should be rejected
-        let infinity = [0x00u8];
-        assert!(ecdh(&alice.to_bytes(), &infinity).is_err());
-    }
-
-    #[test]
-    fn ecdh_rejects_bad_length_peer_public_key() {
-        let alice = SecretKey::generate().unwrap();
-        // Empty key
-        assert!(ecdh(&alice.to_bytes(), &[]).is_err());
-        // Truncated key
-        assert!(ecdh(&alice.to_bytes(), &[0x04, 0x00]).is_err());
-        // Too long
-        let mut long = [0x04u8; 200];
-        long[0] = 0x04;
-        assert!(ecdh(&alice.to_bytes(), &long).is_err());
     }
 
     #[test]
@@ -1995,7 +1598,7 @@ mod tests {
 
     #[test]
     fn ecdh_private_key_rejects_zero_and_order() {
-        // PrivateKey::from_bytes must reject zero and n (curve order)
+        // SecretKey::from_bytes must reject zero and n (curve order)
         let zero = [0u8; 32];
         assert!(SecretKey::from_bytes(&zero).is_err());
 
@@ -2027,31 +1630,6 @@ mod tests {
     }
 
     #[test]
-    fn ecdh_multiple_exchanges_consistency() {
-        // Verify ECDH commutativity across multiple key pairs
-        let alice = SecretKey::generate().unwrap();
-        let bob = SecretKey::generate().unwrap();
-        let charlie = SecretKey::generate().unwrap();
-
-        let alice_bob = alice.ecdh(&bob.public_key()).unwrap();
-        let bob_alice = bob.ecdh(&alice.public_key()).unwrap();
-        assert_eq!(alice_bob, bob_alice);
-
-        let alice_charlie = alice.ecdh(&charlie.public_key()).unwrap();
-        let charlie_alice = charlie.ecdh(&alice.public_key()).unwrap();
-        assert_eq!(alice_charlie, charlie_alice);
-
-        let bob_charlie = bob.ecdh(&charlie.public_key()).unwrap();
-        let charlie_bob = charlie.ecdh(&bob.public_key()).unwrap();
-        assert_eq!(bob_charlie, charlie_bob);
-
-        // All three should be different
-        assert_ne!(alice_bob, alice_charlie);
-        assert_ne!(alice_bob, bob_charlie);
-        assert_ne!(alice_charlie, bob_charlie);
-    }
-
-    #[test]
     fn ecdh_standalone_function_matches_method() {
         let alice = SecretKey::generate().unwrap();
         let bob = SecretKey::generate().unwrap();
@@ -2070,7 +1648,7 @@ mod tests {
         .unwrap();
         let hash = hash_message(b"test");
         assert_eq!(
-            rfc6979_generate_k(&private_key, &hash).to_bytes(),
+            Rfc6979::new(&private_key, &hash).generate().to_bytes(),
             decode_hex::<32>("d16b6ae827f17175e040871a1c7ec3500192c4c92677336ec2537acaee0008e0")
         );
     }
@@ -2101,24 +1679,6 @@ mod tests {
              ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632552",
         );
         assert!(key.public_key().verify(b"msg", &sig).is_err());
-    }
-
-    #[test]
-    fn private_key_round_trip_bytes() {
-        let key = SecretKey::generate().unwrap();
-        let bytes = key.to_bytes();
-        let key2 = SecretKey::from_bytes(&bytes).unwrap();
-        assert_eq!(key.to_bytes(), key2.to_bytes());
-        assert_eq!(key.public_key().to_bytes(), key2.public_key().to_bytes());
-    }
-
-    #[test]
-    fn public_key_round_trip_bytes() {
-        let key = SecretKey::generate().unwrap();
-        let pub_key = key.public_key();
-        let bytes = pub_key.to_bytes();
-        let pub_key2 = PublicKey::from_bytes(&bytes).unwrap();
-        assert_eq!(pub_key.to_bytes(), pub_key2.to_bytes());
     }
 
     #[test]
@@ -2247,19 +1807,6 @@ mod tests {
     }
 
     #[test]
-    fn point_double_and_add_consistency() {
-        // 2*G = G + G
-        let g = AffinePoint::GENERATOR;
-        let proj_g = ProjectivePoint::from_affine(&g);
-        let doubled = proj_g.double();
-        let added = proj_g.add(&proj_g);
-        assert_eq!(
-            doubled.to_affine().unwrap().to_uncompressed_bytes(),
-            added.to_affine().unwrap().to_uncompressed_bytes(),
-        );
-    }
-
-    #[test]
     fn scalar_mul_by_two_matches_double() {
         let two = Scalar::from_bytes(&decode_hex::<32>(
             "0000000000000000000000000000000000000000000000000000000000000002",
@@ -2283,7 +1830,7 @@ mod tests {
     #[test]
     fn wycheproof_ecdh_p256_ecpoint() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json"
+            "../../testdata/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json"
         ))
         .unwrap();
         let mut valid_tested = 0u64;
@@ -2339,16 +1886,6 @@ mod tests {
     }
 
     #[test]
-    fn compressed_public_key_has_correct_prefix() {
-        for _ in 0..5 {
-            let key = SecretKey::generate().unwrap();
-            let compressed = derive_public_key_compressed(&key.to_bytes()).unwrap();
-            let prefix = compressed[0];
-            assert!(prefix == 0x02 || prefix == 0x03, "invalid compressed prefix: {prefix:#x}");
-        }
-    }
-
-    #[test]
     fn p256_ecdsa_rejects_truncated_signature() {
         let key = SecretKey::generate().unwrap();
         let sig = key.sign(b"msg").unwrap();
@@ -2399,10 +1936,11 @@ mod tests {
         let key = SecretKey::from_bytes(&private_key).unwrap();
 
         let vectors: &[(&[u8], &str)] = &[
+            // RFC 6979 raw "sample" s is high; signing returns canonical low-s.
             (
                 b"sample" as &[u8],
                 "efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716\
-                          f7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8",
+                          0834e36ad29a83bf2bc9385e491d6099c8fdf9d1ed67aa7ea5f51f93782857a9",
             ),
             (
                 b"test" as &[u8],
@@ -2421,7 +1959,7 @@ mod tests {
     #[test]
     fn wycheproof_ecdsa_p256_sha256_der() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_test.json"
+            "../../testdata/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_test.json"
         ))
         .unwrap();
         let mut valid_tested = 0u64;
@@ -2467,9 +2005,10 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p256_asn() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/ecdh_secp256r1_test.json"))
-                .unwrap();
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../testdata/wycheproof/testvectors_v1/ecdh_secp256r1_test.json"
+        ))
+        .unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         let mut acceptable_tested = 0u64;
@@ -2524,5 +2063,67 @@ mod tests {
         assert!(valid_tested > 0, "no valid ECDH ASN wycheproof tests were run");
         assert!(invalid_tested > 0, "no invalid ECDH ASN wycheproof tests were run");
         assert!(acceptable_tested > 0, "no acceptable ECDH ASN wycheproof tests were run");
+    }
+
+    // Shared curve-independent tests, instantiated for P256.
+    #[test]
+    fn generator_point_is_on_curve() {
+        p_curves::test_support::generator_point_is_on_curve::<P256>();
+    }
+
+    #[test]
+    fn from_x_y_rejects_off_curve() {
+        p_curves::test_support::from_x_y_rejects_off_curve::<P256>();
+    }
+
+    #[test]
+    fn ecdh_round_trip_alice_bob() {
+        p_curves::test_support::ecdh_round_trip_alice_bob::<P256>();
+    }
+
+    #[test]
+    fn ecdh_rejects_off_curve_peer_public_key() {
+        p_curves::test_support::ecdh_rejects_off_curve_peer_public_key::<P256>();
+    }
+
+    #[test]
+    fn ecdh_rejects_infinity_peer_public_key() {
+        p_curves::test_support::ecdh_rejects_infinity_peer_public_key::<P256>();
+    }
+
+    #[test]
+    fn ecdh_rejects_bad_length_peer_public_key() {
+        p_curves::test_support::ecdh_rejects_bad_length_peer_public_key::<P256>();
+    }
+
+    #[test]
+    fn ecdh_multiple_exchanges_consistency() {
+        p_curves::test_support::ecdh_multiple_exchanges_consistency::<P256>();
+    }
+
+    #[test]
+    fn private_key_round_trip_bytes() {
+        p_curves::test_support::private_key_round_trip_bytes::<P256>();
+    }
+
+    #[test]
+    fn public_key_round_trip_bytes() {
+        p_curves::test_support::public_key_round_trip_bytes::<P256>();
+    }
+
+    #[test]
+    fn point_double_and_add_consistency() {
+        p_curves::test_support::point_double_and_add_consistency::<P256>();
+    }
+
+    #[test]
+    fn compressed_public_key_has_correct_prefix() {
+        p_curves::test_support::compressed_public_key_has_correct_prefix::<P256>();
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn rfc6979_state_zeroize_clears_drbg() {
+        p_curves::test_support::rfc6979_state_zeroize_clears_drbg::<P256>();
     }
 }

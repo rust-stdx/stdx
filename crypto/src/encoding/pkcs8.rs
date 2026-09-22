@@ -12,9 +12,9 @@ pub enum Pkcs8Error {
     InvalidVersion,
     InvalidAlgorithmIdentifier,
     InvalidOctetString,
-    InvalidEcPrivateKey,
+    InvalidEcSecretKey,
     InvalidEcVersion,
-    InvalidPrivateKeyOctet,
+    InvalidSecretKeyOctet,
     InvalidPublicKeyExplicit,
     InvalidPublicKeyBitString,
     InvalidPublicKeyPrefix,
@@ -30,9 +30,9 @@ impl core::fmt::Display for Pkcs8Error {
             Pkcs8Error::InvalidVersion => write!(f, "invalid version"),
             Pkcs8Error::InvalidAlgorithmIdentifier => write!(f, "invalid AlgorithmIdentifier"),
             Pkcs8Error::InvalidOctetString => write!(f, "invalid OCTET STRING wrapping"),
-            Pkcs8Error::InvalidEcPrivateKey => write!(f, "invalid ECPrivateKey SEQUENCE"),
+            Pkcs8Error::InvalidEcSecretKey => write!(f, "invalid ECSecretKey SEQUENCE"),
             Pkcs8Error::InvalidEcVersion => write!(f, "invalid EC version"),
-            Pkcs8Error::InvalidPrivateKeyOctet => write!(f, "invalid private key OCTET STRING"),
+            Pkcs8Error::InvalidSecretKeyOctet => write!(f, "invalid private key OCTET STRING"),
             Pkcs8Error::InvalidPublicKeyExplicit => write!(f, "invalid public key [1] EXPLICIT"),
             Pkcs8Error::InvalidPublicKeyBitString => write!(f, "invalid public key BIT STRING"),
             Pkcs8Error::InvalidPublicKeyPrefix => write!(f, "invalid public key prefix"),
@@ -70,9 +70,9 @@ fn validate_fixed_prefix(der: &[u8]) -> Result<(), Pkcs8Error> {
     if der[27] != 0x04 || der[28] != 0x6d {
         return Err(Pkcs8Error::InvalidOctetString);
     }
-    // ECPrivateKey SEQUENCE: 30 6b
+    // ECSecretKey SEQUENCE: 30 6b
     if der[29] != 0x30 || der[30] != 0x6b {
-        return Err(Pkcs8Error::InvalidEcPrivateKey);
+        return Err(Pkcs8Error::InvalidEcSecretKey);
     }
     // EC version: 02 01 01
     if der[31] != 0x02 || der[32] != 0x01 || der[33] != 0x01 {
@@ -80,7 +80,7 @@ fn validate_fixed_prefix(der: &[u8]) -> Result<(), Pkcs8Error> {
     }
     // private key OCTET STRING: 04 20
     if der[34] != 0x04 || der[35] != 0x20 {
-        return Err(Pkcs8Error::InvalidPrivateKeyOctet);
+        return Err(Pkcs8Error::InvalidSecretKeyOctet);
     }
     // [1] EXPLICIT: a1 44
     if der[68] != 0xa1 || der[69] != 0x44 {
@@ -99,14 +99,14 @@ fn validate_fixed_prefix(der: &[u8]) -> Result<(), Pkcs8Error> {
 }
 
 static TEMPLATE: [u8; PKCS8_DER_LEN] = [
-    // PrivateKeyInfo SEQUENCE (135 bytes content)
+    // SecretKeyInfo SEQUENCE (135 bytes content)
     0x30, 0x81, 0x87, // version INTEGER 0
     0x02, 0x01, 0x00, // AlgorithmIdentifier SEQUENCE (19 bytes)
     0x30, 0x13, // ecPublicKey OID (1.2.840.10045.2.1)
     0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, // secp256r1 OID (1.2.840.10045.3.1.7)
     0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
-    // OCTET STRING wrapping ECPrivateKey (109 bytes)
-    0x04, 0x6d, // ECPrivateKey SEQUENCE (107 bytes)
+    // OCTET STRING wrapping ECSecretKey (109 bytes)
+    0x04, 0x6d, // ECSecretKey SEQUENCE (107 bytes)
     0x30, 0x6b, // EC version INTEGER 1
     0x02, 0x01, 0x01, // private key OCTET STRING (32 bytes) -- placeholder zeros
     0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -203,54 +203,57 @@ mod tests {
 
     #[test]
     fn decode_too_short() {
-        assert_eq!(decode_p256_pkcs8_der(&[0u8; 100]), Err(Pkcs8Error::InvalidLength));
+        assert!(matches!(decode_p256_pkcs8_der(&[0u8; 100]), Err(Pkcs8Error::InvalidLength)));
     }
 
     #[test]
     fn decode_too_long() {
-        assert_eq!(decode_p256_pkcs8_der(&[0u8; 200]), Err(Pkcs8Error::InvalidLength));
+        assert!(matches!(decode_p256_pkcs8_der(&[0u8; 200]), Err(Pkcs8Error::InvalidLength)));
     }
 
     #[test]
     fn decode_bad_sequence() {
         let mut der = decode_hex(TEST_DER_HEX);
         der[0] = 0x31;
-        assert_eq!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidSequence));
+        assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidSequence)));
     }
 
     #[test]
     fn decode_bad_version() {
         let mut der = decode_hex(TEST_DER_HEX);
         der[5] = 0x01;
-        assert_eq!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidVersion));
+        assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidVersion)));
     }
 
     #[test]
     fn decode_bad_algo_identifier() {
         let mut der = decode_hex(TEST_DER_HEX);
         der[10] = 0x00;
-        assert_eq!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidAlgorithmIdentifier));
+        assert!(matches!(
+            decode_p256_pkcs8_der(&der),
+            Err(Pkcs8Error::InvalidAlgorithmIdentifier)
+        ));
     }
 
     #[test]
     fn decode_bad_ec_version() {
         let mut der = decode_hex(TEST_DER_HEX);
         der[33] = 0x02;
-        assert_eq!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidEcVersion));
+        assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidEcVersion)));
     }
 
     #[test]
     fn decode_missing_public_key() {
         let mut der = decode_hex(TEST_DER_HEX);
         der[68] = 0x00;
-        assert_eq!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyExplicit));
+        assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyExplicit)));
     }
 
     #[test]
     fn decode_bad_public_key_prefix() {
         let mut der = decode_hex(TEST_DER_HEX);
         der[73] = 0x02;
-        assert_eq!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyPrefix));
+        assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyPrefix)));
     }
 
     #[test]

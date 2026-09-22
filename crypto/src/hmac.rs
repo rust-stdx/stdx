@@ -1,7 +1,7 @@
 //! HKDF (HMAC-based Extract-and-Expand Key Derivation Function) key derivation function.
 
 #[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{Hash, Hasher, MAX_HASH_BLOCK_SIZE};
 
@@ -31,7 +31,7 @@ use crate::{Hash, Hasher, MAX_HASH_BLOCK_SIZE};
 /// let tag = mac.finalize();
 /// ```
 #[derive(Clone)]
-#[cfg_attr(feature = "zeroize", derive(Zeroize))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct Hmac<H: Hasher> {
     hash: H,
     opad: [u8; MAX_HASH_BLOCK_SIZE],
@@ -91,8 +91,12 @@ impl<H: Hasher> Hmac<H> {
     }
 
     /// Finalize and return HMAC tag. This consumes the Hmac state.
-    pub fn finalize(self) -> Hash {
-        let inner_sum = self.hash.sum();
+    pub fn finalize(mut self) -> Hash {
+        // `self.hash` cannot be moved out directly because `Hmac` implements
+        // `Drop` (to wipe the key material). Take the state and leave a fresh
+        // hasher in its place; the remainder is zeroized when `self` drops.
+        let inner_hash = core::mem::replace(&mut self.hash, H::new());
+        let inner_sum = inner_hash.sum();
 
         // compute outer hash using a fresh instance
         let mut outer = H::new();
@@ -109,6 +113,17 @@ mod hmac_tests {
         sha2::{Sha256, Sha384, Sha512},
         sha3::{Sha3_256, Sha3_512},
     };
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn hmac_zeroize_clears_opad() {
+        use zeroize::Zeroize;
+
+        let mut mac = Hmac::<Sha256>::new(b"secret key");
+        assert_ne!(mac.opad, [0u8; crate::MAX_HASH_BLOCK_SIZE]);
+        mac.zeroize();
+        assert_eq!(mac.opad, [0u8; crate::MAX_HASH_BLOCK_SIZE]);
+    }
 
     #[derive(Clone, Copy)]
     enum TestInput {

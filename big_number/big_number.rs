@@ -10,7 +10,12 @@ use core::{
     ops::{Add, Div, Mul, Neg, Rem, Sub},
 };
 
-pub const MAX_LIMBS: usize = 256;
+// Largest number of limbs a `Uint` may use is `MAX_LIMBS / 2` (the wide
+// product of two values must fit). Barrett reduction additionally needs one
+// limb of headroom on the `q1 * mu` intermediate, so `MAX_LIMBS` must be at
+// least `2 * (max_limbs + 1)`. 260 limbs supports values up to 8320 bits
+// (and 8192-bit values, i.e. 128 limbs, with Barrett reduction).
+pub const MAX_LIMBS: usize = 260;
 
 const fn max_limbs<const BITS: usize, const LIMBS: usize>() -> [u64; LIMBS] {
     let mut limbs = [u64::MAX; LIMBS];
@@ -22,6 +27,7 @@ const fn max_limbs<const BITS: usize, const LIMBS: usize>() -> [u64; LIMBS] {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct Uint<const BITS: usize, const LIMBS: usize> {
     pub limbs: [u64; LIMBS],
 }

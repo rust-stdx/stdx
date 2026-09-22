@@ -143,20 +143,38 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
     }
 }
 
-/// The Keccak-p permutation a 1600-bit state
-#[allow(unreachable_code)]
+/// The Keccak-p permutation of a 1600-bit state.
+///
+/// On aarch64 the ARMv8.4-A SHA-3 instructions are used when the running CPU
+/// implements the optional FEAT_SHA3 extension; otherwise the portable
+/// implementation is used.
 pub fn p1600<const ROUNDS: usize>(state: &mut [u64; 25]) {
     const {
         assert!(ROUNDS <= 24, "A round_count greater than 24 is not supported.");
     }
 
-    // we assume that the SHA-3 instructions are always preseent for aarch64
+    // SAFETY: `p1600_armv8` requires the `sha3` target feature, which
+    // is dynamically or statically detected.
     #[cfg(target_arch = "aarch64")]
     unsafe {
-        super::keccak_arm64::p1600_armv8::<ROUNDS>(state);
-        return;
+        // FEAT_SHA3 is optional on aarch64, so it must be detected before the
+        // hardware permutation is used. Without `std` the feature is known at
+        // compile time instead.
+        #[cfg(feature = "std")]
+        if std::arch::is_aarch64_feature_detected!("sha3") {
+            return super::keccak_arm64::p1600_armv8::<ROUNDS>(state);
+        }
+
+        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+        return super::keccak_arm64::p1600_armv8::<ROUNDS>(state);
     }
 
+    p1600_soft::<ROUNDS>(state);
+}
+
+/// Portable implementation of the Keccak-p permutation of a 1600-bit state.
+#[inline(always)]
+fn p1600_soft<const ROUNDS: usize>(state: &mut [u64; 25]) {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf#page=25
     // "the rounds of KECCAK-p[b, nr] match the last rounds of KECCAK-f[b]"
     let round_consts: &[u64] = &ROUND_CONSTANTS[(24 - ROUNDS)..];
@@ -217,22 +235,21 @@ fn xor(dest: &mut [u8], source: &[u8]) {
 
 #[cfg(test)]
 mod tests {
-    use super::p1600;
+    use super::{p1600, p1600_soft};
 
-    fn keccak_f(state_first: [u64; 25], state_second: [u64; 25]) {
+    fn keccak_f(permute: impl Fn(&mut [u64; 25]), state_first: [u64; 25], state_second: [u64; 25]) {
         let mut state = [0u64; 25];
 
-        p1600::<24>(&mut state);
+        permute(&mut state);
         assert_eq!(state, state_first);
 
-        p1600::<24>(&mut state);
+        permute(&mut state);
         assert_eq!(state, state_second);
     }
 
-    #[test]
-    fn keccak_f1600() {
-        // Test vectors are copied from XKCP (eXtended Keccak Code Package)
-        // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-1600-IntermediateValues.txt
+    // Test vectors are copied from XKCP (eXtended Keccak Code Package)
+    // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-1600-IntermediateValues.txt
+    fn keccak_f1600_vectors() -> ([u64; 25], [u64; 25]) {
         let state_first = [
             0xF1258F7940E1DDE7,
             0x84D5CCF933C0478A,
@@ -288,6 +305,18 @@ mod tests {
             0x20D06CD26A8FBF5C,
         ];
 
-        keccak_f(state_first, state_second);
+        (state_first, state_second)
+    }
+
+    #[test]
+    fn keccak_f1600() {
+        let (state_first, state_second) = keccak_f1600_vectors();
+        keccak_f(|state| p1600::<24>(state), state_first, state_second);
+    }
+
+    #[test]
+    fn keccak_f1600_soft() {
+        let (state_first, state_second) = keccak_f1600_vectors();
+        keccak_f(|state| p1600_soft::<24>(state), state_first, state_second);
     }
 }

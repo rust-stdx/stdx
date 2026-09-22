@@ -67,7 +67,7 @@
 //! Keys can be exported to and imported from JSON Web Keys (JWK) for publishing or later re-use.
 //! Every supported key type implements `From<&KeyType> for Jwk`, and the reverse conversion is
 //! available through `TryFrom<&Jwk>`. Use it when the key is only known at runtime, for example
-//! after fetching a JWKS document. P-256 and P-384 public keys are both supported.
+//! after fetching a JWKS document. P-256, P-384 and P-521 public keys are all supported.
 //!
 //! ```
 //! use jwt::*;
@@ -337,7 +337,7 @@ pub enum Algorithm {
 
 impl Algorithm {
     /// Returns the size of the signature of the algorithm, or, if the size can vary in size,
-    /// the upper bound supported by this package (e.g. 4096 bits / 512 bytes for RSA).
+    /// the upper bound supported by this package (e.g. 8192 bits / 1024 bytes for RSA).
     /// This is used, among other things, to pre-allocate the output buffer to the correct size
     /// when encoding a JWT.
     #[inline]
@@ -351,12 +351,12 @@ impl Algorithm {
             Algorithm::ES256 => 64,
             Algorithm::ES384 => 96,
             Algorithm::ES512 => 132,
-            Algorithm::RS256 => 512,
-            Algorithm::RS384 => 512,
-            Algorithm::RS512 => 512,
-            Algorithm::PS256 => 512,
-            Algorithm::PS384 => 512,
-            Algorithm::PS512 => 512,
+            Algorithm::RS256 => 1024,
+            Algorithm::RS384 => 1024,
+            Algorithm::RS512 => 1024,
+            Algorithm::PS256 => 1024,
+            Algorithm::PS384 => 1024,
+            Algorithm::PS512 => 1024,
             Algorithm::MlDsa44 => 2420,
             Algorithm::MlDsa65 => 3309,
             Algorithm::MlDsa87 => 4627,

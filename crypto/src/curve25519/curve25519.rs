@@ -31,6 +31,7 @@ const P_PLUS_THREE_OVER_EIGHT: [u64; 4] = [
 /// The element is represented in little-endian limb form (a[0] is the
 /// least significant 64-bit word).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct FieldElement(pub U256);
 
 impl FieldElement {

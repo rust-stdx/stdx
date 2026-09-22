@@ -9,10 +9,10 @@ path = "./src/crypto.rs"
 [features]
 default = ["std", "zeroize"]
 
-alloc = ["dep:smallvec", "memchr/alloc", "base64/alloc", "big_number/alloc"]
+alloc = ["dep:smallvec", "memchr/alloc", "base64/alloc", "big_number/alloc", "zeroize?/alloc"]
 random = ["dep:getrandom"]
 std = ["alloc", "blake3/std", "memchr/std", "random", "base64/std", "big_number/std"]
-zeroize = ["dep:zeroize", "blake3/zeroize"]
+zeroize = ["dep:zeroize", "blake3/zeroize", "big_number/zeroize"]
 
 [dependencies]
 base64 = { path = "../base64", default-features = false }

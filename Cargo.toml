@@ -108,7 +108,7 @@ tracing = "0.1"
 unicode-width = "0.1"
 url = "2"
 walkdir = "2"
-zeroize = { version = "1", features = ["simd", "derive"] }
+zeroize = { version = "1", default-features = false, features = ["simd", "derive"] }
 
 
 # For macros

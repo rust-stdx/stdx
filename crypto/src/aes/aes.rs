@@ -1,9 +1,10 @@
 /// Pure-Rust AES block cipher (128-bit and 256-bit keys).
 ///
-/// Design notes:
-/// - Favours speed over constant-time execution (table-driven S-box lookups).
-/// - Uses T-tables (Te0..Te3) combining SubBytes+ShiftRows+MixColumns into a
-///   single 32-bit lookup per byte per round, matching Go's software AES approach.
+/// The software implementation is **constant-time**: it uses no lookup tables
+/// and no secret-dependent branches, so it does not leak key or data bytes
+/// through cache or timing side channels (see [`super::aes_ct`]). Hardware
+/// paths (AES-NI / ARMv8) are used when available and are used in preference
+/// to this fallback.
 #[cfg(test)]
 use super::ghash::gf128_mul;
 
@@ -11,6 +12,7 @@ use super::ghash::gf128_mul;
 
 pub const GCM_MAX_LEN: u64 = (u32::MAX as u64 - 1) * 16;
 
+#[cfg(test)]
 #[rustfmt::skip]
 pub(crate) const SBOX: [u8; 256] = [
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -31,8 +33,9 @@ pub(crate) const SBOX: [u8; 256] = [
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
 ];
 
+#[cfg(test)]
 #[rustfmt::skip]
-const SBOX_INV: [u8; 256] = [
+pub(crate) const SBOX_INV: [u8; 256] = [
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
     0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
@@ -80,20 +83,18 @@ fn rot_word(w: [u8; 4]) -> [u8; 4] {
     [w[1], w[2], w[3], w[0]]
 }
 
+/// AES `SubWord`: apply the S-box to each byte of a word in constant time.
 #[inline(always)]
 fn sub_word(w: [u8; 4]) -> [u8; 4] {
-    [
-        SBOX[w[0] as usize],
-        SBOX[w[1] as usize],
-        SBOX[w[2] as usize],
-        SBOX[w[3] as usize],
-    ]
+    super::aes_ct::sub_word(u32::from_le_bytes(w)).to_le_bytes()
 }
 
 /// Expand a key into AES round keys (FIPS 197 §5.2).
 ///
 /// - `N = 11` -> AES-128 (Nk=4, Nr=10, 44 words -> 11 round keys)
 /// - `N = 15` -> AES-256 (Nk=8, Nr=14, 60 words -> 15 round keys)
+///
+/// The schedule is computed with a constant-time S-box (no table lookups).
 pub fn expand_key<const N: usize>(key: &[u8]) -> RoundKeysSoftware<N> {
     const {
         assert!(N == 11 || N == 15);
@@ -135,350 +136,37 @@ pub fn expand_key<const N: usize>(key: &[u8]) -> RoundKeysSoftware<N> {
 
 // ── AES block cipher (encrypt / decrypt) ─────────────────────────────────────
 
-/// Const-time gf128 xtime
-#[inline(always)]
-const fn xtime(a: u8) -> u8 {
-    let hi = a & 0x80;
-    let b = a << 1;
-    if hi != 0 { b ^ 0x1b } else { b }
-}
-
-// ── T-tables: combine SubBytes + ShiftRows + MixColumns ─────────────────────
-//
-// Each Teᵢ[x] = S[x] multiplied by a column of the MixColumns matrix
-// (rotated left by i positions). A u32 holds row 0..row 3 in LE byte order.
-
-pub(crate) const TE0: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX[i] as u32;
-        let s2 = xtime(SBOX[i]) as u32;
-        let s3 = (s ^ s2) as u32;
-        // Column: [2·S, 1·S, 1·S, 3·S] in rows 0..3
-        t[i] = (s3 << 24) | (s << 16) | (s << 8) | s2;
-        i += 1;
-    }
-    t
-};
-
-pub(crate) const TE1: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX[i] as u32;
-        let s2 = xtime(SBOX[i]) as u32;
-        let s3 = (s ^ s2) as u32;
-        // Column: [3·S, 2·S, 1·S, 1·S]  -> LE bytes [3S,2S,1S,1S]
-        t[i] = (s << 24) | (s << 16) | (s2 << 8) | s3;
-        i += 1;
-    }
-    t
-};
-
-pub(crate) const TE2: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX[i] as u32;
-        let s2 = xtime(SBOX[i]) as u32;
-        let s3 = (s ^ s2) as u32;
-        // Column: [1·S, 3·S, 2·S, 1·S]
-        t[i] = (s << 24) | (s2 << 16) | (s3 << 8) | s;
-        i += 1;
-    }
-    t
-};
-
-pub(crate) const TE3: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX[i] as u32;
-        let s2 = xtime(SBOX[i]) as u32;
-        let s3 = (s ^ s2) as u32;
-        // Column: [1·S, 1·S, 3·S, 2·S]
-        t[i] = (s2 << 24) | (s3 << 16) | (s << 8) | s;
-        i += 1;
-    }
-    t
-};
-
-// Inverse T-tables for decryption (InvSubBytes + InvShiftRows + InvMixColumns).
-
-const TD0: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX_INV[i] as u32;
-        let s2 = xtime(s as u8) as u32;
-        let s4 = xtime(s2 as u8) as u32;
-        let s8 = xtime(s4 as u8) as u32;
-        let c0 = (s8 ^ s4 ^ s2) as u32; // 0e·S
-        let c1 = (s8 ^ s2 ^ s) as u32; // 0b·S
-        let c2 = (s8 ^ s4 ^ s) as u32; // 0d·S
-        let c3 = (s8 ^ s) as u32; // 09·S
-        // Column: [0e·S, 09·S, 0d·S, 0b·S]  -> LE bytes [c0,c3,c2,c1]
-        t[i] = (c1 << 24) | (c2 << 16) | (c3 << 8) | c0;
-        i += 1;
-    }
-    t
-};
-
-const TD1: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX_INV[i] as u32;
-        let s2 = xtime(s as u8) as u32;
-        let s4 = xtime(s2 as u8) as u32;
-        let s8 = xtime(s4 as u8) as u32;
-        let c0 = (s8 ^ s4 ^ s2) as u32;
-        let c1 = (s8 ^ s2 ^ s) as u32;
-        let c2 = (s8 ^ s4 ^ s) as u32;
-        let c3 = (s8 ^ s) as u32;
-        // Column: [0b·S, 0e·S, 09·S, 0d·S]
-        t[i] = (c2 << 24) | (c3 << 16) | (c0 << 8) | c1;
-        i += 1;
-    }
-    t
-};
-
-const TD2: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX_INV[i] as u32;
-        let s2 = xtime(s as u8) as u32;
-        let s4 = xtime(s2 as u8) as u32;
-        let s8 = xtime(s4 as u8) as u32;
-        let c0 = (s8 ^ s4 ^ s2) as u32;
-        let c1 = (s8 ^ s2 ^ s) as u32;
-        let c2 = (s8 ^ s4 ^ s) as u32;
-        let c3 = (s8 ^ s) as u32;
-        // Column: [0d·S, 0b·S, 0e·S, 09·S]
-        t[i] = (c3 << 24) | (c0 << 16) | (c1 << 8) | c2;
-        i += 1;
-    }
-    t
-};
-
-const TD3: [u32; 256] = {
-    let mut t = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let s = SBOX_INV[i] as u32;
-        let s2 = xtime(s as u8) as u32;
-        let s4 = xtime(s2 as u8) as u32;
-        let s8 = xtime(s4 as u8) as u32;
-        let c0 = (s8 ^ s4 ^ s2) as u32;
-        let c1 = (s8 ^ s2 ^ s) as u32;
-        let c2 = (s8 ^ s4 ^ s) as u32;
-        let c3 = (s8 ^ s) as u32;
-        // Column: [09·S, 0d·S, 0b·S, 0e·S]
-        t[i] = (c0 << 24) | (c1 << 16) | (c2 << 8) | c3;
-        i += 1;
-    }
-    t
-};
-
-/// Encrypt one 16-byte block using T-table accelerated routine.
-///
-/// Combines SubBytes, ShiftRows, and MixColumns into four 32-bit table lookups
-/// per column, matching the approach used by Go and OpenSSL for software AES.
+/// Encrypt one 16-byte block.
 ///
 /// `N = 11` for AES-128 (10 rounds), `N = 15` for AES-256 (14 rounds).
+///
+/// This is the constant-time software path; it performs no data-dependent
+/// memory accesses or branches.
 pub fn encrypt_block<const N: usize>(round_keys: &RoundKeysSoftware<N>, block: &[u8; 16]) -> [u8; 16] {
     const {
         assert!(N == 11 || N == 15);
     }
-
-    let mut s = *block;
-
-    // Round 0: AddRoundKey
-    for i in 0..16 {
-        s[i] ^= round_keys[0][i];
-    }
-
-    // Rounds 1..N-2: SubBytes + ShiftRows + MixColumns + AddRoundKey via T-tables
-    let round_keys_pointer = round_keys.as_ptr();
-    for round in 1..N - 1 {
-        let round_keys = unsafe { &*round_keys_pointer.add(round) };
-        let t0 = TE0[s[0] as usize]
-            ^ TE1[s[5] as usize]
-            ^ TE2[s[10] as usize]
-            ^ TE3[s[15] as usize]
-            ^ u32::from_ne_bytes(round_keys[0..4].try_into().unwrap());
-        let t1 = TE0[s[4] as usize]
-            ^ TE1[s[9] as usize]
-            ^ TE2[s[14] as usize]
-            ^ TE3[s[3] as usize]
-            ^ u32::from_ne_bytes(round_keys[4..8].try_into().unwrap());
-        let t2 = TE0[s[8] as usize]
-            ^ TE1[s[13] as usize]
-            ^ TE2[s[2] as usize]
-            ^ TE3[s[7] as usize]
-            ^ u32::from_ne_bytes(round_keys[8..12].try_into().unwrap());
-        let t3 = TE0[s[12] as usize]
-            ^ TE1[s[1] as usize]
-            ^ TE2[s[6] as usize]
-            ^ TE3[s[11] as usize]
-            ^ u32::from_ne_bytes(round_keys[12..16].try_into().unwrap());
-
-        s[0..4].copy_from_slice(&t0.to_ne_bytes());
-        s[4..8].copy_from_slice(&t1.to_ne_bytes());
-        s[8..12].copy_from_slice(&t2.to_ne_bytes());
-        s[12..16].copy_from_slice(&t3.to_ne_bytes());
-    }
-
-    // Final round (N-1): SubBytes + ShiftRows + AddRoundKey (no MixColumns)
-    let rk_last = unsafe { &*round_keys_pointer.add(N - 1) };
-    s = [
-        SBOX[s[0] as usize] ^ rk_last[0],
-        SBOX[s[5] as usize] ^ rk_last[1],
-        SBOX[s[10] as usize] ^ rk_last[2],
-        SBOX[s[15] as usize] ^ rk_last[3],
-        SBOX[s[4] as usize] ^ rk_last[4],
-        SBOX[s[9] as usize] ^ rk_last[5],
-        SBOX[s[14] as usize] ^ rk_last[6],
-        SBOX[s[3] as usize] ^ rk_last[7],
-        SBOX[s[8] as usize] ^ rk_last[8],
-        SBOX[s[13] as usize] ^ rk_last[9],
-        SBOX[s[2] as usize] ^ rk_last[10],
-        SBOX[s[7] as usize] ^ rk_last[11],
-        SBOX[s[12] as usize] ^ rk_last[12],
-        SBOX[s[1] as usize] ^ rk_last[13],
-        SBOX[s[6] as usize] ^ rk_last[14],
-        SBOX[s[11] as usize] ^ rk_last[15],
-    ];
-    s
+    let sched = super::aes_ct::keysched(round_keys);
+    super::aes_ct::encrypt_block_sched(&sched, block)
 }
 
-/// Decrypt one 16-byte block using inverse T-tables.
-///
-/// Note: the inverse T-tables (TD0..TD3) combine InvSubBytes + InvMixColumns.
-/// Because AddRoundKey falls between InvSubBytes and InvMixColumns in the
-/// decryption round, each round key rk[1]..rk[N-2] must have InvMixColumns
-/// applied to it before the XOR.
+/// Decrypt one 16-byte block.
 ///
 /// `N = 11` for AES-128 (10 rounds), `N = 15` for AES-256 (14 rounds).
+///
+/// This is the constant-time software path; it performs no data-dependent
+/// memory accesses or branches.
 pub fn decrypt_block<const N: usize>(round_keys: &RoundKeysSoftware<N>, block: &[u8; 16]) -> [u8; 16] {
     const {
         assert!(N == 11 || N == 15);
     }
-
-    let mut s = *block;
-
-    // Round N-1 reversed: AddRoundKey
-    let p_last = unsafe { &*round_keys.as_ptr().add(N - 1) };
-    for i in 0..16 {
-        s[i] ^= p_last[i];
-    }
-
-    // Rounds N-2..1: InvShiftRows + InvSubBytes + AddRoundKey + InvMixColumns via inverse T-tables
-    let round_keys_pointer = round_keys.as_ptr();
-    for round in (1..N - 1).rev() {
-        // Apply InvMixColumns to round key columns for correct T-table XOR
-        let mut rk_adj = unsafe { *round_keys_pointer.add(round) };
-        inv_mix_columns(&mut rk_adj);
-
-        let t0 = TD0[s[0] as usize]
-            ^ TD1[s[13] as usize]
-            ^ TD2[s[10] as usize]
-            ^ TD3[s[7] as usize]
-            ^ u32::from_ne_bytes(rk_adj[0..4].try_into().unwrap());
-        let t1 = TD0[s[4] as usize]
-            ^ TD1[s[1] as usize]
-            ^ TD2[s[14] as usize]
-            ^ TD3[s[11] as usize]
-            ^ u32::from_ne_bytes(rk_adj[4..8].try_into().unwrap());
-        let t2 = TD0[s[8] as usize]
-            ^ TD1[s[5] as usize]
-            ^ TD2[s[2] as usize]
-            ^ TD3[s[15] as usize]
-            ^ u32::from_ne_bytes(rk_adj[8..12].try_into().unwrap());
-        let t3 = TD0[s[12] as usize]
-            ^ TD1[s[9] as usize]
-            ^ TD2[s[6] as usize]
-            ^ TD3[s[3] as usize]
-            ^ u32::from_ne_bytes(rk_adj[12..16].try_into().unwrap());
-
-        s[0..4].copy_from_slice(&t0.to_ne_bytes());
-        s[4..8].copy_from_slice(&t1.to_ne_bytes());
-        s[8..12].copy_from_slice(&t2.to_ne_bytes());
-        s[12..16].copy_from_slice(&t3.to_ne_bytes());
-    }
-
-    // Round 0: InvShiftRows + InvSubBytes + AddRoundKey (no InvMixColumns)
-    s = [
-        SBOX_INV[s[0] as usize] ^ round_keys[0][0],
-        SBOX_INV[s[13] as usize] ^ round_keys[0][1],
-        SBOX_INV[s[10] as usize] ^ round_keys[0][2],
-        SBOX_INV[s[7] as usize] ^ round_keys[0][3],
-        SBOX_INV[s[4] as usize] ^ round_keys[0][4],
-        SBOX_INV[s[1] as usize] ^ round_keys[0][5],
-        SBOX_INV[s[14] as usize] ^ round_keys[0][6],
-        SBOX_INV[s[11] as usize] ^ round_keys[0][7],
-        SBOX_INV[s[8] as usize] ^ round_keys[0][8],
-        SBOX_INV[s[5] as usize] ^ round_keys[0][9],
-        SBOX_INV[s[2] as usize] ^ round_keys[0][10],
-        SBOX_INV[s[15] as usize] ^ round_keys[0][11],
-        SBOX_INV[s[12] as usize] ^ round_keys[0][12],
-        SBOX_INV[s[9] as usize] ^ round_keys[0][13],
-        SBOX_INV[s[6] as usize] ^ round_keys[0][14],
-        SBOX_INV[s[3] as usize] ^ round_keys[0][15],
-    ];
-    s
-}
-
-// ── helpers ────────────────────────────────────────────────────────
-
-/// Multiply in GF(2^8) mod 0x11b.
-#[inline(always)]
-fn gmul(mut a: u8, mut b: u8) -> u8 {
-    let mut p = 0u8;
-    for _ in 0..8 {
-        if b & 1 != 0 {
-            p ^= a;
-        }
-        let carry = a & 0x80;
-        a <<= 1;
-        if carry != 0 {
-            a ^= 0x1b;
-        }
-        b >>= 1;
-    }
-    p
-}
-
-#[inline(always)]
-fn inv_mix_col(s: &mut [u8; 16], col: usize) {
-    let i = col * 4;
-    let s0 = s[i];
-    let s1 = s[i + 1];
-    let s2 = s[i + 2];
-    let s3 = s[i + 3];
-    s[i] = gmul(0x0e, s0) ^ gmul(0x0b, s1) ^ gmul(0x0d, s2) ^ gmul(0x09, s3);
-    s[i + 1] = gmul(0x09, s0) ^ gmul(0x0e, s1) ^ gmul(0x0b, s2) ^ gmul(0x0d, s3);
-    s[i + 2] = gmul(0x0d, s0) ^ gmul(0x09, s1) ^ gmul(0x0e, s2) ^ gmul(0x0b, s3);
-    s[i + 3] = gmul(0x0b, s0) ^ gmul(0x0d, s1) ^ gmul(0x09, s2) ^ gmul(0x0e, s3);
-}
-
-#[inline(always)]
-fn inv_mix_columns(state: &mut [u8; 16]) {
-    inv_mix_col(state, 0);
-    inv_mix_col(state, 1);
-    inv_mix_col(state, 2);
-    inv_mix_col(state, 3);
+    let sched = super::aes_ct::keysched(round_keys);
+    super::aes_ct::decrypt_block_sched(&sched, block)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // TODO: Add tests:
-    // https://www.tuhs.org/cgi-bin/utree.pl?file=OpenBSD-4.6/regress/sys/crypto/aes/vectors/ecbnk48.txt
-    // https://android.googlesource.com/platform/libcore/+/1db6bf619611525020518a180f0ee82c8cd50af2/luni/src/test/resources/crypto/aes-cbc.csv
 
     // ── AES-256 block cipher (FIPS 197 Appendix B + C) ────────────────────────
 

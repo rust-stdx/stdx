@@ -9,8 +9,10 @@ use big_number::Uint;
 
 use crate::{Hasher, RsaError};
 
-/// Maximum RSA modulus size supported (4096 bits).
-const RSA_MAX_BITS: usize = 4096;
+/// Minimum RSA modulus size accepted (2048 bits).
+const RSA_MIN_BITS: usize = 2048;
+/// Maximum RSA modulus size supported (8192 bits).
+const RSA_MAX_BITS: usize = 8192;
 const RSA_MAX_LIMBS: usize = RSA_MAX_BITS / 64;
 const RSA_MAX_BYTES: usize = RSA_MAX_BITS / 8;
 
@@ -31,7 +33,7 @@ pub const DIGEST_INFO_SHA512_PREFIX: &[u8] = &[
 
 /// An RSA public key parsed from a PKCS#1 `SubjectPublicKeyInfo` DER blob.
 pub struct PublicKey {
-    /// Modulus `n` as a 4096-bit integer (zero-padded for smaller keys).
+    /// Modulus `n` as a 8192-bit integer (zero-padded for smaller keys).
     n: Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>,
     /// Public exponent `e`.
     e: Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>,
@@ -50,10 +52,26 @@ impl PublicKey {
     /// This is useful when importing keys from formats like JWK where `n` and
     /// `e` are available directly as bytes rather than inside an ASN.1 DER
     /// wrapper.
+    ///
+    /// The parameters are validated before the key is accepted: `n` must be
+    /// odd and between 2048 and 8192 bits, and `e` must be odd, at least 3,
+    /// and strictly smaller than `n`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RsaError::InvalidKey`] if `n` or `e` fail the checks above
+    /// (including empty or even `n`, `e < 3`, even `e`, or `e >= n`), and
+    /// [`RsaError::NotSupported`] if either value exceeds 8192 bits.
     #[inline]
     pub fn from_n_e(n_bytes: &[u8], e: &[u8]) -> Result<Self, RsaError> {
         let n = uint_from_variable_be(n_bytes)?;
         let e_uint = uint_from_variable_be(e)?;
+        if n.is_zero() || !n.is_odd() || n.bit_len() < RSA_MIN_BITS {
+            return Err(RsaError::InvalidKey);
+        }
+        if e_uint.bit_len() < 2 || !e_uint.is_odd() || e_uint.ct_ge(&n) {
+            return Err(RsaError::InvalidKey);
+        }
         let e_len = {
             let mut start: usize = 0;
             while start < e.len().saturating_sub(1) && e[start] == 0 {
@@ -74,6 +92,13 @@ impl PublicKey {
     ///
     /// The input is the content of the BIT STRING inside the SPKI —
     /// an ASN.1 `SEQUENCE { INTEGER n, INTEGER e }`.
+    ///
+    /// The same parameter validation as [`PublicKey::from_n_e`] is applied.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RsaError::InvalidKey`] or [`RsaError::NotSupported`] when the
+    /// DER is malformed or the modulus/exponent fail validation.
     pub fn from_pkcs1_der(mut data: &[u8]) -> Result<Self, RsaError> {
         if data.is_empty() || data[0] != 0x30 {
             return Err(RsaError::Unspecified);
@@ -102,6 +127,18 @@ impl PublicKey {
     /// `message_digest` is the hash of the message to verify.
     /// `digest_info_prefix` is the ASN.1 DigestInfo prefix for the hash algorithm
     /// (the constant-length portion before the hash value).
+    ///
+    /// The padding and DigestInfo encoding must be strict DER and the DigestInfo
+    /// must fill the modulus exactly (`EM = 00 01 PS 00 T`, RFC 8017 §9.2).
+    /// Non-canonical encodings, including trailing zero bytes after the
+    /// DigestInfo, are rejected.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RsaError::Unspecified`] if `signature` is not exactly `n_len`
+    /// bytes long, if the signature is not reduced modulo `n`, or if the padded
+    /// message does not match the canonical encoding for `digest_info_prefix`
+    /// and `message_digest`.
     pub fn verify_pkcs1_v1_5(
         &self,
         signature: &[u8],
@@ -122,56 +159,10 @@ impl PublicKey {
         let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
 
         let mod_bytes = self.n_len;
-        let expected_len = digest_info_prefix.len() + message_digest.len();
-
         let mut m_bytes = [0u8; RSA_MAX_BYTES];
         write_uint_be(&m, &mut m_bytes, mod_bytes);
 
-        // Check PKCS#1 v1.5 padding: 00 01 FF...FF 00 <DigestInfo>
-        if m_bytes[0] != 0x00 || m_bytes[1] != 0x01 {
-            return Err(RsaError::Unspecified);
-        }
-
-        // Find the 0x00 separator after the FF padding
-        let mut sep = 2;
-        while sep < mod_bytes && m_bytes[sep] == 0xff {
-            sep += 1;
-        }
-        if sep >= mod_bytes || m_bytes[sep] != 0x00 {
-            return Err(RsaError::Unspecified);
-        }
-        // At least 8 bytes of FF padding required
-        if sep < 10 {
-            return Err(RsaError::Unspecified);
-        }
-        sep += 1;
-
-        let di_start = sep;
-        let di_end = di_start + expected_len;
-        if di_end > mod_bytes {
-            return Err(RsaError::Unspecified);
-        }
-
-        // Verify DigestInfo prefix
-        let mut ok = 0u8;
-        for i in 0..digest_info_prefix.len() {
-            ok |= m_bytes[di_start + i] ^ digest_info_prefix[i];
-        }
-        // Verify hash value
-        for i in 0..message_digest.len() {
-            ok |= m_bytes[di_start + digest_info_prefix.len() + i] ^ message_digest[i];
-        }
-
-        if ok != 0 {
-            return Err(RsaError::Unspecified);
-        }
-
-        // Reject trailing bytes after the DigestInfo
-        for i in di_end..mod_bytes {
-            ok |= m_bytes[i];
-        }
-
-        if ok != 0 {
+        if !pkcs1_v1_5_em_matches(&m_bytes[..mod_bytes], digest_info_prefix, message_digest) {
             return Err(RsaError::Unspecified);
         }
 
@@ -265,7 +256,7 @@ impl PublicKey {
     }
 
     /// Returns the modulus `n` as big-endian bytes, trimmed to the actual key size.
-    /// (e.g. 256 bytes for RSA-2048, 512 bytes for RSA-4096).
+    /// (e.g. 256 bytes for RSA-2048, 512 bytes for RSA-4096, 1024 bytes for RSA-8192).
     #[cfg(feature = "alloc")]
     pub fn n_bytes(&self) -> alloc::vec::Vec<u8> {
         let full = self.n.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
@@ -279,6 +270,49 @@ impl PublicKey {
         let full = self.e.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
         full[full.len() - self.e_len..].into()
     }
+}
+
+/// Validate a PKCS#1 v1.5 encoded message `EM = 00 01 PS 00 T`.
+///
+/// `em` is the full `k`-byte encoded message. Returns `true` only when the
+/// padding is canonical (`00 01`, at least 8 `0xFF` bytes, `0x00` separator),
+/// when `digest_info_prefix` and `message_digest` match the trailing bytes, and
+/// when that DigestInfo occupies the remainder of `em` exactly. The last rule
+/// is what rejects non-conforming encodings that merely append zero bytes after
+/// a valid DigestInfo (RFC 8017 §9.2 requires `T` to fill the modulus).
+fn pkcs1_v1_5_em_matches(em: &[u8], digest_info_prefix: &[u8], message_digest: &[u8]) -> bool {
+    let mod_bytes = em.len();
+    if mod_bytes < 2 || em[0] != 0x00 || em[1] != 0x01 {
+        return false;
+    }
+
+    // Find the 0x00 separator after the FF padding.
+    let mut sep = 2;
+    while sep < mod_bytes && em[sep] == 0xff {
+        sep += 1;
+    }
+    // Require the separator and at least 8 bytes of FF padding.
+    if sep >= mod_bytes || em[sep] != 0x00 || sep < 10 {
+        return false;
+    }
+
+    let di_start = sep + 1;
+    let expected_len = digest_info_prefix.len() + message_digest.len();
+    // `di_start <= mod_bytes` because `sep < mod_bytes`; the DigestInfo must end
+    // exactly at the modulus (no shortfall, no trailing bytes).
+    if mod_bytes - di_start != expected_len {
+        return false;
+    }
+
+    // Verify the canonical DigestInfo prefix and the hash value.
+    let mut ok = 0u8;
+    for i in 0..digest_info_prefix.len() {
+        ok |= em[di_start + i] ^ digest_info_prefix[i];
+    }
+    for i in 0..message_digest.len() {
+        ok |= em[di_start + digest_info_prefix.len() + i] ^ message_digest[i];
+    }
+    ok == 0
 }
 
 /// MGF1 (Mask Generation Function 1) per RFC 8017 Appendix B.2.1.
@@ -378,7 +412,7 @@ fn uint_from_variable_be(bytes: &[u8]) -> Result<Uint<RSA_MAX_BITS, RSA_MAX_LIMB
 }
 
 /// Write a `Uint` as big-endian bytes into a buffer, right-aligned.
-/// Only converts the required limbs instead of the full 4096-bit representation.
+/// Only converts the required limbs instead of the full 8192-bit representation.
 fn write_uint_be(value: &Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>, out: &mut [u8], byte_len: usize) {
     assert!(byte_len <= RSA_MAX_BYTES);
     let full = value.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
@@ -463,27 +497,14 @@ mod tests {
                             valid_tested += 1;
                         }
                         "invalid" => {
-                            // Skip ASN.1-level padding structure checks for now.
-                            // Our verify_pkcs1_v1_5 only validates padding format
-                            // and digest match; it does not parse the DigestInfo
-                            // ASN.1 for DER encoding strictness.
-                            let flags = test.get("flags").and_then(|f| f.as_array());
-                            let skip_asn1 = flags.map_or(false, |f| {
-                                f.iter().any(|v| {
-                                    let s = v.as_str().unwrap_or("");
-                                    s == "InvalidAsnInPadding" || s == "BerEncodedPadding" || s == "ModifiedPadding"
-                                })
-                            });
-                            if !skip_asn1 {
-                                assert!(
-                                    verify_result.is_err(),
-                                    "{}: tcId {} ({:?}): expected invalid, got ok",
-                                    $path,
-                                    test["tcId"],
-                                    flags,
-                                );
-                                invalid_tested += 1;
-                            }
+                            assert!(
+                                verify_result.is_err(),
+                                "{}: tcId {} ({:?}): expected invalid, got ok",
+                                $path,
+                                test["tcId"],
+                                test.get("flags"),
+                            );
+                            invalid_tested += 1;
                         }
                         "acceptable" => {}
                         _ => panic!("unknown result: {result}"),
@@ -554,8 +575,13 @@ mod tests {
         let exp = uint_from_variable_be(&[5]).unwrap();
         let modulus = uint_from_variable_be(&[7]).unwrap();
         let result = base.modpow(&exp, &modulus);
-        let bytes = result.to_be_bytes_fixed::<512>();
-        assert_eq!(bytes[511], 5, "3^5 mod 7 should be 5, got {}", bytes[511]);
+        let bytes = result.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
+        assert_eq!(
+            bytes[RSA_MAX_BYTES - 1],
+            5,
+            "3^5 mod 7 should be 5, got {}",
+            bytes[RSA_MAX_BYTES - 1]
+        );
     }
 
     #[test]
@@ -575,6 +601,74 @@ mod tests {
         key.verify_pkcs1_v1_5(&sig, &digest, DIGEST_INFO_SHA256_PREFIX).unwrap();
     }
 
+    #[test]
+    fn pkcs1_v1_5_requires_digest_info_to_fill_modulus() {
+        let hash = [0xa5u8; 32];
+        let prefix = DIGEST_INFO_SHA256_PREFIX;
+        let expected_len = prefix.len() + hash.len();
+        let mod_bytes = 256usize;
+        // Canonical separator: the DigestInfo ends exactly at the modulus.
+        let sep = mod_bytes - 1 - expected_len;
+
+        let mut em = [0u8; 256];
+        em[0] = 0x00;
+        em[1] = 0x01;
+        for b in em[2..sep].iter_mut() {
+            *b = 0xff;
+        }
+        em[sep] = 0x00;
+        em[sep + 1..sep + 1 + prefix.len()].copy_from_slice(prefix);
+        em[sep + 1 + prefix.len()..sep + 1 + expected_len].copy_from_slice(&hash);
+        assert!(sep >= 10, "canonical padding must keep at least 8 FF bytes");
+        assert!(pkcs1_v1_5_em_matches(&em, prefix, &hash));
+
+        // Same modulus, but the DigestInfo is shifted one byte earlier and the
+        // final byte is a trailing 0x00: EM = 00 01 FF..FF 00 T || 00. This is
+        // accepted by a "trailing bytes must be zero" check but rejected because
+        // the DigestInfo does not fill the modulus (M-09).
+        let mut em_trailing = [0u8; 256];
+        em_trailing[0] = 0x00;
+        em_trailing[1] = 0x01;
+        for b in em_trailing[2..sep - 1].iter_mut() {
+            *b = 0xff;
+        }
+        em_trailing[sep - 1] = 0x00;
+        let di = sep;
+        em_trailing[di..di + prefix.len()].copy_from_slice(prefix);
+        em_trailing[di + prefix.len()..di + expected_len].copy_from_slice(&hash);
+        assert!(!pkcs1_v1_5_em_matches(&em_trailing, prefix, &hash));
+    }
+
+    #[test]
+    fn from_n_e_validates_parameters() {
+        // 2048-bit odd modulus.
+        let n = hex::decode(
+            "b1d59f746650c6a4360d26dc2e05581e1bd12cddcfc459a75dd2ef6d38cb6e977c72cad72f5e8ad4795484211e71e9a292d25a3901fca4cd242649f56cce50ad6ba148658d71f3a9c8b39e92a7a49543243df8ca2688292d47ff2a92a6ee0c9151162936791f522afccd6a7508251934b909d62fa805bae0d79f83f3c981b39c15ea79ce7b4ec2ff82240ce2a9fb93ae49d7697d1248f73d4ad23461055f469a3936ab959a0c6a067aa19521650f3649a028e2ebe355909aae7c95d3fc988684478b2bb11b307cb58c6c14727e1b62103d400ac8eed0e0d6d7f7d7cfc1f4ae4cbd9759372f8408c52174abb05f134ca6788fb60ba3f35c57c07cd44011bb113b",
+        ).unwrap();
+        let e = hex::decode("010001").unwrap();
+
+        // Valid odd exponents >= 3.
+        assert!(PublicKey::from_n_e(&n, &e).is_ok());
+        assert!(PublicKey::from_n_e(&n, &[3]).is_ok());
+
+        // Exponents zero, one, two, and even values are rejected.
+        assert!(PublicKey::from_n_e(&n, &[0]).is_err());
+        assert!(PublicKey::from_n_e(&n, &[1]).is_err());
+        assert!(PublicKey::from_n_e(&n, &[2]).is_err());
+        assert!(PublicKey::from_n_e(&n, &[4]).is_err());
+
+        // Empty, zero, even, and below-minimum moduli are rejected.
+        assert!(PublicKey::from_n_e(&[], &e).is_err());
+        assert!(PublicKey::from_n_e(&[0], &e).is_err());
+        assert!(PublicKey::from_n_e(&[2], &e).is_err());
+        let mut small = n[..128].to_vec();
+        small[127] |= 1;
+        assert!(PublicKey::from_n_e(&small, &e).is_err());
+
+        // The exponent must be strictly smaller than the modulus.
+        assert!(PublicKey::from_n_e(&n, &n).is_err());
+    }
+
     #[cfg(feature = "std")]
     #[test]
     fn wycheproof_rsa_pss_2048_sha256() {
@@ -592,6 +686,16 @@ mod tests {
             "../testdata/wycheproof/testvectors_v1/rsa_pss_2048_sha384_mgf1_48_test.json",
             crate::sha2::Sha384,
             48
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pss_3072_sha256() {
+        wycheproof_rsa_pss_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_pss_3072_sha256_mgf1_32_test.json",
+            crate::sha2::Sha256,
+            32
         );
     }
 
@@ -647,6 +751,105 @@ mod tests {
         use crate::sha2::Sha512;
         wycheproof_rsa_test!(
             "../testdata/wycheproof/testvectors_v1/rsa_signature_2048_sha512_test.json",
+            Sha512,
+            DIGEST_INFO_SHA512_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_3072_sha256() {
+        use crate::sha2::Sha256;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_3072_sha256_test.json",
+            Sha256,
+            DIGEST_INFO_SHA256_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_3072_sha384() {
+        use crate::sha2::Sha384;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_3072_sha384_test.json",
+            Sha384,
+            DIGEST_INFO_SHA384_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_3072_sha512() {
+        use crate::sha2::Sha512;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_3072_sha512_test.json",
+            Sha512,
+            DIGEST_INFO_SHA512_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_4096_sha256() {
+        use crate::sha2::Sha256;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_4096_sha256_test.json",
+            Sha256,
+            DIGEST_INFO_SHA256_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_4096_sha384() {
+        use crate::sha2::Sha384;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_4096_sha384_test.json",
+            Sha384,
+            DIGEST_INFO_SHA384_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_4096_sha512() {
+        use crate::sha2::Sha512;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_4096_sha512_test.json",
+            Sha512,
+            DIGEST_INFO_SHA512_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_8192_sha256() {
+        use crate::sha2::Sha256;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_8192_sha256_test.json",
+            Sha256,
+            DIGEST_INFO_SHA256_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_8192_sha384() {
+        use crate::sha2::Sha384;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_8192_sha384_test.json",
+            Sha384,
+            DIGEST_INFO_SHA384_PREFIX
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn wycheproof_rsa_pkcs1_8192_sha512() {
+        use crate::sha2::Sha512;
+        wycheproof_rsa_test!(
+            "../testdata/wycheproof/testvectors_v1/rsa_signature_8192_sha512_test.json",
             Sha512,
             DIGEST_INFO_SHA512_PREFIX
         );

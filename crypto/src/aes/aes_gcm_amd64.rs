@@ -410,7 +410,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes::{expand_key, ghash::precompute_ghash_table};
+    use crate::aes::expand_key;
 
     fn have_features() -> bool {
         std::arch::is_x86_feature_detected!("aes")
@@ -472,13 +472,13 @@ mod tests {
         let pt: Vec<u8> = (0u8..=255u8).collect();
 
         let round_keys = expand_key(&key);
-        let ghash_table = precompute_ghash_table(&round_keys);
+        let h = crate::aes::aes::encrypt_block(&round_keys, &[0u8; 16]);
 
         let cipher = crate::aes::aes_gcm::Aes256Gcm::new(&key);
         let mut soft_buf = pt.clone();
         let soft_tag = cipher
             .0
-            .encrypt_in_place_soft(&mut soft_buf, &round_keys, &ghash_table, &nonce, &aad);
+            .encrypt_in_place_soft(&mut soft_buf, &round_keys, &h, &nonce, &aad);
 
         let rk = make_rk(&key);
         let hp = make_h_powers(&key);

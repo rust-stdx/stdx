@@ -4,12 +4,15 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use crypto::{
     curve25519::ed25519::SecretKey,
     mldsa::{MlDsa44SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
+    p256, p521,
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_sign(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
+    let p256_sk = black_box(p256::SecretKey::generate().unwrap());
+    let p521_sk = black_box(p521::SecretKey::generate().unwrap());
     let mldsa44_sk = MlDsa44SecretKey::new(&[0u8; 32]);
     let mldsa65_sk = MlDsa65SecretKey::new(&[0u8; 32]);
     let mldsa87_sk = MlDsa87SecretKey::new(&[0u8; 32]);
@@ -24,6 +27,20 @@ fn bench_sign(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("Ed25519"), data_slice, |b, data| {
             b.iter(|| {
                 let signature = ed25519_sk.sign(black_box(data));
+                black_box(signature);
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("ECDSA-P256"), data_slice, |b, data| {
+            b.iter(|| {
+                let signature = p256_sk.sign(black_box(data)).unwrap();
+                black_box(signature);
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("ECDSA-P521"), data_slice, |b, data| {
+            b.iter(|| {
+                let signature = p521_sk.sign(black_box(data)).unwrap();
                 black_box(signature);
             });
         });
@@ -57,6 +74,11 @@ fn bench_verify(c: &mut Criterion) {
     let ed25519_sk = black_box(SecretKey::generate());
     let ed25519_pk = black_box(ed25519_sk.public_key());
 
+    let p256_sk = black_box(p256::SecretKey::generate().unwrap());
+    let p256_pk = p256_sk.public_key();
+    let p521_sk = black_box(p521::SecretKey::generate().unwrap());
+    let p521_pk = p521_sk.public_key();
+
     let mldsa44_sk = MlDsa44SecretKey::new(&[0u8; 32]);
     let mldsa44_pk = mldsa44_sk.public_key();
     let mldsa65_sk = MlDsa65SecretKey::new(&[0u8; 32]);
@@ -75,6 +97,20 @@ fn bench_verify(c: &mut Criterion) {
             let signature = ed25519_sk.sign(data);
             b.iter(|| {
                 black_box(ed25519_pk.verify(black_box(data), black_box(&signature)).is_ok());
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("ECDSA-P256"), data_slice, |b, data| {
+            let signature = p256_sk.sign(data).unwrap();
+            b.iter(|| {
+                black_box(p256_pk.verify(black_box(data), black_box(&signature)).is_ok());
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("ECDSA-P521"), data_slice, |b, data| {
+            let signature = p521_sk.sign(data).unwrap();
+            b.iter(|| {
+                black_box(p521_pk.verify(black_box(data), black_box(&signature)).is_ok());
             });
         });
 

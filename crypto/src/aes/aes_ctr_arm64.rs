@@ -7,15 +7,23 @@ use super::aes_arm64::aes_encrypt_block;
 /// Byte-reversal shuffle mask: maps byte i ↔ byte 15-i (full 16-byte reversal).
 pub(crate) const SWAP_MASK: [u8; 16] = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
 
-/// Increment the big-endian 32-bit counter stored in bytes 12..15.
+/// Increment the 16-byte big-endian counter block by one.
+///
+/// This is the NIST SP 800-38A §5.1 standard incrementing function applied to
+/// the full 128-bit block: the byte-reversed counter is split into two 64-bit
+/// lanes and the carry is propagated from the low lane into the high lane.
 #[inline]
 pub(crate) fn increment_counter(counter: uint8x16_t) -> uint8x16_t {
     unsafe {
         let swap = vld1q_u8(SWAP_MASK.as_ptr());
-        let swapped = vqtbl1q_u8(counter, swap);
-        let one = vsetq_lane_u32(1, vdupq_n_u32(0), 0);
-        let incremented = vaddq_u32(vreinterpretq_u32_u8(swapped), one);
-        vqtbl1q_u8(vreinterpretq_u8_u32(incremented), swap)
+        let le = vqtbl1q_u8(counter, swap);
+        let lanes = vreinterpretq_u64_u8(le);
+        let lo = vgetq_lane_u64::<0>(lanes);
+        let hi = vgetq_lane_u64::<1>(lanes);
+        let (lo, carry) = lo.overflowing_add(1);
+        let hi = hi.wrapping_add(carry as u64);
+        let inc = vcombine_u64(vcreate_u64(lo), vcreate_u64(hi));
+        vqtbl1q_u8(vreinterpretq_u8_u64(inc), swap)
     }
 }
 

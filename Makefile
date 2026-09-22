@@ -29,6 +29,8 @@ check:
 .PHONY: check_no_std
 check_no_std:
 	cargo check --no-default-features --target thumbv7em-none-eabi -p crypto
+	cargo check --no-default-features --features zeroize --target thumbv7em-none-eabi -p crypto
+	cargo check --no-default-features --features alloc,zeroize --target thumbv7em-none-eabi -p crypto
 
 
 .PHONY: check_all

@@ -11,4 +11,4 @@ path = "crypt.rs"
 crypto = { path = "../../crypto" }
 term = { path = "../../term" }
 rand = { workspace = true }
-zeroize = { workspace = true }
+zeroize = { workspace = true, features = ["alloc"] }

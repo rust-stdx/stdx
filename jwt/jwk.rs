@@ -3,7 +3,7 @@ use crypto::{
     mldsa::{
         MlDsa44PublicKey, MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey, MlDsa87PublicKey, MlDsa87SecretKey,
     },
-    p256, p384,
+    p256, p384, p521,
 };
 use serde::{Deserialize, Serialize};
 use small_collections::SmallString;
@@ -361,6 +361,84 @@ impl TryFrom<&Jwk> for p384::PublicKey {
                 let x: [u8; 48] = x.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
                 let y: [u8; 48] = y.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
                 p384::PublicKey::from_x_y(&x, &y).map_err(|_| Error::InvalidKey)
+            }
+            _ => Err(Error::InvalidKey),
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// P-521
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl From<&p521::SecretKey> for Jwk {
+    #[inline]
+    fn from(key: &p521::SecretKey) -> Self {
+        let (x, y) = key.public_key().x_y();
+        return Jwk {
+            kid: SmallString::new(),
+            r#use: KeyUse::Sign,
+            algorithm: Algorithm::ES512,
+            crypto: JwkCrypto::Ec {
+                curve: EcCurve::P521,
+                x: x.into(),
+                y: y.into(),
+                d: Some(key.to_bytes().into()),
+            },
+        };
+    }
+}
+
+impl From<&p521::PublicKey> for Jwk {
+    #[inline]
+    fn from(key: &p521::PublicKey) -> Self {
+        let (x, y) = key.x_y();
+        return Jwk {
+            kid: SmallString::new(),
+            r#use: KeyUse::Sign,
+            algorithm: Algorithm::ES512,
+            crypto: JwkCrypto::Ec {
+                curve: EcCurve::P521,
+                x: x.into(),
+                y: y.into(),
+                d: None,
+            },
+        };
+    }
+}
+
+impl TryFrom<&Jwk> for p521::SecretKey {
+    type Error = Error;
+
+    fn try_from(jwk: &Jwk) -> Result<Self, Self::Error> {
+        match &jwk.crypto {
+            JwkCrypto::Ec {
+                curve: EcCurve::P521,
+                d: Some(d_bytes),
+                ..
+            } => {
+                let key: [u8; 66] = d_bytes.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
+                p521::SecretKey::from_bytes(&key).map_err(|_| Error::InvalidKey)
+            }
+            _ => Err(Error::InvalidKey),
+        }
+    }
+}
+
+impl TryFrom<&Jwk> for p521::PublicKey {
+    type Error = Error;
+
+    fn try_from(jwk: &Jwk) -> Result<Self, Self::Error> {
+        match &jwk.crypto {
+            JwkCrypto::Ec {
+                curve: EcCurve::P521,
+                x,
+                y,
+                ..
+            } => {
+                let x: [u8; 66] = x.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
+                let y: [u8; 66] = y.as_slice().try_into().map_err(|_| Error::InvalidKey)?;
+                p521::PublicKey::from_x_y(&x, &y).map_err(|_| Error::InvalidKey)
             }
             _ => Err(Error::InvalidKey),
         }

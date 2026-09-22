@@ -208,6 +208,10 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
         assert!(N == 11 || N == 15);
     }
 
+    if in_out.len() as u64 > GCM_MAX_LEN {
+        return Err(AeadError::InvalidCiphertext);
+    }
+
     let mut j0 = [0u8; 16];
     j0[..12].copy_from_slice(nonce);
     j0[15] = 1;
@@ -356,7 +360,7 @@ mod tests {
     use hex;
 
     use super::*;
-    use crate::aes::{expand_key, ghash::precompute_ghash_table};
+    use crate::aes::expand_key;
 
     fn make_round_keys(key: &[u8; 32]) -> [uint8x16_t; 15] {
         let soft = crate::aes::aes::expand_key::<15>(key);
@@ -384,13 +388,13 @@ mod tests {
         let aad = hex::decode("feedfacedeadbeeffeedfacedeadbeef").unwrap();
         let pt: Vec<u8> = (0u8..=255u8).collect();
         let round_keys = expand_key(&key);
-        let ghash_table = precompute_ghash_table(&round_keys);
+        let h = crate::aes::aes::encrypt_block(&round_keys, &[0u8; 16]);
 
         let cipher = crate::aes::Aes256Gcm::new(&key);
         let mut soft_buf = pt.clone();
         let soft_tag = cipher
             .0
-            .encrypt_in_place_soft(&mut soft_buf, &round_keys, &ghash_table, &nonce, &aad);
+            .encrypt_in_place_soft(&mut soft_buf, &round_keys, &h, &nonce, &aad);
 
         let rk = make_round_keys(&key);
         let hp = make_h_powers(&key);

@@ -9,6 +9,18 @@ pub(crate) const STATE_WORDS: usize = 16;
 /// The size of a ChaCha block in bytes which is the size of the state in bytes
 pub(crate) const BLOCK_SIZE: usize = 64;
 
+/// Maximum number of bytes that may be encrypted under a single `(key, nonce)` pair with the
+/// IETF (RFC 8439) layout.
+///
+/// RFC 8439 Section 2.8 caps the IETF variant at `2^32 - 1` blocks of 64 bytes because the block
+/// counter is 32 bits wide. This constant keeps one block of margin (`2^32 - 2` blocks) so the
+/// counter can never wrap and reuse keystream.
+///
+/// Exceeding this limit makes the ChaCha20-Poly1305 / XChaCha20-Poly1305 / ChaCha8-Poly1305 AEADs
+/// panic on encryption and return [`AeadError::InvalidCiphertext`](crate::AeadError) on decryption,
+/// and makes [`StreamCipher::xor_keystream`](crate::StreamCipher::xor_keystream) panic.
+pub const CHACHA20_IETF_MAX_LEN: u64 = (u32::MAX as u64 - 1) * BLOCK_SIZE as u64;
+
 /// The "sigma" constant which is the value of the first row of ChaCha's state.
 pub(crate) const CONSTANT: [u32; 4] = [
     0x61707865, // "expa"
@@ -28,6 +40,9 @@ pub type XChaCha20 = XChaCha<20>;
 /// `IS_IETF` selects the nonce/counter layout:
 /// - `false` (DJB original): 64-bit counter at words 12–13, 64-bit nonce at words 14–15.
 /// - `true` (IETF / RFC 8439): 32-bit counter at word 12, 96-bit nonce at words 13–15.
+///
+/// The IETF layout can only encrypt up to [`CHACHA20_IETF_MAX_LEN`] bytes per `(key, nonce)` pair;
+/// [`xor_keystream`](StreamCipher::xor_keystream) panics instead of wrapping the counter.
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct ChaCha<const ROUNDS: usize, const IS_IETF: bool> {
     state: [u32; STATE_WORDS],
@@ -122,6 +137,10 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, true> {
 
     /// Set the ChaCha counter (word 12). The counter is a u32. It can be used to move forward
     /// and backward in the keystream.
+    ///
+    /// The `(key, nonce, counter)` triple must never be reused across distinct messages. Setting
+    /// the counter near `u32::MAX` leaves little room before the counter space is exhausted;
+    /// streaming past it will panic rather than reuse keystream (see [`CHACHA20_IETF_MAX_LEN`]).
     #[inline(always)]
     pub fn set_counter(&mut self, counter: u32) {
         Self::inject_counter(&mut self.state, counter as u64);
@@ -131,9 +150,34 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, true> {
 
 impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, IS_IETF> {
     /// XOR `plaintext` with the ChaCha keystream.
+    ///
+    /// # Panics
+    ///
+    /// For the IETF layout, panics if this call would advance the 32-bit block counter past
+    /// `u32::MAX` and silently reuse keystream. This happens when encrypting more than
+    /// [`CHACHA20_IETF_MAX_LEN`] bytes under one key/nonce, or after
+    /// [`set_counter`](ChaCha::set_counter) jumps near the end of the counter space.
     fn xor_keystream(&mut self, mut in_out: &mut [u8]) {
         if in_out.len() == 0 {
             return;
+        }
+
+        // For the IETF layout, reject any call that would advance the 32-bit block counter past
+        // u32::MAX and silently reuse keystream. Compute how many new blocks this call needs,
+        // taking into account the leftover keystream buffered by a previous partial call.
+        if IS_IETF {
+            let leftover_len = if self.keystream_leftover_offset < (BLOCK_SIZE - 1) as u8 {
+                (BLOCK_SIZE - 1) - self.keystream_leftover_offset as usize
+            } else {
+                0
+            };
+            let new_blocks = in_out.len().saturating_sub(leftover_len).div_ceil(BLOCK_SIZE) as u64;
+            let counter = Self::extract_counter(&self.state);
+
+            assert!(
+                counter + new_blocks <= u32::MAX as u64,
+                "input exceeds maximum allowed length ((2^32 - 1) * 64 bytes)"
+            );
         }
 
         // first, consume the keystream leftover, if any
@@ -334,7 +378,7 @@ impl<const ROUNDS: usize> StreamCipher for XChaCha<ROUNDS> {
 
 #[cfg(test)]
 mod test {
-    use super::{ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XChaCha20};
+    use super::{CHACHA20_IETF_MAX_LEN, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XChaCha20};
     use crate::StreamCipher;
 
     struct TestDjb {
@@ -1414,5 +1458,112 @@ Expected: {}",
                 assert_eq!(buf, expected, "Stress XChaCha failed for len={len} splits={splits:?}",);
             }
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // RFC 8439 counter-wrap / length-limit tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn chacha20_ietf_max_len_constant() {
+        // (2^32 - 2) blocks of 64 bytes, i.e. one block of margin below the RFC 8439 counter space.
+        assert_eq!(CHACHA20_IETF_MAX_LEN, (u32::MAX as u64 - 1) * 64);
+        assert_eq!(CHACHA20_IETF_MAX_LEN, 274_877_906_816);
+    }
+
+    /// The last usable 32-bit counter value still produces keystream.
+    #[test]
+    fn chacha20_ietf_last_counter_block_is_allowed() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+        let counter = u32::MAX - 1;
+
+        let mut a = [0u8; 64];
+        let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+        cipher.set_counter(counter);
+        cipher.xor_keystream(&mut a);
+
+        let mut b = [0u8; 64];
+        let mut reference = ChaCha20Ietf::new(&key, &nonce);
+        reference.set_counter(counter);
+        reference.xor_keystream(&mut b);
+
+        assert_eq!(a, b);
+        assert_ne!(a, [0u8; 64], "keystream must be non-trivial");
+    }
+
+    /// A call that would advance the counter past `u32::MAX` must panic rather than wrap and
+    /// silently reuse keystream.
+    #[test]
+    #[should_panic(expected = "input exceeds maximum allowed")]
+    fn chacha20_ietf_counter_wrap_panics() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+
+        let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+        cipher.set_counter(u32::MAX);
+        let mut buf = [0u8; 64];
+        cipher.xor_keystream(&mut buf);
+    }
+
+    /// Streaming across the end of the counter space: partially consuming leftover must not be
+    /// mistaken for needing a fresh (wrapping) block.
+    #[test]
+    fn chacha20_ietf_leftover_near_counter_end_does_not_panic() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+
+        let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+        cipher.set_counter(u32::MAX - 1);
+
+        // First call consumes block u32::MAX - 1 and buffers 54 bytes of leftover.
+        let mut first = [0u8; 10];
+        cipher.xor_keystream(&mut first);
+
+        // Second call is fully served from the leftover: no new block, no panic.
+        let mut second = [0u8; 5];
+        cipher.xor_keystream(&mut second);
+
+        let mut expected_first = [0u8; 10];
+        let mut expected_second = [0u8; 5];
+        let mut reference = ChaCha20Ietf::new(&key, &nonce);
+        reference.set_counter(u32::MAX - 1);
+        reference.xor_keystream(&mut expected_first);
+        reference.xor_keystream(&mut expected_second);
+        assert_eq!(first, expected_first);
+        assert_eq!(second, expected_second);
+    }
+
+    /// Once the leftover is exhausted, the next call needs a block and must panic.
+    #[test]
+    #[should_panic(expected = "input exceeds maximum allowed")]
+    fn chacha20_ietf_wrap_after_leftover_panics() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+
+        let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+        cipher.set_counter(u32::MAX - 1);
+
+        let mut first = [0u8; 10];
+        cipher.xor_keystream(&mut first);
+        let mut second = [0u8; 5];
+        cipher.xor_keystream(&mut second);
+
+        // 5 bytes of leftover remain; asking for more requires the wrapped block.
+        let mut third = [0u8; 64];
+        cipher.xor_keystream(&mut third);
+    }
+
+    /// XChaCha20 wraps the IETF ChaCha20 stream and must enforce the same limit.
+    #[test]
+    #[should_panic(expected = "input exceeds maximum allowed")]
+    fn xchacha20_counter_wrap_panics() {
+        let key = test_key_32();
+        let nonce = test_nonce_24();
+
+        let mut cipher = XChaCha20::new(&key, &nonce);
+        cipher.set_counter(u32::MAX);
+        let mut buf = [0u8; 64];
+        cipher.xor_keystream(&mut buf);
     }
 }

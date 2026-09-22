@@ -8,17 +8,26 @@ use super::aes_amd64::aes_encrypt_block;
 /// (bytes 0↔3, 1↔2, 4↔7, 5↔6, 8↔11, 9↔10, 12↔15, 13↔14).
 pub(crate) const SWAP_BYTES: [i8; 16] = [3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12];
 
-/// Increment the big-endian 32-bit counter stored in bytes 12..15.
+/// Full 16-byte reversal: maps the big-endian counter block to little-endian.
+const REVERSE_BYTES: [i8; 16] = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+
+/// Increment the 16-byte big-endian counter block by one.
 ///
-/// Uses `pshufb` to byte-swap the counter to little-endian, adds 1 to the
-/// low 32-bit lane, then swaps back. No memory round-trip.
+/// This is the NIST SP 800-38A §5.1 standard incrementing function applied to
+/// the full 128-bit block: the byte-reversed counter is split into two 64-bit
+/// halves and the carry is propagated from the low half into the high half, so
+/// the low 32 bits never wrap on their own. No memory round-trip.
 #[target_feature(enable = "ssse3,sse2")]
 #[inline]
 pub(crate) unsafe fn increment_counter(ctr: __m128i) -> __m128i {
-    let swap = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
-    let le = _mm_shuffle_epi8(ctr, swap);
-    let inc = _mm_add_epi32(le, _mm_set_epi32(1, 0, 0, 0));
-    _mm_shuffle_epi8(inc, swap)
+    let reverse = _mm_loadu_si128(REVERSE_BYTES.as_ptr().cast());
+    let le = _mm_shuffle_epi8(ctr, reverse);
+    let lo = _mm_cvtsi128_si64(le) as u64;
+    let hi = _mm_cvtsi128_si64(_mm_srli_si128(le, 8)) as u64;
+    let (lo, carry) = lo.overflowing_add(1);
+    let hi = hi.wrapping_add(carry as u64);
+    let inc = _mm_set_epi64x(hi as i64, lo as i64);
+    _mm_shuffle_epi8(inc, reverse)
 }
 
 /// XOR the keystream over `in_out` using AES-NI.

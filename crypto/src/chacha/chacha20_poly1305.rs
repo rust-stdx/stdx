@@ -1,4 +1,7 @@
-use super::{ChaCha, hchacha20};
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
+
+use super::{CHACHA20_IETF_MAX_LEN, ChaCha, hchacha20};
 use crate::{Aead, AeadError, Hash, StreamCipher, bytes::Bytes, poly1305::Poly1305};
 
 /// ChaCha20-Poly1305 AEAD as specified in RFC 8439.
@@ -8,6 +11,13 @@ use crate::{Aead, AeadError, Hash, StreamCipher, bytes::Bytes, poly1305::Poly130
 /// - Key: 256 bits (32 bytes)
 /// - Nonce: 96 bits (12 bytes)
 /// - Tag: 128 bits (16 bytes)
+///
+/// # Panics
+///
+/// [`encrypt_in_place`](Aead::encrypt_in_place) panics if `in_out` exceeds
+/// [`CHACHA20_IETF_MAX_LEN`] bytes (~256 GiB), the maximum allowed by RFC 8439's 32-bit block
+/// counter. [`decrypt_in_place`](Aead::decrypt_in_place) returns
+/// [`AeadError::InvalidCiphertext`] in that case instead.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct ChaCha20Poly1305 {
     key: [u8; 32],
@@ -30,6 +40,8 @@ impl ChaCha20Poly1305 {
         cipher.xor_keystream(&mut block);
         let mut key = [0u8; 32];
         key.copy_from_slice(&block[..32]);
+        #[cfg(feature = "zeroize")]
+        block.zeroize();
         return (key, cipher);
     }
 }
@@ -39,13 +51,21 @@ impl Aead for ChaCha20Poly1305 {
     const NONCE_SIZE: usize = 12;
 
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
+        assert!(
+            in_out.len() as u64 <= CHACHA20_IETF_MAX_LEN,
+            "ChaCha20-Poly1305 plaintext exceeds maximum allowed length (RFC 8439 limit)"
+        );
+
         let nonce: &[u8; 12] = nonce.try_into().expect("nonce must be 12 bytes");
-        let (poly1305_key, mut cipher) = self.poly1305_key_gen(nonce);
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let (mut poly1305_key, mut cipher) = self.poly1305_key_gen(nonce);
 
         cipher.set_counter(1);
         cipher.xor_keystream(in_out);
 
         let mut mac = Poly1305::new(&poly1305_key);
+        #[cfg(feature = "zeroize")]
+        poly1305_key.zeroize();
         update_poly1305_padded(&mut mac, aad);
         update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
@@ -58,13 +78,19 @@ impl Aead for ChaCha20Poly1305 {
     }
 
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
+        if in_out.len() as u64 > CHACHA20_IETF_MAX_LEN {
+            return Err(AeadError::InvalidCiphertext);
+        }
         if tag.len() != Self::TAG_SIZE {
             return Err(AeadError::InvalidCiphertext);
         }
         let nonce: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
-        let (poly1305_key, mut cipher) = self.poly1305_key_gen(nonce);
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let (mut poly1305_key, mut cipher) = self.poly1305_key_gen(nonce);
 
         let mut mac = Poly1305::new(&poly1305_key);
+        #[cfg(feature = "zeroize")]
+        poly1305_key.zeroize();
         update_poly1305_padded(&mut mac, aad);
         update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
@@ -92,6 +118,13 @@ impl Aead for ChaCha20Poly1305 {
 /// - Key: 256 bits (32 bytes)
 /// - Nonce: 192 bits (24 bytes)
 /// - Tag: 128 bits (16 bytes)
+///
+/// # Panics
+///
+/// [`encrypt_in_place`](Aead::encrypt_in_place) panics if `in_out` exceeds
+/// [`CHACHA20_IETF_MAX_LEN`] bytes (~256 GiB), the maximum allowed by the inner ChaCha20 IETF
+/// 32-bit block counter. [`decrypt_in_place`](Aead::decrypt_in_place) returns
+/// [`AeadError::InvalidCiphertext`] in that case instead.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct XChaCha20Poly1305 {
     key: [u8; 32],
@@ -117,8 +150,14 @@ impl Aead for XChaCha20Poly1305 {
     const NONCE_SIZE: usize = 24;
 
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
+        assert!(
+            in_out.len() as u64 <= CHACHA20_IETF_MAX_LEN,
+            "XChaCha20-Poly1305 plaintext exceeds maximum allowed length (RFC 8439 limit)"
+        );
+
         let nonce: &[u8; 24] = nonce.try_into().expect("nonce must be 24 bytes");
-        let (subkey, ietf_nonce) = self.derive_subkey(nonce);
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let (mut subkey, ietf_nonce) = self.derive_subkey(nonce);
 
         let mut keygen = ChaCha::<20, true>::new(&subkey, &ietf_nonce);
         keygen.set_counter(0);
@@ -126,12 +165,18 @@ impl Aead for XChaCha20Poly1305 {
         keygen.xor_keystream(&mut block);
         let mut otk = [0u8; 32];
         otk.copy_from_slice(&block[..32]);
+        #[cfg(feature = "zeroize")]
+        block.zeroize();
 
         let mut cipher = ChaCha::<20, true>::new(&subkey, &ietf_nonce);
         cipher.set_counter(1);
         cipher.xor_keystream(in_out);
+        #[cfg(feature = "zeroize")]
+        subkey.zeroize();
 
         let mut mac = Poly1305::new(&otk);
+        #[cfg(feature = "zeroize")]
+        otk.zeroize();
         update_poly1305_padded(&mut mac, aad);
         update_poly1305_padded(&mut mac, in_out);
         mac.update(&(aad.len() as u64).to_le_bytes());
@@ -144,11 +189,15 @@ impl Aead for XChaCha20Poly1305 {
     }
 
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
+        if in_out.len() as u64 > CHACHA20_IETF_MAX_LEN {
+            return Err(AeadError::InvalidCiphertext);
+        }
         if tag.len() != Self::TAG_SIZE {
             return Err(AeadError::InvalidCiphertext);
         }
         let nonce: &[u8; 24] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
-        let (subkey, ietf_nonce) = self.derive_subkey(nonce);
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let (mut subkey, ietf_nonce) = self.derive_subkey(nonce);
 
         let mut keygen = ChaCha::<20, true>::new(&subkey, &ietf_nonce);
         keygen.set_counter(0);
@@ -156,6 +205,13 @@ impl Aead for XChaCha20Poly1305 {
         keygen.xor_keystream(&mut block);
         let mut otk = [0u8; 32];
         otk.copy_from_slice(&block[..32]);
+        #[cfg(feature = "zeroize")]
+        block.zeroize();
+
+        let mut cipher = ChaCha::<20, true>::new(&subkey, &ietf_nonce);
+        cipher.set_counter(1);
+        #[cfg(feature = "zeroize")]
+        subkey.zeroize();
 
         let mut mac = Poly1305::new(&otk);
         update_poly1305_padded(&mut mac, aad);
@@ -163,14 +219,14 @@ impl Aead for XChaCha20Poly1305 {
         mac.update(&(aad.len() as u64).to_le_bytes());
         mac.update(&(in_out.len() as u64).to_le_bytes());
         let computed = mac.finalize();
+        #[cfg(feature = "zeroize")]
+        otk.zeroize();
 
         if !constant_time_eq::constant_time_eq(&computed, tag) {
             in_out.fill(0);
             return Err(AeadError::InvalidCiphertext);
         }
 
-        let mut cipher = ChaCha::<20, true>::new(&subkey, &ietf_nonce);
-        cipher.set_counter(1);
         cipher.xor_keystream(in_out);
 
         return Ok(());

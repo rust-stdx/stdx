@@ -1,9 +1,15 @@
+//! P-384 (secp384r1) ECDSA and ECDH.
+//!
+//! See [`SecretKey`] and [`PublicKey`] for the signing, verification and key
+//! agreement APIs.
+
 use big_number::{Uint, mac};
 
+use super::p_curves::{self, Curve, UintOps, field_pow};
 use crate::{EllipticCurveError, Hasher, hmac::Hmac, sha2::Sha384};
 
-/// Size of a P-384 private key in bytes (48 bytes).
-pub const PRIVATE_KEY_SIZE: usize = 48;
+/// Size of a P-384 secret key in bytes (48 bytes).
+pub const SECRET_KEY_SIZE: usize = 48;
 /// Size of a compressed P-384 public key in bytes (49 bytes, includes 0x02/0x03 prefix).
 pub const PUBLIC_KEY_COMPRESSED_SIZE: usize = 49;
 /// Size of an uncompressed P-384 public key in bytes (97 bytes, includes 0x04 prefix).
@@ -14,26 +20,26 @@ pub const SIGNATURE_SIZE: usize = 96;
 /// as an encryption key; apply a KDF first.
 pub const ECDH_SHARED_SECRET_SIZE: usize = 48;
 
-/// P-384 (secp384r1) ECDSA private key.
+/// P-384 (secp384r1) ECDSA secret key.
 ///
 /// Supports signing and ECDH key agreement.
 ///
 /// # Signing
 ///
 /// ```ignore
-/// use crypto::p384::PrivateKey;
+/// use crypto::p384::SecretKey;
 ///
-/// let key = PrivateKey::generate().unwrap();
+/// let key = SecretKey::generate().unwrap();
 /// let signature = key.sign(b"message").unwrap();
 /// ```
 ///
 /// # ECDH key exchange
 ///
 /// ```ignore
-/// use crypto::p384::PrivateKey;
+/// use crypto::p384::SecretKey;
 ///
-/// let alice = PrivateKey::generate().unwrap();
-/// let bob = PrivateKey::generate().unwrap();
+/// let alice = SecretKey::generate().unwrap();
+/// let bob = SecretKey::generate().unwrap();
 /// let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
 /// let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
 /// assert_eq!(alice_shared, bob_shared);
@@ -43,46 +49,58 @@ pub const ECDH_SHARED_SECRET_SIZE: usize = 48;
 ///
 /// The raw shared secret from [`ecdh`](Self::ecdh) **must not** be used
 /// directly as an encryption key. Apply a KDF (e.g. HKDF) first.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PrivateKey {
-    scalar: Scalar,
-    public_point: AffinePoint,
-}
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+pub struct SecretKey(p_curves::SecretKey<P384>);
 
-impl PrivateKey {
+impl SecretKey {
+    /// Generates a fresh random secret key.
     #[cfg(feature = "random")]
-    pub fn generate() -> Result<PrivateKey, EllipticCurveError> {
-        let key: [u8; PRIVATE_KEY_SIZE] = crate::random::random_bytes();
-        Self::from_bytes(&key)
+    pub fn generate() -> Result<SecretKey, EllipticCurveError> {
+        Ok(SecretKey(p_curves::SecretKey::generate()?))
     }
 
-    pub fn from_bytes(key: &[u8; PRIVATE_KEY_SIZE]) -> Result<PrivateKey, EllipticCurveError> {
-        let scalar = Scalar::from_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
-        let public_point = scalar_mul_generator(&scalar)
-            .to_affine()
-            .ok_or(EllipticCurveError::Unspecified)?;
-        Ok(PrivateKey {
-            scalar,
-            public_point,
-        })
+    /// Builds a secret key from its 48-byte big-endian scalar.
+    ///
+    /// Returns [`EllipticCurveError::InvalidKey`] when the scalar is zero or
+    /// greater than or equal to the group order.
+    pub fn from_bytes(key: &[u8; SECRET_KEY_SIZE]) -> Result<SecretKey, EllipticCurveError> {
+        Ok(SecretKey(p_curves::SecretKey::from_bytes(key)?))
     }
 
+    /// Returns the corresponding public key.
     pub fn public_key(&self) -> PublicKey {
-        PublicKey {
-            point: self.public_point,
-        }
+        PublicKey(self.0.public_key())
     }
 
+    /// Signs `message` with ECDSA using SHA-384 and deterministic (RFC 6979)
+    /// nonces.
+    ///
+    /// The emitted signature is always in canonical low-s form (`s <= n / 2`),
+    /// so a given key and message always produce the exact same signature
+    /// bytes. This prevents signature malleability for systems that hash the
+    /// signature bytes (e.g. transaction ids, replay caches).
+    ///
+    /// Verification remains permissive by default (both `s` and `n - s` are
+    /// accepted); use [`PublicKey::verify_strict`] if high-s signatures must be
+    /// rejected.
     pub fn sign(&self, message: &[u8]) -> Result<[u8; SIGNATURE_SIZE], EllipticCurveError> {
-        ecdsa_sign_inner(&self.scalar, message)
+        self.0.sign(message)
     }
 
+    /// Computes the ECDH shared secret with `peer_public`.
+    ///
+    /// # Security
+    ///
+    /// The raw shared secret **must not** be used directly as an encryption
+    /// key. Apply a KDF (e.g. HKDF) first.
     pub fn ecdh(&self, peer_public: &PublicKey) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-        ecdh_inner(&self.scalar, &peer_public.point)
+        self.0.ecdh(&peer_public.0)
     }
 
-    pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
-        self.scalar.to_bytes()
+    /// Returns the secret scalar as 48 big-endian bytes.
+    pub fn to_bytes(&self) -> [u8; SECRET_KEY_SIZE] {
+        self.0.to_bytes()
     }
 }
 
@@ -93,26 +111,26 @@ impl PrivateKey {
 /// # Verification
 ///
 /// ```ignore
-/// use crypto::p384::PrivateKey;
+/// use crypto::p384::SecretKey;
 ///
-/// let key = PrivateKey::generate().unwrap();
+/// let key = SecretKey::generate().unwrap();
 /// let signature = key.sign(b"message").unwrap();
 /// assert!(key.public_key().verify(b"message", &signature).is_ok());
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PublicKey {
-    point: AffinePoint,
-}
+pub struct PublicKey(p_curves::PublicKey<P384>);
 
 impl PublicKey {
+    /// Parses a compressed (49-byte) or uncompressed (97-byte) SEC1 encoding.
+    ///
+    /// Returns [`EllipticCurveError::InvalidKey`] when the encoding is not a
+    /// valid point on the P-384 curve.
+    #[inline]
     pub fn from_bytes(key: &[u8]) -> Result<PublicKey, EllipticCurveError> {
-        let point = AffinePoint::from_sec1_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
-        Ok(PublicKey {
-            point,
-        })
+        Ok(PublicKey(p_curves::PublicKey::from_bytes(key)?))
     }
 
-    /// Build a public key from raw affine x and y coordinates (both
+    /// Builds a public key from raw affine x and y coordinates (both
     /// big-endian, 48 bytes each). Returns `InvalidKey` if the coordinates
     /// are not a valid point on the P-384 curve.
     ///
@@ -120,32 +138,55 @@ impl PublicKey {
     /// and `y` are available directly.
     #[inline]
     pub fn from_x_y(x_bytes: &[u8; 48], y_bytes: &[u8; 48]) -> Result<PublicKey, EllipticCurveError> {
-        let x = FieldElement::from_bytes(x_bytes).ok_or(EllipticCurveError::InvalidKey)?;
-        let y = FieldElement::from_bytes(y_bytes).ok_or(EllipticCurveError::InvalidKey)?;
-        let point = AffinePoint::new(x, y).ok_or(EllipticCurveError::InvalidKey)?;
-        Ok(PublicKey {
-            point,
-        })
+        Ok(PublicKey(p_curves::PublicKey::from_x_y(x_bytes, y_bytes)?))
     }
 
+    /// Verifies an ECDSA signature over `message` using SHA-384.
+    ///
+    /// Both canonical low-s and non-canonical high-s signatures are accepted,
+    /// matching typical ECDSA interoperability. Use [`Self::verify_strict`] to
+    /// additionally reject high-s signatures.
     pub fn verify(&self, message: &[u8], signature: &[u8; SIGNATURE_SIZE]) -> Result<(), EllipticCurveError> {
-        ecdsa_verify_inner(&self.point, message, signature)
+        self.0.verify(message, signature)
     }
 
+    /// Verifies an ECDSA signature over `message` using SHA-384, additionally
+    /// rejecting non-canonical high-s signatures (`s > n / 2`).
+    ///
+    /// Use this when signature malleability must be excluded (Bitcoin/EIP-2
+    /// style). Note that some third-party signers emit high-s signatures, which
+    /// this method will reject; [`Self::verify`] accepts both forms.
+    pub fn verify_strict(&self, message: &[u8], signature: &[u8; SIGNATURE_SIZE]) -> Result<(), EllipticCurveError> {
+        self.0.verify_strict(message, signature)
+    }
+
+    /// Returns the 97-byte uncompressed SEC1 encoding (`0x04 || x || y`).
+    #[inline]
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE] {
-        self.point.to_uncompressed_bytes()
+        self.0.to_bytes()
+    }
+
+    /// Returns the 49-byte compressed SEC1 encoding (`0x02`/`0x03 || x`).
+    #[inline]
+    pub fn to_compressed_bytes(&self) -> [u8; PUBLIC_KEY_COMPRESSED_SIZE] {
+        self.0.to_compressed_bytes()
     }
 
     /// Returns the `X` and `Y` points as big-endian arrays.
     #[inline]
     pub fn x_y(&self) -> ([u8; 48], [u8; 48]) {
-        (self.point.x.to_bytes(), self.point.y.to_bytes())
+        self.0.x_y()
     }
 }
 
-type U384 = Uint<384, 6>;
+/// Marker type carrying the P-384 curve parameters.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct P384;
 
-const MODULUS_P: U384 = U384::from_limbs([
+type U384 = Uint<384, 6>;
+type CurveUint = U384;
+
+const MODULUS_P: CurveUint = CurveUint::from_limbs([
     0x00000000ffffffff,
     0xffffffff00000000,
     0xfffffffffffffffe,
@@ -154,7 +195,7 @@ const MODULUS_P: U384 = U384::from_limbs([
     0xffffffffffffffff,
 ]);
 
-const MODULUS_N: U384 = U384::from_limbs([
+const MODULUS_N: CurveUint = CurveUint::from_limbs([
     0xecec196accc52973,
     0x581a0db248b0a77a,
     0xc7634d81f4372ddf,
@@ -163,7 +204,18 @@ const MODULUS_N: U384 = U384::from_limbs([
     0xffffffffffffffff,
 ]);
 
-const P_MINUS_TWO: U384 = U384::from_limbs([
+// floor(n / 2). A signature scalar `s` is "high" when `s > N_HALF`, in which
+// case it is normalized to `n - s` so that signatures are non-malleable.
+const N_HALF: CurveUint = CurveUint::from_limbs([
+    0x76760cb5666294b9,
+    0xac0d06d9245853bd,
+    0xe3b1a6c0fa1b96ef,
+    0xffffffffffffffff,
+    0xffffffffffffffff,
+    0x7fffffffffffffff,
+]);
+
+const P_MINUS_TWO: CurveUint = CurveUint::from_limbs([
     0x00000000fffffffd,
     0xffffffff00000000,
     0xfffffffffffffffe,
@@ -172,7 +224,7 @@ const P_MINUS_TWO: U384 = U384::from_limbs([
     0xffffffffffffffff,
 ]);
 
-const P_PLUS_ONE_OVER_FOUR: U384 = U384::from_limbs([
+const P_PLUS_ONE_OVER_FOUR: CurveUint = CurveUint::from_limbs([
     0x0000000040000000,
     0xbfffffffc0000000,
     0xffffffffffffffff,
@@ -181,7 +233,7 @@ const P_PLUS_ONE_OVER_FOUR: U384 = U384::from_limbs([
     0x3fffffffffffffff,
 ]);
 
-const N_MINUS_TWO: U384 = U384::from_limbs([
+const N_MINUS_TWO: CurveUint = CurveUint::from_limbs([
     0xecec196accc52971,
     0x581a0db248b0a77a,
     0xc7634d81f4372ddf,
@@ -190,32 +242,32 @@ const N_MINUS_TWO: U384 = U384::from_limbs([
     0xffffffffffffffff,
 ]);
 
-const CURVE_B: FieldElement = FieldElement(U384::from_limbs([
+const CURVE_B: CurveUint = CurveUint::from_limbs([
     0x2a85c8edd3ec2aef,
     0xc656398d8a2ed19d,
     0x0314088f5013875a,
     0x181d9c6efe814112,
     0x988e056be3f82d19,
     0xb3312fa7e23ee7e4,
-]));
+]);
 
-const GENERATOR_X: FieldElement = FieldElement(U384::from_limbs([
+const GENERATOR_X: CurveUint = CurveUint::from_limbs([
     0x3a545e3872760ab7,
     0x5502f25dbf55296c,
     0x59f741e082542a38,
     0x6e1d3b628ba79b98,
     0x8eb1c71ef320ad74,
     0xaa87ca22be8b0537,
-]));
+]);
 
-const GENERATOR_Y: FieldElement = FieldElement(U384::from_limbs([
+const GENERATOR_Y: CurveUint = CurveUint::from_limbs([
     0x7a431d7c90ea0e5f,
     0x0a60b1ce1d7e819d,
     0xe9da3113b5f0b8c0,
     0xf8f41dbd289a147c,
     0x5d9e98bf9292dc29,
     0x3617de4a96262c6f,
-]));
+]);
 
 // P-384 fast reduction constants: S_i = 2^(64i) mod p for i=6..11
 // Derived from p = 2^384 - 2^128 - 2^96 + 2^32 - 1
@@ -282,7 +334,7 @@ fn ct_select_u128(a: u128, b: u128, choice: bool) -> u128 {
 
 // P-384 fast modular multiplication using u128 accumulators.
 // All loops run fixed iteration counts with ct_select for constant-time.
-fn p384_fast_mul_mod(a: &U384, b: &U384) -> U384 {
+fn p384_fast_mul_mod(a: &CurveUint, b: &CurveUint) -> CurveUint {
     let al = a.limbs;
     let bl = b.limbs;
 
@@ -405,104 +457,58 @@ fn p384_fast_mul_mod(a: &U384, b: &U384) -> U384 {
     }
 
     // Fixed 8 conditional subtractions (result may be up to ~16×p).
-    let mut result = U384::from_limbs([r0 as u64, r1 as u64, r2 as u64, r3 as u64, r4 as u64, r5 as u64]);
+    let mut result = CurveUint::from_limbs([r0 as u64, r1 as u64, r2 as u64, r3 as u64, r4 as u64, r5 as u64]);
     for _ in 0..8 {
         let (sub, borrow) = result.sub_raw(&MODULUS_P);
-        result = U384::ct_select(&sub, &result, borrow == 0);
+        result = CurveUint::ct_select(&sub, &result, borrow == 0);
     }
     result
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct FieldElement(U384);
+// Reduce a big-endian value modulo n, accepting zero and values >= n.
+#[inline]
+fn reduce_mod(value: CurveUint) -> CurveUint {
+    let (sub_value, _) = value.sub_raw(&MODULUS_N);
+    CurveUint::ct_select(&sub_value, &value, value.ct_ge(&MODULUS_N))
+}
 
-impl FieldElement {
-    const ZERO: Self = Self(U384::ZERO);
-    const ONE: Self = Self(U384::ONE);
+impl Curve for P384 {
+    type U = CurveUint;
+    type FieldBytes = [u8; SECRET_KEY_SIZE];
+    type DigestBytes = [u8; 48];
+    type CompressedBytes = [u8; PUBLIC_KEY_COMPRESSED_SIZE];
+    type UncompressedBytes = [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE];
+    type SignatureBytes = [u8; SIGNATURE_SIZE];
+
+    const FIELD_BITS: usize = 384;
+    const FIELD_BYTES: usize = SECRET_KEY_SIZE;
+    const DIGEST_BYTES: usize = 48;
+    const COMPRESSED_BYTES: usize = PUBLIC_KEY_COMPRESSED_SIZE;
+    const UNCOMPRESSED_BYTES: usize = PUBLIC_KEY_UNCOMPRESSED_SIZE;
+
+    const MODULUS_P: CurveUint = MODULUS_P;
+    const MODULUS_N: CurveUint = MODULUS_N;
+    const N_HALF: CurveUint = N_HALF;
+    const P_MINUS_TWO: CurveUint = P_MINUS_TWO;
+    const N_MINUS_TWO: CurveUint = N_MINUS_TWO;
+    const CURVE_B: CurveUint = CURVE_B;
+    const GENERATOR_X: CurveUint = GENERATOR_X;
+    const GENERATOR_Y: CurveUint = GENERATOR_Y;
 
     #[inline]
-    fn from_bytes(bytes: &[u8; 48]) -> Option<Self> {
-        let value = U384::from_be_slice(bytes);
-        if value.ct_ge(&MODULUS_P) {
-            None
-        } else {
-            Some(Self(value))
-        }
+    fn field_mul(a: &Self::U, b: &Self::U) -> Self::U {
+        p384_fast_mul_mod(a, b)
     }
 
     #[inline]
-    fn to_bytes(self) -> [u8; 48] {
-        self.0.to_be_bytes_fixed::<48>()
+    fn scalar_mul(a: &Self::U, b: &Self::U) -> Self::U {
+        a.mul_mod(b, &MODULUS_N)
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.0.is_zero()
-    }
-
-    #[inline]
-    fn is_odd(&self) -> bool {
-        self.0.is_odd()
-    }
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self {
-        Self(self.0.add_mod(&rhs.0, &MODULUS_P))
-    }
-
-    #[inline]
-    fn sub(self, rhs: Self) -> Self {
-        Self(self.0.sub_mod(&rhs.0, &MODULUS_P))
-    }
-
-    #[inline]
-    fn double(self) -> Self {
-        Self(self.0.double_mod(&MODULUS_P))
-    }
-
-    #[inline]
-    fn square(self) -> Self {
-        self.mul(self)
-    }
-
-    #[inline]
-    fn mul(self, rhs: Self) -> Self {
-        Self(p384_fast_mul_mod(&self.0, &rhs.0))
-    }
-
-    #[inline]
-    fn triple(self) -> Self {
-        self.double().add(self)
-    }
-
-    #[inline]
-    fn negate(self) -> Self {
-        let (diff, _) = MODULUS_P.sub_raw(&self.0);
-        Self(U384::ct_select(&U384::ZERO, &diff, self.is_zero()))
-    }
-
-    #[inline]
-    fn pow(self, exponent: &U384) -> Self {
-        let mut result = Self::ONE;
-        let mut i = 384usize;
-        while i > 0 {
-            i -= 1;
-            result = result.square();
-            let product = result.mul(self);
-            result = Self::select(&product, &result, exponent.bit(i));
-        }
-        result
-    }
-
-    #[inline]
-    fn invert(self) -> Option<Self> {
-        Some(self.pow(&P_MINUS_TWO))
-    }
-
-    #[inline]
-    fn sqrt(self) -> Option<Self> {
-        let candidate = self.pow(&P_PLUS_ONE_OVER_FOUR);
-        if U384::ct_eq(&self.0, &candidate.square().0) {
+    fn field_sqrt(a: Self::U) -> Option<Self::U> {
+        let candidate = field_pow::<Self>(a, &P_PLUS_ONE_OVER_FOUR);
+        if a.ct_eq(&Self::field_mul(&candidate, &candidate)) {
             Some(candidate)
         } else {
             None
@@ -510,527 +516,121 @@ impl FieldElement {
     }
 
     #[inline]
-    fn select(a: &Self, b: &Self, choice: bool) -> Self {
-        Self(U384::ct_select(&a.0, &b.0, choice))
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Scalar(U384);
-
-impl Scalar {
-    const ZERO: Self = Self(U384::ZERO);
-    const ONE: Self = Self(U384::ONE);
-
-    #[inline]
-    fn from_bytes(bytes: &[u8; 48]) -> Option<Self> {
-        let value = U384::from_be_slice(bytes);
-        if value.is_zero() || value.ct_ge(&MODULUS_N) {
-            None
-        } else {
-            Some(Self(value))
-        }
+    fn hash(data: &[u8]) -> Self::DigestBytes {
+        Sha384::hash(data).as_ref().try_into().unwrap()
     }
 
     #[inline]
-    fn from_hash(hash: &[u8; 48]) -> Self {
-        let value = U384::from_be_slice(hash);
-        let (sub_value, _) = value.sub_raw(&MODULUS_N);
-        let reduced = U384::ct_select(&sub_value, &value, value.ct_ge(&MODULUS_N));
-        Self(reduced)
+    fn hmac(key: &[u8], data: &[u8]) -> Self::DigestBytes {
+        Hmac::<Sha384>::mac(key, data).as_ref().try_into().unwrap()
     }
 
     #[inline]
-    fn to_bytes(self) -> [u8; 48] {
-        self.0.to_be_bytes_fixed::<48>()
+    fn scalar_from_digest(digest: &Self::DigestBytes) -> Self::U {
+        reduce_mod(CurveUint::read_be(digest.as_ref()))
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.0.is_zero()
+    fn scalar_from_field_bytes(bytes: &Self::FieldBytes) -> Self::U {
+        reduce_mod(CurveUint::read_be(bytes.as_ref()))
     }
 
+    #[cfg(feature = "random")]
     #[inline]
-    fn bit(&self, index: usize) -> bool {
-        self.0.bit(index)
-    }
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self {
-        Self(self.0.add_mod(&rhs.0, &MODULUS_N))
-    }
-
-    #[cfg(test)]
-    #[inline]
-    fn sub(self, rhs: Self) -> Self {
-        Self(self.0.sub_mod(&rhs.0, &MODULUS_N))
-    }
-
-    #[inline]
-    fn mul(self, rhs: Self) -> Self {
-        Self(self.0.mul_mod(&rhs.0, &MODULUS_N))
-    }
-
-    #[inline]
-    fn invert(self) -> Option<Self> {
-        Some(Self(self.scalar_pow(&N_MINUS_TWO)))
-    }
-
-    #[inline]
-    fn scalar_pow(self, exponent: &U384) -> U384 {
-        let mut result = Scalar::ONE;
-        let mut i = 384usize;
-        while i > 0 {
-            i -= 1;
-            result = result.mul(result);
-            let product = result.mul(self);
-            result = Scalar::select(&product, &result, exponent.bit(i));
-        }
-        result.0
-    }
-
-    #[inline]
-    fn select(a: &Self, b: &Self, choice: bool) -> Self {
-        Self(U384::ct_select(&a.0, &b.0, choice))
+    fn random_secret_key() -> Self::FieldBytes {
+        crate::random::random_bytes()
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct AffinePoint {
-    x: FieldElement,
-    y: FieldElement,
-    infinity: bool,
-}
-
-impl AffinePoint {
-    const GENERATOR: Self = Self {
-        x: GENERATOR_X,
-        y: GENERATOR_Y,
-        infinity: false,
-    };
-
-    #[inline]
-    fn new(x: FieldElement, y: FieldElement) -> Option<Self> {
-        let point = Self {
-            x,
-            y,
-            infinity: false,
-        };
-        if point.is_on_curve() { Some(point) } else { None }
-    }
-
-    #[inline]
-    fn is_on_curve(&self) -> bool {
-        if self.infinity {
-            return false;
-        }
-        let x2 = self.x.square();
-        let x3 = x2.mul(self.x);
-        let rhs = x3.sub(self.x.triple()).add(CURVE_B);
-        self.y.square() == rhs
-    }
-
-    #[inline]
-    fn to_uncompressed_bytes(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_SIZE] {
-        let mut out = [0u8; PUBLIC_KEY_UNCOMPRESSED_SIZE];
-        out[0] = 0x04;
-        out[1..49].copy_from_slice(&self.x.to_bytes());
-        out[49..97].copy_from_slice(&self.y.to_bytes());
-        out
-    }
-
-    #[cfg(test)]
-    #[inline]
-    fn to_compressed_bytes(&self) -> [u8; PUBLIC_KEY_COMPRESSED_SIZE] {
-        let mut out = [0u8; PUBLIC_KEY_COMPRESSED_SIZE];
-        out[0] = if self.y.is_odd() { 0x03 } else { 0x02 };
-        out[1..49].copy_from_slice(&self.x.to_bytes());
-        out
-    }
-
-    fn from_sec1_bytes(bytes: &[u8]) -> Option<Self> {
-        match bytes.len() {
-            PUBLIC_KEY_UNCOMPRESSED_SIZE if bytes[0] == 0x04 => {
-                let x = FieldElement::from_bytes(bytes[1..49].try_into().unwrap())?;
-                let y = FieldElement::from_bytes(bytes[49..97].try_into().unwrap())?;
-                Self::new(x, y)
-            }
-            PUBLIC_KEY_COMPRESSED_SIZE if bytes[0] == 0x02 || bytes[0] == 0x03 => {
-                let x = FieldElement::from_bytes(bytes[1..49].try_into().unwrap())?;
-                let rhs = x.square().mul(x).sub(x.triple()).add(CURVE_B);
-                let y = rhs.sqrt()?;
-                let y_is_odd = y.is_odd();
-                let select_neg = y_is_odd != (bytes[0] == 0x03);
-                let y = FieldElement::select(&y.negate(), &y, select_neg);
-                Self::new(x, y)
-            }
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct ProjectivePoint {
-    x: FieldElement,
-    y: FieldElement,
-    z: FieldElement,
-}
-
-impl ProjectivePoint {
-    const IDENTITY: Self = Self {
-        x: FieldElement::ZERO,
-        y: FieldElement::ONE,
-        z: FieldElement::ZERO,
-    };
-
-    #[cfg(test)]
-    #[inline]
-    fn from_affine(point: &AffinePoint) -> Self {
-        if point.infinity {
-            Self::IDENTITY
-        } else {
-            Self {
-                x: point.x,
-                y: point.y,
-                z: FieldElement::ONE,
-            }
-        }
-    }
-
-    #[inline]
-    fn is_identity(&self) -> bool {
-        self.z.is_zero()
-    }
-
-    #[inline]
-    fn select(a: &Self, b: &Self, choice: bool) -> Self {
-        Self {
-            x: FieldElement::select(&a.x, &b.x, choice),
-            y: FieldElement::select(&a.y, &b.y, choice),
-            z: FieldElement::select(&a.z, &b.z, choice),
-        }
-    }
-
-    #[inline]
-    fn to_affine(&self) -> Option<AffinePoint> {
-        if self.is_identity() {
-            return None;
-        }
-        let z_inv = self.z.invert()?;
-        AffinePoint::new(self.x.mul(z_inv), self.y.mul(z_inv))
-    }
-
-    fn add(&self, rhs: &Self) -> Self {
-        let xx = self.x.mul(rhs.x);
-        let yy = self.y.mul(rhs.y);
-        let zz = self.z.mul(rhs.z);
-        let xy_pairs = self.x.add(self.y).mul(rhs.x.add(rhs.y)).sub(xx.add(yy));
-        let yz_pairs = self.y.add(self.z).mul(rhs.y.add(rhs.z)).sub(yy.add(zz));
-        let xz_pairs = self.x.add(self.z).mul(rhs.x.add(rhs.z)).sub(xx.add(zz));
-
-        let bzz_part = xz_pairs.sub(CURVE_B.mul(zz));
-        let bzz3_part = bzz_part.triple();
-        let yy_m_bzz3 = yy.sub(bzz3_part);
-        let yy_p_bzz3 = yy.add(bzz3_part);
-
-        let zz3 = zz.triple();
-        let bxz_part = CURVE_B.mul(xz_pairs).sub(zz3.add(xx));
-        let bxz3_part = bxz_part.triple();
-        let xx3_m_zz3 = xx.triple().sub(zz3);
-
-        Self {
-            x: yy_p_bzz3.mul(xy_pairs).sub(yz_pairs.mul(bxz3_part)),
-            y: yy_p_bzz3.mul(yy_m_bzz3).add(xx3_m_zz3.mul(bxz3_part)),
-            z: yy_m_bzz3.mul(yz_pairs).add(xy_pairs.mul(xx3_m_zz3)),
-        }
-    }
-
-    fn add_mixed(&self, rhs: &AffinePoint) -> Self {
-        if rhs.infinity {
-            return *self;
-        }
-
-        let xx = self.x.mul(rhs.x);
-        let yy = self.y.mul(rhs.y);
-        let xy_pairs = self.x.add(self.y).mul(rhs.x.add(rhs.y)).sub(xx.add(yy));
-        let yz_pairs = rhs.y.mul(self.z).add(self.y);
-        let xz_pairs = rhs.x.mul(self.z).add(self.x);
-
-        let bz_part = xz_pairs.sub(CURVE_B.mul(self.z));
-        let bz3_part = bz_part.triple();
-        let yy_m_bzz3 = yy.sub(bz3_part);
-        let yy_p_bzz3 = yy.add(bz3_part);
-
-        let z3 = self.z.triple();
-        let bxz_part = CURVE_B.mul(xz_pairs).sub(z3.add(xx));
-        let bxz3_part = bxz_part.triple();
-        let xx3_m_zz3 = xx.triple().sub(z3);
-
-        Self {
-            x: yy_p_bzz3.mul(xy_pairs).sub(yz_pairs.mul(bxz3_part)),
-            y: yy_p_bzz3.mul(yy_m_bzz3).add(xx3_m_zz3.mul(bxz3_part)),
-            z: yy_m_bzz3.mul(yz_pairs).add(xy_pairs.mul(xx3_m_zz3)),
-        }
-    }
-
-    fn double(&self) -> Self {
-        let xx = self.x.square();
-        let yy = self.y.square();
-        let zz = self.z.square();
-        let xy2 = self.x.mul(self.y).double();
-        let xz2 = self.x.mul(self.z).double();
-
-        let bzz_part = CURVE_B.mul(zz).sub(xz2);
-        let bzz3_part = bzz_part.triple();
-        let yy_m_bzz3 = yy.sub(bzz3_part);
-        let yy_p_bzz3 = yy.add(bzz3_part);
-        let y_frag = yy_p_bzz3.mul(yy_m_bzz3);
-        let x_frag = yy_m_bzz3.mul(xy2);
-
-        let zz3 = zz.triple();
-        let bxz2_part = CURVE_B.mul(xz2).sub(zz3.add(xx));
-        let bxz6_part = bxz2_part.triple();
-        let xx3_m_zz3 = xx.triple().sub(zz3);
-
-        let y = y_frag.add(xx3_m_zz3.mul(bxz6_part));
-        let yz2 = self.y.mul(self.z).double();
-        let x = x_frag.sub(bxz6_part.mul(yz2));
-        let z = yz2.mul(yy).double().double();
-
-        Self {
-            x,
-            y,
-            z,
-        }
-    }
-}
-
-fn scalar_mul_generator(scalar: &Scalar) -> ProjectivePoint {
-    scalar_mul_affine(&AffinePoint::GENERATOR, scalar)
-}
-
-fn scalar_mul_affine(base: &AffinePoint, scalar: &Scalar) -> ProjectivePoint {
-    let mut acc = ProjectivePoint::IDENTITY;
-    let mut bit = 384usize;
-    while bit > 0 {
-        bit -= 1;
-        acc = acc.double();
-        let candidate = acc.add_mixed(base);
-        acc = ProjectivePoint::select(&candidate, &acc, scalar.bit(bit));
-    }
-    acc
-}
-
-#[inline]
-fn hash_message(message: &[u8]) -> [u8; 48] {
-    let digest = Sha384::hash(message);
-    digest.as_ref().try_into().unwrap()
-}
-
-#[inline]
-fn hmac_sha384(key: &[u8], data: &[u8]) -> [u8; 48] {
-    let mac = Hmac::<Sha384>::mac(key, data);
-    mac.as_ref().try_into().unwrap()
-}
-
-fn bits2octets(hash: &[u8; 48]) -> [u8; 48] {
-    Scalar::from_hash(hash).to_bytes()
-}
-
-fn rfc6979_init_state(private_key: &Scalar, message_hash: &[u8; 48]) -> ([u8; 48], [u8; 48]) {
-    let x = private_key.to_bytes();
-    let h1 = bits2octets(message_hash);
-
-    let mut v = [0x01u8; 48];
-    let mut k = [0u8; 48];
-
-    let mut buf = [0u8; 145];
-    buf[..48].copy_from_slice(&v);
-    buf[48] = 0x00;
-    buf[49..97].copy_from_slice(&x);
-    buf[97..145].copy_from_slice(&h1);
-    k = hmac_sha384(&k, &buf);
-    v = hmac_sha384(&k, &v);
-
-    buf[..48].copy_from_slice(&v);
-    buf[48] = 0x01;
-    k = hmac_sha384(&k, &buf);
-    v = hmac_sha384(&k, &v);
-
-    (k, v)
-}
-
-fn rfc6979_retry(k: &mut [u8; 48], v: &mut [u8; 48]) {
-    let mut retry_buf = [0u8; 49];
-    retry_buf[..48].copy_from_slice(v);
-    retry_buf[48] = 0x00;
-    *k = hmac_sha384(k, &retry_buf);
-    *v = hmac_sha384(k, v);
-}
-
-fn rfc6979_retry_clone(k: &[u8; 48], v: &[u8; 48]) -> ([u8; 48], [u8; 48]) {
-    let mut retry_buf = [0u8; 49];
-    retry_buf[..48].copy_from_slice(v);
-    retry_buf[48] = 0x00;
-    let k_new = hmac_sha384(k, &retry_buf);
-    let v_new = hmac_sha384(&k_new, v);
-    (k_new, v_new)
-}
-
-fn ct_select_bytes<const N: usize>(a: &[u8; N], b: &[u8; N], choice: bool) -> [u8; N] {
-    let mask = (choice as u8).wrapping_neg();
-    let mut out = [0u8; N];
-    for i in 0..N {
-        out[i] = (a[i] & mask) | (b[i] & !mask);
-    }
-    out
-}
-
-fn rfc6979_generate_k(private_key: &Scalar, message_hash: &[u8; 48]) -> Scalar {
-    let (mut k, mut v) = rfc6979_init_state(private_key, message_hash);
-
-    let mut candidate = [0u8; 48];
-    let mut found = false;
-
-    for _ in 0..3 {
-        v = hmac_sha384(&k, &v);
-        let val = U384::from_be_slice(&v);
-        let is_valid = !val.is_zero() && !val.ct_ge(&MODULUS_N);
-
-        let take = is_valid && !found;
-        candidate = ct_select_bytes(&v, &candidate, take);
-        found = found || is_valid;
-
-        let (k_retry, v_retry) = rfc6979_retry_clone(&k, &v);
-        k = ct_select_bytes(&k, &k_retry, !is_valid);
-        v = ct_select_bytes(&v, &v_retry, !is_valid);
-    }
-
-    if found {
-        return Scalar::from_bytes(&candidate).unwrap_or(Scalar::ZERO);
-    }
-
-    v = hmac_sha384(&k, &v);
-    if let Some(sc) = Scalar::from_bytes(&v) {
-        return sc;
-    }
-
-    loop {
-        v = hmac_sha384(&k, &v);
-        if let Some(sc) = Scalar::from_bytes(&v) {
-            return sc;
-        }
-        rfc6979_retry(&mut k, &mut v);
-    }
-}
-
-fn parse_private_key(private_key: &[u8; PRIVATE_KEY_SIZE]) -> Result<Scalar, EllipticCurveError> {
-    Scalar::from_bytes(private_key).ok_or(EllipticCurveError::InvalidKey)
-}
-
-fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, EllipticCurveError> {
-    AffinePoint::from_sec1_bytes(public_key).ok_or(EllipticCurveError::InvalidKey)
-}
-
-#[cfg(test)]
-fn derive_public_key_uncompressed(
-    private_key: &[u8; PRIVATE_KEY_SIZE],
-) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], EllipticCurveError> {
-    let scalar = parse_private_key(private_key)?;
-    let point = scalar_mul_generator(&scalar)
-        .to_affine()
-        .ok_or(EllipticCurveError::Unspecified)?;
-    Ok(point.to_uncompressed_bytes())
-}
-
-#[cfg(test)]
-fn derive_public_key_compressed(
-    private_key: &[u8; PRIVATE_KEY_SIZE],
-) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], EllipticCurveError> {
-    let scalar = parse_private_key(private_key)?;
-    let point = scalar_mul_generator(&scalar)
-        .to_affine()
-        .ok_or(EllipticCurveError::Unspecified)?;
-    Ok(point.to_compressed_bytes())
-}
-
-fn ecdh_inner(scalar: &Scalar, peer_point: &AffinePoint) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-    let shared_point = scalar_mul_affine(peer_point, scalar)
-        .to_affine()
-        .ok_or(EllipticCurveError::Unspecified)?;
-    Ok(shared_point.x.to_bytes())
-}
-
-pub fn ecdh(
-    private_key: &[u8; PRIVATE_KEY_SIZE],
-    peer_public_key: &[u8],
-) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], EllipticCurveError> {
-    let scalar = parse_private_key(private_key)?;
-    let peer_point = parse_public_key(peer_public_key)?;
-    ecdh_inner(&scalar, &peer_point)
-}
-
-fn ecdsa_sign_inner(scalar: &Scalar, message: &[u8]) -> Result<[u8; SIGNATURE_SIZE], EllipticCurveError> {
-    let message_hash = hash_message(message);
-    let z = Scalar::from_hash(&message_hash);
-
-    for _ in 0..2 {
-        let k = rfc6979_generate_k(scalar, &message_hash);
-
-        let r_point = scalar_mul_generator(&k)
-            .to_affine()
-            .ok_or(EllipticCurveError::Unspecified)?;
-        let r = Scalar::from_hash(&r_point.x.to_bytes());
-        if r.is_zero() {
-            continue;
-        }
-
-        let kinv = k.invert().ok_or(EllipticCurveError::Unspecified)?;
-        let s = kinv.mul(z.add(r.mul(*scalar)));
-        if s.is_zero() {
-            continue;
-        }
-
-        let mut out = [0u8; SIGNATURE_SIZE];
-        out[..48].copy_from_slice(&r.to_bytes());
-        out[48..].copy_from_slice(&s.to_bytes());
-        return Ok(out);
-    }
-
-    Err(EllipticCurveError::Unspecified)
-}
-
-fn ecdsa_verify_inner(
-    public_point: &AffinePoint,
-    message: &[u8],
-    signature: &[u8; SIGNATURE_SIZE],
-) -> Result<(), EllipticCurveError> {
-    let r = Scalar::from_bytes(signature[..48].try_into().unwrap()).ok_or(EllipticCurveError::Unspecified)?;
-    let s = Scalar::from_bytes(signature[48..].try_into().unwrap()).ok_or(EllipticCurveError::Unspecified)?;
-    let z = Scalar::from_hash(&hash_message(message));
-
-    let w = s.invert().ok_or(EllipticCurveError::Unspecified)?;
-    let u1 = z.mul(w);
-    let u2 = r.mul(w);
-
-    let point = scalar_mul_generator(&u1).add(&scalar_mul_affine(public_point, &u2));
-    let affine = point.to_affine().ok_or(EllipticCurveError::Unspecified)?;
-    let x_mod_n = Scalar::from_hash(&affine.x.to_bytes());
-
-    if x_mod_n == r {
-        Ok(())
-    } else {
-        Err(EllipticCurveError::Unspecified)
-    }
-}
-
+/// Returns `true` when `public_key` is a valid SEC1 encoding of a point on the
+/// P-384 curve.
 pub fn is_valid_public_key(public_key: &[u8]) -> bool {
-    AffinePoint::from_sec1_bytes(public_key).is_some()
+    p_curves::is_valid_public_key::<P384>(public_key)
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
     use super::*;
+    use crate::p_curves::p_curves;
+
+    type FieldElement = p_curves::FieldElement<P384>;
+    type Scalar = p_curves::Scalar<P384>;
+    type AffinePoint = p_curves::AffinePoint<P384>;
+    type ProjectivePoint = p_curves::ProjectivePoint<P384>;
+    type Rfc6979 = p_curves::Rfc6979<P384>;
+
+    // Concrete wrappers around the generic core helpers.
+    fn hash_message(message: &[u8]) -> [u8; 48] {
+        p_curves::hash_message::<P384>(message)
+    }
+
+    fn hmac_digest(key: &[u8], data: &[u8]) -> [u8; 48] {
+        p_curves::hmac_digest::<P384>(key, data)
+    }
+
+    fn bits2octets(hash: &[u8; 48]) -> [u8; SECRET_KEY_SIZE] {
+        p_curves::bits2octets::<P384>(hash)
+    }
+
+    fn derive_public_key_uncompressed(
+        private_key: &[u8; SECRET_KEY_SIZE],
+    ) -> Result<[u8; PUBLIC_KEY_UNCOMPRESSED_SIZE], crate::EllipticCurveError> {
+        p_curves::derive_public_key_uncompressed::<P384>(private_key)
+    }
+
+    fn derive_public_key_compressed(
+        private_key: &[u8; SECRET_KEY_SIZE],
+    ) -> Result<[u8; PUBLIC_KEY_COMPRESSED_SIZE], crate::EllipticCurveError> {
+        p_curves::derive_public_key_compressed::<P384>(private_key)
+    }
+
+    fn ecdsa_sign_inner_impl(
+        scalar: &Scalar,
+        message: &[u8],
+        force_first_retry: bool,
+    ) -> Result<[u8; SIGNATURE_SIZE], crate::EllipticCurveError> {
+        p_curves::ecdsa_sign_inner_impl::<P384>(scalar, message, force_first_retry)
+    }
+
+    fn ecdsa_verify_inner(
+        public_point: &AffinePoint,
+        message: &[u8],
+        signature: &[u8; SIGNATURE_SIZE],
+    ) -> Result<(), crate::EllipticCurveError> {
+        p_curves::ecdsa_verify_inner::<P384>(public_point, message, signature)
+    }
+
+    fn parse_public_key(public_key: &[u8]) -> Result<AffinePoint, crate::EllipticCurveError> {
+        p_curves::parse_public_key::<P384>(public_key)
+    }
+
+    fn scalar_mul_generator(scalar: &Scalar) -> ProjectivePoint {
+        p_curves::scalar_mul_generator::<P384>(scalar)
+    }
+
+    fn scalar_mul_affine(base: &AffinePoint, scalar: &Scalar) -> ProjectivePoint {
+        p_curves::scalar_mul_affine::<P384>(base, scalar)
+    }
+
+    // Raw-byte ECDH built from the public method, for the vector tests.
+    fn ecdh(
+        secret_key: &[u8; SECRET_KEY_SIZE],
+        peer_public_key: &[u8],
+    ) -> Result<[u8; ECDH_SHARED_SECRET_SIZE], crate::EllipticCurveError> {
+        SecretKey::from_bytes(secret_key)?.ecdh(&PublicKey::from_bytes(peer_public_key)?)
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn private_key_zeroize_clears_scalar() {
+        use zeroize::Zeroize;
+
+        let mut key = SecretKey::from_bytes(&[1u8; SECRET_KEY_SIZE]).unwrap();
+        assert_ne!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+        key.zeroize();
+        assert_eq!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
+    }
 
     fn decode_hex<const N: usize>(hex_bytes: &str) -> [u8; N] {
         let bytes = hex::decode(hex_bytes).unwrap();
@@ -1190,7 +790,7 @@ mod tests {
             "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
              96d5724e4c70a825f872c9ea60d2edf5",
         );
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let uncompressed = key.public_key();
         let compressed = derive_public_key_compressed(&private_key).unwrap();
         let signature = key.sign(b"sample").unwrap();
@@ -1202,8 +802,8 @@ mod tests {
 
     #[test]
     fn invalid_inputs_are_rejected() {
-        let invalid_private_key = [0u8; PRIVATE_KEY_SIZE];
-        assert!(PrivateKey::from_bytes(&invalid_private_key).is_err());
+        let invalid_private_key = [0u8; SECRET_KEY_SIZE];
+        assert!(SecretKey::from_bytes(&invalid_private_key).is_err());
         assert!(derive_public_key_uncompressed(&invalid_private_key).is_err());
         assert!(derive_public_key_compressed(&invalid_private_key).is_err());
 
@@ -1211,7 +811,7 @@ mod tests {
             "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
              96d5724e4c70a825f872c9ea60d2edf5",
         );
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let signature = key.sign(b"msg").unwrap();
         let mut zero_r = signature;
         zero_r[..48].fill(0);
@@ -1233,7 +833,7 @@ mod tests {
             "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
              96d5724e4c70a825f872c9ea60d2edf5",
         );
-        let key = PrivateKey::from_bytes(&private_key).unwrap();
+        let key = SecretKey::from_bytes(&private_key).unwrap();
         let pub_key = key.public_key();
 
         let messages: &[&[u8]] = &[
@@ -1255,6 +855,57 @@ mod tests {
     }
 
     #[test]
+    fn rfc6979_retry_advances_drbg() {
+        let private_key = Scalar::from_bytes(&decode_hex::<48>(
+            "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
+             96d5724e4c70a825f872c9ea60d2edf5",
+        ))
+        .unwrap();
+        let hash = hash_message(b"sample");
+
+        let mut drbg = Rfc6979::new(&private_key, &hash);
+        let k1 = drbg.generate();
+        assert_eq!(
+            k1.to_bytes(),
+            decode_hex::<48>(
+                "94ed910d1a099dad3254e9242ae85abde4ba15168eaf0ca87a555fd56d10fbca\
+                 2907e3e83ba95368623b8c4686915cf9"
+            )
+        );
+
+        // RFC 6979 §3.2 h.3: an r=0/s=0 retry must continue the DRBG, not
+        // reproduce the same nonce.
+        drbg.retry();
+        let k2 = drbg.generate();
+        assert_ne!(k1.to_bytes(), k2.to_bytes());
+        assert_eq!(
+            k2.to_bytes(),
+            decode_hex::<48>(
+                "9d63ce4c96d070a67f7bee49e870b64838c0ac65bb7440cf46017dca69d35d23\
+                 6219aae5e00a9f01f13e7774be1339fc"
+            )
+        );
+    }
+
+    #[test]
+    fn ecdsa_forced_retry_uses_fresh_nonce() {
+        let private_key = decode_hex::<48>(
+            "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
+             96d5724e4c70a825f872c9ea60d2edf5",
+        );
+        let key = SecretKey::from_bytes(&private_key).unwrap();
+        let scalar = Scalar::from_bytes(&private_key).unwrap();
+
+        let normal = key.sign(b"sample").unwrap();
+        // Force the r=0/s=0 retry path. The signature must be produced with the
+        // next DRBG nonce; repeating the first nonce would yield `normal`.
+        let retried = ecdsa_sign_inner_impl(&scalar, b"sample", true).unwrap();
+
+        assert_ne!(normal, retried);
+        assert!(key.public_key().verify(b"sample", &retried).is_ok());
+    }
+
+    #[test]
     fn ecdsa_sign_verify_different_keys() {
         let keys: &[&str] = &[
             "0000000000000000000000000000000000000000000000000000000000000000\
@@ -1267,7 +918,7 @@ mod tests {
 
         for key_hex in keys {
             let private_key = decode_hex::<48>(key_hex);
-            let key = PrivateKey::from_bytes(&private_key).unwrap();
+            let key = SecretKey::from_bytes(&private_key).unwrap();
             let sig = key.sign(b"test message").unwrap();
             assert!(
                 key.public_key().verify(b"test message", &sig).is_ok(),
@@ -1287,11 +938,53 @@ mod tests {
             "0000000000000000000000000000000000000000000000000000000000000000\
              00000000000000000000000000000001",
         );
-        let key1 = PrivateKey::from_bytes(&private_key1).unwrap();
-        let key2 = PrivateKey::from_bytes(&private_key2).unwrap();
+        let key1 = SecretKey::from_bytes(&private_key1).unwrap();
+        let key2 = SecretKey::from_bytes(&private_key2).unwrap();
 
         let sig = key1.sign(b"message").unwrap();
         assert!(key2.public_key().verify(b"message", &sig).is_err());
+    }
+
+    #[test]
+    fn ecdsa_sign_emits_canonical_low_s() {
+        let private_key = decode_hex::<48>(
+            "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
+             96d5724e4c70a825f872c9ea60d2edf5",
+        );
+        let key = SecretKey::from_bytes(&private_key).unwrap();
+        for msg in [&b"sample"[..], b"test", b"", b"another message"] {
+            let sig = key.sign(msg).unwrap();
+            let s = Scalar::from_bytes(sig[48..].try_into().unwrap()).unwrap();
+            assert!(!s.is_high(), "sign produced a high-s signature for {:?}", msg);
+        }
+    }
+
+    #[test]
+    fn ecdsa_verify_strict_rejects_high_s() {
+        let private_key = decode_hex::<48>(
+            "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba9aa47740787137d8\
+             96d5724e4c70a825f872c9ea60d2edf5",
+        );
+        let key = SecretKey::from_bytes(&private_key).unwrap();
+        let public_key = key.public_key();
+        let signature = key.sign(b"sample").unwrap();
+
+        // Canonical low-s signature passes both permissive and strict verification.
+        assert!(public_key.verify(b"sample", &signature).is_ok());
+        assert!(public_key.verify_strict(b"sample", &signature).is_ok());
+
+        // The malleable counterpart (r, n - s) is rejected only by strict verify.
+        let r = Scalar::from_bytes(signature[..48].try_into().unwrap()).unwrap();
+        let s = Scalar::from_bytes(signature[48..].try_into().unwrap()).unwrap();
+        let high_s = Scalar::ZERO.sub(s);
+        assert!(high_s.is_high());
+
+        let mut malleable = [0u8; SIGNATURE_SIZE];
+        malleable[..48].copy_from_slice(&r.to_bytes());
+        malleable[48..].copy_from_slice(&high_s.to_bytes());
+
+        assert!(public_key.verify(b"sample", &malleable).is_ok());
+        assert!(public_key.verify_strict(b"sample", &malleable).is_err());
     }
 
     #[test]
@@ -1349,7 +1042,7 @@ mod tests {
 
         for key_hex in keys {
             let private_key = decode_hex::<48>(key_hex);
-            let key = PrivateKey::from_bytes(&private_key).unwrap();
+            let key = SecretKey::from_bytes(&private_key).unwrap();
             let uncompressed = key.public_key();
             let compressed = derive_public_key_compressed(&private_key).unwrap();
 
@@ -1385,11 +1078,6 @@ mod tests {
         let x_inv = x.invert().unwrap();
         let product = x.mul(x_inv);
         assert_eq!(product, FieldElement::ONE);
-    }
-
-    #[test]
-    fn generator_point_is_on_curve() {
-        assert!(AffinePoint::GENERATOR.is_on_curve());
     }
 
     #[test]
@@ -1449,83 +1137,22 @@ mod tests {
         ))
         .unwrap();
         let result = scalar_mul_generator(&n_minus_1).to_affine().unwrap();
-        assert_eq!(result.x, GENERATOR_X);
-        let neg_gy = GENERATOR_Y.negate();
+        assert_eq!(result.x, FieldElement::from_uint(GENERATOR_X));
+        let neg_gy = FieldElement::from_uint(GENERATOR_Y).negate();
         assert_eq!(result.y, neg_gy);
-    }
-
-    #[test]
-    fn ecdh_round_trip_alice_bob() {
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
-
-        let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
-        let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
-
-        assert_eq!(alice_shared, bob_shared);
-        assert_eq!(alice_shared.len(), ECDH_SHARED_SECRET_SIZE);
-    }
-
-    #[test]
-    fn ecdh_rejects_off_curve_peer_public_key() {
-        let alice = PrivateKey::generate().unwrap();
-        let mut bad_pub = alice.public_key().to_bytes().to_vec();
-        bad_pub[96] ^= 0x01;
-        assert!(!is_valid_public_key(&bad_pub));
-        assert!(ecdh(&alice.to_bytes(), &bad_pub).is_err());
-    }
-
-    #[test]
-    fn ecdh_rejects_infinity_peer_public_key() {
-        let alice = PrivateKey::generate().unwrap();
-        let infinity = [0x00u8];
-        assert!(ecdh(&alice.to_bytes(), &infinity).is_err());
-    }
-
-    #[test]
-    fn ecdh_rejects_bad_length_peer_public_key() {
-        let alice = PrivateKey::generate().unwrap();
-        assert!(ecdh(&alice.to_bytes(), &[]).is_err());
-        assert!(ecdh(&alice.to_bytes(), &[0x04, 0x00]).is_err());
-        let mut long = [0x04u8; 200];
-        long[0] = 0x04;
-        assert!(ecdh(&alice.to_bytes(), &long).is_err());
     }
 
     #[test]
     fn ecdh_rejects_invalid_private_key_zero() {
         let zero_key = [0u8; 48];
-        assert!(PrivateKey::from_bytes(&zero_key).is_err());
-        let bob = PrivateKey::generate().unwrap();
+        assert!(SecretKey::from_bytes(&zero_key).is_err());
+        let bob = SecretKey::generate().unwrap();
         assert!(ecdh(&zero_key, &bob.public_key().to_bytes()).is_err());
     }
 
     #[test]
-    fn ecdh_multiple_exchanges_consistency() {
-        let alice = PrivateKey::generate().unwrap();
-        let bob = PrivateKey::generate().unwrap();
-        let charlie = PrivateKey::generate().unwrap();
-
-        let alice_bob = alice.ecdh(&bob.public_key()).unwrap();
-        let bob_alice = bob.ecdh(&alice.public_key()).unwrap();
-        assert_eq!(alice_bob, bob_alice);
-
-        let alice_charlie = alice.ecdh(&charlie.public_key()).unwrap();
-        let charlie_alice = charlie.ecdh(&alice.public_key()).unwrap();
-        assert_eq!(alice_charlie, charlie_alice);
-
-        let bob_charlie = bob.ecdh(&charlie.public_key()).unwrap();
-        let charlie_bob = charlie.ecdh(&bob.public_key()).unwrap();
-        assert_eq!(bob_charlie, charlie_bob);
-
-        assert_ne!(alice_bob, alice_charlie);
-        assert_ne!(alice_bob, bob_charlie);
-        assert_ne!(alice_charlie, bob_charlie);
-    }
-
-    #[test]
     fn ecdsa_rejects_non_canonical_r_and_s() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let valid_sig = key.sign(b"msg").unwrap();
 
         let mut bad_r = valid_sig;
@@ -1543,7 +1170,7 @@ mod tests {
 
     #[test]
     fn verify_rejects_tampered_message_and_signature() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let pub_key = key.public_key();
         let sig = key.sign(b"message").unwrap();
 
@@ -1556,7 +1183,7 @@ mod tests {
 
     #[test]
     fn public_key_rejects_off_curve_point() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let mut off_curve = key.public_key().to_bytes();
         off_curve[96] ^= 0x01;
         assert!(!is_valid_public_key(&off_curve));
@@ -1564,26 +1191,8 @@ mod tests {
     }
 
     #[test]
-    fn private_key_round_trip_bytes() {
-        let key = PrivateKey::generate().unwrap();
-        let bytes = key.to_bytes();
-        let key2 = PrivateKey::from_bytes(&bytes).unwrap();
-        assert_eq!(key.to_bytes(), key2.to_bytes());
-        assert_eq!(key.public_key().to_bytes(), key2.public_key().to_bytes());
-    }
-
-    #[test]
-    fn public_key_round_trip_bytes() {
-        let key = PrivateKey::generate().unwrap();
-        let pub_key = key.public_key();
-        let bytes = pub_key.to_bytes();
-        let pub_key2 = PublicKey::from_bytes(&bytes).unwrap();
-        assert_eq!(pub_key.to_bytes(), pub_key2.to_bytes());
-    }
-
-    #[test]
     fn x_y_round_trip() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let pub_key = key.public_key();
         let (x, y) = pub_key.x_y();
         let pub_key2 = PublicKey::from_x_y(&x, &y).unwrap();
@@ -1605,11 +1214,6 @@ mod tests {
         .unwrap();
         let from_sec1 = PublicKey::from_bytes(&key.to_bytes()).unwrap();
         assert_eq!(key, from_sec1);
-    }
-
-    #[test]
-    fn from_x_y_rejects_off_curve() {
-        assert!(PublicKey::from_x_y(&[0u8; 48], &[0u8; 48]).is_err());
     }
 
     #[test]
@@ -1675,18 +1279,6 @@ mod tests {
     }
 
     #[test]
-    fn point_double_and_add_consistency() {
-        let g = AffinePoint::GENERATOR;
-        let proj_g = ProjectivePoint::from_affine(&g);
-        let doubled = proj_g.double();
-        let added = proj_g.add(&proj_g);
-        assert_eq!(
-            doubled.to_affine().unwrap().to_uncompressed_bytes(),
-            added.to_affine().unwrap().to_uncompressed_bytes(),
-        );
-    }
-
-    #[test]
     fn scalar_mul_by_two_matches_double() {
         let two = Scalar::from_bytes(&decode_hex::<48>(
             "0000000000000000000000000000000000000000000000000000000000000000\
@@ -1701,19 +1293,9 @@ mod tests {
     }
 
     #[test]
-    fn compressed_public_key_has_correct_prefix() {
-        for _ in 0..5 {
-            let key = PrivateKey::generate().unwrap();
-            let compressed = derive_public_key_compressed(&key.to_bytes()).unwrap();
-            let prefix = compressed[0];
-            assert!(prefix == 0x02 || prefix == 0x03, "invalid compressed prefix: {prefix:#x}");
-        }
-    }
-
-    #[test]
     fn ecdsa_sign_then_verify_consistent_for_random_keys() {
         for _ in 0..5 {
-            let key = PrivateKey::generate().unwrap();
+            let key = SecretKey::generate().unwrap();
             let msg = rand::random::<[u8; 32]>();
             let sig = key.sign(&msg).unwrap();
             assert!(key.public_key().verify(&msg, &sig).is_ok());
@@ -1724,7 +1306,7 @@ mod tests {
     fn is_on_curve_accepts_generator_and_random_points() {
         assert!(AffinePoint::GENERATOR.is_on_curve());
         for _ in 0..5 {
-            let key = PrivateKey::generate().unwrap();
+            let key = SecretKey::generate().unwrap();
             let pb = key.public_key().to_bytes();
             let pk = PublicKey::from_bytes(&pb).unwrap();
             let _ = pk;
@@ -1733,7 +1315,7 @@ mod tests {
 
     #[test]
     fn ecdh_with_self_is_consistent() {
-        let key = PrivateKey::generate().unwrap();
+        let key = SecretKey::generate().unwrap();
         let shared1 = key.ecdh(&key.public_key()).unwrap();
         let shared2 = key.ecdh(&key.public_key()).unwrap();
         assert_eq!(shared1, shared2);
@@ -1759,7 +1341,7 @@ mod tests {
     #[test]
     fn wycheproof_ecdsa_p384_sha384_p1363() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_p1363_test.json"
+            "../../testdata/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_p1363_test.json"
         ))
         .unwrap();
         let mut valid_tested = 0u64;
@@ -1807,7 +1389,7 @@ mod tests {
     #[test]
     fn wycheproof_ecdsa_p384_sha384_der() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_test.json"
+            "../../testdata/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_test.json"
         ))
         .unwrap();
         let mut valid_tested = 0u64;
@@ -1857,7 +1439,7 @@ mod tests {
     #[test]
     fn wycheproof_ecdh_p384_ecpoint() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/wycheproof/testvectors_v1/ecdh_secp384r1_ecpoint_test.json"
+            "../../testdata/wycheproof/testvectors_v1/ecdh_secp384r1_ecpoint_test.json"
         ))
         .unwrap();
         let mut valid_tested = 0u64;
@@ -1876,14 +1458,14 @@ mod tests {
                 let public_key = hex::decode(public_hex).unwrap();
 
                 let private_bytes = hex::decode(private_hex).unwrap();
-                let mut private_key = [0u8; PRIVATE_KEY_SIZE];
-                let effective_len = private_bytes.len().min(PRIVATE_KEY_SIZE);
-                let skip = if private_bytes.len() > PRIVATE_KEY_SIZE {
-                    private_bytes.len() - PRIVATE_KEY_SIZE
+                let mut private_key = [0u8; SECRET_KEY_SIZE];
+                let effective_len = private_bytes.len().min(SECRET_KEY_SIZE);
+                let skip = if private_bytes.len() > SECRET_KEY_SIZE {
+                    private_bytes.len() - SECRET_KEY_SIZE
                 } else {
                     0
                 };
-                private_key[PRIVATE_KEY_SIZE - effective_len..]
+                private_key[SECRET_KEY_SIZE - effective_len..]
                     .copy_from_slice(&private_bytes[skip..skip + effective_len]);
 
                 let shared = ecdh(&private_key, &public_key);
@@ -1919,9 +1501,10 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p384_asn() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/ecdh_secp384r1_test.json"))
-                .unwrap();
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../testdata/wycheproof/testvectors_v1/ecdh_secp384r1_test.json"
+        ))
+        .unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         let mut acceptable_tested = 0u64;
@@ -1942,14 +1525,14 @@ mod tests {
                 };
 
                 let private_bytes = hex::decode(private_hex).unwrap();
-                let mut private_key = [0u8; PRIVATE_KEY_SIZE];
-                let effective_len = private_bytes.len().min(PRIVATE_KEY_SIZE);
-                let skip = if private_bytes.len() > PRIVATE_KEY_SIZE {
-                    private_bytes.len() - PRIVATE_KEY_SIZE
+                let mut private_key = [0u8; SECRET_KEY_SIZE];
+                let effective_len = private_bytes.len().min(SECRET_KEY_SIZE);
+                let skip = if private_bytes.len() > SECRET_KEY_SIZE {
+                    private_bytes.len() - SECRET_KEY_SIZE
                 } else {
                     0
                 };
-                private_key[PRIVATE_KEY_SIZE - effective_len..]
+                private_key[SECRET_KEY_SIZE - effective_len..]
                     .copy_from_slice(&private_bytes[skip..skip + effective_len]);
 
                 let shared = ecdh(&private_key, &sec1_point);
@@ -1978,5 +1561,67 @@ mod tests {
         assert!(valid_tested > 0, "no valid ECDH P384 ASN wycheproof tests were run");
         assert!(invalid_tested > 0, "no invalid ECDH P384 ASN wycheproof tests were run");
         assert!(acceptable_tested > 0, "no acceptable ECDH P384 ASN wycheproof tests were run");
+    }
+
+    // Shared curve-independent tests, instantiated for P384.
+    #[test]
+    fn generator_point_is_on_curve() {
+        p_curves::test_support::generator_point_is_on_curve::<P384>();
+    }
+
+    #[test]
+    fn from_x_y_rejects_off_curve() {
+        p_curves::test_support::from_x_y_rejects_off_curve::<P384>();
+    }
+
+    #[test]
+    fn ecdh_round_trip_alice_bob() {
+        p_curves::test_support::ecdh_round_trip_alice_bob::<P384>();
+    }
+
+    #[test]
+    fn ecdh_rejects_off_curve_peer_public_key() {
+        p_curves::test_support::ecdh_rejects_off_curve_peer_public_key::<P384>();
+    }
+
+    #[test]
+    fn ecdh_rejects_infinity_peer_public_key() {
+        p_curves::test_support::ecdh_rejects_infinity_peer_public_key::<P384>();
+    }
+
+    #[test]
+    fn ecdh_rejects_bad_length_peer_public_key() {
+        p_curves::test_support::ecdh_rejects_bad_length_peer_public_key::<P384>();
+    }
+
+    #[test]
+    fn ecdh_multiple_exchanges_consistency() {
+        p_curves::test_support::ecdh_multiple_exchanges_consistency::<P384>();
+    }
+
+    #[test]
+    fn private_key_round_trip_bytes() {
+        p_curves::test_support::private_key_round_trip_bytes::<P384>();
+    }
+
+    #[test]
+    fn public_key_round_trip_bytes() {
+        p_curves::test_support::public_key_round_trip_bytes::<P384>();
+    }
+
+    #[test]
+    fn point_double_and_add_consistency() {
+        p_curves::test_support::point_double_and_add_consistency::<P384>();
+    }
+
+    #[test]
+    fn compressed_public_key_has_correct_prefix() {
+        p_curves::test_support::compressed_public_key_has_correct_prefix::<P384>();
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn rfc6979_state_zeroize_clears_drbg() {
+        p_curves::test_support::rfc6979_state_zeroize_clears_drbg::<P384>();
     }
 }

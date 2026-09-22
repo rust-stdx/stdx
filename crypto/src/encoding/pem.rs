@@ -105,6 +105,12 @@ pub fn encode(blocks: &[Block<'_>]) -> Vec<u8> {
     return output;
 }
 
+/// Iterates over the textual encoding blocks found in `pem`.
+///
+/// Each item is a decoded [`Block`] or a [`PemError`]. The body of every block
+/// must be standard base64; spaces, tabs, carriage returns, line feeds, vertical
+/// tabs and form feeds are ignored, while any other byte (including punctuation
+/// and non-ASCII data) is rejected with [`PemError::InvalidEncoding`].
 pub fn decode<'a>(pem: &'a [u8]) -> Blocks<'a> {
     Blocks {
         input: pem,
@@ -410,11 +416,14 @@ fn parse_one_block<'a>(input: &'a [u8], pos: &mut usize) -> Result<Block<'a>, Pe
     let end_remaining = &input[b64_data_end..];
     *pos = b64_data_end + line_advance(end_remaining);
 
-    let b64_clean: Vec<u8> = b64_text
-        .iter()
-        .copied()
-        .filter(|&b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
-        .collect();
+    let mut b64_clean: Vec<u8> = Vec::with_capacity(b64_text.len());
+    for &b in b64_text {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'+' | b'/' | b'=' => b64_clean.push(b),
+            b' ' | b'\t' | b'\r' | b'\n' | 0x0B | 0x0C => {}
+            _ => return Err(PemError::InvalidEncoding("invalid character in base64 body")),
+        }
+    }
 
     let contents = base64::decode(&b64_clean, base64::Alphabet::Standard)?;
 
@@ -1176,7 +1185,7 @@ print(pem, end='')
     }
 
     #[test]
-    fn decode_non_ascii_ignored() {
+    fn decode_non_ascii_rejected() {
         let mut pem = b"-----BEGIN CERTIFICATE-----\n".to_vec();
         pem.push(0x80);
         pem.extend_from_slice(b"\n");
@@ -1185,8 +1194,40 @@ print(pem, end='')
 
         let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&pem).collect();
         assert_eq!(decoded.len(), 1);
-        assert!(decoded[0].is_ok());
-        assert_eq!(decoded[0].as_ref().unwrap().contents, b"Hello");
+        assert!(decoded[0].is_err());
+    }
+
+    #[test]
+    fn decode_punctuation_in_body_rejected() {
+        let pem = b"-----BEGIN DATA-----\n\
+                     ZGF0!YQ==\n\
+                     -----END DATA-----\n";
+
+        let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(pem).collect();
+        assert_eq!(decoded.len(), 1);
+        assert!(decoded[0].is_err(), "punctuation in body must be rejected");
+    }
+
+    #[test]
+    fn decode_binary_junk_mid_body_rejected() {
+        let mut pem = b"-----BEGIN DATA-----\nZGF0YQ==\n".to_vec();
+        pem.extend_from_slice(&[0x00, 0x01, 0x02]);
+        pem.extend_from_slice(b"\n-----END DATA-----\n");
+
+        let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&pem).collect();
+        assert_eq!(decoded.len(), 1);
+        assert!(decoded[0].is_err(), "binary junk mid-body must be rejected");
+    }
+
+    #[test]
+    fn decode_lax_vertical_tab_and_form_feed() {
+        let pem = b"-----BEGIN DATA-----\n\
+                     ZGF0\x0bYQ==\x0c\n\
+                     -----END DATA-----\n";
+
+        let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(pem).collect();
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0].as_ref().unwrap().contents, b"data");
     }
 
     // ─── RFC 7468 Section 5-13: Label-specific examples ───
