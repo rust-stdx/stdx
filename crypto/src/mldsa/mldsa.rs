@@ -9,7 +9,7 @@ use constant_time_eq::constant_time_eq;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
-    Xof,
+    RandomError, Xof,
     sha3::{Shake128, Shake256},
 };
 
@@ -38,6 +38,7 @@ pub enum MlDsaError {
     InvalidSignature,
     InvalidPublicKey,
     InvalidSignatureLength,
+    Random(RandomError),
 }
 
 #[cfg(feature = "alloc")]
@@ -48,7 +49,14 @@ impl core::fmt::Display for MlDsaError {
             MlDsaError::InvalidSignature => write!(f, "signature is not valid"),
             MlDsaError::InvalidPublicKey => write!(f, "public key is not valid"),
             MlDsaError::InvalidSignatureLength => write!(f, "signature length is not valid"),
+            MlDsaError::Random(err) => write!(f, "{err}"),
         }
+    }
+}
+
+impl From<RandomError> for MlDsaError {
+    fn from(err: RandomError) -> Self {
+        MlDsaError::Random(err)
     }
 }
 
@@ -1082,10 +1090,10 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
 
     /// Generates a fresh random signing key.
     #[cfg(feature = "random")]
-    pub(crate) fn from_random(params: &MlDsaParams) -> Self {
+    pub(crate) fn from_random(params: &MlDsaParams) -> Result<Self, MlDsaError> {
         let mut this = Self::new();
-        this.generate(params);
-        this
+        this.generate(params)?;
+        Ok(this)
     }
 
     /// Expands `seed` into a signing key, overwriting any previous state.
@@ -1131,10 +1139,10 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
     }
 
     #[cfg(feature = "random")]
-    pub(crate) fn generate(&mut self, params: &MlDsaParams) -> [u8; SEED_SIZE] {
-        let seed: [u8; SEED_SIZE] = crate::random::random_bytes();
+    pub(crate) fn generate(&mut self, params: &MlDsaParams) -> Result<[u8; SEED_SIZE], MlDsaError> {
+        let seed: [u8; SEED_SIZE] = crate::random::bytes()?;
         self.init(params, &seed);
-        seed
+        Ok(seed)
     }
 
     pub(crate) fn public_key(&self) -> &[u8; PK_SIZE] {

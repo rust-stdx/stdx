@@ -1,6 +1,7 @@
 //! X-Wing: hybrid post-quantum key encapsulation mechanism (KEM) algorithm (ML-KEM-768 with X25519).
 
 use crate::{
+    RandomError,
     curve25519::x25519,
     mlkem::{self, MlKemError},
     sha3::{Sha3_256, Shake256},
@@ -21,6 +22,7 @@ const XWING_LABEL: &[u8; 6] = b"\\.//^\\";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum XWingError {
     MlKem(MlKemError),
+    Random(RandomError),
 }
 
 impl From<MlKemError> for XWingError {
@@ -29,10 +31,17 @@ impl From<MlKemError> for XWingError {
     }
 }
 
+impl From<RandomError> for XWingError {
+    fn from(err: RandomError) -> Self {
+        XWingError::Random(err)
+    }
+}
+
 impl core::fmt::Display for XWingError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             XWingError::MlKem(err) => write!(f, "ML-KEM error: {err}"),
+            XWingError::Random(err) => write!(f, "{err}"),
         }
     }
 }
@@ -48,8 +57,8 @@ impl core::fmt::Display for XWingError {
 /// ```ignore
 /// use crypto::xwing::{generate_keypair, SecretKey, PublicKey};
 ///
-/// let (secret_key, public_key) = generate_keypair();
-/// let (shared_secret, ciphertext) = public_key.encapsulate();
+/// let (secret_key, public_key) = generate_keypair().unwrap();
+/// let (shared_secret, ciphertext) = public_key.encapsulate().unwrap();
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
@@ -100,10 +109,14 @@ impl PublicKey {
         bytes
     }
 
+    /// Encapsulates a fresh random shared secret against this public key.
+    ///
+    /// Returns [`XWingError::Random`] when the operating system's random
+    /// number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn encapsulate(&self) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
-        let eseed: [u8; 64] = crate::random::random_bytes();
-        self.encapsulate_derand(&eseed)
+    pub fn encapsulate(&self) -> Result<([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]), XWingError> {
+        let eseed: [u8; 64] = crate::random::bytes()?;
+        Ok(self.encapsulate_derand(&eseed))
     }
 
     fn encapsulate_derand(&self, eseed: &[u8; 64]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
@@ -130,11 +143,13 @@ impl PublicKey {
 ///
 /// This is a convenience wrapper around [`SecretKey`] generation.
 ///
-/// See [`SecretKey`] for a usage example.
+/// See [`SecretKey`] for a usage example. Returns [`XWingError::Random`]
+/// when the operating system's random number generator is unavailable or
+/// fails.
 #[cfg(feature = "random")]
-pub fn generate_keypair() -> (SecretKey, PublicKey) {
-    let seed: [u8; SECRET_KEY_SIZE] = crate::random::random_bytes();
-    generate_keypair_derand(&seed)
+pub fn generate_keypair() -> Result<(SecretKey, PublicKey), XWingError> {
+    let seed: [u8; SECRET_KEY_SIZE] = crate::random::bytes()?;
+    Ok(generate_keypair_derand(&seed))
 }
 
 /// Generate a deterministic keypair from the given seed (for testing).
@@ -260,8 +275,8 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let (secret_key, public_key) = generate_keypair();
-        let (ss, ct) = public_key.encapsulate();
+        let (secret_key, public_key) = generate_keypair().unwrap();
+        let (ss, ct) = public_key.encapsulate().unwrap();
         let decapsulated = secret_key.decapsulate(&ct).unwrap();
         assert_eq!(ss, decapsulated);
     }
@@ -269,8 +284,8 @@ mod tests {
     #[test]
     fn round_trip_many() {
         for _ in 0..10 {
-            let (secret_key, public_key) = generate_keypair();
-            let (ss, ct) = public_key.encapsulate();
+            let (secret_key, public_key) = generate_keypair().unwrap();
+            let (ss, ct) = public_key.encapsulate().unwrap();
             let decapsulated = secret_key.decapsulate(&ct).unwrap();
             assert_eq!(ss, decapsulated);
         }
@@ -278,18 +293,18 @@ mod tests {
 
     #[test]
     fn decapsulation_with_wrong_key_produces_different_secret() {
-        let (_, pk_a) = generate_keypair();
-        let (sk_b, _) = generate_keypair();
+        let (_, pk_a) = generate_keypair().unwrap();
+        let (sk_b, _) = generate_keypair().unwrap();
 
-        let (ss_a, ct) = pk_a.encapsulate();
+        let (ss_a, ct) = pk_a.encapsulate().unwrap();
         let ss_b = sk_b.decapsulate(&ct).unwrap();
         assert_ne!(ss_a, ss_b);
     }
 
     #[test]
     fn tampered_ciphertext_produces_different_secret() {
-        let (secret_key, public_key) = generate_keypair();
-        let (ss, mut ct) = public_key.encapsulate();
+        let (secret_key, public_key) = generate_keypair().unwrap();
+        let (ss, mut ct) = public_key.encapsulate().unwrap();
 
         ct[0] ^= 0x80;
 

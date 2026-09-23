@@ -14,8 +14,6 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 mod bytes;
-#[cfg(feature = "random")]
-mod random;
 
 pub mod aes;
 #[cfg(feature = "alloc")]
@@ -30,6 +28,8 @@ pub mod hmac;
 pub mod mldsa;
 pub mod mlkem;
 pub mod poly1305;
+#[cfg(feature = "random")]
+pub mod random;
 pub mod sha2;
 pub mod sha3;
 pub mod xwing;
@@ -42,8 +42,6 @@ pub mod rsa;
 pub(crate) use bytes::Bytes;
 pub use bytes::Hash;
 pub use p_curves::{p224, p256, p384, p521};
-#[cfg(feature = "random")]
-pub use random::{random_bytes, random_fill};
 
 const MAX_HASH_BLOCK_SIZE: usize = 136;
 
@@ -100,6 +98,7 @@ pub enum EllipticCurveError {
     Unspecified,
     InvalidSignature,
     InvalidSharedSecret,
+    Random(RandomError),
 }
 
 impl core::fmt::Display for EllipticCurveError {
@@ -109,12 +108,19 @@ impl core::fmt::Display for EllipticCurveError {
             EllipticCurveError::Unspecified => write!(f, "unknown error"),
             EllipticCurveError::InvalidSignature => write!(f, "signature is not valid"),
             EllipticCurveError::InvalidSharedSecret => write!(f, "shared secret is not valid"),
+            EllipticCurveError::Random(err) => write!(f, "{err}"),
         }
     }
 }
 
 #[cfg(feature = "std")]
 impl std::error::Error for EllipticCurveError {}
+
+impl From<RandomError> for EllipticCurveError {
+    fn from(err: RandomError) -> Self {
+        EllipticCurveError::Random(err)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RsaError {
@@ -157,6 +163,44 @@ impl core::fmt::Display for HkdfError {
 
 #[cfg(feature = "std")]
 impl std::error::Error for HkdfError {}
+
+/// Error returned when the operating system's random number generator fails.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RandomError {
+    /// No random number generator is available on this platform.
+    Unsupported,
+    /// The operating system's random number generator failed with this OS
+    /// error code.
+    OsError(i64),
+    /// An unexpected failure occurred while generating random data.
+    Unspecified,
+}
+
+impl core::fmt::Display for RandomError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RandomError::Unsupported => write!(f, "random number generation is not supported on this platform"),
+            RandomError::OsError(code) => write!(f, "random number generation failed with OS error {code}"),
+            RandomError::Unspecified => write!(f, "random number generation failed"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for RandomError {}
+
+#[cfg(feature = "random")]
+impl From<getrandom::Error> for RandomError {
+    fn from(err: getrandom::Error) -> Self {
+        if err == getrandom::Error::UNSUPPORTED {
+            RandomError::Unsupported
+        } else if let Some(code) = err.raw_os_error() {
+            RandomError::OsError(code as i64)
+        } else {
+            RandomError::Unspecified
+        }
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Traits

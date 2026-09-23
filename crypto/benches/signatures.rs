@@ -10,7 +10,7 @@ use crypto::{
 const DATA_SIZES: &[usize] = &[64, 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_sign(c: &mut Criterion) {
-    let ed25519_sk = black_box(SecretKey::generate());
+    let ed25519_sk = black_box(SecretKey::generate().unwrap());
     let p256_sk = black_box(p256::SecretKey::generate().unwrap());
     let p521_sk = black_box(p521::SecretKey::generate().unwrap());
     let mldsa44_sk = MlDsa44SecretKey::new(&[0u8; 32]);
@@ -71,7 +71,7 @@ fn bench_sign(c: &mut Criterion) {
 }
 
 fn bench_verify(c: &mut Criterion) {
-    let ed25519_sk = black_box(SecretKey::generate());
+    let ed25519_sk = black_box(SecretKey::generate().unwrap());
     let ed25519_pk = black_box(ed25519_sk.public_key());
 
     let p256_sk = black_box(p256::SecretKey::generate().unwrap());

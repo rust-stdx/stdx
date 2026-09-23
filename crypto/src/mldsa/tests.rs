@@ -611,8 +611,8 @@ fn mldsa44_wycheproof_verify() {
 #[test]
 #[cfg(feature = "random")]
 fn mldsa44_generate_uniqueness() {
-    let a = MlDsa44SecretKey::generate();
-    let b = MlDsa44SecretKey::generate();
+    let a = MlDsa44SecretKey::generate().unwrap();
+    let b = MlDsa44SecretKey::generate().unwrap();
     assert_ne!(a.seed(), b.seed());
     assert_ne!(a.public_key(), b.public_key());
 
@@ -739,8 +739,8 @@ fn mldsa65_wycheproof_verify() {
 #[test]
 #[cfg(feature = "random")]
 fn mldsa65_generate_uniqueness() {
-    let a = MlDsa65SecretKey::generate();
-    let b = MlDsa65SecretKey::generate();
+    let a = MlDsa65SecretKey::generate().unwrap();
+    let b = MlDsa65SecretKey::generate().unwrap();
     assert_ne!(a.seed(), b.seed());
     assert_ne!(a.public_key(), b.public_key());
 
@@ -966,8 +966,8 @@ fn mldsa87_wycheproof_verify() {
 #[test]
 #[cfg(feature = "random")]
 fn mldsa87_generate_uniqueness() {
-    let a = MlDsa87SecretKey::generate();
-    let b = MlDsa87SecretKey::generate();
+    let a = MlDsa87SecretKey::generate().unwrap();
+    let b = MlDsa87SecretKey::generate().unwrap();
     assert_ne!(a.seed(), b.seed());
     assert_ne!(a.public_key(), b.public_key());
 

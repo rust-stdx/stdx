@@ -137,11 +137,14 @@ impl MlDsa65SecretKey {
     ///
     /// The seed can be retrieved afterwards with [`MlDsa65SecretKey::seed`]
     /// so it can be persisted.
+    ///
+    /// Returns [`MlDsaError::Random`] when the operating system's random
+    /// number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn generate() -> Self {
-        Self {
-            inner: MlDsaKeyMaterial::from_random(&PARAMS_65),
-        }
+    pub fn generate() -> Result<Self, MlDsaError> {
+        Ok(Self {
+            inner: MlDsaKeyMaterial::from_random(&PARAMS_65)?,
+        })
     }
 
     /// Returns the public key for this secret key.
@@ -157,10 +160,12 @@ impl MlDsa65SecretKey {
     /// Signs `message` with a fresh random nonce.
     ///
     /// `ctx` is the optional FIPS 204 context string and must be at most 255
-    /// bytes; it returns [`MlDsaError::ContextTooLong`] otherwise.
+    /// bytes; it returns [`MlDsaError::ContextTooLong`] otherwise. It returns
+    /// [`MlDsaError::Random`] when the operating system's random number
+    /// generator is unavailable or fails.
     #[cfg(feature = "random")]
     pub fn sign(&self, message: &[u8], ctx: &[u8]) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
-        let rnd: [u8; 32] = crate::random::random_bytes();
+        let rnd: [u8; 32] = crate::random::bytes()?;
         self.sign_derand(message, ctx, &rnd)
     }
 
@@ -185,10 +190,13 @@ impl MlDsa65SecretKey {
     ///
     /// `mu` must be the output of the FIPS 204 message-representative
     /// computation; this function performs no domain separation or hashing.
+    ///
+    /// Returns [`MlDsaError::Random`] when the operating system's random
+    /// number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn sign_external_mu(&self, mu: &[u8; 64]) -> [u8; ML_DSA_65_SIGNATURE_SIZE] {
-        let rnd: [u8; 32] = crate::random::random_bytes();
-        self.sign_external_mu_derand(mu, &rnd)
+    pub fn sign_external_mu(&self, mu: &[u8; 64]) -> Result<[u8; ML_DSA_65_SIGNATURE_SIZE], MlDsaError> {
+        let rnd: [u8; 32] = crate::random::bytes()?;
+        Ok(self.sign_external_mu_derand(mu, &rnd))
     }
 
     /// Signs a precomputed 64-byte message representative `mu` (FIPS 204

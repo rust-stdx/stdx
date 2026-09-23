@@ -7,7 +7,7 @@
 use big_number::Uint;
 
 use super::p_curves::{self, Curve, UintOps, field_pow};
-use crate::{EllipticCurveError, Hasher, hmac::Hmac, sha2::Sha256};
+use crate::{EllipticCurveError, Hasher, RandomError, hmac::Hmac, sha2::Sha256};
 
 /// Size of a P-224 secret key in bytes (28 bytes).
 pub const SECRET_KEY_SIZE: usize = 28;
@@ -422,8 +422,8 @@ impl Curve for P224 {
 
     #[cfg(feature = "random")]
     #[inline]
-    fn random_secret_key() -> Self::FieldBytes {
-        crate::random::random_bytes()
+    fn random_secret_key() -> Result<Self::FieldBytes, RandomError> {
+        crate::random::bytes()
     }
 }
 

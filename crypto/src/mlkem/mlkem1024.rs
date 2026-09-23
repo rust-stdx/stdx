@@ -14,8 +14,8 @@ pub const CIPHERTEXT_SIZE_1024: usize = 1568;
 /// ```ignore
 /// use crypto::mlkem::{SecretKey1024, generate_keypair_1024};
 ///
-/// let (secret_key, public_key) = generate_keypair_1024();
-/// let (shared_secret, ciphertext) = public_key.encapsulate();
+/// let (secret_key, public_key) = generate_keypair_1024().unwrap();
+/// let (shared_secret, ciphertext) = public_key.encapsulate().unwrap();
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
@@ -37,10 +37,12 @@ pub struct PublicKey1024 {
 ///
 /// This is a convenience wrapper around [`SecretKey1024::generate`].
 ///
-/// See [`SecretKey1024`] for a usage example.
+/// See [`SecretKey1024`] for a usage example. Returns [`MlKemError::Random`]
+/// when the operating system's random number generator is unavailable or
+/// fails.
 #[inline]
 #[cfg(feature = "random")]
-pub fn generate_keypair_1024() -> (SecretKey1024, PublicKey1024) {
+pub fn generate_keypair_1024() -> Result<(SecretKey1024, PublicKey1024), MlKemError> {
     SecretKey1024::generate()
 }
 
@@ -55,10 +57,14 @@ impl SecretKey1024 {
         self.bytes
     }
 
+    /// Generates a fresh random keypair.
+    ///
+    /// Returns [`MlKemError::Random`] when the operating system's random
+    /// number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn generate() -> (Self, PublicKey1024) {
-        let coins: [u8; 64] = crate::random::random_bytes();
-        Self::generate_derand(&coins)
+    pub fn generate() -> Result<(Self, PublicKey1024), MlKemError> {
+        let coins: [u8; 64] = crate::random::bytes()?;
+        Ok(Self::generate_derand(&coins))
     }
 
     fn generate_derand(coins: &[u8; 64]) -> (Self, PublicKey1024) {
@@ -113,10 +119,14 @@ impl PublicKey1024 {
         self.bytes
     }
 
+    /// Encapsulates a fresh random shared secret against this public key.
+    ///
+    /// Returns [`MlKemError::Random`] when the operating system's random
+    /// number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn encapsulate(&self) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]) {
-        let coins: [u8; 32] = crate::random::random_bytes();
-        self.encapsulate_derand(&coins)
+    pub fn encapsulate(&self) -> Result<([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]), MlKemError> {
+        let coins: [u8; 32] = crate::random::bytes()?;
+        Ok(self.encapsulate_derand(&coins))
     }
 
     fn encapsulate_derand(&self, coins: &[u8; 32]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]) {
@@ -150,8 +160,8 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_round_trip() {
-        let (private_key, public_key) = generate_keypair_1024();
-        let (encapsulated_secret, ciphertext) = public_key.encapsulate();
+        let (private_key, public_key) = generate_keypair_1024().unwrap();
+        let (encapsulated_secret, ciphertext) = public_key.encapsulate().unwrap();
         let decapsulated_secret = private_key.decapsulate(&ciphertext).unwrap();
 
         assert_eq!(encapsulated_secret, decapsulated_secret);
@@ -272,8 +282,8 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_decapsulation_rejects_tampered_ciphertext() {
-        let (private_key, public_key) = generate_keypair_1024();
-        let (encapsulated_secret, mut ciphertext) = public_key.encapsulate();
+        let (private_key, public_key) = generate_keypair_1024().unwrap();
+        let (encapsulated_secret, mut ciphertext) = public_key.encapsulate().unwrap();
 
         ciphertext[0] ^= 0x80;
 
@@ -284,9 +294,9 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_decapsulation_with_wrong_key_rejects() {
-        let (_, alice_pk) = generate_keypair_1024();
-        let (bob_sk, _bob_pk) = generate_keypair_1024();
-        let (_alice_ss, ct) = alice_pk.encapsulate();
+        let (_, alice_pk) = generate_keypair_1024().unwrap();
+        let (bob_sk, _bob_pk) = generate_keypair_1024().unwrap();
+        let (_alice_ss, ct) = alice_pk.encapsulate().unwrap();
 
         let wrong_ss = bob_sk.decapsulate(&ct).unwrap();
         assert_ne!(_alice_ss, wrong_ss);
@@ -295,8 +305,8 @@ mod tests {
     #[test]
     fn ml_kem_1024_round_trip_many() {
         for _ in 0..100 {
-            let (sk, pk) = generate_keypair_1024();
-            let (ss_enc, ct) = pk.encapsulate();
+            let (sk, pk) = generate_keypair_1024().unwrap();
+            let (ss_enc, ct) = pk.encapsulate().unwrap();
             let ss_dec = sk.decapsulate(&ct).unwrap();
             assert_eq!(ss_enc, ss_dec);
         }
@@ -304,14 +314,14 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_all_zero_ciphertext_does_not_panic() {
-        let (sk, _pk) = generate_keypair_1024();
+        let (sk, _pk) = generate_keypair_1024().unwrap();
         let ct = [0u8; CIPHERTEXT_SIZE_1024];
         let _result = sk.decapsulate(&ct);
     }
 
     #[test]
     fn ml_kem_1024_all_ones_ciphertext_does_not_panic() {
-        let (sk, _pk) = generate_keypair_1024();
+        let (sk, _pk) = generate_keypair_1024().unwrap();
         let ct = [0xffu8; CIPHERTEXT_SIZE_1024];
         let _result = sk.decapsulate(&ct);
     }
@@ -329,12 +339,12 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_key_sizes_are_correct() {
-        let (sk, pk) = generate_keypair_1024();
+        let (sk, pk) = generate_keypair_1024().unwrap();
         let sk_bytes = sk.to_bytes();
         let pk_bytes = pk.to_bytes();
         assert_eq!(sk_bytes.len(), SECRET_KEY_SIZE_1024);
         assert_eq!(pk_bytes.len(), PUBLIC_KEY_SIZE_1024);
-        let (_, ct) = pk.encapsulate();
+        let (_, ct) = pk.encapsulate().unwrap();
         assert_eq!(ct.len(), CIPHERTEXT_SIZE_1024);
     }
 
@@ -354,9 +364,9 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_decapsulation_with_wrong_key_is_deterministic() {
-        let (_, pk_a) = generate_keypair_1024();
-        let (sk_b, _pk_b) = generate_keypair_1024();
-        let (_, ct) = pk_a.encapsulate();
+        let (_, pk_a) = generate_keypair_1024().unwrap();
+        let (sk_b, _pk_b) = generate_keypair_1024().unwrap();
+        let (_, ct) = pk_a.encapsulate().unwrap();
 
         let ss1 = sk_b.decapsulate(&ct).unwrap();
         let ss2 = sk_b.decapsulate(&ct).unwrap();

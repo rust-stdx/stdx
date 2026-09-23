@@ -6,7 +6,7 @@
 use big_number::{Uint, mac};
 
 use super::p_curves::{self, Curve, UintOps, field_pow};
-use crate::{EllipticCurveError, Hasher, hmac::Hmac, sha2::Sha512};
+use crate::{EllipticCurveError, Hasher, RandomError, hmac::Hmac, sha2::Sha512};
 
 /// Size of a P-521 secret key in bytes (66 bytes).
 pub const SECRET_KEY_SIZE: usize = 66;
@@ -411,15 +411,15 @@ impl Curve for P521 {
 
     #[cfg(feature = "random")]
     #[inline]
-    fn random_secret_key() -> Self::FieldBytes {
+    fn random_secret_key() -> Result<Self::FieldBytes, RandomError> {
         // The group order is 521 bits while a field element occupies 66 bytes
         // (528 bits). Clear the unused high bits and retry on the vanishingly
         // rare value that still lands outside `[1, n - 1]`.
         loop {
-            let mut bytes: Self::FieldBytes = crate::random::random_bytes();
+            let mut bytes: Self::FieldBytes = crate::random::bytes()?;
             bytes[0] &= 0x01;
             if p_curves::Scalar::<P521>::from_bytes(&bytes).is_some() {
-                return bytes;
+                return Ok(bytes);
             }
         }
     }

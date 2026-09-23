@@ -1,13 +1,22 @@
+use crate::RandomError;
+
 /// Returns an array filled with cryptographically-random data.
+///
+/// Returns [`RandomError`] when the operating system's random number
+/// generator is unavailable or fails.
 #[inline]
-pub fn random_bytes<const N: usize>() -> [u8; N] {
+pub fn bytes<const N: usize>() -> Result<[u8; N], RandomError> {
     let mut buf = [0u8; N];
-    getrandom::fill(&mut buf).expect("getrandom failed");
-    buf
+    getrandom::fill(&mut buf)?;
+    Ok(buf)
 }
 
-/// Fill the given buffer with cryptographically-random data.
+/// Fills the given buffer with cryptographically-random data.
+///
+/// Returns [`RandomError`] when the operating system's random number
+/// generator is unavailable or fails.
 #[inline]
-pub fn random_fill(buf: &mut [u8]) {
-    getrandom::fill(buf).expect("getrandom failed");
+pub fn fill(buf: &mut [u8]) -> Result<(), RandomError> {
+    getrandom::fill(buf)?;
+    Ok(())
 }

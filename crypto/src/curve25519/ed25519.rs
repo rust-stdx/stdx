@@ -93,7 +93,7 @@ const BASEPOINT: EdwardsPoint = EdwardsPoint {
 /// ```ignore
 /// use crypto::curve25519::ed25519::SecretKey;
 ///
-/// let priv_key = SecretKey::generate();
+/// let priv_key = SecretKey::generate().unwrap();
 /// let pub_key = priv_key.public_key();
 /// ```
 ///
@@ -102,7 +102,7 @@ const BASEPOINT: EdwardsPoint = EdwardsPoint {
 /// ```ignore
 /// use crypto::curve25519::ed25519::SecretKey;
 ///
-/// let priv_key = SecretKey::generate();
+/// let priv_key = SecretKey::generate().unwrap();
 /// let pub_key = priv_key.public_key();
 /// let sig = priv_key.sign(b"message");
 /// assert!(pub_key.verify(b"message", &sig).is_ok());
@@ -118,10 +118,14 @@ pub struct SecretKey {
 }
 
 impl SecretKey {
+    /// Generates a fresh random secret key.
+    ///
+    /// Returns [`EllipticCurveError::Random`] when the operating system's
+    /// random number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn generate() -> SecretKey {
-        let seed: [u8; SECRET_KEY_SIZE] = crate::random::random_bytes();
-        SecretKey::from_bytes(&seed)
+    pub fn generate() -> Result<SecretKey, EllipticCurveError> {
+        let seed: [u8; SECRET_KEY_SIZE] = crate::random::bytes()?;
+        Ok(SecretKey::from_bytes(&seed))
     }
 
     pub fn from_bytes(seed: &[u8; SECRET_KEY_SIZE]) -> SecretKey {
@@ -199,7 +203,7 @@ impl TryFrom<&[u8]> for SecretKey {
 /// ```ignore
 /// use crypto::curve25519::ed25519::{PublicKey, SecretKey};
 ///
-/// let priv_key = SecretKey::generate();
+/// let priv_key = SecretKey::generate().unwrap();
 /// let pub_key = priv_key.public_key();
 /// let sig = priv_key.sign(b"message");
 /// assert!(pub_key.verify(b"message", &sig).is_ok());
@@ -682,7 +686,7 @@ mod tests {
 
     #[test]
     fn generate_produces_valid_keys() {
-        let priv_key = SecretKey::generate();
+        let priv_key = SecretKey::generate().unwrap();
         let pub_key = priv_key.public_key();
         let sig = priv_key.sign(b"hello");
         assert!(pub_key.verify(b"hello", &sig).is_ok());

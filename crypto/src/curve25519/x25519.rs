@@ -24,8 +24,8 @@ const BASEPOINT_U: [u8; 32] = {
 /// ```ignore
 /// use crypto::curve25519::x25519::SecretKey;
 ///
-/// let alice = SecretKey::generate();
-/// let bob = SecretKey::generate();
+/// let alice = SecretKey::generate().unwrap();
+/// let bob = SecretKey::generate().unwrap();
 /// ```
 ///
 /// # Diffie-Hellman key exchange
@@ -33,8 +33,8 @@ const BASEPOINT_U: [u8; 32] = {
 /// ```ignore
 /// use crypto::curve25519::x25519::SecretKey;
 ///
-/// let alice = SecretKey::generate();
-/// let bob = SecretKey::generate();
+/// let alice = SecretKey::generate().unwrap();
+/// let bob = SecretKey::generate().unwrap();
 /// let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
 /// let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
 /// assert_eq!(alice_shared, bob_shared);
@@ -79,10 +79,14 @@ pub struct SecretKey {
 }
 
 impl SecretKey {
+    /// Generates a fresh random secret key.
+    ///
+    /// Returns [`EllipticCurveError::Random`] when the operating system's
+    /// random number generator is unavailable or fails.
     #[cfg(feature = "random")]
-    pub fn generate() -> SecretKey {
-        let bytes: [u8; KEY_SIZE] = crate::random::random_bytes();
-        SecretKey::from_bytes(&bytes)
+    pub fn generate() -> Result<SecretKey, EllipticCurveError> {
+        let bytes: [u8; KEY_SIZE] = crate::random::bytes()?;
+        Ok(SecretKey::from_bytes(&bytes))
     }
 
     pub fn from_bytes(bytes: &[u8; KEY_SIZE]) -> SecretKey {
@@ -401,8 +405,8 @@ mod tests {
 
     #[test]
     fn generate_produces_valid_keys() {
-        let alice = SecretKey::generate();
-        let bob = SecretKey::generate();
+        let alice = SecretKey::generate().unwrap();
+        let bob = SecretKey::generate().unwrap();
 
         let alice_shared = alice.ecdh(&bob.public_key()).unwrap();
         let bob_shared = bob.ecdh(&alice.public_key()).unwrap();
@@ -412,7 +416,7 @@ mod tests {
 
     #[test]
     fn public_key_bytes_roundtrip() {
-        let key = SecretKey::generate();
+        let key = SecretKey::generate().unwrap();
         let pub_key = key.public_key();
         let bytes = pub_key.to_bytes();
         let restored = PublicKey::from_bytes(&bytes);
@@ -421,7 +425,7 @@ mod tests {
 
     #[test]
     fn private_key_bytes_roundtrip() {
-        let orig = SecretKey::generate();
+        let orig = SecretKey::generate().unwrap();
         let bytes = orig.to_bytes();
         let restored = SecretKey::from_bytes(&bytes);
         assert_eq!(bytes, restored.to_bytes());
@@ -440,8 +444,8 @@ mod tests {
 
     #[test]
     fn from_ed25519_ecdh_roundtrip() {
-        let ed_alice = ed25519::SecretKey::generate();
-        let ed_bob = ed25519::SecretKey::generate();
+        let ed_alice = ed25519::SecretKey::generate().unwrap();
+        let ed_bob = ed25519::SecretKey::generate().unwrap();
 
         let x_alice = SecretKey::from(&ed_alice);
         let x_bob = SecretKey::from(&ed_bob);
@@ -620,7 +624,7 @@ mod tests {
         let basepoint = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
         assert!(!PublicKey::from_bytes(&basepoint).is_low_order());
         for _ in 0..16 {
-            assert!(!SecretKey::generate().public_key().is_low_order());
+            assert!(!SecretKey::generate().unwrap().public_key().is_low_order());
         }
     }
 
@@ -819,7 +823,7 @@ mod tests {
 
     #[test]
     fn x25519_self_ecdh_consistency() {
-        let alice = SecretKey::generate();
+        let alice = SecretKey::generate().unwrap();
         let alice_pub = alice.public_key();
         let alice_shared = alice.ecdh(&alice_pub).unwrap();
         assert_eq!(alice_shared.len(), 32);

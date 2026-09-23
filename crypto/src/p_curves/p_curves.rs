@@ -14,7 +14,7 @@
 //! rather than array lengths derived from associated constants: the latter is
 //! a generic const expression and is not stable.
 
-use crate::EllipticCurveError;
+use crate::{EllipticCurveError, RandomError};
 
 /// Maximum field size in bytes across the supported curves (P-521).
 const MAX_FIELD_BYTES: usize = 66;
@@ -288,8 +288,11 @@ pub(crate) trait Curve: Copy + Clone + core::fmt::Debug + PartialEq + Eq {
     }
 
     /// Generates fresh random secret key bytes.
+    ///
+    /// Returns [`RandomError`] when the operating system's random number
+    /// generator is unavailable or fails.
     #[cfg(feature = "random")]
-    fn random_secret_key() -> Self::FieldBytes;
+    fn random_secret_key() -> Result<Self::FieldBytes, RandomError>;
 }
 
 /// Raises a field element to `exponent` using the curve's modular
@@ -1191,7 +1194,8 @@ impl<C: Curve> zeroize::ZeroizeOnDrop for SecretKey<C> {}
 impl<C: Curve> SecretKey<C> {
     #[cfg(feature = "random")]
     pub fn generate() -> Result<SecretKey<C>, EllipticCurveError> {
-        Self::from_bytes(&C::random_secret_key())
+        let key = C::random_secret_key()?;
+        Self::from_bytes(&key)
     }
 
     pub fn from_bytes(key: &C::FieldBytes) -> Result<SecretKey<C>, EllipticCurveError> {

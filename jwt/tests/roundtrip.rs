@@ -27,7 +27,7 @@ fn assert_sign_verify<V: Verifier>(signing_key: &dyn Signer, verifying_key: &V, 
 
 #[test]
 fn ed25519_roundtrip() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
     let public_key = secret_key.public_key();
     assert_sign_verify(&secret_key, &public_key, Algorithm::EdDSA);
 }
@@ -191,7 +191,7 @@ fn mldsa87_roundtrip() {
 
 #[test]
 fn tampered_token_is_rejected() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
     let public_key = secret_key.public_key();
     let header = Header {
         alg: Algorithm::EdDSA,
@@ -211,7 +211,7 @@ fn tampered_token_is_rejected() {
 
 #[test]
 fn jwk_roundtrip_ed25519() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
 
     let public_jwk = Jwk::from(&secret_key.public_key());
     let public_key = ed25519::PublicKey::try_from(&public_jwk).unwrap();
@@ -339,7 +339,7 @@ fn jwk_roundtrip_mldsa87() {
 
 #[test]
 fn jwk_wrong_algorithm_is_rejected() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
     let jwk = Jwk::from(&secret_key.public_key());
 
     assert!(SecretKey::try_from(&jwk).is_err());
@@ -388,7 +388,7 @@ fn assert_key_roundtrip(signing_key: &dyn Signer, jwk: &Jwk, alg: Algorithm) {
 
 #[test]
 fn key_decodes_ed25519() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
 
     assert!(matches!(Key::try_from(&Jwk::from(&secret_key)).unwrap(), Key::Ed25519Secret(_)));
     assert!(matches!(
@@ -515,7 +515,7 @@ fn key_enum_size_is_bounded() {
 
 #[test]
 fn key_secret_signs_and_verifies() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
     let jwk = Jwk::from(&secret_key);
     let key = Key::try_from(&jwk).unwrap();
 
@@ -532,7 +532,7 @@ fn key_secret_signs_and_verifies() {
 
 #[test]
 fn key_public_only_cannot_sign() {
-    let secret_key = ed25519::SecretKey::generate();
+    let secret_key = ed25519::SecretKey::generate().unwrap();
     let jwk = Jwk::from(&secret_key.public_key());
     let key = Key::try_from(&jwk).unwrap();
 

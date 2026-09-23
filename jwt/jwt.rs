@@ -19,7 +19,7 @@
 //!
 //! fn main() -> Result<(), Error> {
 //!     // 1. Generate an Ed25519 secret key.
-//!     let secret_key = ed25519::SecretKey::generate();
+//!     let secret_key = ed25519::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!
 //!     // 2. Build the header.
 //!     let header = Header {
@@ -105,7 +105,7 @@
 //! use crypto::curve25519::ed25519;
 //!
 //! fn main() -> Result<(), Error> {
-//!     let secret_key = ed25519::SecretKey::generate();
+//!     let secret_key = ed25519::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!
 //!     // A JWKS entry whose key type is only known at runtime.
 //!     let jwk = Jwk::from(&secret_key.public_key());
@@ -129,7 +129,7 @@
 //! use crypto::curve25519::ed25519;
 //!
 //! fn main() -> Result<(), Error> {
-//!     let secret_key = ed25519::SecretKey::generate();
+//!     let secret_key = ed25519::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!     let jwk = Jwk::from(&secret_key);
 //!     let key = Key::try_from(&jwk)?;
 //!     assert!(matches!(key, Key::Ed25519Secret(_)));

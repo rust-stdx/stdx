@@ -3,7 +3,7 @@ use constant_time_eq::constant_time_eq;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
-    Xof,
+    RandomError, Xof,
     sha3::{Sha3_256, Sha3_512, Shake128, Shake256},
 };
 
@@ -42,13 +42,21 @@ pub(crate) const ML_KEM_1024: MlKemParams<4> = MlKemParams {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MlKemError {
     InvalidKey,
+    Random(RandomError),
 }
 
 impl core::fmt::Display for MlKemError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             MlKemError::InvalidKey => write!(f, "key is not valid"),
+            MlKemError::Random(err) => write!(f, "{err}"),
         }
+    }
+}
+
+impl From<RandomError> for MlKemError {
+    fn from(err: RandomError) -> Self {
+        MlKemError::Random(err)
     }
 }
 
