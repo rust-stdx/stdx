@@ -406,7 +406,7 @@ mod tests {
         assert!(tested > 0, "no ML-KEM-768 keygen tests were run");
     }
 
-    fn wycheproof_kem_skip_invalid_lengths(seed_hex: &str, c_hex: &str, ct_size: usize) -> bool {
+    fn wycheproof_kem_has_invalid_lengths(seed_hex: &str, c_hex: &str, ct_size: usize) -> bool {
         seed_hex.len() != 128 || c_hex.len() != ct_size * 2
     }
 
@@ -415,6 +415,7 @@ mod tests {
         let data: serde_json::Value =
             serde_json::from_str(include_str!("../../testdata/wycheproof/testvectors_v1/mlkem_768_test.json")).unwrap();
         let mut tested = 0u64;
+        let mut skipped = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
             if group["parameterSet"].as_str() != Some("ML-KEM-768") {
                 continue;
@@ -425,8 +426,17 @@ mod tests {
                 let expected_k_hex = test["K"].as_str().unwrap();
                 let result = test["result"].as_str().unwrap();
 
-                if wycheproof_kem_skip_invalid_lengths(seed_hex, c_hex, CIPHERTEXT_SIZE_768) {
-                    tested += 1;
+                if wycheproof_kem_has_invalid_lengths(seed_hex, c_hex, CIPHERTEXT_SIZE_768) {
+                    // The key-generation seed is a fixed `[u8; 64]` and the
+                    // ciphertext is a fixed `[u8; CIPHERTEXT_SIZE_768]`, so
+                    // wrong-length inputs are unrepresentable through the API.
+                    assert!(
+                        hex::decode(seed_hex).unwrap().len() != 64
+                            || hex::decode(c_hex).unwrap().len() != CIPHERTEXT_SIZE_768,
+                        "wycheproof KEM KAT tcId={} unexpectedly has correct lengths",
+                        test["tcId"]
+                    );
+                    skipped += 1;
                     continue;
                 }
 
@@ -458,6 +468,7 @@ mod tests {
             }
         }
         assert!(tested > 0, "no ML-KEM-768 KEM tests were run");
+        eprintln!("wycheproof ML-KEM-768 KEM: {tested} tested, {skipped} skipped (wrong-length inputs)");
     }
 
     #[test]
@@ -467,6 +478,7 @@ mod tests {
         ))
         .unwrap();
         let mut tested = 0u64;
+        let mut skipped = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
             if group["parameterSet"].as_str() != Some("ML-KEM-768") {
                 continue;
@@ -479,7 +491,13 @@ mod tests {
                 let result = test["result"].as_str().unwrap();
 
                 if ek_hex.len() != PUBLIC_KEY_SIZE_768 * 2 {
-                    tested += 1;
+                    let ek_bytes = hex::decode(ek_hex).unwrap();
+                    assert!(
+                        PublicKey768::try_from(ek_bytes.as_slice()).is_err(),
+                        "wycheproof encaps tcId={} flagged wrong-length ek but it parsed",
+                        test["tcId"]
+                    );
+                    skipped += 1;
                     continue;
                 }
 
@@ -506,6 +524,7 @@ mod tests {
             }
         }
         assert!(tested > 0, "no ML-KEM-768 encaps tests were run");
+        eprintln!("wycheproof ML-KEM-768 encaps: {tested} tested, {skipped} skipped (wrong-length ek)");
     }
 
     #[test]
@@ -515,6 +534,7 @@ mod tests {
         ))
         .unwrap();
         let mut tested = 0u64;
+        let mut skipped = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
             if group["parameterSet"].as_str() != Some("ML-KEM-768") {
                 continue;
@@ -527,8 +547,26 @@ mod tests {
                 let dk_hex = test["dk"].as_str().unwrap();
                 let c_hex = test["c"].as_str().unwrap();
 
-                if flags.contains(&"IncorrectDecapsulationKeyLength") || flags.contains(&"IncorrectCiphertextLength") {
-                    tested += 1;
+                if flags.contains(&"IncorrectDecapsulationKeyLength") {
+                    let dk_bytes = hex::decode(dk_hex).unwrap();
+                    assert!(
+                        SecretKey768::try_from(dk_bytes.as_slice()).is_err(),
+                        "wycheproof decaps tcId={} flagged wrong-length dk but it parsed",
+                        test["tcId"]
+                    );
+                    skipped += 1;
+                    continue;
+                }
+
+                if flags.contains(&"IncorrectCiphertextLength") {
+                    // Ciphertexts are raw fixed-size arrays with no fallible
+                    // decoder, so a wrong-length ciphertext cannot reach the API.
+                    assert!(
+                        hex::decode(c_hex).unwrap().len() != CIPHERTEXT_SIZE_768,
+                        "wycheproof decaps tcId={} flagged wrong-length ct but length is correct",
+                        test["tcId"]
+                    );
+                    skipped += 1;
                     continue;
                 }
 
@@ -542,6 +580,7 @@ mod tests {
             }
         }
         assert!(tested > 0, "no ML-KEM-768 decaps validation tests were run");
+        eprintln!("wycheproof ML-KEM-768 decaps: {tested} tested, {skipped} skipped (wrong lengths)");
     }
 
     #[test]

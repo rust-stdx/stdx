@@ -699,24 +699,33 @@ fn use_hint_poly(r: &Poly, h: &[u8; N], params: &MlDsaParams) -> [u8; N] {
     w
 }
 
+/// Returns `true` if any coefficient of `w` has centered infinity norm `>= bound`.
+///
+/// All `N` coefficients are always inspected: the result is accumulated with a
+/// branchless OR rather than returning at the first failing index, so the number
+/// of iterations does not depend on the (potentially secret) coefficient values.
 fn coefficients_exceed_bound(w: &Poly, bound: u32) -> bool {
-    for i in 0..N {
-        if field_infinity_norm(w.coeffs[i]) >= bound {
-            return true;
-        }
+    let mut exceeded = 0u32;
+    for &c in w.coeffs.iter() {
+        exceeded |= (field_infinity_norm(c) >= bound) as u32;
     }
-    false
+    exceeded != 0
 }
 
+/// Returns `true` if any low-order part `r0` of `w` (per [`decompose`]) satisfies
+/// `|r0| >= bound`.
+///
+/// All `N` coefficients are always inspected: the result is accumulated with a
+/// branchless OR rather than returning at the first failing index, so the number
+/// of iterations does not depend on the (potentially secret) coefficient values.
 fn lowbits_exceed_bound(w: &Poly, bound: u32, gamma2_den: u32) -> bool {
-    for i in 0..N {
-        let (_, r0) = decompose(w.coeffs[i], gamma2_den);
+    let mut exceeded = 0u32;
+    for &c in w.coeffs.iter() {
+        let (_, r0) = decompose(c, gamma2_den);
         let abs_r0 = (r0 ^ (r0 >> 31)).wrapping_sub(r0 >> 31) as u32;
-        if abs_r0 >= bound {
-            return true;
-        }
+        exceeded |= (abs_r0 >= bound) as u32;
     }
-    false
+    exceeded != 0
 }
 
 fn pk_encode<const K: usize>(rho: &[u8; 32], t1: &[[u16; N]; K], out: &mut [u8]) {
@@ -1225,14 +1234,13 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
                 cs2[i] = invntt(&ntt_mul(&c_hat, &s2_hat[i]));
             }
 
+            // Each phase inspects every polynomial (no early `break`) so the
+            // number of iterations does not reveal which index failed first.
             let mut z: [Poly; L] = core::array::from_fn(|_| Poly::default());
             let mut reject = false;
             for i in 0..L {
                 z[i] = poly_add(&y[i], &cs1[i]);
-                if coefficients_exceed_bound(&z[i], gamma1beta) {
-                    reject = true;
-                    break;
-                }
+                reject |= coefficients_exceed_bound(&z[i], gamma1beta);
             }
             if reject {
                 continue;
@@ -1240,10 +1248,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
 
             for i in 0..K {
                 let r0 = poly_sub(&w[i], &cs2[i]);
-                if lowbits_exceed_bound(&r0, gamma2beta, params.gamma2_den) {
-                    reject = true;
-                    break;
-                }
+                reject |= lowbits_exceed_bound(&r0, gamma2beta, params.gamma2_den);
             }
             if reject {
                 continue;
@@ -1252,10 +1257,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
             let mut ct0: [Poly; K] = core::array::from_fn(|_| Poly::default());
             for i in 0..K {
                 ct0[i] = invntt(&ntt_mul(&c_hat, &t0_hat[i]));
-                if coefficients_exceed_bound(&ct0[i], gamma2) {
-                    reject = true;
-                    break;
-                }
+                reject |= coefficients_exceed_bound(&ct0[i], gamma2);
             }
             if reject {
                 continue;

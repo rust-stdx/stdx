@@ -946,6 +946,10 @@ mod tests {
         assert!(pub_key.verify(b"test", &bad_sig).is_err());
     }
 
+    /// The identity is a valid Edwards point and is deliberately accepted by the
+    /// low-level [`EdwardsPoint::from_bytes`] decoder. It is *not* a usable
+    /// public key: [`PublicKey::from_bytes`] rejects it (and every other
+    /// small-order point) to prevent torsion-based signature forgeries.
     #[test]
     fn edwards_identity_point_roundtrip() {
         let id_bytes = [

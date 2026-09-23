@@ -33,6 +33,15 @@ pub(crate) const SHA256_K: [u32; 64] = [
 /// hasher.update(b"world");
 /// let hash = hasher.sum();
 /// ```
+///
+/// # Message length limit
+///
+/// FIPS 180-4 permits messages with `ℓ < 2^64` bits, i.e. up to `2^61 - 1`
+/// bytes. The length is counted by a 64-bit byte counter and encoded in the
+/// 64-bit field mandated by the spec, so a message of `2^61` bytes or more produces undefined result.
+/// Such lengths are around 2 EiB and are unreachable in
+/// practice; they are neither rejected nor signalled, so no panic or error is
+/// returned for them.
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Sha256 {
@@ -218,24 +227,25 @@ fn detect_sha256_ext() -> bool {
 
         #[cfg(all(not(feature = "std"), target_feature = "sha2"))]
         return true;
-
-        #[cfg(all(not(feature = "std"), not(target_feature = "sha2")))]
-        return false;
     }
 
     #[cfg(target_arch = "x86_64")]
     {
+        // NOTE: we don't dynamically check for sse4.1, ssse3 and sse2 as we assume them to be available if sha is available
         #[cfg(feature = "std")]
         return std::arch::is_x86_feature_detected!("sha");
 
-        #[cfg(all(not(feature = "std"), target_feature = "sha"))]
+        #[cfg(all(
+            not(feature = "std"),
+            target_feature = "sha",
+            target_feature = "sse4.1",
+            target_feature = "ssse3",
+            target_feature = "sse2"
+        ))]
         return true;
-
-        #[cfg(all(not(feature = "std"), not(target_feature = "sha")))]
-        return false;
     }
 
-    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    #[allow(unreachable_code)]
     return false;
 }
 

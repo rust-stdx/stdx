@@ -1,4 +1,4 @@
-//! HKDF (HMAC-based Extract-and-Expand Key Derivation Function) key derivation function.
+//! HMAC (Hash-based Message Authentication Code)
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};

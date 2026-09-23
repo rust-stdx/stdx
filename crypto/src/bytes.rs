@@ -1,5 +1,7 @@
 use constant_time_eq::constant_time_eq;
 
+use crate::MAX_HASH_OUTPUT_SIZE;
+
 /// A fixed-capacity, stack-allocated bytes buffer of capacity `N`.
 /// Use [`Self::as_ref`] to get the bytes as a `&[u8]` and [`Self::as_mut`] to get the bytes as a `&mut [u8]`.
 /// Comparing `Bytes` is a constant-time operation.
@@ -111,7 +113,7 @@ impl<const N: usize> AsMut<[u8]> for Bytes<N> {
 /// Comparing `Hash` is a constant-time operation.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Hash(pub(crate) Bytes<64>);
+pub struct Hash(pub(crate) Bytes<MAX_HASH_OUTPUT_SIZE>);
 
 /// implement the required public methods for `Type` to be used as a bytes buffer.
 macro_rules! impl_bytes {
@@ -155,4 +157,4 @@ macro_rules! impl_bytes {
     };
 }
 
-impl_bytes!(Hash(Bytes<64>));
+impl_bytes!(Hash(Bytes<MAX_HASH_OUTPUT_SIZE>));

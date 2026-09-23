@@ -18,6 +18,7 @@ pub enum Pkcs8Error {
     InvalidPublicKeyExplicit,
     InvalidPublicKeyBitString,
     InvalidPublicKeyPrefix,
+    InvalidPublicKeyMismatch,
     KeyDerivationFailed,
 }
 
@@ -36,6 +37,7 @@ impl core::fmt::Display for Pkcs8Error {
             Pkcs8Error::InvalidPublicKeyExplicit => write!(f, "invalid public key [1] EXPLICIT"),
             Pkcs8Error::InvalidPublicKeyBitString => write!(f, "invalid public key BIT STRING"),
             Pkcs8Error::InvalidPublicKeyPrefix => write!(f, "invalid public key prefix"),
+            Pkcs8Error::InvalidPublicKeyMismatch => write!(f, "embedded public key does not match private key"),
             Pkcs8Error::KeyDerivationFailed => write!(f, "key derivation failed"),
         }
     }
@@ -124,6 +126,11 @@ static TEMPLATE: [u8; PKCS8_DER_LEN] = [
 const PRIVATE_KEY_OFFSET: usize = 36;
 const PUBLIC_KEY_OFFSET: usize = 73;
 
+/// Encodes a P-256 secret key as PKCS#8 DER (the fixed 138-byte
+/// `PrivateKeyInfo` template used by OpenSSL for `secp256r1`).
+///
+/// The embedded public key is derived from `key`, so the output always
+/// contains a consistent private/public key pair.
 pub fn encode_p256_pkcs8_der(key: &SecretKey) -> Result<[u8; PKCS8_DER_LEN], Pkcs8Error> {
     let public_key = key.public_key();
     let pub_bytes = public_key.to_bytes();
@@ -136,6 +143,16 @@ pub fn encode_p256_pkcs8_der(key: &SecretKey) -> Result<[u8; PKCS8_DER_LEN], Pkc
     Ok(der)
 }
 
+/// Decodes a P-256 secret key from PKCS#8 DER in the fixed 138-byte
+/// `PrivateKeyInfo` template produced by [`encode_p256_pkcs8_der`].
+///
+/// The embedded public key is checked against the one derived from the
+/// private scalar.
+///
+/// Returns [`Pkcs8Error`] when the input is not exactly the expected
+/// template, when the private scalar is invalid, or when the embedded
+/// public key does not correspond to the private key
+/// ([`Pkcs8Error::InvalidPublicKeyMismatch`]).
 pub fn decode_p256_pkcs8_der(der: &[u8]) -> Result<SecretKey, Pkcs8Error> {
     validate_fixed_prefix(der)?;
 
@@ -145,7 +162,13 @@ pub fn decode_p256_pkcs8_der(der: &[u8]) -> Result<SecretKey, Pkcs8Error> {
     let mut public_key = [0u8; PUBLIC_KEY_UNCOMPRESSED_SIZE];
     public_key.copy_from_slice(&der[PUBLIC_KEY_OFFSET..PUBLIC_KEY_OFFSET + PUBLIC_KEY_UNCOMPRESSED_SIZE]);
 
-    SecretKey::from_bytes(&private_key).map_err(|_| Pkcs8Error::KeyDerivationFailed)
+    let key = SecretKey::from_bytes(&private_key).map_err(|_| Pkcs8Error::KeyDerivationFailed)?;
+
+    if key.public_key().to_bytes() != public_key {
+        return Err(Pkcs8Error::InvalidPublicKeyMismatch);
+    }
+
+    Ok(key)
 }
 
 #[cfg(test)]
@@ -254,6 +277,13 @@ mod tests {
         let mut der = decode_hex(TEST_DER_HEX);
         der[73] = 0x02;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyPrefix)));
+    }
+
+    #[test]
+    fn decode_mismatched_public_key() {
+        let mut der = decode_hex(TEST_DER_HEX);
+        der[80] ^= 0xff;
+        assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyMismatch)));
     }
 
     #[test]

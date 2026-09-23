@@ -4,7 +4,7 @@ use core::arch::x86_64::*;
 
 use super::sha256::SHA256_K;
 
-#[target_feature(enable = "sha,sse4.1")]
+#[target_feature(enable = "sha,sse4.1,ssse3,sse2")]
 pub(crate) unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
     let state_ptr: *mut __m128i = state.as_mut_ptr().cast();
     let dcba = _mm_loadu_si128(state_ptr.add(0));

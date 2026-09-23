@@ -26,6 +26,14 @@ use crate::{Bytes, Hash, Hasher};
 /// hasher.update(b"world");
 /// let hash = hasher.sum();
 /// ```
+///
+/// # Message length limit
+///
+/// FIPS 180-4 permits messages with `ℓ < 2^128` bits, i.e. up to `2^125 - 1`
+/// bytes. The length is counted by a 128-bit byte counter and encoded in the
+/// 128-bit field mandated by the spec, so a message of `2^125` bytes produces an undefined result.
+/// Such lengths are unreachable in practice; they are neither rejected nor signalled, so no panic or error is returned for
+/// them.
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Sha384 {

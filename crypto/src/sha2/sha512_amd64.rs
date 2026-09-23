@@ -10,7 +10,7 @@ use super::sha512::SHA512_K;
 /// # Safety
 ///
 /// The caller must ensure the CPU supports `sha512`, `avx`, and `ssse3` features.
-#[target_feature(enable = "sha512,avx,ssse3")]
+#[target_feature(enable = "sha512,avx2,avx,ssse3")]
 pub(crate) unsafe fn compress(state: &mut [u64; 8], blocks: &[[u8; 128]]) {
     let mut abef = _mm256_setr_epi64x(state[0] as i64, state[1] as i64, state[4] as i64, state[5] as i64);
     let mut cdgh = _mm256_setr_epi64x(state[2] as i64, state[3] as i64, state[6] as i64, state[7] as i64);

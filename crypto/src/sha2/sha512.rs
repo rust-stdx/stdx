@@ -105,6 +105,15 @@ pub(crate) const SHA512_K: [u64; 80] = [
 /// hasher.update(b"world");
 /// let hash = hasher.sum();
 /// ```
+///
+/// # Message length limit
+///
+/// FIPS 180-4 permits messages with `ℓ < 2^128` bits, i.e. up to `2^125 - 1`
+/// bytes. The length is counted by a 128-bit byte counter and encoded in the
+/// 128-bit field mandated by the spec, so a message of `2^125` bytes or more
+/// produces undefined result. Such lengths are unreachable in practice; they
+/// are neither rejected nor signalled, so no panic or error is returned for
+/// them.
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Sha512 {
@@ -309,24 +318,25 @@ pub(crate) fn detect_sha512_ext() -> bool {
 
         #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
         return true;
-
-        #[cfg(all(not(feature = "std"), not(target_feature = "sha3")))]
-        return false;
     }
 
     #[cfg(target_arch = "x86_64")]
     {
+        // NOTE: we don't dynamically check for avx and ssse3 as we assume them to be available if avx2 is available
         #[cfg(feature = "std")]
-        return std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx");
+        return std::arch::is_x86_feature_detected!("sha512") && std::arch::is_x86_feature_detected!("avx2");
 
-        #[cfg(all(not(feature = "std"), target_feature = "sha512", target_feature = "avx"))]
+        #[cfg(all(
+            not(feature = "std"),
+            target_feature = "sha512",
+            target_feature = "avx2",
+            target_feature = "avx",
+            target_feature = "ssse3"
+        ))]
         return true;
-
-        #[cfg(all(not(feature = "std"), not(all(target_feature = "sha512", target_feature = "avx"))))]
-        return false;
     }
 
-    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    #[allow(unreachable_code)]
     return false;
 }
 

@@ -114,39 +114,40 @@ impl<const N: usize> AesCtr<N> {
 
         #[cfg(target_arch = "aarch64")]
         {
-            #[cfg(any(feature = "std", target_feature = "aes"))]
-            use crate::aes::aes_arm64::expand_key_armv8;
-
             #[cfg(feature = "std")]
             if std::arch::is_aarch64_feature_detected!("aes") {
                 return AesCtr {
-                    round_keys: RoundKeys::Armv8(expand_key_armv8(round_keys_software)),
+                    round_keys: RoundKeys::Armv8(super::aes_arm64::expand_key_armv8(round_keys_software)),
                     counter: [0u8; 16],
                 };
             }
 
             #[cfg(all(not(feature = "std"), target_feature = "aes"))]
             return AesCtr {
-                round_keys: RoundKeys::Armv8(expand_key_armv8(round_keys_software)),
+                round_keys: RoundKeys::Armv8(super::aes_arm64::expand_key_armv8(round_keys_software)),
                 counter: [0u8; 16],
             };
         }
 
         #[cfg(target_arch = "x86_64")]
         {
-            use crate::aes::aes_amd64::expand_key_x86_64;
-
+            // NOTE: we don't dynamically check for sse2 as we assume it to be available if ssse3 is available
             #[cfg(feature = "std")]
-            if std::arch::is_x86_feature_detected!("aes") {
+            if std::arch::is_x86_feature_detected!("aes") && std::arch::is_x86_feature_detected!("ssse3") {
                 return AesCtr {
-                    round_keys: RoundKeys::X86_64(expand_key_x86_64(round_keys_software)),
+                    round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
                     counter: [0u8; 16],
                 };
             }
 
-            #[cfg(all(not(feature = "std"), target_feature = "aes"))]
+            #[cfg(all(
+                not(feature = "std"),
+                target_feature = "aes",
+                target_feature = "ssse3",
+                target_feature = "sse2"
+            ))]
             return AesCtr {
-                round_keys: RoundKeys::X86_64(expand_key_x86_64(round_keys_software)),
+                round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
                 counter: [0u8; 16],
             };
         }

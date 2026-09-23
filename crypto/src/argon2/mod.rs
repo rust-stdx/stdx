@@ -9,6 +9,11 @@
 //! everywhere else. When the `std` feature is enabled, the lanes are also
 //! filled in parallel; the worker threads are scoped to each call and never
 //! outlive it.
+//!
+//! The `m`, `t`, and `p` fields of a PHC-encoded hash are untrusted whenever
+//! the encoded string is not fully trusted. [`verify_password`] therefore
+//! accepts an optional [`Params`] upper bound so callers can cap the resources
+//! a decoded hash may request.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -86,6 +91,52 @@ impl Default for Params {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl Params {
+    /// Check these parameters against the RFC 9106 bounds and the requested
+    /// output length.
+    ///
+    /// Returns [`Argon2Error::InvalidParams`] if `iterations < 1`,
+    /// `parallelism < 1`, `parallelism > 2^24 - 1`, `memory < 8 * parallelism`,
+    /// `out_len < 4`, or if `out_len` does not fit in a `u32` (Argon2 encodes
+    /// lengths as 32-bit little-endian values).
+    fn validate(&self, out_len: usize) -> Result<(), Argon2Error> {
+        if self.iterations < 1 {
+            return Err(Argon2Error::InvalidParams("iterations must be >= 1"));
+        }
+        if self.parallelism < 1 {
+            return Err(Argon2Error::InvalidParams("parallelism must be >= 1"));
+        }
+        if self.parallelism > (1 << 24) - 1 {
+            return Err(Argon2Error::InvalidParams("parallelism must be <= 2^24 - 1"));
+        }
+        if out_len < 4 {
+            return Err(Argon2Error::InvalidParams("output length must be >= 4"));
+        }
+        check_u32_len(out_len, "output length must be <= 2^32 - 1")?;
+        // Checked after the parallelism bound above so the multiplication
+        // cannot overflow.
+        if self.memory < 8 * self.parallelism {
+            return Err(Argon2Error::InvalidParams("memory must be >= 8*parallelism"));
+        }
+        Ok(())
+    }
+}
+
+/// Return [`Argon2Error::InvalidParams`] if `len` does not fit in a `u32`.
+///
+/// Argon2 encodes every length as a 32-bit little-endian value, so inputs
+/// larger than `u32::MAX` would be silently truncated.
+#[cfg(feature = "alloc")]
+#[inline(always)]
+fn check_u32_len(len: usize, msg: &'static str) -> Result<(), Argon2Error> {
+    if u32::try_from(len).is_err() {
+        Err(Argon2Error::InvalidParams(msg))
+    } else {
+        Ok(())
+    }
+}
+
 /// Argon2 error type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg(feature = "alloc")]
@@ -116,7 +167,7 @@ impl core::fmt::Display for Argon2Error {
 /// be at least 4 bytes.
 ///
 /// # Arguments
-/// * `out` - Output buffer for the derived key. Its length is the tag length.
+/// * `out` - Output buffer for the derived key. Its length is the key length.
 /// * `password` - The password to hash
 /// * `salt` - Salt (recommended 16 bytes)
 /// * `secret` - Optional secret key (can be empty)
@@ -124,24 +175,26 @@ impl core::fmt::Display for Argon2Error {
 /// * `params` - Argon2id parameters
 ///
 /// # Errors
+///
 /// Returns [`Argon2Error::InvalidParams`] if `out` is shorter than 4 bytes or
-/// if `params` is invalid.
+/// longer than `2^32 - 1` bytes, if `params` is invalid, or if `password`,
+/// `salt`, `secret`, or `ad` is longer than `2^32 - 1` bytes.
 ///
 /// # Example
 ///
 /// ```ignore
 /// use crypto::argon2::{derive_key, Params};
 ///
-/// let mut tag = [0u8; 32];
+/// let mut key = [0u8; 32];
 /// derive_key(
-///     &mut tag,
+///     &mut key,
 ///     b"correct horse battery staple",
 ///     b"randomsalt123456",
 ///     &[],  // no secret
 ///     &[],  // no associated data
 ///     &Params { iterations: 3, memory: 65536, parallelism: 4 },
 /// ).unwrap();
-/// assert_eq!(tag.len(), 32);
+/// assert_eq!(key.len(), 32);
 /// ```
 #[cfg(feature = "alloc")]
 pub fn derive_key(
@@ -170,29 +223,44 @@ pub fn derive_key(
 ///     &Params { iterations: 3, memory: 65536, parallelism: 4 },
 /// ).unwrap();
 ///
-/// assert!(verify_password(b"correct horse battery staple", &encoded).is_ok());
-/// assert!(verify_password(b"wrong password", &encoded).is_err());
+/// assert!(verify_password(b"correct horse battery staple", &encoded, None).is_ok());
+/// assert!(verify_password(b"wrong password", &encoded, None).is_err());
 /// ```
 #[cfg(feature = "alloc")]
 pub fn hash_password(password: &[u8], salt: &[u8], params: &Params) -> Result<String, Argon2Error> {
-    let mut tag = vec![0u8; DEFAULT_TAG_LENGTH];
+    let mut tag = [0u8; DEFAULT_TAG_LENGTH];
     derive_key(&mut tag, password, salt, &[], &[], params)?;
     Ok(encode_phc(params, salt, &tag))
 }
 
 /// Verify a password against a PHC-encoded hash string.
 ///
+/// `limits` optionally caps the resource usage accepted from the encoded
+/// string. The `m`, `t`, and `p` fields of a PHC hash are attacker-controlled
+/// whenever the hash is not fully trusted (for example a user-supplied or
+/// imported credential), and the decoder would otherwise happily honor a hash
+/// requesting gigabytes of memory or billions of passes. When `limits` is
+/// `Some`, verification fails with [`Argon2Error::InvalidParams`] as soon as
+/// the decoded parameters exceed any of the given bounds, before any memory is
+/// allocated. Pass `None` when the encoded string is trusted.
+///
 /// See [`hash_password`] for an example.
 #[cfg(feature = "alloc")]
-pub fn verify_password(password: &[u8], encoded: &str) -> Result<(), Argon2Error> {
+pub fn verify_password(password: &[u8], encoded: &str, limits: Option<&Params>) -> Result<(), Argon2Error> {
     let (params, salt, expected_tag) = decode_phc(encoded)?;
+
+    if let Some(limits) = limits
+        && (params.iterations > limits.iterations
+            || params.memory > limits.memory
+            || params.parallelism > limits.parallelism)
+    {
+        return Err(Argon2Error::InvalidParams("encoded parameters exceed the configured limits"));
+    }
+
     let mut computed_tag = vec![0u8; expected_tag.len()];
     derive_key(&mut computed_tag, password, &salt, &[], &[], &params)?;
-    if constant_time_eq::constant_time_eq(&computed_tag, &expected_tag) {
-        Ok(())
-    } else {
-        Err(Argon2Error::VerifyMismatch)
-    }
+
+    constant_time_eq::constant_time_eq(&computed_tag, &expected_tag).ok_or(Argon2Error::VerifyMismatch)
 }
 
 // ============================================================
@@ -221,6 +289,12 @@ pub fn encode_phc(params: &Params, salt: &[u8], tag: &[u8]) -> String {
 /// Decode an Argon2id PHC string format into (params, salt, tag).
 ///
 /// Expected format: `$argon2id$v=19$m=<m>,t=<t>,p=<p>$<salt_b64>$<hash_b64>`
+///
+/// # Errors
+/// Returns [`Argon2Error::InvalidEncoding`] for a malformed string, and
+/// [`Argon2Error::InvalidParams`] if the decoded parameters violate the
+/// RFC 9106 bounds (`t >= 1`, `p` in `1..=2^24 - 1`, `m >= 8*p`) or if the
+/// decoded tag is shorter than 4 bytes. Note that the salt is not validated.
 #[cfg(feature = "alloc")]
 pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Error> {
     let parts: Vec<&str> = encoded.split('$').collect();
@@ -256,6 +330,10 @@ pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Err
         memory,
         parallelism,
     };
+
+    // Reject parameters that `derive_key` would reject anyway, so callers can
+    // rely on `decode_phc` returning only usable parameters.
+    params.validate(tag.len())?;
 
     Ok((params, salt, tag))
 }
@@ -340,19 +418,14 @@ fn argon2_core_with_backend(
     out: &mut [u8],
     backend: Backend,
 ) -> Result<(), Argon2Error> {
-    // Validate parameters
-    if params.iterations < 1 {
-        return Err(Argon2Error::InvalidParams("iterations must be >= 1"));
-    }
-    if params.parallelism < 1 {
-        return Err(Argon2Error::InvalidParams("parallelism must be >= 1"));
-    }
-    if out.len() < 4 {
-        return Err(Argon2Error::InvalidParams("output length must be >= 4"));
-    }
-    if params.memory < 8 * params.parallelism {
-        return Err(Argon2Error::InvalidParams("memory must be >= 8*parallelism"));
-    }
+    // Validate parameters and lengths. Argon2 encodes every length as a 32-bit
+    // little-endian value, so anything larger must be rejected rather than
+    // silently truncated.
+    params.validate(out.len())?;
+    check_u32_len(password.len(), "password must be <= 2^32 - 1 bytes")?;
+    check_u32_len(salt.len(), "salt must be <= 2^32 - 1 bytes")?;
+    check_u32_len(secret.len(), "secret must be <= 2^32 - 1 bytes")?;
+    check_u32_len(ad.len(), "associated data must be <= 2^32 - 1 bytes")?;
 
     let p = params.parallelism;
     let t = params.iterations;
@@ -738,6 +811,7 @@ fn compute_h0(
 #[cfg(feature = "alloc")]
 fn variable_length_hash_into(input: &[u8], out: &mut [u8]) {
     let tag_length = out.len();
+    debug_assert!(u32::try_from(tag_length).is_ok(), "tag length must fit in a u32");
 
     if tag_length <= 64 {
         // Short output: H'^T(A) = H^T(LE32(T)||A)
@@ -1511,8 +1585,11 @@ mod tests {
             parallelism: 1,
         };
         let encoded = hash_password(password, salt, &params).unwrap();
-        assert!(verify_password(password, &encoded).is_ok());
-        assert_eq!(verify_password(b"wrong password", &encoded), Err(Argon2Error::VerifyMismatch));
+        assert!(verify_password(password, &encoded, None).is_ok());
+        assert_eq!(
+            verify_password(b"wrong password", &encoded, None),
+            Err(Argon2Error::VerifyMismatch)
+        );
     }
 
     #[test]
@@ -1521,6 +1598,167 @@ mod tests {
         assert!(decode_phc("$argon2i$v=19$m=4096,t=3,p=1$salt$hash").is_err());
         assert!(decode_phc("$argon2id$v=16$m=4096,t=3,p=1$salt$hash").is_err());
         assert!(decode_phc("not a phc string").is_err());
+    }
+
+    #[test]
+    fn test_decode_phc_rejects_invalid_params() {
+        let salt = b"salt12345678";
+        let tag = [0u8; 32];
+
+        // iterations must be >= 1
+        let enc = encode_phc(
+            &Params {
+                iterations: 0,
+                memory: 64,
+                parallelism: 1,
+            },
+            salt,
+            &tag,
+        );
+        assert!(matches!(decode_phc(&enc), Err(Argon2Error::InvalidParams(_))));
+
+        // parallelism must be >= 1
+        let enc = encode_phc(
+            &Params {
+                iterations: 1,
+                memory: 64,
+                parallelism: 0,
+            },
+            salt,
+            &tag,
+        );
+        assert!(matches!(decode_phc(&enc), Err(Argon2Error::InvalidParams(_))));
+
+        // parallelism must be <= 2^24 - 1
+        let enc = encode_phc(
+            &Params {
+                iterations: 1,
+                memory: 64,
+                parallelism: u32::MAX,
+            },
+            salt,
+            &tag,
+        );
+        assert!(matches!(decode_phc(&enc), Err(Argon2Error::InvalidParams(_))));
+
+        // memory must be >= 8*parallelism
+        let enc = encode_phc(
+            &Params {
+                iterations: 1,
+                memory: 4,
+                parallelism: 1,
+            },
+            salt,
+            &tag,
+        );
+        assert!(matches!(decode_phc(&enc), Err(Argon2Error::InvalidParams(_))));
+
+        // tag must be at least 4 bytes
+        let enc = encode_phc(
+            &Params {
+                iterations: 1,
+                memory: 64,
+                parallelism: 1,
+            },
+            salt,
+            &[0u8; 3],
+        );
+        assert!(matches!(decode_phc(&enc), Err(Argon2Error::InvalidParams(_))));
+    }
+
+    #[test]
+    fn test_decode_phc_huge_parallelism_does_not_panic() {
+        let salt = b"salt12345678";
+        let tag = [0u8; 32];
+        // Before the fix, `8 * parallelism` overflowed in debug builds (panic)
+        // and wrapped in release builds (multi-terabyte allocation).
+        let enc = encode_phc(
+            &Params {
+                iterations: 1,
+                memory: u32::MAX,
+                parallelism: u32::MAX,
+            },
+            salt,
+            &tag,
+        );
+        assert!(decode_phc(&enc).is_err());
+        assert!(verify_password(b"password", &enc, None).is_err());
+    }
+
+    #[test]
+    fn test_verify_password_limits() {
+        let password = b"correct horse battery staple";
+        let salt = b"randomsalt123456";
+        let params = Params {
+            iterations: 2,
+            memory: 64,
+            parallelism: 1,
+        };
+        let encoded = hash_password(password, salt, &params).unwrap();
+
+        // No limits: normal verification.
+        assert!(verify_password(password, &encoded, None).is_ok());
+
+        // Limits exactly equal to the hash's parameters still verify.
+        assert!(verify_password(password, &encoded, Some(&params)).is_ok());
+
+        // Any tighter bound rejects the hash before deriving.
+        for limits in [
+            Params {
+                iterations: 1,
+                memory: 64,
+                parallelism: 1,
+            },
+            Params {
+                iterations: 2,
+                memory: 32,
+                parallelism: 1,
+            },
+            Params {
+                iterations: 2,
+                memory: 64,
+                parallelism: 0,
+            },
+        ] {
+            assert!(matches!(
+                verify_password(password, &encoded, Some(&limits)),
+                Err(Argon2Error::InvalidParams(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn test_verify_password_limits_reject_before_allocating() {
+        let salt = b"salt12345678";
+        let tag = [0u8; 32];
+        // A hostile hash requesting ~4 GiB of memory. The limit check must
+        // reject it before `derive_key` allocates anything.
+        let hostile = encode_phc(
+            &Params {
+                iterations: 1,
+                memory: u32::MAX,
+                parallelism: 1,
+            },
+            salt,
+            &tag,
+        );
+        let limits = Params {
+            iterations: 1,
+            memory: 64,
+            parallelism: 1,
+        };
+        assert!(matches!(
+            verify_password(b"password", &hostile, Some(&limits)),
+            Err(Argon2Error::InvalidParams(_))
+        ));
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn test_check_u32_len() {
+        assert!(check_u32_len(usize::MAX, "too long").is_err());
+        assert!(check_u32_len(u32::MAX as usize, "ok").is_ok());
+        assert!(check_u32_len(0, "ok").is_ok());
     }
 
     #[test]
@@ -2144,8 +2382,8 @@ mod tests {
             parallelism: 1,
         };
         let encoded = hash_password(password, salt, &params).unwrap();
-        assert!(verify_password(password, &encoded).is_ok());
-        assert_eq!(verify_password(b"wrong", &encoded), Err(Argon2Error::VerifyMismatch));
+        assert!(verify_password(password, &encoded, None).is_ok());
+        assert_eq!(verify_password(b"wrong", &encoded, None), Err(Argon2Error::VerifyMismatch));
     }
 
     #[test]

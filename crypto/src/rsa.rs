@@ -91,32 +91,41 @@ impl PublicKey {
     /// Parse an RSA public key from the raw PKCS#1 bytes.
     ///
     /// The input is the content of the BIT STRING inside the SPKI —
-    /// an ASN.1 `SEQUENCE { INTEGER n, INTEGER e }`.
+    /// a strict DER `SEQUENCE { INTEGER n, INTEGER e }`. Non-minimal length
+    /// encodings, negative or non-minimally-encoded INTEGERs, an oversized
+    /// outer SEQUENCE, and any trailing bytes inside or after the SEQUENCE are
+    /// rejected.
     ///
     /// The same parameter validation as [`PublicKey::from_n_e`] is applied.
     ///
     /// # Errors
     ///
-    /// Returns [`RsaError::InvalidKey`] or [`RsaError::NotSupported`] when the
-    /// DER is malformed or the modulus/exponent fail validation.
-    pub fn from_pkcs1_der(mut data: &[u8]) -> Result<Self, RsaError> {
-        if data.is_empty() || data[0] != 0x30 {
+    /// Returns [`RsaError::Unspecified`] if `data` is not the exact strict DER
+    /// encoding of `SEQUENCE { INTEGER n, INTEGER e }`, and
+    /// [`RsaError::InvalidKey`] or [`RsaError::NotSupported`] when the
+    /// modulus/exponent fail the [`PublicKey::from_n_e`] checks.
+    pub fn from_pkcs1_der(data: &[u8]) -> Result<Self, RsaError> {
+        if data.len() < 2 || data[0] != 0x30 {
             return Err(RsaError::Unspecified);
         }
         let (seq_len, len_size) = read_length(&data[1..])?;
-        data = &data[1 + len_size..];
-        if data.len() < seq_len {
+        let header = 1 + len_size;
+        if data.len() != header + seq_len {
             return Err(RsaError::Unspecified);
         }
-        data = &data[..seq_len];
+        let mut body = &data[header..];
 
         let mut n_buf = [0u8; RSA_MAX_BYTES];
-        let n_len = read_integer_bytes(data, &mut n_buf)?;
-        let consumed = asn1_integer_size(data);
-        data = &data[consumed..];
+        let (n_len, consumed) = read_integer(body, &mut n_buf)?;
+        body = &body[consumed..];
 
         let mut e_buf = [0u8; RSA_MAX_BYTES];
-        let e_len = read_integer_bytes(data, &mut e_buf)?;
+        let (e_len, consumed) = read_integer(body, &mut e_buf)?;
+        body = &body[consumed..];
+
+        if !body.is_empty() {
+            return Err(RsaError::Unspecified);
+        }
 
         Self::from_n_e(&n_buf[..n_len], &e_buf[..e_len])
     }
@@ -171,9 +180,13 @@ impl PublicKey {
 
     /// Verify an RSA-PSS signature (RFC 8017 §9.1.2).
     ///
-    /// `message_digest` is the hash of the TLS signed_data.
-    /// `hash_fn` produces a digest of `hash_len` bytes.
-    /// `salt_len` equals the hash length (Go's PSSSaltLengthEqualsHash).
+    /// `message` is hashed with `H`, whose digest length must equal `salt_len`
+    /// (Go's `PSSSaltLengthEqualsHash`).
+    ///
+    /// Per RFC 8017, the encoded-message bit length is `emBits = bitlen(n) - 1`
+    /// and `emLen = ceil(emBits / 8)`. This matters for moduli whose top bit is
+    /// not set: `emLen` can be one byte shorter than the modulus and the number
+    /// of leftmost bits cleared from `DB` is `8·emLen - emBits`, not always 1.
     pub fn verify_pss<H: Hasher>(&self, signature: &[u8], message: &[u8], salt_len: usize) -> Result<(), RsaError> {
         if signature.len() != self.n_len {
             return Err(RsaError::Unspecified);
@@ -185,13 +198,23 @@ impl PublicKey {
         }
 
         let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
-        let em_len = self.n_len;
         let hash_len = H::OUTPUT_SIZE;
+
+        // RFC 8017 §9.1.2: emBits = modBits - 1 and emLen = ceil(emBits / 8),
+        // where modBits = bitlen(n). This can differ from n_len when the top
+        // bit of the modulus is not set.
+        let em_bits = self.n.bit_len() - 1;
+        let em_len = em_bits.div_ceil(8);
+
+        // I2OSP(m, emLen) requires m < 256^emLen. Only reachable when emBits is
+        // a multiple of 8, in which case m may need emLen + 1 bytes.
+        if m.bit_len() > 8 * em_len {
+            return Err(RsaError::Unspecified);
+        }
 
         let mut em = [0u8; RSA_MAX_BYTES];
         write_uint_be(&m, &mut em, em_len);
 
-        let em_bits = self.n_len * 8 - 1;
         let leftmost_bits = 8 * em_len - em_bits;
         if leftmost_bits > 0 && leftmost_bits < 8 {
             if em[0] >> (8 - leftmost_bits) != 0 {
@@ -335,6 +358,11 @@ fn mgf1<H: Hasher>(seed: &[u8], out: &mut [u8]) {
 }
 
 /// Read an ASN.1 length field. Returns (value, bytes_consumed_for_length).
+///
+/// The encoding must be the minimal DER form prescribed by X.690 §10.1:
+/// long form is accepted only when the length is at least 128 and its first
+/// content byte is non-zero. Indefinite lengths (`0x80`) and long forms wider
+/// than four bytes are rejected.
 fn read_length(data: &[u8]) -> Result<(usize, usize), RsaError> {
     if data.is_empty() {
         return Err(RsaError::Unspecified);
@@ -346,45 +374,53 @@ fn read_length(data: &[u8]) -> Result<(usize, usize), RsaError> {
         if num_bytes == 0 || num_bytes > 4 || data.len() < 1 + num_bytes {
             return Err(RsaError::Unspecified);
         }
+        if data[1] == 0x00 {
+            return Err(RsaError::Unspecified);
+        }
         let mut len = 0usize;
         for i in 0..num_bytes {
             len = (len << 8) | data[1 + i] as usize;
+        }
+        if len < 0x80 {
+            return Err(RsaError::Unspecified);
         }
         Ok((len, 1 + num_bytes))
     }
 }
 
-/// Read the raw big-endian bytes of an ASN.1 INTEGER, skipping any leading
-/// 0x00 sign byte.
-fn read_integer_bytes(data: &[u8], out: &mut [u8]) -> Result<usize, RsaError> {
+/// Read an ASN.1 INTEGER, writing its magnitude into `out` and returning
+/// `(value_len, total_consumed)`.
+///
+/// The encoding must be strict DER: the contents may not be empty, may not be
+/// negative (top bit set), and any leading `0x00` is allowed only when needed to
+/// keep the following byte's top bit from being read as a sign bit. This is the
+/// canonical form required by RFC 8017 for RSA public key parameters.
+fn read_integer(data: &[u8], out: &mut [u8]) -> Result<(usize, usize), RsaError> {
     if data.len() < 2 || data[0] != 0x02 {
         return Err(RsaError::Unspecified);
     }
     let (len, len_size) = read_length(&data[1..])?;
-    let value = &data[1 + len_size..];
-    if value.len() < len {
+    let consumed = 1 + len_size + len;
+    if len == 0 || data.len() < consumed {
         return Err(RsaError::Unspecified);
     }
-    let bytes = &value[..len];
-    if bytes.is_empty() {
+    let bytes = &data[1 + len_size..consumed];
+    if bytes[0] & 0x80 != 0 {
         return Err(RsaError::Unspecified);
     }
-    let start = if bytes[0] == 0x00 && bytes.len() > 1 { 1 } else { 0 };
-    let val_len = bytes.len() - start;
+    let (value, val_len) = if bytes[0] == 0x00 {
+        if bytes.len() < 2 || bytes[1] & 0x80 == 0 {
+            return Err(RsaError::Unspecified);
+        }
+        (&bytes[1..], bytes.len() - 1)
+    } else {
+        (bytes, bytes.len())
+    };
     if out.len() < val_len {
         return Err(RsaError::Unspecified);
     }
-    out[..val_len].copy_from_slice(&bytes[start..]);
-    Ok(val_len)
-}
-
-/// Return the total byte size of an ASN.1 INTEGER (tag + length + value).
-fn asn1_integer_size(data: &[u8]) -> usize {
-    if data.len() < 2 || data[0] != 0x02 {
-        return 0;
-    }
-    let (len, len_size) = read_length(&data[1..]).unwrap_or((0, 0));
-    1 + len_size + len
+    out[..val_len].copy_from_slice(value);
+    Ok((val_len, consumed))
 }
 
 /// Build a `Uint` from a variable-length big-endian byte slice
@@ -667,6 +703,156 @@ mod tests {
 
         // The exponent must be strictly smaller than the modulus.
         assert!(PublicKey::from_n_e(&n, &n).is_err());
+    }
+
+    /// Encode a DER length using the minimal form (test helper).
+    fn der_length(len: usize) -> Vec<u8> {
+        if len < 0x80 {
+            vec![len as u8]
+        } else if len <= 0xff {
+            vec![0x81, len as u8]
+        } else {
+            vec![0x82, (len >> 8) as u8, (len & 0xff) as u8]
+        }
+    }
+
+    /// Encode a non-negative big-endian magnitude as a strict DER INTEGER
+    /// (test helper).
+    fn der_integer(value: &[u8]) -> Vec<u8> {
+        let mut start = 0;
+        while start + 1 < value.len() && value[start] == 0 {
+            start += 1;
+        }
+        let value = &value[start..];
+        let mut out = vec![0x02];
+        if value[0] & 0x80 != 0 {
+            out.extend(der_length(value.len() + 1));
+            out.push(0x00);
+        } else {
+            out.extend(der_length(value.len()));
+        }
+        out.extend_from_slice(value);
+        out
+    }
+
+    /// Wrap a body in a strict DER SEQUENCE (test helper).
+    fn der_sequence(body: &[u8]) -> Vec<u8> {
+        let mut out = vec![0x30];
+        out.extend(der_length(body.len()));
+        out.extend_from_slice(body);
+        out
+    }
+
+    #[test]
+    fn read_length_requires_minimal_der() {
+        assert_eq!(read_length(&[0x05]).unwrap(), (5, 1));
+        assert_eq!(read_length(&[0x81, 0x80]).unwrap(), (128, 2));
+        assert_eq!(read_length(&[0x82, 0x01, 0x00]).unwrap(), (256, 3));
+
+        // Indefinite length is forbidden in DER.
+        assert!(read_length(&[0x80, 0x00]).is_err());
+        // Long form with a leading zero byte.
+        assert!(read_length(&[0x82, 0x00, 0x80]).is_err());
+        // Long form used for a value that fits in the short form.
+        assert!(read_length(&[0x81, 0x05]).is_err());
+        assert!(read_length(&[0x81, 0x7f]).is_err());
+        // Truncated and empty inputs.
+        assert!(read_length(&[0x82, 0x01]).is_err());
+        assert!(read_length(&[]).is_err());
+    }
+
+    #[test]
+    fn read_integer_requires_minimal_der() {
+        let mut out = [0u8; 8];
+
+        // Minimal positive INTEGER, e = 65537.
+        assert_eq!(read_integer(&[0x02, 0x03, 0x01, 0x00, 0x01], &mut out).unwrap(), (3, 5));
+        assert_eq!(&out[..3], &[0x01, 0x00, 0x01]);
+
+        // A leading zero is required when the top bit of the value is set.
+        assert_eq!(read_integer(&[0x02, 0x02, 0x00, 0x80], &mut out).unwrap(), (1, 4));
+        assert_eq!(out[0], 0x80);
+
+        // Negative INTEGER (top bit set without a sign byte).
+        assert!(read_integer(&[0x02, 0x01, 0x80], &mut out).is_err());
+        // Superfluous leading zero.
+        assert!(read_integer(&[0x02, 0x02, 0x00, 0x7f], &mut out).is_err());
+        // Non-minimal length.
+        assert!(read_integer(&[0x02, 0x81, 0x01, 0x05], &mut out).is_err());
+        // Empty and truncated values, and the wrong tag.
+        assert!(read_integer(&[0x02, 0x00], &mut out).is_err());
+        assert!(read_integer(&[0x02, 0x02, 0x01], &mut out).is_err());
+        assert!(read_integer(&[0x04, 0x01, 0x01], &mut out).is_err());
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn from_pkcs1_der_is_strict() {
+        // 2048-bit odd modulus (top bit set, so DER carries a 0x00 sign byte)
+        // with e = 65537.
+        let mut n = [0x80u8; 256];
+        n[255] |= 1;
+        let e = [0x01u8, 0x00, 0x01];
+
+        let mut body = der_integer(&n);
+        body.extend(der_integer(&e));
+        let der = der_sequence(&body);
+
+        let key = PublicKey::from_pkcs1_der(&der).unwrap();
+        assert_eq!(key.n_bytes(), n.to_vec());
+        assert_eq!(key.e_bytes().as_slice(), &e);
+
+        // Trailing byte inside the SEQUENCE after `e`.
+        let mut body_trailing = body.clone();
+        body_trailing.push(0x00);
+        assert!(PublicKey::from_pkcs1_der(&der_sequence(&body_trailing)).is_err());
+
+        // Trailing byte after the outer SEQUENCE.
+        let mut der_trailing = der.clone();
+        der_trailing.push(0x00);
+        assert!(PublicKey::from_pkcs1_der(&der_trailing).is_err());
+
+        // Non-minimal outer SEQUENCE length (`83 00 01 0A` instead of `82 01 0A`).
+        let mut non_minimal = vec![0x30, 0x83, 0x00];
+        non_minimal.extend_from_slice(&(body.len() as u16).to_be_bytes());
+        non_minimal.extend_from_slice(&body);
+        assert!(PublicKey::from_pkcs1_der(&non_minimal).is_err());
+
+        // Non-minimal INTEGER length for `e`.
+        let mut body_bad_e_len = der_integer(&n);
+        body_bad_e_len.extend_from_slice(&[0x02, 0x81, 0x03, 0x01, 0x00, 0x01]);
+        assert!(PublicKey::from_pkcs1_der(&der_sequence(&body_bad_e_len)).is_err());
+
+        // Negative `e` (top bit set without a sign byte).
+        let mut body_neg_e = der_integer(&n);
+        body_neg_e.extend_from_slice(&[0x02, 0x01, 0x80]);
+        assert!(PublicKey::from_pkcs1_der(&der_sequence(&body_neg_e)).is_err());
+    }
+
+    #[test]
+    fn pss_non_full_length_modulus() {
+        // Regression for L-03. This modulus is 2049 bits (top byte 0x01): it is
+        // 257 bytes long, but RFC 8017 sets emBits = bitlen(n) - 1 = 2048 and
+        // emLen = 256, with no leftmost bits cleared from DB. Deriving
+        // emBits/emLen from the byte length instead (emBits = 2055,
+        // emLen = 257) rejected this valid signature.
+        let n = hex::decode(
+            "0164172bd317d5b8c209ea97405faad6a4ddb71dcf1233600f52d902ce3194409fe87e3efb35ea5c3d3dad4b224112105fa999fa26a44b5ed8d1bd3a6db9f8661f5cdd519805cb188ae89883799a0f82ae0f024d6faacaae8eecce96a9963d776779dfce1f2b43a012be154f321edb881401e062b985f2c2f6c69a6d08492e648a4f8084ccac74d29088a0baad787dd14b307c02f545f50662e08de2f0a6a52b5d400bb0cb48b1dec3c33c84bfc40021ac760d9d3be5229796f2a676408774e7c4f27492bce1731d51d58f56fd86e4c0b90134f115c94a0ab42aef65fbce2e4ea92e0d11937f4f612142fc888d3b040c8052026293b89b2d718cf85cf881dfc603",
+        ).unwrap();
+        let e = hex::decode("010001").unwrap();
+        let sig = hex::decode(
+            "0100156ede19d636555868311341b128ce65ec53c27f3e7dbfd35319e4356d93e9b7b968dca073ecc6caa1c0519fa89ff0cab4e49a21b0a37311ddca42de06468827880a574b96d83a572a0867ca1bed49644275ae8c3a9860377135728a3d6ee2b07625be2f434ca63fa9341fefccfbe9d9a356da673e40dbb2e87efa2a8ef271bc1aaee7a7e4443e39e14ff3def38a7987d5fa2bf6453c6dedb3a376c58d259ffae0e337f6d6a447ada7db55dabb6208e38e0d86280eeb2802da551e15ad4b52cd18d4dbe146f87349ba52332a2e8baac6c3d1606b97b625d4fb2d958643c7bb57319869366b91900deb1e72df47e92a6e1bbd38c5dfe66d359d283dde248b27",
+        ).unwrap();
+        let msg = b"stdx RSA-PSS L-03 regression vector";
+
+        let key = PublicKey::from_n_e(&n, &e).unwrap();
+        assert_eq!(key.n.bit_len(), 2049);
+        key.verify_pss::<crate::sha2::Sha256>(&sig, msg, 32).unwrap();
+
+        // A modified message must not verify.
+        let mut tampered = msg.to_vec();
+        tampered[0] ^= 0x01;
+        assert!(key.verify_pss::<crate::sha2::Sha256>(&sig, &tampered, 32).is_err());
     }
 
     #[cfg(feature = "std")]

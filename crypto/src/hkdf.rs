@@ -1,8 +1,8 @@
-//! HMAC (Hash-based Message Authentication Code)
+//! HKDF (HMAC-based Extract-and-Expand Key Derivation Function) key derivation function.
 
-use crate::{Hash, Hasher, HkdfError, hmac::Hmac};
+use crate::{Hash, Hasher, HkdfError, MAX_HASH_OUTPUT_SIZE, hmac::Hmac};
 
-const DEFAULT_SALT: [u8; 64] = [0u8; 64];
+const DEFAULT_SALT: [u8; MAX_HASH_OUTPUT_SIZE] = [0u8; MAX_HASH_OUTPUT_SIZE];
 
 /// HKDF extract step: `PRK = HMAC-Hash(salt, IKM)`.
 ///
@@ -14,9 +14,11 @@ const DEFAULT_SALT: [u8; 64] = [0u8; 64];
 /// use crypto::hkdf;
 /// use crypto::sha2::Sha256;
 ///
-/// let prk = hkdf::extract::<Sha256>(Some(b"salt"), b"input key material");
+/// let prk = hkdf::extract::<Sha256>(b"input key material", Some(b"salt"));
 /// ```
-pub fn extract<H: Hasher>(salt: Option<&[u8]>, ikm: &[u8]) -> Hash {
+pub fn extract<H: Hasher>(ikm: &[u8], salt: Option<&[u8]>) -> Hash {
+    const { assert!(H::OUTPUT_SIZE <= MAX_HASH_OUTPUT_SIZE) };
+
     let salt = salt.unwrap_or(&DEFAULT_SALT[..H::OUTPUT_SIZE]);
     let mut mac = Hmac::<H>::new(salt);
     mac.update(ikm);
@@ -35,7 +37,7 @@ pub fn extract<H: Hasher>(salt: Option<&[u8]>, ikm: &[u8]) -> Hash {
 /// use crypto::hkdf;
 /// use crypto::sha2::Sha256;
 ///
-/// let prk = hkdf::extract::<Sha256>(Some(b"salt"), b"input key material");
+/// let prk = hkdf::extract::<Sha256>(b"input key material", Some(b"salt"));
 /// let mut okm = [0u8; 32];
 /// hkdf::expand::<Sha256>(&mut okm, &prk, b"context info").unwrap();
 /// ```
@@ -44,6 +46,8 @@ pub fn extract<H: Hasher>(salt: Option<&[u8]>, ikm: &[u8]) -> Hash {
 ///
 /// Returns an error if `okm.len() > 255 * H::OUTPUT_SIZE` or if `prk.len() < H::OUTPUT_SIZE`.
 pub fn expand<H: Hasher>(okm: &mut [u8], prk: &[u8], info: &[u8]) -> Result<(), HkdfError> {
+    const { assert!(H::OUTPUT_SIZE <= MAX_HASH_OUTPUT_SIZE) };
+
     let n = okm.len();
 
     if prk.len() < H::OUTPUT_SIZE {
@@ -58,7 +62,7 @@ pub fn expand<H: Hasher>(okm: &mut [u8], prk: &[u8], info: &[u8]) -> Result<(), 
         return Ok(());
     }
 
-    let mut t = [0u8; 64];
+    let mut t = [0u8; MAX_HASH_OUTPUT_SIZE];
     let mut t_len = 0usize;
     let mut offset = 0usize;
     let mut counter = 1u8;
@@ -83,6 +87,10 @@ pub fn expand<H: Hasher>(okm: &mut [u8], prk: &[u8], info: &[u8]) -> Result<(), 
 
 /// One-shot HKDF: extract-then-expand in a single call.
 ///
+/// `H::OUTPUT_SIZE` must be smaller than or equal to
+/// [`MAX_HASH_OUTPUT_SIZE`](crate::MAX_HASH_OUTPUT_SIZE); this bound is checked
+/// at compile time.
+///
 /// # Example
 ///
 /// ```ignore
@@ -104,7 +112,7 @@ pub fn derive_key<H: Hasher, const N: usize>(
     info: &[u8],
     salt: Option<&[u8]>,
 ) -> Result<[u8; N], HkdfError> {
-    let prk = extract::<H>(salt, ikm);
+    let prk = extract::<H>(ikm, salt);
     let mut okm = [0u8; N];
     expand::<H>(&mut okm, prk.as_ref(), info)?;
     Ok(okm)
@@ -218,7 +226,7 @@ mod tests {
             let expected_prk = decode_hex(vector.expected_prk);
             let expected_okm = decode_hex(vector.expected_okm);
 
-            let prk = extract::<Sha256>(salt.as_deref(), &ikm);
+            let prk = extract::<Sha256>(&ikm, salt.as_deref());
             assert_eq!(prk.as_ref(), expected_prk.as_slice(), "vector {} PRK", i);
 
             let mut buf = [0u8; 82];
@@ -247,7 +255,7 @@ mod tests {
             let expected_prk = decode_hex(vector.expected_prk);
             let expected_okm = decode_hex(vector.expected_okm);
 
-            let prk = extract::<Sha512>(salt.as_deref(), &ikm);
+            let prk = extract::<Sha512>(&ikm, salt.as_deref());
             assert_eq!(prk.as_ref(), expected_prk.as_slice(), "vector {} PRK", i);
 
             let mut buf = [0u8; 82];

@@ -228,31 +228,26 @@ const N_MINUS_TWO: CurveUint = CurveUint::from_limbs([
     0x0000_0000_ffff_ffff,
 ]);
 
-// (p - 1) / 2, used for the Legendre symbol during square-root computation.
-const P_MINUS_ONE_OVER_TWO: CurveUint = CurveUint::from_limbs([
-    0x0000_0000_0000_0000,
-    0xffff_ffff_8000_0000,
-    0xffff_ffff_ffff_ffff,
-    0x0000_0000_7fff_ffff,
-]);
-
-// P-224 has p = 2^224 - 2^96 + 1, so p - 1 = 2^96 * d with d = 2^128 - 1.
-// These constants are used by the Tonelli-Shanks square-root algorithm.
+// P-224 has p = 2^224 - 2^96 + 1, so p - 1 = 2^S * Q with S = 96 and
+// Q = 2^128 - 1 odd. These constants drive the Tonelli-Shanks square-root
+// algorithm (see `p224_field_sqrt`).
 const TONELLI_S: usize = 96;
-const TONELLI_D: CurveUint = CurveUint::from_limbs([
+// (Q - 1) / 2.
+const TONELLI_Q_MINUS_ONE_OVER_TWO: CurveUint = CurveUint::from_limbs([
     0xffff_ffff_ffff_ffff,
-    0xffff_ffff_ffff_ffff,
+    0x7fff_ffff_ffff_ffff,
     0x0000_0000_0000_0000,
     0x0000_0000_0000_0000,
 ]);
-const TONELLI_D_PLUS_ONE_OVER_TWO: CurveUint = CurveUint::from_limbs([
-    0x0000_0000_0000_0000,
-    0x8000_0000_0000_0000,
-    0x0000_0000_0000_0000,
-    0x0000_0000_0000_0000,
+// Generator of the order-2^S subgroup: `11^Q`, where 11 is the smallest
+// quadratic non-residue modulo p (verified: 11^((p-1)/2) = -1). This is the
+// fixed `z` used by the constant-time Tonelli-Shanks variant.
+const TONELLI_ROOT_OF_UNITY: CurveUint = CurveUint::from_limbs([
+    0xf3fb_3632_dc69_1b74,
+    0x0b2d_6ffb_bea3_d8ce,
+    0x8598_a792_0c55_b2d4,
+    0x0000_0000_6a0f_ec67,
 ]);
-// Smallest quadratic non-residue modulo p (verified: 11^((p-1)/2) = -1).
-const TONELLI_NON_RESIDUE: CurveUint = CurveUint::from_u64(11);
 
 // Barrett reduction constants: mu = floor(2^(2 * 4 * 64) / modulus), as
 // computed by big_number's `compute_mu_for_barrett`.
@@ -303,46 +298,60 @@ fn reduce_mod(value: CurveUint) -> CurveUint {
 /// Square root modulo p. Returns `None` when `a` is a quadratic non-residue.
 ///
 /// P-224 has p ≡ 1 (mod 4), so the simple `a^((p+1)/4)` formula used by
-/// P-256/P-384 is unavailable; this uses Tonelli-Shanks instead. It is only
-/// invoked on public data (SEC1 decompression), so its data-dependent
-/// control flow does not leak secrets.
+/// P-256/P-384 is unavailable. Since `p - 1 = 2^96 * Q`, this uses the
+/// constant-time Tonelli-Shanks variant from "Square root computation over even
+/// extension fields" (eprint 2012/685, Algorithm 5): every loop has a fixed
+/// iteration count and all state transitions are constant-time selects, so the
+/// running time does not depend on `a`. (The returned `Option` still reveals
+/// whether `a` is a quadratic residue, as the signature implies.)
 fn p224_field_sqrt(a: CurveUint) -> Option<CurveUint> {
-    if a.is_zero() {
-        return Some(CurveUint::ZERO);
-    }
-    if field_pow::<P224>(a, &P_MINUS_ONE_OVER_TWO) != CurveUint::ONE {
-        return None;
-    }
+    // w = a^((Q-1)/2); then x = a*w and b = x*w = a^Q.
+    let w = field_pow::<P224>(a, &TONELLI_Q_MINUS_ONE_OVER_TWO);
+    let mut v = TONELLI_S;
+    let mut x = curve_field_mul(&w, &a);
+    let mut b = curve_field_mul(&x, &w);
 
-    let mut m = TONELLI_S;
-    let mut c = field_pow::<P224>(TONELLI_NON_RESIDUE, &TONELLI_D);
-    let mut t = field_pow::<P224>(a, &TONELLI_D);
-    let mut r = field_pow::<P224>(a, &TONELLI_D_PLUS_ONE_OVER_TWO);
+    // z starts as the generator of the order-2^S subgroup.
+    let mut z = TONELLI_ROOT_OF_UNITY;
 
-    while t != CurveUint::ONE {
-        // Find the least i (0 < i < m) such that t^(2^i) == 1.
-        let mut i = 0usize;
-        let mut probe = t;
-        while probe != CurveUint::ONE {
-            probe = curve_field_mul(&probe, &probe);
-            i += 1;
-            if i >= m {
-                return None;
-            }
+    for max_v in (1..=TONELLI_S).rev() {
+        let mut k = 1usize;
+        let mut b2k = curve_field_mul(&b, &b);
+        let mut j_less_than_v = true;
+
+        for j in 2..max_v {
+            let b2k_is_one = b2k.ct_eq(&CurveUint::ONE);
+            // Square `z` when `b^(2^k) == 1`, otherwise keep squaring `b2k`.
+            let squared = curve_field_mul(
+                &CurveUint::ct_select(&z, &b2k, b2k_is_one),
+                &CurveUint::ct_select(&z, &b2k, b2k_is_one),
+            );
+            b2k = CurveUint::ct_select(&b2k, &squared, b2k_is_one);
+            let new_z = CurveUint::ct_select(&squared, &z, b2k_is_one);
+            j_less_than_v &= j != v;
+            k = ct_select_usize(k, j, b2k_is_one);
+            z = CurveUint::ct_select(&new_z, &z, j_less_than_v);
         }
 
-        let mut b = c;
-        for _ in 0..(m - i - 1) {
-            b = curve_field_mul(&b, &b);
-        }
-
-        m = i;
-        c = curve_field_mul(&b, &b);
-        t = curve_field_mul(&t, &c);
-        r = curve_field_mul(&r, &b);
+        let result = curve_field_mul(&x, &z);
+        x = CurveUint::ct_select(&x, &result, b.ct_eq(&CurveUint::ONE));
+        z = curve_field_mul(&z, &z);
+        b = curve_field_mul(&b, &z);
+        v = k;
     }
 
-    if curve_field_mul(&r, &r) == a { Some(r) } else { None }
+    if curve_field_mul(&x, &x).ct_eq(&a) {
+        Some(x)
+    } else {
+        None
+    }
+}
+
+/// Branch-free select for `usize` indices: returns `a` if `choice` else `b`.
+#[inline]
+fn ct_select_usize(a: usize, b: usize, choice: bool) -> usize {
+    let mask = (choice as usize).wrapping_neg();
+    (a & mask) | (b & !mask)
 }
 
 #[inline]
@@ -945,8 +954,9 @@ mod tests {
 
     #[test]
     fn sqrt_matches_squares_and_rejects_non_residues() {
-        // Squares always have a root that squares back to the input.
-        for _ in 0..200 {
+        // Squares always have a root that squares back to the input, and that
+        // root is one of the two square roots (±x).
+        for _ in 0..500 {
             let bytes: [u8; 28] = rand::random();
             let Some(x) = FieldElement::from_bytes(&bytes) else {
                 continue;
@@ -954,7 +964,15 @@ mod tests {
             let square = x.square();
             let root = square.sqrt().expect("square should have a square root");
             assert_eq!(root.square(), square);
+            assert!(root == x || root == x.negate());
+
+            // The computation is deterministic.
+            assert_eq!(root, square.sqrt().unwrap());
         }
+
+        // Zero is its own square root.
+        let zero = FieldElement::from_uint(U224::from_u64(0));
+        assert_eq!(zero.sqrt().unwrap(), zero);
 
         // 11 is the smallest quadratic non-residue modulo p.
         let non_residue = FieldElement::from_uint(U224::from_u64(11));

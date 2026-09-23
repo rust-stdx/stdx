@@ -47,6 +47,9 @@ pub use random::{random_bytes, random_fill};
 
 const MAX_HASH_BLOCK_SIZE: usize = 136;
 
+/// Maximum output size supported by [`Hash`].
+pub const MAX_HASH_OUTPUT_SIZE: usize = 64;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Errors
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,7 +215,11 @@ impl<T> Zeroize for T {}
 pub trait Hasher: Clone + Zeroize {
     /// The internal block size of the hash function
     const BLOCK_SIZE: usize;
-    /// The output size of the hash function
+    /// The output size of the hash function.
+    ///
+    /// Must not exceed [`MAX_HASH_OUTPUT_SIZE`] (64), the fixed capacity of
+    /// [`Hash`]; implementors with a larger `OUTPUT_SIZE` will not compile when
+    /// used with functions that bound-check against this limit.
     const OUTPUT_SIZE: usize;
 
     fn new() -> Self;

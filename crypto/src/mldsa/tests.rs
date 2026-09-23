@@ -220,6 +220,7 @@ fn wycheproof_sign_seed<const PK: usize, const SIG: usize>(
     sign_mu: impl Fn(&[u8; 32], &[u8; 64], &[u8; 32]) -> [u8; SIG],
     derive_pk: impl Fn(&[u8; 32]) -> [u8; PK],
     verify: impl Fn(&[u8; PK], &[u8], &[u8; SIG], &[u8]) -> Result<(), MlDsaError>,
+    verify_mu: impl Fn(&[u8; PK], &[u8; 64], &[u8; SIG]) -> Result<(), MlDsaError>,
 ) {
     let v: serde_json::Value = serde_json::from_str(json).unwrap();
 
@@ -255,12 +256,16 @@ fn wycheproof_sign_seed<const PK: usize, const SIG: usize>(
             let result = test["result"].as_str().unwrap();
 
             if is_incorrect_private_key_len {
+                // The signing API takes a fixed 32-byte seed, so an incorrect-length
+                // private seed cannot be represented; the type system rejects it.
                 skipped += 1;
                 continue;
             }
 
             if is_internal {
                 if result != "valid" {
+                    // Internal-projection signing is total (it always yields a
+                    // signature), so there is no invalid-signing path to assert.
                     skipped += 1;
                     continue;
                 }
@@ -275,7 +280,8 @@ fn wycheproof_sign_seed<const PK: usize, const SIG: usize>(
                     expected_sig_hex.to_lowercase(),
                     "sign_seed external-mu tcId={tc_id}: signature mismatch"
                 );
-                verify(&pk, &mu, &sig, &[]).ok();
+                verify_mu(&pk, &mu, &sig)
+                    .unwrap_or_else(|_| panic!("sign_seed external-mu tcId={tc_id}: self-verify failed"));
                 valid_tested += 1;
                 continue;
             }
@@ -354,6 +360,10 @@ fn wycheproof_sign_noseed<const PK: usize, const SIG: usize>(
                 || flags.iter().any(|f| f == "IncorrectPrivateKeyLength")
                 || flags.iter().any(|f| f == "Internal")
             {
+                // This helper only exercises message-based verification: the seed is
+                // always 32 bytes (so key-length errors are unrepresentable), and
+                // Internal vectors carry a precomputed mu for `verify_external_mu`
+                // rather than a message/ctx pair.
                 skipped += 1;
                 continue;
             }
@@ -397,6 +407,7 @@ fn wycheproof_sign_noseed<const PK: usize, const SIG: usize>(
 fn wycheproof_verify<const PK: usize, const SIG: usize>(
     json: &str,
     verify: impl Fn(&[u8; PK], &[u8], &[u8; SIG], &[u8]) -> Result<(), MlDsaError>,
+    pk_from_slice: impl Fn(&[u8]) -> Result<[u8; PK], MlDsaError>,
 ) {
     let v: serde_json::Value = serde_json::from_str(json).unwrap();
 
@@ -431,6 +442,11 @@ fn wycheproof_verify<const PK: usize, const SIG: usize>(
             let result = test["result"].as_str().unwrap();
 
             if is_incorrect_public_key_len {
+                let pk_bytes = hex::decode(pk_hex).expect("IncorrectPublicKeyLength with non-hex key");
+                assert!(
+                    pk_from_slice(&pk_bytes).is_err(),
+                    "verify tc_id={tc_id}: IncorrectPublicKeyLength flagged but public key parsed"
+                );
                 skipped += 1;
                 continue;
             }
@@ -483,6 +499,12 @@ fn wycheproof_verify<const PK: usize, const SIG: usize>(
 fn pk44(seed: &[u8; 32]) -> [u8; ML_DSA_44_PUBLIC_KEY_SIZE] {
     let sk = MlDsa44SecretKey::new(seed);
     sk.public_key().to_bytes()
+}
+
+/// Parses a serialized public key through the public fallible decoder, so tests
+/// can assert that wrong-length encodings are rejected.
+fn pk44_from_slice(bytes: &[u8]) -> Result<[u8; ML_DSA_44_PUBLIC_KEY_SIZE], MlDsaError> {
+    MlDsa44PublicKey::try_from(bytes).map(|key| key.to_bytes())
 }
 
 fn sign44(
@@ -565,6 +587,7 @@ fn mldsa44_wycheproof_sign_seed() {
         sign44_mu,
         pk44,
         verify44,
+        verify44_mu,
     );
 }
 
@@ -581,6 +604,7 @@ fn mldsa44_wycheproof_verify() {
     wycheproof_verify(
         include_str!("../../testdata/wycheproof/testvectors_v1/mldsa_44_verify_test.json"),
         verify44,
+        pk44_from_slice,
     );
 }
 
@@ -603,6 +627,12 @@ fn mldsa44_generate_uniqueness() {
 fn pk65(seed: &[u8; 32]) -> [u8; ML_DSA_65_PUBLIC_KEY_SIZE] {
     let sk = MlDsa65SecretKey::new(seed);
     sk.public_key().to_bytes()
+}
+
+/// Parses a serialized public key through the public fallible decoder, so tests
+/// can assert that wrong-length encodings are rejected.
+fn pk65_from_slice(bytes: &[u8]) -> Result<[u8; ML_DSA_65_PUBLIC_KEY_SIZE], MlDsaError> {
+    MlDsa65PublicKey::try_from(bytes).map(|key| key.to_bytes())
 }
 
 fn sign65(
@@ -685,6 +715,7 @@ fn mldsa65_wycheproof_sign_seed() {
         sign65_mu,
         pk65,
         verify65,
+        verify65_mu,
     );
 }
 
@@ -701,6 +732,7 @@ fn mldsa65_wycheproof_verify() {
     wycheproof_verify(
         include_str!("../../testdata/wycheproof/testvectors_v1/mldsa_65_verify_test.json"),
         verify65,
+        pk65_from_slice,
     );
 }
 
@@ -824,6 +856,12 @@ fn pk87(seed: &[u8; 32]) -> [u8; ML_DSA_87_PUBLIC_KEY_SIZE] {
     sk.public_key().to_bytes()
 }
 
+/// Parses a serialized public key through the public fallible decoder, so tests
+/// can assert that wrong-length encodings are rejected.
+fn pk87_from_slice(bytes: &[u8]) -> Result<[u8; ML_DSA_87_PUBLIC_KEY_SIZE], MlDsaError> {
+    MlDsa87PublicKey::try_from(bytes).map(|key| key.to_bytes())
+}
+
 fn sign87(
     seed: &[u8; 32],
     msg: &[u8],
@@ -904,6 +942,7 @@ fn mldsa87_wycheproof_sign_seed() {
         sign87_mu,
         pk87,
         verify87,
+        verify87_mu,
     );
 }
 
@@ -920,6 +959,7 @@ fn mldsa87_wycheproof_verify() {
     wycheproof_verify(
         include_str!("../../testdata/wycheproof/testvectors_v1/mldsa_87_verify_test.json"),
         verify87,
+        pk87_from_slice,
     );
 }
 
