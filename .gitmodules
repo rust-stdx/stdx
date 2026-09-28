@@ -1,6 +1,8 @@
 [submodule "maxminddb/test-data"]
 	path = maxminddb/test-data
 	url = https://github.com/maxmind/MaxMind-DB
+	update = none
 [submodule "crypto/testdata/wycheproof"]
 	path = crypto/testdata/wycheproof
 	url = https://github.com/C2SP/wycheproof
+	update = none
