@@ -1,3 +1,6 @@
+# update = none is needed so that cargo doesn't pull the submodule when stdx is used as a git dependency
+# for Rust projects.
+
 [submodule "maxminddb/test-data"]
 	path = maxminddb/test-data
 	url = https://github.com/maxmind/MaxMind-DB
