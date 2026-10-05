@@ -106,6 +106,18 @@ use constant_time_eq::constant_time_eq;
 assert!(constant_time_eq(b"secret", b"secret"));
 ```
 
+### TLS (rustls)
+
+```rust
+// Use the stdx crypto crate as rustls' CryptoProvider.
+// TLS 1.3 only, with the post-quantum X25519MLKEM768 hybrid,
+// ML-DSA-44/65/87 certificate signatures, and QUIC support.
+// Requires the `rustls` crate (0.23) alongside it.
+crypto_rustls::default_provider()
+    .install_default()
+    .expect("failed to install CryptoProvider");
+```
+
 ### Environment & Configuration
 
 ```rust

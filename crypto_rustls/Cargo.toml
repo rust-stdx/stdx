@@ -1,0 +1,17 @@
+[package]
+name = "crypto_rustls"
+version = "0.1.0"
+edition = "2024"
+description = "A rustls CryptoProvider backed by the stdx `crypto` crate"
+
+[lib]
+path = "./crypto_rustls.rs"
+
+[dependencies]
+crypto = { path = "../crypto" }
+rustls = { workspace = true }
+
+[dev-dependencies]
+crypto = { path = "../crypto" }
+hex = { path = "../hex" }
+rustls = { workspace = true }

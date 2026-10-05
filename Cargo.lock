@@ -730,6 +730,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto_rustls"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "hex 0.1.0",
+ "rustls",
+]
+
+[[package]]
 name = "csv"
 version = "0.1.0"
 dependencies = [
