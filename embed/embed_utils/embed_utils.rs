@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, fs, io, path::Path, time::SystemTime};
 
-use crypto::{Hasher, sha2::Sha256};
+use crypto::{Hasher, blake3::Blake3};
 
 #[cfg_attr(all(debug_assertions, not(feature = "debug-embed")), allow(unused))]
 pub struct FileEntry {
@@ -49,7 +49,7 @@ pub struct EmbeddedFile {
 /// Metadata about an embedded file
 #[derive(Clone)]
 pub struct Metadata {
-    /// the SHA256 hash of the file
+    /// the BLAKE3 hash of the file
     hash: [u8; 32],
     last_modified: Option<u64>,
     created: Option<u64>,
@@ -74,7 +74,7 @@ impl Metadata {
         }
     }
 
-    /// The SHA256 hash of the file
+    /// The BLAKE3 hash of the file
     pub fn hash(&self) -> [u8; 32] {
         self.hash
     }
@@ -102,7 +102,7 @@ pub fn read_file_from_fs(file_path: &Path) -> io::Result<EmbeddedFile> {
     let data = fs::read(file_path)?;
     let data = Cow::from(data);
 
-    let hash = Sha256::hash(&data).as_ref().try_into().unwrap();
+    let hash = Blake3::hash(&data).as_ref().try_into().unwrap();
 
     let source_date_epoch = match std::env::var("SOURCE_DATE_EPOCH") {
         Ok(value) => value.parse::<u64>().ok(),
