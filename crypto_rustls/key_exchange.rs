@@ -15,8 +15,6 @@ use rustls::{
     ffdhe_groups::FfdheGroup,
 };
 
-mod hybrid;
-
 const INVALID_KEY_SHARE: Error = Error::PeerMisbehaved(PeerMisbehaved::InvalidKeyShare);
 const RANDOM_FAILURE: Error = Error::FailedToGetRandomBytes;
 
@@ -106,6 +104,13 @@ macro_rules! nist_kx {
 
         impl ActiveKeyExchange for $active {
             fn complete(self: Box<Self>, peer_pub_key: &[u8]) -> Result<SharedSecret, Error> {
+                // TLS 1.3 (RFC 8446 section 4.2.8.2) requires the uncompressed
+                // SEC1 point encoding for NIST curves. The underlying parser
+                // also accepts the compressed form, so reject it explicitly to
+                // match rustls' own providers.
+                if peer_pub_key.len() != $public_key_len || peer_pub_key.first() != Some(&0x04) {
+                    return Err(INVALID_KEY_SHARE);
+                }
                 let peer = <$public>::from_bytes(peer_pub_key).map_err(|_| INVALID_KEY_SHARE)?;
                 let secret = self.secret.ecdh(&peer).map_err(|_| INVALID_KEY_SHARE)?;
                 Ok(SharedSecret::from(&secret[..]))
@@ -212,11 +217,11 @@ impl ActiveKeyExchange for ActiveMlKem768 {
 /// and the server share is `ML-KEM-768 ciphertext || X25519 public key`. The
 /// combined shared secret is `ML-KEM-768 shared secret || X25519 shared
 /// secret`.
-pub(crate) static X25519MLKEM768: &dyn SupportedKxGroup = &hybrid::Hybrid {
+pub(crate) static X25519MLKEM768: &dyn SupportedKxGroup = &crate::hybrid_key_exchange::Hybrid {
     classical: &X25519,
     post_quantum: &MlKem768,
     name: NamedGroup::X25519MLKEM768,
-    layout: hybrid::Layout {
+    layout: crate::hybrid_key_exchange::Layout {
         classical_share_len: 32,
         post_quantum_client_share_len: PUBLIC_KEY_SIZE_768,
         post_quantum_server_share_len: CIPHERTEXT_SIZE_768,
@@ -255,6 +260,28 @@ mod tests {
     fn secp384r1_round_trip() {
         exercise(&SecP384R1);
         assert_eq!(SecP384R1.start().unwrap().pub_key().len(), 97);
+    }
+
+    #[test]
+    fn nist_groups_reject_compressed_points() {
+        // TLS 1.3 requires the uncompressed point encoding. The underlying
+        // parser also accepts compressed points, so the key exchange must
+        // reject them explicitly.
+        let active = SecP256R1.start().unwrap();
+        let public = crypto::p256::PublicKey::from_bytes(active.pub_key()).unwrap();
+        let compressed = public.to_compressed_bytes();
+        assert!(active.complete(&compressed).is_err());
+
+        // A correctly sized share with the wrong SEC1 prefix is also rejected.
+        let active = SecP256R1.start().unwrap();
+        let mut wrong_prefix = active.pub_key().to_vec();
+        wrong_prefix[0] = 0x02;
+        assert!(active.complete(&wrong_prefix).is_err());
+
+        let active = SecP384R1.start().unwrap();
+        let public = crypto::p384::PublicKey::from_bytes(active.pub_key()).unwrap();
+        let compressed = public.to_compressed_bytes();
+        assert!(active.complete(&compressed).is_err());
     }
 
     #[test]

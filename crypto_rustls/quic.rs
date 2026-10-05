@@ -6,7 +6,11 @@
 //! perform AEAD protection of packet payloads; the header protection keys
 //! apply the AES-ECB or ChaCha20 mask defined in RFC 9001 §5.4.
 
-use crypto::{Aead, StreamCipher, chacha::ChaCha20Ietf};
+use crypto::{
+    Aead, StreamCipher,
+    aes::{Aes128Block, Aes256Block},
+    chacha::ChaCha20Ietf,
+};
 use rustls::{
     Error,
     crypto::cipher::{AeadKey, Iv, Nonce},
@@ -52,11 +56,25 @@ impl Algorithm for KeyBuilder {
     }
 
     fn header_protection_key(&self, key: AeadKey) -> Box<dyn HeaderProtectionKey> {
-        let mut bytes = [0u8; 32];
-        bytes[..key.as_ref().len()].copy_from_slice(key.as_ref());
+        // The AES key schedule is derived once here, not per packet: header
+        // protection is on the per-packet hot path.
+        let cipher = match self.header {
+            HeaderAlgorithm::Aes128 => {
+                let key: [u8; 16] = key.as_ref().try_into().expect("rustls supplies 16-byte AES-128 keys");
+                HeaderCipher::Aes128(Aes128Block::new(&key))
+            }
+            HeaderAlgorithm::Aes256 => {
+                let key: [u8; 32] = key.as_ref().try_into().expect("rustls supplies 32-byte AES-256 keys");
+                HeaderCipher::Aes256(Aes256Block::new(&key))
+            }
+            HeaderAlgorithm::ChaCha20 => {
+                let mut key_bytes = [0u8; 32];
+                key_bytes.copy_from_slice(key.as_ref());
+                HeaderCipher::ChaCha20(key_bytes)
+            }
+        };
         Box::new(QuicHeaderProtectionKey {
-            algorithm: self.header,
-            key: bytes,
+            cipher,
         })
     }
 
@@ -184,9 +202,15 @@ impl PacketKey for QuicPacketKey {
     }
 }
 
+/// The keyed header-protection primitive for one algorithm.
+enum HeaderCipher {
+    Aes128(Aes128Block),
+    Aes256(Aes256Block),
+    ChaCha20([u8; 32]),
+}
+
 struct QuicHeaderProtectionKey {
-    algorithm: HeaderAlgorithm,
-    key: [u8; 32],
+    cipher: HeaderCipher,
 }
 
 impl QuicHeaderProtectionKey {
@@ -196,21 +220,18 @@ impl QuicHeaderProtectionKey {
             .map_err(|_| Error::General("invalid QUIC header protection sample length".into()))?;
 
         let mut mask = [0u8; 5];
-        match self.algorithm {
-            HeaderAlgorithm::Aes128 => {
-                let key: &[u8; 16] = self.key[..16].try_into().expect("AES-128 key is 16 bytes");
-                mask.copy_from_slice(&crypto::aes::encrypt_block_128(key, &sample)[..5]);
+        match &self.cipher {
+            HeaderCipher::Aes128(cipher) => {
+                mask.copy_from_slice(&cipher.encrypt_block(&sample)[..5]);
             }
-            HeaderAlgorithm::Aes256 => {
-                let key: &[u8; 32] = self.key[..32].try_into().expect("AES-256 key is 32 bytes");
-                mask.copy_from_slice(&crypto::aes::encrypt_block_256(key, &sample)[..5]);
+            HeaderCipher::Aes256(cipher) => {
+                mask.copy_from_slice(&cipher.encrypt_block(&sample)[..5]);
             }
-            HeaderAlgorithm::ChaCha20 => {
+            HeaderCipher::ChaCha20(key) => {
                 // RFC 9001 §5.4.4: the first four bytes of the sample are the
                 // block counter (little-endian), the rest is the nonce.
                 let counter = u32::from_le_bytes(sample[..4].try_into().expect("four bytes"));
                 let nonce: &[u8; 12] = sample[4..].try_into().expect("twelve bytes");
-                let key: &[u8; 32] = self.key[..32].try_into().expect("ChaCha20 key is 32 bytes");
                 let mut cipher = ChaCha20Ietf::new(key, nonce);
                 cipher.set_counter(counter);
                 cipher.xor_keystream(&mut mask);
@@ -276,12 +297,7 @@ mod tests {
         let key: [u8; 16] = hex_to("9f50449e04a0e810283a1e9933adedd2");
         let sample: [u8; 16] = hex_to("d1b1c98dd7689fb8ec11d242b123dc9b");
         let key = QuicHeaderProtectionKey {
-            algorithm: HeaderAlgorithm::Aes128,
-            key: {
-                let mut k = [0u8; 32];
-                k[..16].copy_from_slice(&key);
-                k
-            },
+            cipher: HeaderCipher::Aes128(Aes128Block::new(&key)),
         };
         assert_eq!(hex::encode(key.mask(&sample).unwrap()), "437b9aec36");
     }
@@ -292,8 +308,7 @@ mod tests {
         let key: [u8; 32] = hex_to("25a282b9e82f06f21f488917a4fc8f1b73573685608597d0efcb076b0ab7a7a4");
         let sample: [u8; 16] = hex_to("5e5cd55c41f69080575d7999c25a5bfb");
         let key = QuicHeaderProtectionKey {
-            algorithm: HeaderAlgorithm::ChaCha20,
-            key,
+            cipher: HeaderCipher::ChaCha20(key),
         };
         assert_eq!(hex::encode(key.mask(&sample).unwrap()), "aefefe7d03");
     }
@@ -331,9 +346,13 @@ mod tests {
             HeaderAlgorithm::Aes256,
             HeaderAlgorithm::ChaCha20,
         ] {
+            let cipher = match algorithm {
+                HeaderAlgorithm::Aes128 => HeaderCipher::Aes128(Aes128Block::new(&[0x42; 16])),
+                HeaderAlgorithm::Aes256 => HeaderCipher::Aes256(Aes256Block::new(&[0x42; 32])),
+                HeaderAlgorithm::ChaCha20 => HeaderCipher::ChaCha20([0x42; 32]),
+            };
             let key = QuicHeaderProtectionKey {
-                algorithm,
-                key: [0x42; 32],
+                cipher,
             };
             let sample = [0x24u8; 16];
 
@@ -384,8 +403,7 @@ mod tests {
     #[test]
     fn sample_len_is_16() {
         let key = QuicHeaderProtectionKey {
-            algorithm: HeaderAlgorithm::Aes128,
-            key: [0; 32],
+            cipher: HeaderCipher::Aes128(Aes128Block::new(&[0; 16])),
         };
         assert_eq!(key.sample_len(), 16);
     }

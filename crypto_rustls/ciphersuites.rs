@@ -1,7 +1,7 @@
 //! TLS 1.3 cipher suites for this provider.
 //!
 //! The three mandatory TLS 1.3 suites are offered, in priority order:
-//! AES-256-GCM, AES-128-GCM and ChaCha20-Poly1305.
+//! AES-256-GCM, ChaCha20-Poly1305 and AES-128-GCM.
 
 use rustls::{
     CipherSuite, SupportedCipherSuite, Tls13CipherSuite,

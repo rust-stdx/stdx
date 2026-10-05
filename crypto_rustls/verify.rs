@@ -58,7 +58,7 @@ macro_rules! ecdsa_verify_alg {
 }
 
 macro_rules! rsa_verify_alg {
-    ($name:ident, $signature_alg:expr, $verify:path) => {
+    ($name:ident, $signature_alg:expr, $verify:ident) => {
         #[derive(Debug)]
         struct $name;
 
@@ -77,11 +77,13 @@ macro_rules! rsa_verify_alg {
                 message: &[u8],
                 signature: &[u8],
             ) -> Result<(), InvalidSignature> {
+                // Parse the key once and verify through it, rather than parsing
+                // in the size check and again inside the free function.
                 let key = crypto::rsa::PublicKey::from_pkcs1_der(public_key).map_err(|_| InvalidSignature)?;
-                if key.n_bytes().len() < RSA_MIN_MODULUS_BYTES {
+                if key.modulus_len_bytes() < RSA_MIN_MODULUS_BYTES {
                     return Err(InvalidSignature);
                 }
-                ($verify)(public_key, signature, message).map_err(|_| InvalidSignature)
+                key.$verify(signature, message).map_err(|_| InvalidSignature)
             }
         }
     };
@@ -133,12 +135,12 @@ impl SignatureVerificationAlgorithm for Ed25519Verify {
 /// Ed25519.
 pub(crate) static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
 
-rsa_verify_alg!(RsaPkcs1Sha256, alg_id::RSA_PKCS1_SHA256, crypto::rsa::verify_pkcs1_sha256);
-rsa_verify_alg!(RsaPkcs1Sha384, alg_id::RSA_PKCS1_SHA384, crypto::rsa::verify_pkcs1_sha384);
-rsa_verify_alg!(RsaPkcs1Sha512, alg_id::RSA_PKCS1_SHA512, crypto::rsa::verify_pkcs1_sha512);
-rsa_verify_alg!(RsaPssSha256, alg_id::RSA_PSS_SHA256, crypto::rsa::verify_pss_sha256);
-rsa_verify_alg!(RsaPssSha384, alg_id::RSA_PSS_SHA384, crypto::rsa::verify_pss_sha384);
-rsa_verify_alg!(RsaPssSha512, alg_id::RSA_PSS_SHA512, crypto::rsa::verify_pss_sha512);
+rsa_verify_alg!(RsaPkcs1Sha256, alg_id::RSA_PKCS1_SHA256, verify_pkcs1_sha256);
+rsa_verify_alg!(RsaPkcs1Sha384, alg_id::RSA_PKCS1_SHA384, verify_pkcs1_sha384);
+rsa_verify_alg!(RsaPkcs1Sha512, alg_id::RSA_PKCS1_SHA512, verify_pkcs1_sha512);
+rsa_verify_alg!(RsaPssSha256, alg_id::RSA_PSS_SHA256, verify_pss_sha256);
+rsa_verify_alg!(RsaPssSha384, alg_id::RSA_PSS_SHA384, verify_pss_sha384);
+rsa_verify_alg!(RsaPssSha512, alg_id::RSA_PSS_SHA512, verify_pss_sha512);
 
 /// ML-DSA is used in "pure" mode with an empty FIPS 204 context string, as
 /// required by RFC 9881 (X.509) and the TLS 1.3 ML-DSA profile. The algorithm

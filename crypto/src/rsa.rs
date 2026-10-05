@@ -278,6 +278,60 @@ impl PublicKey {
         Ok(())
     }
 
+    /// Verify an RSA PKCS#1 v1.5 signature over `message` using SHA-256.
+    ///
+    /// The message is hashed internally, so callers do not need to hash it
+    /// themselves. Equivalent to hashing with [`Sha256`](crate::sha2::Sha256)
+    /// and calling [`Self::verify_pkcs1_v1_5`].
+    pub fn verify_pkcs1_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
+        let digest = crate::sha2::Sha256::hash(message);
+        self.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA256_PREFIX)
+    }
+
+    /// Verify an RSA PKCS#1 v1.5 signature over `message` using SHA-384.
+    ///
+    /// See [`Self::verify_pkcs1_sha256`] for the hashing contract.
+    pub fn verify_pkcs1_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
+        let digest = crate::sha2::Sha384::hash(message);
+        self.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA384_PREFIX)
+    }
+
+    /// Verify an RSA PKCS#1 v1.5 signature over `message` using SHA-512.
+    ///
+    /// See [`Self::verify_pkcs1_sha256`] for the hashing contract.
+    pub fn verify_pkcs1_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
+        let digest = crate::sha2::Sha512::hash(message);
+        self.verify_pkcs1_v1_5(signature, digest.as_ref(), DIGEST_INFO_SHA512_PREFIX)
+    }
+
+    /// Verify an RSA-PSS signature over `message` using SHA-256.
+    ///
+    /// The message is hashed internally. The salt length is the hash length
+    /// (`PSSSaltLengthEqualsHash`, RFC 8017).
+    pub fn verify_pss_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
+        self.verify_pss::<crate::sha2::Sha256>(signature, message, 32)
+    }
+
+    /// Verify an RSA-PSS signature over `message` using SHA-384.
+    ///
+    /// See [`Self::verify_pss_sha256`] for the salt-length contract.
+    pub fn verify_pss_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
+        self.verify_pss::<crate::sha2::Sha384>(signature, message, 48)
+    }
+
+    /// Verify an RSA-PSS signature over `message` using SHA-512.
+    ///
+    /// See [`Self::verify_pss_sha256`] for the salt-length contract.
+    pub fn verify_pss_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), RsaError> {
+        self.verify_pss::<crate::sha2::Sha512>(signature, message, 64)
+    }
+
+    /// Number of bytes in the modulus `n`, trimmed of leading zeros
+    /// (256 for RSA-2048, 512 for RSA-4096, 1024 for RSA-8192).
+    pub fn modulus_len_bytes(&self) -> usize {
+        self.n_len
+    }
+
     /// Returns the modulus `n` as big-endian bytes, trimmed to the actual key size.
     /// (e.g. 256 bytes for RSA-2048, 512 bytes for RSA-4096, 1024 bytes for RSA-8192).
     #[cfg(feature = "alloc")]

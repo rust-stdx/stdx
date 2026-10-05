@@ -210,6 +210,8 @@ pub const OID_SECP256R1: &[u8] = &[0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x0
 pub const OID_SECP384R1: &[u8] = &[0x2b, 0x81, 0x04, 0x00, 0x22];
 /// Object identifier for Ed25519 (1.3.101.112).
 pub const OID_ED25519: &[u8] = &[0x2b, 0x65, 0x70];
+/// Object identifier for `rsaEncryption` (1.2.840.113549.1.1.1).
+pub const OID_RSA_ENCRYPTION: &[u8] = &[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01];
 
 /// A supported elliptic-curve private key parsed from DER.
 pub enum EcPrivateKey {
@@ -407,6 +409,31 @@ pub fn decode_ed25519_pkcs8_der(der: &[u8]) -> Result<ed25519::SecretKey, Pkcs8E
 
     let seed: [u8; ed25519::SECRET_KEY_SIZE] = seed.try_into().map_err(|_| Pkcs8Error::InvalidEd25519PrivateKey)?;
     Ok(ed25519::SecretKey::from_bytes(&seed))
+}
+
+/// Reports whether `der` is a PKCS#8 `PrivateKeyInfo` whose
+/// `AlgorithmIdentifier` is `rsaEncryption` (1.2.840.113549.1.1.1).
+///
+/// This crate does not implement RSA private keys. The predicate lets callers
+/// recognise an RSA key and report a clear "unsupported" error rather than a
+/// generic parse failure. It only inspects the algorithm identifier, so it
+/// returns `false` for malformed input.
+pub fn is_rsa_pkcs8_der(der: &[u8]) -> bool {
+    fn inner(der: &[u8]) -> Result<bool, Pkcs8Error> {
+        let mut outer = Reader::new(der);
+        let mut seq = outer.read_sequence()?;
+        outer.finish()?;
+
+        let _version = seq.read_integer()?;
+        let mut algorithm = seq.read_sequence()?;
+        // RSA's AlgorithmIdentifier carries NULL parameters, so only the OID
+        // needs to be read; the rest of the structure is not inspected.
+        let algorithm_oid = algorithm.read_oid()?;
+
+        Ok(algorithm_oid == OID_RSA_ENCRYPTION)
+    }
+
+    inner(der).unwrap_or(false)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -698,6 +725,19 @@ mod tests {
         let der = encode_p256_pkcs8_der(&key).unwrap();
         let expected = decode_hex(TEST_DER_HEX);
         assert_eq!(der.as_slice(), expected.as_slice());
+    }
+
+    #[test]
+    fn detects_rsa_pkcs8() {
+        // A minimal PrivateKeyInfo with the rsaEncryption OID and NULL params.
+        let rsa = decode_hex("3016020100300d06092a864886f70d010101050004023000");
+        assert!(is_rsa_pkcs8_der(&rsa));
+
+        // A P-256 key is not classified as RSA.
+        assert!(!is_rsa_pkcs8_der(&decode_hex(TEST_DER_HEX)));
+
+        // Malformed input is not classified as RSA.
+        assert!(!is_rsa_pkcs8_der(&[0x30, 0x00]));
     }
 
     #[test]

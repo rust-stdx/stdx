@@ -40,13 +40,14 @@
 //! `ServerConfig::builder_with_provider()`.
 
 mod aead;
+mod ciphersuites;
 mod hash;
 mod hmac;
-mod kx;
+mod hybrid_key_exchange;
+mod key_exchange;
 mod quic;
 mod random;
 mod sign;
-mod suites;
 mod verify;
 
 use rustls::crypto::CryptoProvider;
@@ -61,8 +62,8 @@ use rustls::crypto::CryptoProvider;
 /// post-quantum hybrid key exchange, and supports QUIC.
 pub fn default_provider() -> CryptoProvider {
     CryptoProvider {
-        cipher_suites: suites::ALL_CIPHER_SUITES.to_vec(),
-        kx_groups: kx::KX_GROUPS.to_vec(),
+        cipher_suites: ciphersuites::ALL_CIPHER_SUITES.to_vec(),
+        kx_groups: key_exchange::KX_GROUPS.to_vec(),
         signature_verification_algorithms: verify::ALGORITHMS,
         secure_random: &random::RngProvider,
         key_provider: &sign::Provider,

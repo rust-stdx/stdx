@@ -19,7 +19,7 @@ use crypto::{
     curve25519::ed25519,
     encoding::pkcs8::{
         EcPrivateKey, MlDsaPrivateKey, Pkcs8Error, decode_ec_pkcs8_der, decode_ec_sec1_der, decode_ed25519_pkcs8_der,
-        decode_mldsa_pkcs8_der,
+        decode_mldsa_pkcs8_der, is_rsa_pkcs8_der,
     },
     mldsa::{MlDsa44SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
 };
@@ -62,6 +62,12 @@ fn load_pkcs8(der: &[u8]) -> Result<Arc<dyn SigningKey>, Error> {
                 key,
             }),
         });
+    }
+
+    if is_rsa_pkcs8_der(der) {
+        return Err(Error::General(
+            "RSA private keys are not supported by crypto_rustls; use an ECDSA, Ed25519 or ML-DSA key".into(),
+        ));
     }
 
     match decode_mldsa_pkcs8_der(der) {
@@ -430,6 +436,15 @@ mod tests {
     fn rejects_rsa_pkcs1_keys() {
         let der = PrivateKeyDer::Pkcs1(PrivatePkcs1KeyDer::from(vec![0x30, 0x00]));
         assert!(Provider.load_private_key(der).is_err());
+    }
+
+    #[test]
+    fn rejects_rsa_pkcs8_keys_with_a_clear_error() {
+        // A minimal PKCS#8 PrivateKeyInfo carrying the rsaEncryption OID and
+        // the customary NULL parameters.
+        let der = hex::decode("3016020100300d06092a864886f70d010101050004023000").unwrap();
+        let err = Provider.load_private_key(pkcs8(der)).unwrap_err();
+        assert!(format!("{err}").contains("RSA"), "{err}");
     }
 
     #[test]

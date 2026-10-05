@@ -409,6 +409,7 @@ pub(crate) fn sub_word(x: u32) -> u32 {
 ///
 /// The round keys are stored in the compressed form used by the round
 /// function and expanded on demand by [`CtSchedule::expand`].
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub(crate) struct CtSchedule {
     comp: [u32; MAX_COMP_SKEY],
     num_rounds: usize,
