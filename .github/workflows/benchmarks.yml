@@ -19,6 +19,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
+      # .gitmodules sets `update = none` so Cargo doesn't fetch the submodules
+      # when stdx is used as a git dependency. Force-fetch the Wycheproof test
+      # vectors so the crypto tests can compile.
+      - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof
       - run: cat /proc/cpuinfo
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       - run: rustup update stable
