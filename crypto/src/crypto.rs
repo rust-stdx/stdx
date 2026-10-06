@@ -73,10 +73,27 @@ pub const MAX_HASH_OUTPUT_SIZE: usize = 64;
 // impl std::error::Error for Error {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HashError {
+    TooLong,
+}
+
+impl core::fmt::Display for HashError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            HashError::TooLong => write!(f, "hash is too long"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for HashError {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AeadError {
     InvalidKey,
     InvalidNonce,
     InvalidCiphertext,
+    Unsupported,
 }
 
 impl core::fmt::Display for AeadError {
@@ -85,6 +102,7 @@ impl core::fmt::Display for AeadError {
             AeadError::InvalidKey => write!(f, "key is not valid"),
             AeadError::InvalidNonce => write!(f, "nonce is not valid"),
             AeadError::InvalidCiphertext => write!(f, "ciphertext is not valid"),
+            AeadError::Unsupported => write!(f, "operation is not supported"),
         }
     }
 }
@@ -211,6 +229,7 @@ pub trait StreamCipher {
 }
 
 pub trait Aead {
+    const KEY_SIZE: usize;
     const TAG_SIZE: usize;
     const NONCE_SIZE: usize;
 

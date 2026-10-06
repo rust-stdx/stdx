@@ -32,6 +32,7 @@ impl Aes128Gcm {
 }
 
 impl Aead for Aes128Gcm {
+    const KEY_SIZE: usize = 16;
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
@@ -74,6 +75,7 @@ impl Aes256Gcm {
 }
 
 impl Aead for Aes256Gcm {
+    const KEY_SIZE: usize = 32;
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 

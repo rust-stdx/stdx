@@ -76,6 +76,17 @@ impl SecretKey {
         self.bytes
     }
 
+    /// Returns the corresponding encapsulation (public) key.
+    ///
+    /// The public key is recomputed from the decapsulation key material, as
+    /// specified by the X-Wing draft.
+    pub fn public_key(&self) -> PublicKey {
+        return PublicKey {
+            mlkem_public_key: self.mlkem_secret_key.public_key(),
+            x25519_public_key: x25519::PublicKey::from_bytes(&self.x25519_public_key_bytes),
+        };
+    }
+
     pub fn decapsulate(&self, ct: &[u8; CIPHERTEXT_SIZE]) -> Result<[u8; SHARED_SECRET_SIZE], XWingError> {
         let ct_m = &ct[..mlkem::CIPHERTEXT_SIZE_768].try_into().unwrap();
         let ct_x = x25519::PublicKey::from_bytes(&ct[mlkem::CIPHERTEXT_SIZE_768..].try_into().unwrap());
@@ -102,6 +113,24 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    /// Parses an encapsulation key from its 1216-byte encoding
+    /// (ML-KEM-768 encapsulation key followed by the X25519 public key).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MlKemError::InvalidKey`] when the ML-KEM-768 part is not a
+    /// valid encapsulation key (FIPS 203 modulus check).
+    pub fn from_bytes(bytes: &[u8; PUBLIC_KEY_SIZE]) -> Result<PublicKey, MlKemError> {
+        let mlkem_public_key =
+            mlkem::PublicKey768::from_bytes(&bytes[..mlkem::PUBLIC_KEY_SIZE_768].try_into().unwrap())?;
+        let x25519_public_key = x25519::PublicKey::from_bytes(&bytes[mlkem::PUBLIC_KEY_SIZE_768..].try_into().unwrap());
+
+        return Ok(PublicKey {
+            mlkem_public_key,
+            x25519_public_key,
+        });
+    }
+
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_SIZE] {
         let mut bytes = [0u8; PUBLIC_KEY_SIZE];
         bytes[..mlkem::PUBLIC_KEY_SIZE_768].copy_from_slice(&self.mlkem_public_key.to_bytes());
@@ -119,7 +148,14 @@ impl PublicKey {
         Ok(self.encapsulate_derand(&eseed))
     }
 
-    fn encapsulate_derand(&self, eseed: &[u8; 64]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
+    /// Encapsulates a shared secret against this public key using the given
+    /// 64-byte seed, returning the shared secret and the ciphertext.
+    ///
+    /// This is the deterministic variant of [`encapsulate`](Self::encapsulate),
+    /// intended for protocols that need reproducible encapsulation (e.g. HPKE
+    /// and test vectors). The seed MUST be uniformly random and MUST NOT be
+    /// reused across encapsulations.
+    pub fn encapsulate_derand(&self, eseed: &[u8; 64]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
         let ek_x = x25519::SecretKey::from_bytes(&eseed[32..64].try_into().unwrap());
         let ct_x = ek_x.public_key();
         // See `decapsulate`: an all-zero X25519 shared secret (low-order peer
@@ -152,8 +188,13 @@ pub fn generate_keypair() -> Result<(SecretKey, PublicKey), XWingError> {
     Ok(generate_keypair_derand(&seed))
 }
 
-/// Generate a deterministic keypair from the given seed (for testing).
-fn generate_keypair_derand(secret_key: &[u8; SECRET_KEY_SIZE]) -> (SecretKey, PublicKey) {
+/// Generates a deterministic X-Wing keypair from the given 32-byte seed.
+///
+/// This is the deterministic variant of [`generate_keypair`], intended for
+/// protocols that need reproducible key generation (e.g. HPKE's
+/// `DeriveKeyPair` and test vectors). The same seed always yields the same
+/// keypair.
+pub fn generate_keypair_derand(secret_key: &[u8; SECRET_KEY_SIZE]) -> (SecretKey, PublicKey) {
     let (mlkem_sk, x25519_sk, mlkem_pk, x25519_pk) = expand_decapsulation_key(secret_key);
 
     let secret_key = SecretKey {

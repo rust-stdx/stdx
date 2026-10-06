@@ -29,6 +29,7 @@ members = [
     "getopts",
     "hex",
     "hostname",
+    "hpke",
     "html_escape",
     "httpdate",
     "ipnetwork",
@@ -71,6 +72,9 @@ members = [
 # The following packages may stack overflow in WASM debug builds so we need to force them to compile to
 # release builds even in test mode.
 [profile.test.package.crypto]
+opt-level = 3
+
+[profile.test.package.hpke]
 opt-level = 3
 
 [profile.test.package.jwt]

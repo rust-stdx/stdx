@@ -1256,6 +1256,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hpke"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "crypto",
+ "hex 0.1.0",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
 name = "html_escape"
 version = "0.1.0"
 

@@ -98,6 +98,7 @@ impl AsconAead128 {
 }
 
 impl Aead for AsconAead128 {
+    const KEY_SIZE: usize = 16;
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 16;
 

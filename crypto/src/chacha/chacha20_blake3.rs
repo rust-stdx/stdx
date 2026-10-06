@@ -57,6 +57,7 @@ impl ChaCha20Blake3 {
 }
 
 impl Aead for ChaCha20Blake3 {
+    const KEY_SIZE: usize = 32;
     const TAG_SIZE: usize = 32;
     const NONCE_SIZE: usize = 32;
 

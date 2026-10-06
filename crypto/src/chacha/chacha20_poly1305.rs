@@ -47,6 +47,7 @@ impl ChaCha20Poly1305 {
 }
 
 impl Aead for ChaCha20Poly1305 {
+    const KEY_SIZE: usize = 32;
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
@@ -146,6 +147,7 @@ impl XChaCha20Poly1305 {
 }
 
 impl Aead for XChaCha20Poly1305 {
+    const KEY_SIZE: usize = 32;
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 24;
 

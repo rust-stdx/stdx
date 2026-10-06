@@ -1,11 +1,12 @@
 use constant_time_eq::constant_time_eq;
 
-use crate::MAX_HASH_OUTPUT_SIZE;
+use crate::{HashError, MAX_HASH_OUTPUT_SIZE};
 
 /// A fixed-capacity, stack-allocated bytes buffer of capacity `N`.
 /// Use [`Self::as_ref`] to get the bytes as a `&[u8]` and [`Self::as_mut`] to get the bytes as a `&mut [u8]`.
 /// Comparing `Bytes` is a constant-time operation.
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub(crate) struct Bytes<const N: usize> {
     pub(crate) bytes: [u8; N],
     pub(crate) length: u16,
@@ -113,6 +114,7 @@ impl<const N: usize> AsMut<[u8]> for Bytes<N> {
 /// Comparing `Hash` is a constant-time operation.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct Hash(pub(crate) Bytes<MAX_HASH_OUTPUT_SIZE>);
 
 /// implement the required public methods for `Type` to be used as a bytes buffer.
@@ -158,3 +160,40 @@ macro_rules! impl_bytes {
 }
 
 impl_bytes!(Hash(Bytes<MAX_HASH_OUTPUT_SIZE>));
+
+impl<const L: usize> From<[u8; L]> for Hash {
+    #[inline]
+    fn from(bytes: [u8; L]) -> Self {
+        const {
+            assert!(L <= MAX_HASH_OUTPUT_SIZE);
+        }
+
+        return Hash(Bytes::<MAX_HASH_OUTPUT_SIZE>::from(bytes));
+    }
+}
+
+impl<const L: usize> From<&[u8; L]> for Hash {
+    #[inline]
+    fn from(bytes: &[u8; L]) -> Self {
+        const {
+            assert!(L <= MAX_HASH_OUTPUT_SIZE);
+        }
+
+        return Hash(Bytes::<MAX_HASH_OUTPUT_SIZE>::from(bytes));
+    }
+}
+
+impl TryFrom<&[u8]> for Hash {
+    type Error = HashError;
+
+    #[inline]
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        if bytes.len() > MAX_HASH_OUTPUT_SIZE {
+            return Err(HashError::TooLong);
+        }
+
+        let mut buffer = Bytes::<MAX_HASH_OUTPUT_SIZE>::new();
+        buffer.append(bytes);
+        return Ok(Hash(buffer));
+    }
+}

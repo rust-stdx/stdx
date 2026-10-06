@@ -1,0 +1,30 @@
+[package]
+name = "hpke"
+version = "0.1.0"
+edition = "2024"
+description = "Hybrid Public Key Encryption (RFC 9180) built on the stdx `crypto` crate"
+
+[lib]
+path = "./hpke.rs"
+
+[features]
+default = ["std", "zeroize"]
+alloc = ["crypto/alloc"]
+random = ["crypto/random"]
+std = ["alloc", "random", "crypto/std"]
+zeroize = ["dep:zeroize", "crypto/zeroize"]
+
+[dependencies]
+crypto = { path = "../crypto", default-features = false }
+zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+hex = { path = "../hex" }
+serde_json = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "hpke"
+harness = false
