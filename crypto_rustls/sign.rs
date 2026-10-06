@@ -55,10 +55,10 @@ fn load_pkcs8(der: &[u8]) -> Result<Arc<dyn SigningKey>, Error> {
 
     if let Ok(key) = decode_ec_pkcs8_der(der) {
         return Ok(match key {
-            EcPrivateKey::P256(key) => Arc::new(EcdsaP256SigningKey {
+            EcPrivateKey::P256(key) => Arc::new(EcdsaSigningKey {
                 key,
             }),
-            EcPrivateKey::P384(key) => Arc::new(EcdsaP384SigningKey {
+            EcPrivateKey::P384(key) => Arc::new(EcdsaSigningKey {
                 key,
             }),
         });
@@ -85,10 +85,10 @@ fn load_pkcs8(der: &[u8]) -> Result<Arc<dyn SigningKey>, Error> {
 
 fn load_sec1(der: &[u8]) -> Result<Arc<dyn SigningKey>, Error> {
     match decode_ec_sec1_der(der) {
-        Ok(EcPrivateKey::P256(key)) => Ok(Arc::new(EcdsaP256SigningKey {
+        Ok(EcPrivateKey::P256(key)) => Ok(Arc::new(EcdsaSigningKey {
             key,
         })),
-        Ok(EcPrivateKey::P384(key)) => Ok(Arc::new(EcdsaP384SigningKey {
+        Ok(EcPrivateKey::P384(key)) => Ok(Arc::new(EcdsaSigningKey {
             key,
         })),
         Err(_) => Err(Error::General(
@@ -97,83 +97,127 @@ fn load_sec1(der: &[u8]) -> Result<Arc<dyn SigningKey>, Error> {
     }
 }
 
-macro_rules! ecdsa_signing_key {
-    ($key_struct:ident, $signer_struct:ident, $key:ty, $scalar_len:expr, $scheme:expr, $spki_alg_id:expr) => {
-        struct $key_struct {
-            key: $key,
-        }
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ECDSA
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        impl fmt::Debug for $key_struct {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct(stringify!($key_struct)).finish_non_exhaustive()
-            }
-        }
+/// An ECDSA curve usable as a signing key.
+///
+/// This is a local trait, so it can be implemented directly on the (foreign)
+/// `crypto` secret-key types. The generic [`EcdsaSigningKey`] implements both
+/// rustls's [`SigningKey`] and [`Signer`] for any implementor.
+trait EcdsaKey: Clone + Send + Sync + 'static {
+    /// The uncompressed SEC1 public-key encoding.
+    type PublicBytes: AsRef<[u8]> + Send + Sync + 'static;
+    /// The raw `r || s` signature encoding.
+    type RawSignature: AsRef<[u8]> + Send + Sync + 'static;
 
-        impl SigningKey for $key_struct {
-            fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
-                if offered.contains(&$scheme) {
-                    Some(Box::new($signer_struct {
-                        key: self.key.clone(),
-                    }))
-                } else {
-                    None
-                }
-            }
+    /// Length of one scalar (`r` or `s`) in bytes.
+    const SCALAR_LEN: usize;
+    /// The TLS signature scheme this key signs with.
+    const SCHEME: SignatureScheme;
+    /// The SPKI `AlgorithmIdentifier` of the public key.
+    const SPKI_ALG_ID: AlgorithmIdentifier;
 
-            fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
-                Some(public_key_to_spki(&$spki_alg_id, self.key.public_key().to_bytes()))
-            }
+    /// Returns the uncompressed SEC1 public-key encoding.
+    fn public_bytes(&self) -> Self::PublicBytes;
 
-            fn algorithm(&self) -> SignatureAlgorithm {
-                SignatureAlgorithm::ECDSA
-            }
-        }
-
-        struct $signer_struct {
-            key: $key,
-        }
-
-        impl fmt::Debug for $signer_struct {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct(stringify!($signer_struct)).finish_non_exhaustive()
-            }
-        }
-
-        impl Signer for $signer_struct {
-            fn sign(&self, message: &[u8]) -> Result<Vec<u8>, Error> {
-                let raw = self
-                    .key
-                    .sign(message)
-                    .map_err(|_| Error::General("ECDSA signing failed".into()))?;
-                Ok(crypto::encoding::ecdsa::encode_signature_der(
-                    &raw[..$scalar_len],
-                    &raw[$scalar_len..],
-                ))
-            }
-
-            fn scheme(&self) -> SignatureScheme {
-                $scheme
-            }
-        }
-    };
+    /// Signs `message` with the curve's hash, returning the raw `r || s` form.
+    fn sign_raw(&self, message: &[u8]) -> Result<Self::RawSignature, Error>;
 }
 
-ecdsa_signing_key!(
-    EcdsaP256SigningKey,
-    EcdsaP256Signer,
-    crypto::p256::SecretKey,
-    32,
-    SignatureScheme::ECDSA_NISTP256_SHA256,
-    alg_id::ECDSA_P256
-);
-ecdsa_signing_key!(
-    EcdsaP384SigningKey,
-    EcdsaP384Signer,
-    crypto::p384::SecretKey,
-    48,
-    SignatureScheme::ECDSA_NISTP384_SHA384,
-    alg_id::ECDSA_P384
-);
+impl EcdsaKey for crypto::p256::SecretKey {
+    type PublicBytes = [u8; 65];
+    type RawSignature = [u8; 64];
+
+    const SCALAR_LEN: usize = 32;
+    const SCHEME: SignatureScheme = SignatureScheme::ECDSA_NISTP256_SHA256;
+    const SPKI_ALG_ID: AlgorithmIdentifier = alg_id::ECDSA_P256;
+
+    fn public_bytes(&self) -> [u8; 65] {
+        self.public_key().to_bytes()
+    }
+
+    fn sign_raw(&self, message: &[u8]) -> Result<[u8; 64], Error> {
+        self.sign(message)
+            .map_err(|_| Error::General("ECDSA signing failed".into()))
+    }
+}
+
+impl EcdsaKey for crypto::p384::SecretKey {
+    type PublicBytes = [u8; 97];
+    type RawSignature = [u8; 96];
+
+    const SCALAR_LEN: usize = 48;
+    const SCHEME: SignatureScheme = SignatureScheme::ECDSA_NISTP384_SHA384;
+    const SPKI_ALG_ID: AlgorithmIdentifier = alg_id::ECDSA_P384;
+
+    fn public_bytes(&self) -> [u8; 97] {
+        self.public_key().to_bytes()
+    }
+
+    fn sign_raw(&self, message: &[u8]) -> Result<[u8; 96], Error> {
+        self.sign(message)
+            .map_err(|_| Error::General("ECDSA signing failed".into()))
+    }
+}
+
+/// An ECDSA signing key for a curve `K`, usable as both a [`SigningKey`] and a
+/// [`Signer`].
+struct EcdsaSigningKey<K: EcdsaKey> {
+    key: K,
+}
+
+impl<K: EcdsaKey> Clone for EcdsaSigningKey<K> {
+    fn clone(&self) -> Self {
+        Self {
+            key: self.key.clone(),
+        }
+    }
+}
+
+impl<K: EcdsaKey> fmt::Debug for EcdsaSigningKey<K> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct(core::any::type_name::<K>()).finish_non_exhaustive()
+    }
+}
+
+impl<K: EcdsaKey> SigningKey for EcdsaSigningKey<K> {
+    fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
+        if offered.contains(&K::SCHEME) {
+            Some(Box::new(self.clone()))
+        } else {
+            None
+        }
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
+        Some(public_key_to_spki(&K::SPKI_ALG_ID, self.key.public_bytes()))
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        SignatureAlgorithm::ECDSA
+    }
+}
+
+impl<K: EcdsaKey> Signer for EcdsaSigningKey<K> {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, Error> {
+        let raw = self.key.sign_raw(message)?;
+        let raw = raw.as_ref();
+        Ok(crypto::encoding::ecdsa::encode_signature_der(
+            &raw[..K::SCALAR_LEN],
+            &raw[K::SCALAR_LEN..],
+        ))
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        K::SCHEME
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Ed25519
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Ed25519SigningKey {
     key: ed25519::SecretKey,
@@ -225,14 +269,18 @@ impl Signer for Ed25519Signer {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// ML-DSA
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// The three supported ML-DSA private key types.
 ///
 /// The expanded key material is large, so each variant is boxed; the signing
 /// key wraps it in an [`Arc`] so signers can share it.
 enum MlDsaKey {
-    Dsa44(Box<MlDsa44SecretKey>),
-    Dsa65(Box<MlDsa65SecretKey>),
-    Dsa87(Box<MlDsa87SecretKey>),
+    Dsa44(MlDsa44SecretKey),
+    Dsa65(MlDsa65SecretKey),
+    Dsa87(MlDsa87SecretKey),
 }
 
 impl MlDsaKey {

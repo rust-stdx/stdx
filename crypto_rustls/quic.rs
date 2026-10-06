@@ -172,6 +172,18 @@ impl PacketKey for QuicPacketKey {
         Ok(Tag::from(&tag[..]))
     }
 
+    fn encrypt_in_place_for_path(
+        &self,
+        path_id: u32,
+        packet_number: u64,
+        header: &[u8],
+        payload: &mut [u8],
+    ) -> Result<Tag, Error> {
+        let nonce = Nonce::for_path(path_id, &self.iv, packet_number);
+        let tag = self.cipher.encrypt(payload, &nonce.0, header);
+        Ok(Tag::from(&tag[..]))
+    }
+
     fn decrypt_in_place<'a>(
         &self,
         packet_number: u64,
@@ -183,6 +195,24 @@ impl PacketKey for QuicPacketKey {
         }
 
         let nonce = Nonce::new(&self.iv, packet_number);
+        let split = payload.len() - 16;
+        let (data, tag) = payload.split_at_mut(split);
+        self.cipher.decrypt(data, &nonce.0, header, tag)?;
+        Ok(&payload[..split])
+    }
+
+    fn decrypt_in_place_for_path<'a>(
+        &self,
+        path_id: u32,
+        packet_number: u64,
+        header: &[u8],
+        payload: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
+        if payload.len() < 16 {
+            return Err(Error::DecryptError);
+        }
+
+        let nonce = Nonce::for_path(path_id, &self.iv, packet_number);
         let split = payload.len() - 16;
         let (data, tag) = payload.split_at_mut(split);
         self.cipher.decrypt(data, &nonce.0, header, tag)?;
@@ -397,6 +427,50 @@ mod tests {
             packet.extend_from_slice(tag.as_ref());
             let decrypted = packet_key.decrypt_in_place(9, &header, &mut packet).unwrap();
             assert_eq!(decrypted, b"quic payload");
+        }
+    }
+
+    #[test]
+    fn packet_key_multipath_round_trip() {
+        for packet in [
+            PacketAlgorithm::Aes128Gcm,
+            PacketAlgorithm::Aes256Gcm,
+            PacketAlgorithm::ChaCha20Poly1305,
+        ] {
+            let key_len = match packet {
+                PacketAlgorithm::Aes128Gcm => 16,
+                PacketAlgorithm::Aes256Gcm | PacketAlgorithm::ChaCha20Poly1305 => 32,
+            };
+            let packet_key = QuicPacketKey {
+                cipher: packet.build(&vec![0x11u8; key_len]),
+                iv: Iv::from([0x22u8; 12]),
+                confidentiality_limit: u64::MAX,
+                integrity_limit: u64::MAX,
+            };
+
+            let header = [0x40, 0x00, 0x11, 0x22];
+            let plaintext = *b"quic multipath payload";
+
+            for path_id in [0u32, 1, 2, 0xdead_beef] {
+                let mut payload = plaintext;
+                let tag = packet_key
+                    .encrypt_in_place_for_path(path_id, 9, &header, &mut payload)
+                    .unwrap();
+
+                let mut packet = payload.to_vec();
+                packet.extend_from_slice(tag.as_ref());
+                let decrypted = packet_key
+                    .decrypt_in_place_for_path(path_id, 9, &header, &mut packet)
+                    .unwrap();
+                assert_eq!(decrypted, &plaintext, "path {path_id}");
+            }
+
+            // A non-zero path id changes the nonce, so the ciphertext changes.
+            let mut path0 = plaintext;
+            let mut path1 = plaintext;
+            packet_key.encrypt_in_place_for_path(0, 9, &header, &mut path0).unwrap();
+            packet_key.encrypt_in_place_for_path(1, 9, &header, &mut path1).unwrap();
+            assert_ne!(path0, path1, "path id must change the nonce");
         }
     }
 

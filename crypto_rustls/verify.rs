@@ -14,6 +14,13 @@
 //! Note that the crate's curve implementations bind each curve to a single
 //! hash (P-256/SHA-256, P-384/SHA-384), so the uncommon cross combinations
 //! (for example a P-256 key with SHA-384) are not registered.
+//!
+//! Each supported [`crypto`] public-key type implements the local [`Verifier`]
+//! trait, and [`Algorithm`] adapts any such type to rustls's
+//! [`SignatureVerificationAlgorithm`]. RSA is handled by [`Rsa`] instead,
+//! because a bare key does not encode its hash or padding scheme.
+
+use core::marker::PhantomData;
 
 use crypto::{
     curve25519::ed25519,
@@ -24,199 +31,6 @@ use rustls::{
     crypto::WebPkiSupportedAlgorithms,
     pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerificationAlgorithm, alg_id},
 };
-
-/// Smallest RSA modulus accepted by the RSA verification algorithms, in bytes
-/// (2048 bits).
-const RSA_MIN_MODULUS_BYTES: usize = 256;
-
-macro_rules! ecdsa_verify_alg {
-    ($name:ident, $public_key_alg:expr, $signature_alg:expr, $public:ty, $sig_len:expr, $decode:expr) => {
-        #[derive(Debug)]
-        struct $name;
-
-        impl SignatureVerificationAlgorithm for $name {
-            fn public_key_alg_id(&self) -> AlgorithmIdentifier {
-                $public_key_alg
-            }
-
-            fn signature_alg_id(&self) -> AlgorithmIdentifier {
-                $signature_alg
-            }
-
-            fn verify_signature(
-                &self,
-                public_key: &[u8],
-                message: &[u8],
-                signature: &[u8],
-            ) -> Result<(), InvalidSignature> {
-                let public = <$public>::from_bytes(public_key).map_err(|_| InvalidSignature)?;
-                let signature: [u8; $sig_len] = ($decode)(signature).map_err(|_| InvalidSignature)?;
-                public.verify(message, &signature).map_err(|_| InvalidSignature)
-            }
-        }
-    };
-}
-
-macro_rules! rsa_verify_alg {
-    ($name:ident, $signature_alg:expr, $verify:ident) => {
-        #[derive(Debug)]
-        struct $name;
-
-        impl SignatureVerificationAlgorithm for $name {
-            fn public_key_alg_id(&self) -> AlgorithmIdentifier {
-                alg_id::RSA_ENCRYPTION
-            }
-
-            fn signature_alg_id(&self) -> AlgorithmIdentifier {
-                $signature_alg
-            }
-
-            fn verify_signature(
-                &self,
-                public_key: &[u8],
-                message: &[u8],
-                signature: &[u8],
-            ) -> Result<(), InvalidSignature> {
-                // Parse the key once and verify through it, rather than parsing
-                // in the size check and again inside the free function.
-                let key = crypto::rsa::PublicKey::from_pkcs1_der(public_key).map_err(|_| InvalidSignature)?;
-                if key.modulus_len_bytes() < RSA_MIN_MODULUS_BYTES {
-                    return Err(InvalidSignature);
-                }
-                key.$verify(signature, message).map_err(|_| InvalidSignature)
-            }
-        }
-    };
-}
-
-ecdsa_verify_alg!(
-    EcdsaP256Sha256,
-    alg_id::ECDSA_P256,
-    alg_id::ECDSA_SHA256,
-    crypto::p256::PublicKey,
-    64,
-    decode_p256_signature_der
-);
-ecdsa_verify_alg!(
-    EcdsaP384Sha384,
-    alg_id::ECDSA_P384,
-    alg_id::ECDSA_SHA384,
-    crypto::p384::PublicKey,
-    96,
-    decode_p384_signature_der
-);
-
-/// ECDSA over P-256 with SHA-256.
-pub(crate) static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Sha256;
-/// ECDSA over P-384 with SHA-384.
-pub(crate) static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP384Sha384;
-
-/// Ed25519.
-#[derive(Debug)]
-struct Ed25519Verify;
-
-impl SignatureVerificationAlgorithm for Ed25519Verify {
-    fn public_key_alg_id(&self) -> AlgorithmIdentifier {
-        alg_id::ED25519
-    }
-
-    fn signature_alg_id(&self) -> AlgorithmIdentifier {
-        alg_id::ED25519
-    }
-
-    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
-        let public_key: [u8; 32] = public_key.try_into().map_err(|_| InvalidSignature)?;
-        let public = ed25519::PublicKey::from_bytes(&public_key).map_err(|_| InvalidSignature)?;
-        let signature: [u8; 64] = signature.try_into().map_err(|_| InvalidSignature)?;
-        public.verify(message, &signature).map_err(|_| InvalidSignature)
-    }
-}
-
-/// Ed25519.
-pub(crate) static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
-
-rsa_verify_alg!(RsaPkcs1Sha256, alg_id::RSA_PKCS1_SHA256, verify_pkcs1_sha256);
-rsa_verify_alg!(RsaPkcs1Sha384, alg_id::RSA_PKCS1_SHA384, verify_pkcs1_sha384);
-rsa_verify_alg!(RsaPkcs1Sha512, alg_id::RSA_PKCS1_SHA512, verify_pkcs1_sha512);
-rsa_verify_alg!(RsaPssSha256, alg_id::RSA_PSS_SHA256, verify_pss_sha256);
-rsa_verify_alg!(RsaPssSha384, alg_id::RSA_PSS_SHA384, verify_pss_sha384);
-rsa_verify_alg!(RsaPssSha512, alg_id::RSA_PSS_SHA512, verify_pss_sha512);
-
-/// ML-DSA is used in "pure" mode with an empty FIPS 204 context string, as
-/// required by RFC 9881 (X.509) and the TLS 1.3 ML-DSA profile. The algorithm
-/// identifier is the same for the public key and the signature.
-macro_rules! mldsa_verify_alg {
-    ($name:ident, $alg_id:expr, $public:ty, $public_key_len:expr, $sig_len:expr) => {
-        #[derive(Debug)]
-        struct $name;
-
-        impl SignatureVerificationAlgorithm for $name {
-            fn public_key_alg_id(&self) -> AlgorithmIdentifier {
-                $alg_id
-            }
-
-            fn signature_alg_id(&self) -> AlgorithmIdentifier {
-                $alg_id
-            }
-
-            fn verify_signature(
-                &self,
-                public_key: &[u8],
-                message: &[u8],
-                signature: &[u8],
-            ) -> Result<(), InvalidSignature> {
-                let public_key: [u8; $public_key_len] = public_key.try_into().map_err(|_| InvalidSignature)?;
-                let public = <$public>::from_bytes(&public_key);
-                let signature: [u8; $sig_len] = signature.try_into().map_err(|_| InvalidSignature)?;
-                public
-                    .verify(message, &signature, b"")
-                    .map_err(|_| InvalidSignature)
-            }
-        }
-    };
-}
-
-mldsa_verify_alg!(
-    MlDsa44Verify,
-    alg_id::ML_DSA_44,
-    crypto::mldsa::MlDsa44PublicKey,
-    crypto::mldsa::ML_DSA_44_PUBLIC_KEY_SIZE,
-    crypto::mldsa::ML_DSA_44_SIGNATURE_SIZE
-);
-mldsa_verify_alg!(
-    MlDsa65Verify,
-    alg_id::ML_DSA_65,
-    crypto::mldsa::MlDsa65PublicKey,
-    crypto::mldsa::ML_DSA_65_PUBLIC_KEY_SIZE,
-    crypto::mldsa::ML_DSA_65_SIGNATURE_SIZE
-);
-mldsa_verify_alg!(
-    MlDsa87Verify,
-    alg_id::ML_DSA_87,
-    crypto::mldsa::MlDsa87PublicKey,
-    crypto::mldsa::ML_DSA_87_PUBLIC_KEY_SIZE,
-    crypto::mldsa::ML_DSA_87_SIGNATURE_SIZE
-);
-
-/// RSA PKCS#1 v1.5 with SHA-256.
-pub(crate) static RSA_PKCS1_SHA256: &dyn SignatureVerificationAlgorithm = &RsaPkcs1Sha256;
-/// RSA PKCS#1 v1.5 with SHA-384.
-pub(crate) static RSA_PKCS1_SHA384: &dyn SignatureVerificationAlgorithm = &RsaPkcs1Sha384;
-/// RSA PKCS#1 v1.5 with SHA-512.
-pub(crate) static RSA_PKCS1_SHA512: &dyn SignatureVerificationAlgorithm = &RsaPkcs1Sha512;
-/// RSA-PSS with SHA-256.
-pub(crate) static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm = &RsaPssSha256;
-/// RSA-PSS with SHA-384.
-pub(crate) static RSA_PSS_SHA384: &dyn SignatureVerificationAlgorithm = &RsaPssSha384;
-/// RSA-PSS with SHA-512.
-pub(crate) static RSA_PSS_SHA512: &dyn SignatureVerificationAlgorithm = &RsaPssSha512;
-
-/// ML-DSA-44 (FIPS 204 category 2).
-pub(crate) static ML_DSA_44: &dyn SignatureVerificationAlgorithm = &MlDsa44Verify;
-/// ML-DSA-65 (FIPS 204 category 3).
-pub(crate) static ML_DSA_65: &dyn SignatureVerificationAlgorithm = &MlDsa65Verify;
-/// ML-DSA-87 (FIPS 204 category 5).
-pub(crate) static ML_DSA_87: &dyn SignatureVerificationAlgorithm = &MlDsa87Verify;
 
 /// The verification algorithms supported by this provider, and the TLS
 /// signature schemes they satisfy.
@@ -231,6 +45,9 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
         RSA_PKCS1_SHA512,
         RSA_PKCS1_SHA384,
         RSA_PKCS1_SHA256,
+        RSA_PKCS1_SHA512_ABSENT_PARAMS,
+        RSA_PKCS1_SHA384_ABSENT_PARAMS,
+        RSA_PKCS1_SHA256_ABSENT_PARAMS,
         ML_DSA_44,
         ML_DSA_65,
         ML_DSA_87,
@@ -242,13 +59,284 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
         (SignatureScheme::RSA_PSS_SHA512, &[RSA_PSS_SHA512]),
         (SignatureScheme::RSA_PSS_SHA384, &[RSA_PSS_SHA384]),
         (SignatureScheme::RSA_PSS_SHA256, &[RSA_PSS_SHA256]),
-        (SignatureScheme::RSA_PKCS1_SHA512, &[RSA_PKCS1_SHA512]),
-        (SignatureScheme::RSA_PKCS1_SHA384, &[RSA_PKCS1_SHA384]),
-        (SignatureScheme::RSA_PKCS1_SHA256, &[RSA_PKCS1_SHA256]),
+        (
+            SignatureScheme::RSA_PKCS1_SHA512,
+            &[RSA_PKCS1_SHA512, RSA_PKCS1_SHA512_ABSENT_PARAMS],
+        ),
+        (
+            SignatureScheme::RSA_PKCS1_SHA384,
+            &[RSA_PKCS1_SHA384, RSA_PKCS1_SHA384_ABSENT_PARAMS],
+        ),
+        (
+            SignatureScheme::RSA_PKCS1_SHA256,
+            &[RSA_PKCS1_SHA256, RSA_PKCS1_SHA256_ABSENT_PARAMS],
+        ),
         (SignatureScheme::ML_DSA_44, &[ML_DSA_44]),
         (SignatureScheme::ML_DSA_65, &[ML_DSA_65]),
         (SignatureScheme::ML_DSA_87, &[ML_DSA_87]),
     ],
+};
+
+/// Smallest RSA modulus accepted by the RSA verification algorithms, in bytes
+/// (2048 bits).
+const RSA_MIN_MODULUS_BYTES: usize = 256;
+
+/// A signature-verification algorithm for one `crypto` public-key type.
+///
+/// This is a local trait, so it can be implemented directly on the (foreign)
+/// `crypto` key types; [`Algorithm`] bridges an implementor to rustls's
+/// [`SignatureVerificationAlgorithm`].
+pub(crate) trait Verifier: Send + Sync + 'static {
+    /// The `AlgorithmIdentifier` of the public key.
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier;
+    /// The `AlgorithmIdentifier` of the signature.
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier;
+
+    /// Parses the untrusted `subjectPublicKey` bytes.
+    ///
+    /// Returns [`InvalidSignature`] if the encoding is invalid.
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature>
+    where
+        Self: Sized;
+
+    /// Verifies `signature` over `message`.
+    ///
+    /// Returns [`InvalidSignature`] if the signature is invalid.
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature>;
+}
+
+/// Zero-sized adapter from a [`Verifier`] key type to rustls.
+struct Algorithm<K>(PhantomData<K>);
+
+impl<K: Verifier> SignatureVerificationAlgorithm for Algorithm<K> {
+    fn public_key_alg_id(&self) -> AlgorithmIdentifier {
+        K::PUBLIC_KEY_ALG_ID
+    }
+
+    fn signature_alg_id(&self) -> AlgorithmIdentifier {
+        K::SIGNATURE_ALG_ID
+    }
+
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        K::parse(public_key)?.verify_signature(message, signature)
+    }
+}
+
+impl<K> core::fmt::Debug for Algorithm<K> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(core::any::type_name::<K>())
+    }
+}
+
+impl Verifier for crypto::p256::PublicKey {
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier = alg_id::ECDSA_P256;
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier = alg_id::ECDSA_SHA256;
+
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature> {
+        Self::from_bytes(public_key).map_err(|_| InvalidSignature)
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        let signature = decode_p256_signature_der(signature).map_err(|_| InvalidSignature)?;
+        self.verify(message, &signature).map_err(|_| InvalidSignature)
+    }
+}
+
+impl Verifier for crypto::p384::PublicKey {
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier = alg_id::ECDSA_P384;
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier = alg_id::ECDSA_SHA384;
+
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature> {
+        Self::from_bytes(public_key).map_err(|_| InvalidSignature)
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        let signature = decode_p384_signature_der(signature).map_err(|_| InvalidSignature)?;
+        self.verify(message, &signature).map_err(|_| InvalidSignature)
+    }
+}
+
+/// ECDSA over P-256 with SHA-256.
+pub(crate) static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm =
+    &Algorithm::<crypto::p256::PublicKey>(PhantomData);
+/// ECDSA over P-384 with SHA-384.
+pub(crate) static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm =
+    &Algorithm::<crypto::p384::PublicKey>(PhantomData);
+
+impl Verifier for ed25519::PublicKey {
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier = alg_id::ED25519;
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier = alg_id::ED25519;
+
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature> {
+        let public_key: &[u8; 32] = public_key.try_into().map_err(|_| InvalidSignature)?;
+        ed25519::PublicKey::from_bytes(public_key).map_err(|_| InvalidSignature)
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        let signature: &[u8; 64] = signature.try_into().map_err(|_| InvalidSignature)?;
+        self.verify(message, signature).map_err(|_| InvalidSignature)
+    }
+}
+
+/// Ed25519.
+pub(crate) static ED25519: &dyn SignatureVerificationAlgorithm = &Algorithm::<ed25519::PublicKey>(PhantomData);
+
+// RFC 4055 section 2.1 requires implementations to accept `sha*WithRSAEncryption`
+// when the (optional) `NULL` parameters are absent. The `alg_id::RSA_PKCS1_*`
+// constants encode the parameters as present, so distinct algorithm objects are
+// registered for the absent-parameter encodings. These only affect X.509
+// signature-algorithm matching; TLS handshake signatures are selected by
+// `SignatureScheme`.
+const ALG_ID_RSA_PKCS1_SHA256_ABSENT_PARAMS: AlgorithmIdentifier =
+    AlgorithmIdentifier::from_slice(&[0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b]);
+const ALG_ID_RSA_PKCS1_SHA384_ABSENT_PARAMS: AlgorithmIdentifier =
+    AlgorithmIdentifier::from_slice(&[0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0c]);
+const ALG_ID_RSA_PKCS1_SHA512_ABSENT_PARAMS: AlgorithmIdentifier =
+    AlgorithmIdentifier::from_slice(&[0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d]);
+
+/// ML-DSA is used in "pure" mode with an empty FIPS 204 context string, as
+/// required by RFC 9881 (X.509) and the TLS 1.3 ML-DSA profile. The algorithm
+/// identifier is the same for the public key and the signature.
+impl Verifier for crypto::mldsa::MlDsa44PublicKey {
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier = alg_id::ML_DSA_44;
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier = alg_id::ML_DSA_44;
+
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature> {
+        let public_key: &[u8; crypto::mldsa::ML_DSA_44_PUBLIC_KEY_SIZE] =
+            public_key.try_into().map_err(|_| InvalidSignature)?;
+        Ok(Self::from_bytes(public_key))
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        let signature: &[u8; crypto::mldsa::ML_DSA_44_SIGNATURE_SIZE] =
+            signature.try_into().map_err(|_| InvalidSignature)?;
+        self.verify(message, signature, b"").map_err(|_| InvalidSignature)
+    }
+}
+
+impl Verifier for crypto::mldsa::MlDsa65PublicKey {
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier = alg_id::ML_DSA_65;
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier = alg_id::ML_DSA_65;
+
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature> {
+        let public_key: &[u8; crypto::mldsa::ML_DSA_65_PUBLIC_KEY_SIZE] =
+            public_key.try_into().map_err(|_| InvalidSignature)?;
+        Ok(Self::from_bytes(public_key))
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        let signature: &[u8; crypto::mldsa::ML_DSA_65_SIGNATURE_SIZE] =
+            signature.try_into().map_err(|_| InvalidSignature)?;
+        self.verify(message, signature, b"").map_err(|_| InvalidSignature)
+    }
+}
+
+impl Verifier for crypto::mldsa::MlDsa87PublicKey {
+    const PUBLIC_KEY_ALG_ID: AlgorithmIdentifier = alg_id::ML_DSA_87;
+    const SIGNATURE_ALG_ID: AlgorithmIdentifier = alg_id::ML_DSA_87;
+
+    fn parse(public_key: &[u8]) -> Result<Self, InvalidSignature> {
+        let public_key: &[u8; crypto::mldsa::ML_DSA_87_PUBLIC_KEY_SIZE] =
+            public_key.try_into().map_err(|_| InvalidSignature)?;
+        Ok(Self::from_bytes(public_key))
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        let signature: &[u8; crypto::mldsa::ML_DSA_87_SIGNATURE_SIZE] =
+            signature.try_into().map_err(|_| InvalidSignature)?;
+        self.verify(message, signature, b"").map_err(|_| InvalidSignature)
+    }
+}
+
+/// ML-DSA-44 (FIPS 204 category 2).
+pub(crate) static ML_DSA_44: &dyn SignatureVerificationAlgorithm =
+    &Algorithm::<crypto::mldsa::MlDsa44PublicKey>(PhantomData);
+/// ML-DSA-65 (FIPS 204 category 3).
+pub(crate) static ML_DSA_65: &dyn SignatureVerificationAlgorithm =
+    &Algorithm::<crypto::mldsa::MlDsa65PublicKey>(PhantomData);
+/// ML-DSA-87 (FIPS 204 category 5).
+pub(crate) static ML_DSA_87: &dyn SignatureVerificationAlgorithm =
+    &Algorithm::<crypto::mldsa::MlDsa87PublicKey>(PhantomData);
+
+/// RSA verification algorithm.
+///
+/// The scheme is stored alongside the verify function: a bare
+/// [`crypto::rsa::PublicKey`] does not encode whether to use PKCS#1 v1.5 or
+/// PSS, nor which hash. The absent-parameter `AlgorithmIdentifier` variants
+/// reuse the same verify function as their present-parameter counterparts.
+/// A `crypto` RSA verification method: `(key, signature, message)`.
+type RsaVerify = fn(&crypto::rsa::PublicKey, &[u8], &[u8]) -> Result<(), crypto::RsaError>;
+
+#[derive(Debug)]
+struct Rsa {
+    signature_alg: AlgorithmIdentifier,
+    verify: RsaVerify,
+}
+
+impl SignatureVerificationAlgorithm for Rsa {
+    fn public_key_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::RSA_ENCRYPTION
+    }
+
+    fn signature_alg_id(&self) -> AlgorithmIdentifier {
+        self.signature_alg
+    }
+
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        // Parse the key once and verify through it, rather than parsing in the
+        // size check and again inside the free function.
+        let key = crypto::rsa::PublicKey::from_pkcs1_der(public_key).map_err(|_| InvalidSignature)?;
+        if key.modulus_len_bytes() < RSA_MIN_MODULUS_BYTES {
+            return Err(InvalidSignature);
+        }
+        (self.verify)(&key, signature, message).map_err(|_| InvalidSignature)
+    }
+}
+
+/// RSA PKCS#1 v1.5 with SHA-256.
+pub(crate) static RSA_PKCS1_SHA256: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: alg_id::RSA_PKCS1_SHA256,
+    verify: crypto::rsa::PublicKey::verify_pkcs1_sha256,
+};
+/// RSA PKCS#1 v1.5 with SHA-384.
+pub(crate) static RSA_PKCS1_SHA384: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: alg_id::RSA_PKCS1_SHA384,
+    verify: crypto::rsa::PublicKey::verify_pkcs1_sha384,
+};
+/// RSA PKCS#1 v1.5 with SHA-512.
+pub(crate) static RSA_PKCS1_SHA512: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: alg_id::RSA_PKCS1_SHA512,
+    verify: crypto::rsa::PublicKey::verify_pkcs1_sha512,
+};
+/// RSA-PSS with SHA-256.
+pub(crate) static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: alg_id::RSA_PSS_SHA256,
+    verify: crypto::rsa::PublicKey::verify_pss_sha256,
+};
+/// RSA-PSS with SHA-384.
+pub(crate) static RSA_PSS_SHA384: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: alg_id::RSA_PSS_SHA384,
+    verify: crypto::rsa::PublicKey::verify_pss_sha384,
+};
+/// RSA-PSS with SHA-512.
+pub(crate) static RSA_PSS_SHA512: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: alg_id::RSA_PSS_SHA512,
+    verify: crypto::rsa::PublicKey::verify_pss_sha512,
+};
+/// RSA PKCS#1 v1.5 with SHA-256, absent `AlgorithmIdentifier` parameters.
+pub(crate) static RSA_PKCS1_SHA256_ABSENT_PARAMS: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: ALG_ID_RSA_PKCS1_SHA256_ABSENT_PARAMS,
+    verify: crypto::rsa::PublicKey::verify_pkcs1_sha256,
+};
+/// RSA PKCS#1 v1.5 with SHA-384, absent `AlgorithmIdentifier` parameters.
+pub(crate) static RSA_PKCS1_SHA384_ABSENT_PARAMS: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: ALG_ID_RSA_PKCS1_SHA384_ABSENT_PARAMS,
+    verify: crypto::rsa::PublicKey::verify_pkcs1_sha384,
+};
+/// RSA PKCS#1 v1.5 with SHA-512, absent `AlgorithmIdentifier` parameters.
+pub(crate) static RSA_PKCS1_SHA512_ABSENT_PARAMS: &dyn SignatureVerificationAlgorithm = &Rsa {
+    signature_alg: ALG_ID_RSA_PKCS1_SHA512_ABSENT_PARAMS,
+    verify: crypto::rsa::PublicKey::verify_pkcs1_sha512,
 };
 
 #[cfg(test)]
@@ -335,6 +423,39 @@ mod tests {
         assert_eq!(RSA_PSS_SHA256.public_key_alg_id(), alg_id::RSA_ENCRYPTION);
         assert_eq!(RSA_PSS_SHA256.signature_alg_id(), alg_id::RSA_PSS_SHA256);
         assert_eq!(RSA_PKCS1_SHA512.signature_alg_id(), alg_id::RSA_PKCS1_SHA512);
+    }
+
+    #[test]
+    fn rsa_pkcs1_absent_params_variants() {
+        // The absent-parameter encodings are the bare OID, without the `NULL`.
+        assert_eq!(
+            RSA_PKCS1_SHA256_ABSENT_PARAMS.signature_alg_id().as_ref(),
+            &[0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b]
+        );
+        assert_ne!(
+            RSA_PKCS1_SHA256_ABSENT_PARAMS.signature_alg_id(),
+            RSA_PKCS1_SHA256.signature_alg_id()
+        );
+        assert_eq!(RSA_PKCS1_SHA384_ABSENT_PARAMS.public_key_alg_id(), alg_id::RSA_ENCRYPTION);
+        assert_eq!(RSA_PKCS1_SHA512_ABSENT_PARAMS.public_key_alg_id(), alg_id::RSA_ENCRYPTION);
+    }
+
+    #[test]
+    fn rsa_pkcs1_absent_params_verifies_signatures() {
+        let public = hex::decode(RSA_PUBLIC_KEY).unwrap();
+        let message = hex::decode(RSA_MESSAGE).unwrap();
+        let signature = hex::decode(RSA_PKCS1_SIGNATURE).unwrap();
+
+        assert!(
+            RSA_PKCS1_SHA256_ABSENT_PARAMS
+                .verify_signature(&public, &message, &signature)
+                .is_ok()
+        );
+        assert!(
+            RSA_PKCS1_SHA256_ABSENT_PARAMS
+                .verify_signature(&public, b"tampered", &signature)
+                .is_err()
+        );
     }
 
     #[test]

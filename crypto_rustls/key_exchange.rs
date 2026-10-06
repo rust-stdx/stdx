@@ -5,6 +5,8 @@
 //! `secp384r1` groups are also offered so that handshakes with peers that do
 //! not support the hybrid still succeed.
 
+use core::marker::PhantomData;
+
 use crypto::{
     curve25519::x25519,
     mlkem::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SecretKey768, generate_keypair_768},
@@ -22,7 +24,7 @@ const RANDOM_FAILURE: Error = Error::FailedToGetRandomBytes;
 ///
 /// `X25519MLKEM768` comes first, so a key share for it is sent by default in
 /// the client hello.
-pub(crate) static KX_GROUPS: &[&dyn SupportedKxGroup] = &[X25519MLKEM768, &X25519, &SecP256R1, &SecP384R1];
+pub(crate) static KX_GROUPS: &[&dyn SupportedKxGroup] = &[X25519MLKEM768, &X25519, &SECP256R1, &SECP384R1];
 
 /// X25519 (RFC 7748) Diffie-Hellman key exchange.
 #[derive(Debug)]
@@ -73,80 +75,150 @@ impl ActiveKeyExchange for ActiveX25519 {
     }
 }
 
-macro_rules! nist_kx {
-    ($group:ident, $active:ident, $named:expr, $secret:ty, $public:ty, $public_key_len:expr) => {
-        #[derive(Debug)]
-        pub(crate) struct $group;
+/// A NIST (short Weierstrass) curve usable as an ECDHE group.
+///
+/// This is a local trait, so it can be implemented directly on the (foreign)
+/// `crypto` secret-key types; [`NistGroup`] is the rustls `SupportedKxGroup`.
+pub(crate) trait NistCurve: Send + Sync + Sized + 'static {
+    /// The parsed peer public key.
+    type PublicKey;
+    /// The uncompressed SEC1 public-key encoding.
+    type PublicBytes: AsRef<[u8]> + Send + Sync + 'static;
+    /// A raw ECDH shared secret.
+    type SharedSecret: AsRef<[u8]> + Send + Sync + 'static;
 
-        impl SupportedKxGroup for $group {
-            fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
-                let secret = <$secret>::generate().map_err(|_| RANDOM_FAILURE)?;
-                let pub_key = secret.public_key().to_bytes();
-                Ok(Box::new($active {
-                    secret,
-                    pub_key,
-                }))
-            }
+    /// The TLS `NamedGroup`.
+    const NAME: NamedGroup;
+    /// Length of the uncompressed SEC1 public key (`65` or `97`).
+    const PUBLIC_KEY_LEN: usize;
 
-            fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
-                None
-            }
+    /// Generates a fresh ephemeral secret key.
+    fn generate() -> Result<Self, Error>;
 
-            fn name(&self) -> NamedGroup {
-                $named
-            }
-        }
+    /// Returns the uncompressed SEC1 public-key encoding.
+    fn public_bytes(&self) -> Self::PublicBytes;
 
-        struct $active {
-            secret: $secret,
-            pub_key: [u8; $public_key_len],
-        }
+    /// Parses a peer's SEC1 public key.
+    fn parse_public(bytes: &[u8]) -> Result<Self::PublicKey, Error>;
 
-        impl ActiveKeyExchange for $active {
-            fn complete(self: Box<Self>, peer_pub_key: &[u8]) -> Result<SharedSecret, Error> {
-                // TLS 1.3 (RFC 8446 section 4.2.8.2) requires the uncompressed
-                // SEC1 point encoding for NIST curves. The underlying parser
-                // also accepts the compressed form, so reject it explicitly to
-                // match rustls' own providers.
-                if peer_pub_key.len() != $public_key_len || peer_pub_key.first() != Some(&0x04) {
-                    return Err(INVALID_KEY_SHARE);
-                }
-                let peer = <$public>::from_bytes(peer_pub_key).map_err(|_| INVALID_KEY_SHARE)?;
-                let secret = self.secret.ecdh(&peer).map_err(|_| INVALID_KEY_SHARE)?;
-                Ok(SharedSecret::from(&secret[..]))
-            }
-
-            fn pub_key(&self) -> &[u8] {
-                &self.pub_key
-            }
-
-            fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
-                None
-            }
-
-            fn group(&self) -> NamedGroup {
-                $named
-            }
-        }
-    };
+    /// Computes the ECDH shared secret with `peer`.
+    fn ecdh(&self, peer: &Self::PublicKey) -> Result<Self::SharedSecret, Error>;
 }
 
-nist_kx!(
-    SecP256R1,
-    ActiveP256,
-    NamedGroup::secp256r1,
-    crypto::p256::SecretKey,
-    crypto::p256::PublicKey,
-    65
-);
-nist_kx!(
-    SecP384R1,
-    ActiveP384,
-    NamedGroup::secp384r1,
-    crypto::p384::SecretKey,
-    crypto::p384::PublicKey,
-    97
-);
+impl NistCurve for crypto::p256::SecretKey {
+    type PublicKey = crypto::p256::PublicKey;
+    type PublicBytes = [u8; 65];
+    type SharedSecret = [u8; 32];
+
+    const NAME: NamedGroup = NamedGroup::secp256r1;
+    const PUBLIC_KEY_LEN: usize = 65;
+
+    fn generate() -> Result<Self, Error> {
+        crypto::p256::SecretKey::generate().map_err(|_| RANDOM_FAILURE)
+    }
+
+    fn public_bytes(&self) -> [u8; 65] {
+        self.public_key().to_bytes()
+    }
+
+    fn parse_public(bytes: &[u8]) -> Result<Self::PublicKey, Error> {
+        crypto::p256::PublicKey::from_bytes(bytes).map_err(|_| INVALID_KEY_SHARE)
+    }
+
+    fn ecdh(&self, peer: &Self::PublicKey) -> Result<[u8; 32], Error> {
+        crypto::p256::SecretKey::ecdh(self, peer).map_err(|_| INVALID_KEY_SHARE)
+    }
+}
+
+impl NistCurve for crypto::p384::SecretKey {
+    type PublicKey = crypto::p384::PublicKey;
+    type PublicBytes = [u8; 97];
+    type SharedSecret = [u8; 48];
+
+    const NAME: NamedGroup = NamedGroup::secp384r1;
+    const PUBLIC_KEY_LEN: usize = 97;
+
+    fn generate() -> Result<Self, Error> {
+        crypto::p384::SecretKey::generate().map_err(|_| RANDOM_FAILURE)
+    }
+
+    fn public_bytes(&self) -> [u8; 97] {
+        self.public_key().to_bytes()
+    }
+
+    fn parse_public(bytes: &[u8]) -> Result<Self::PublicKey, Error> {
+        crypto::p384::PublicKey::from_bytes(bytes).map_err(|_| INVALID_KEY_SHARE)
+    }
+
+    fn ecdh(&self, peer: &Self::PublicKey) -> Result<[u8; 48], Error> {
+        crypto::p384::SecretKey::ecdh(self, peer).map_err(|_| INVALID_KEY_SHARE)
+    }
+}
+
+/// A NIST ECDHE `SupportedKxGroup` for a curve `K`.
+pub(crate) struct NistGroup<K: NistCurve>(PhantomData<K>);
+
+impl<K: NistCurve> SupportedKxGroup for NistGroup<K> {
+    fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
+        let secret = K::generate()?;
+        let pub_key = secret.public_bytes();
+        Ok(Box::new(ActiveNist {
+            secret,
+            pub_key,
+        }))
+    }
+
+    fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
+        None
+    }
+
+    fn name(&self) -> NamedGroup {
+        K::NAME
+    }
+}
+
+impl<K: NistCurve> core::fmt::Debug for NistGroup<K> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(core::any::type_name::<K>())
+    }
+}
+
+struct ActiveNist<K: NistCurve> {
+    secret: K,
+    pub_key: K::PublicBytes,
+}
+
+impl<K: NistCurve> ActiveKeyExchange for ActiveNist<K> {
+    fn complete(self: Box<Self>, peer_pub_key: &[u8]) -> Result<SharedSecret, Error> {
+        // TLS 1.3 (RFC 8446 section 4.2.8.2) requires the uncompressed
+        // SEC1 point encoding for NIST curves. The underlying parser
+        // also accepts the compressed form, so reject it explicitly to
+        // match rustls' own providers.
+        if peer_pub_key.len() != K::PUBLIC_KEY_LEN || peer_pub_key.first() != Some(&0x04) {
+            return Err(INVALID_KEY_SHARE);
+        }
+        let peer = K::parse_public(peer_pub_key)?;
+        let secret = self.secret.ecdh(&peer)?;
+        Ok(SharedSecret::from(secret.as_ref()))
+    }
+
+    fn pub_key(&self) -> &[u8] {
+        self.pub_key.as_ref()
+    }
+
+    fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
+        None
+    }
+
+    fn group(&self) -> NamedGroup {
+        K::NAME
+    }
+}
+
+/// secp256r1 (NIST P-256) ECDHE.
+pub(crate) static SECP256R1: NistGroup<crypto::p256::SecretKey> = NistGroup(PhantomData);
+/// secp384r1 (NIST P-384) ECDHE.
+pub(crate) static SECP384R1: NistGroup<crypto::p384::SecretKey> = NistGroup(PhantomData);
 
 /// ML-KEM-768 (FIPS 203) as a key-encapsulation component.
 ///
@@ -167,7 +239,8 @@ impl SupportedKxGroup for MlKem768 {
 
     fn start_and_complete(&self, client_share: &[u8]) -> Result<CompletedKeyExchange, Error> {
         let client_share: [u8; PUBLIC_KEY_SIZE_768] = client_share.try_into().map_err(|_| INVALID_KEY_SHARE)?;
-        let public = PublicKey768::from_bytes(&client_share);
+        // FIPS 203 section 7.2: an encapsulation key whose `t̂` is not canonical is a peer misbehaviour.
+        let public = PublicKey768::from_bytes(&client_share).map_err(|_| INVALID_KEY_SHARE)?;
         let (secret, ciphertext) = public.encapsulate().map_err(|_| RANDOM_FAILURE)?;
 
         Ok(CompletedKeyExchange {
@@ -252,14 +325,14 @@ mod tests {
 
     #[test]
     fn secp256r1_round_trip() {
-        exercise(&SecP256R1);
-        assert_eq!(SecP256R1.start().unwrap().pub_key().len(), 65);
+        exercise(&SECP256R1);
+        assert_eq!(SECP256R1.start().unwrap().pub_key().len(), 65);
     }
 
     #[test]
     fn secp384r1_round_trip() {
-        exercise(&SecP384R1);
-        assert_eq!(SecP384R1.start().unwrap().pub_key().len(), 97);
+        exercise(&SECP384R1);
+        assert_eq!(SECP384R1.start().unwrap().pub_key().len(), 97);
     }
 
     #[test]
@@ -267,18 +340,18 @@ mod tests {
         // TLS 1.3 requires the uncompressed point encoding. The underlying
         // parser also accepts compressed points, so the key exchange must
         // reject them explicitly.
-        let active = SecP256R1.start().unwrap();
+        let active = SECP256R1.start().unwrap();
         let public = crypto::p256::PublicKey::from_bytes(active.pub_key()).unwrap();
         let compressed = public.to_compressed_bytes();
         assert!(active.complete(&compressed).is_err());
 
         // A correctly sized share with the wrong SEC1 prefix is also rejected.
-        let active = SecP256R1.start().unwrap();
+        let active = SECP256R1.start().unwrap();
         let mut wrong_prefix = active.pub_key().to_vec();
         wrong_prefix[0] = 0x02;
         assert!(active.complete(&wrong_prefix).is_err());
 
-        let active = SecP384R1.start().unwrap();
+        let active = SECP384R1.start().unwrap();
         let public = crypto::p384::PublicKey::from_bytes(active.pub_key()).unwrap();
         let compressed = public.to_compressed_bytes();
         assert!(active.complete(&compressed).is_err());
@@ -304,6 +377,32 @@ mod tests {
             assert!(active.complete(&[0u8]).is_err(), "{:?}", group.name());
             assert!(group.start_and_complete(&[0u8]).is_err(), "{:?}", group.name());
         }
+    }
+
+    #[test]
+    fn mlkem_rejects_non_canonical_encapsulation_key() {
+        // A 12-bit coefficient equal to q (3329) is not a canonical `t̂` and
+        // must be reported as peer misbehaviour, not accepted.
+        let mut share = [0u8; PUBLIC_KEY_SIZE_768];
+        share[0] = 0x01;
+        share[1] = 0x0d; // first coefficient = 0x0d01 = 3329
+        assert!(matches!(
+            MlKem768.start_and_complete(&share),
+            Err(Error::PeerMisbehaved(PeerMisbehaved::InvalidKeyShare))
+        ));
+    }
+
+    #[test]
+    fn hybrid_rejects_non_canonical_mlkem_share() {
+        let active = X25519MLKEM768.start().unwrap();
+        let mut combined = active.pub_key().to_vec();
+        assert_eq!(combined.len(), 1216);
+        combined[0] = 0x01;
+        combined[1] = (combined[1] & 0xf0) | 0x0d;
+        assert!(matches!(
+            X25519MLKEM768.start_and_complete(&combined),
+            Err(Error::PeerMisbehaved(PeerMisbehaved::InvalidKeyShare))
+        ));
     }
 
     #[test]

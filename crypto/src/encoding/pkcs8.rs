@@ -455,11 +455,11 @@ pub const OID_ML_DSA_87: &[u8] = &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x0
 /// The keys are large, so each variant is boxed.
 pub enum MlDsaPrivateKey {
     /// ML-DSA-44.
-    Dsa44(Box<crate::mldsa::MlDsa44SecretKey>),
+    Dsa44(crate::mldsa::MlDsa44SecretKey),
     /// ML-DSA-65.
-    Dsa65(Box<crate::mldsa::MlDsa65SecretKey>),
+    Dsa65(crate::mldsa::MlDsa65SecretKey),
     /// ML-DSA-87.
-    Dsa87(Box<crate::mldsa::MlDsa87SecretKey>),
+    Dsa87(crate::mldsa::MlDsa87SecretKey),
 }
 
 /// Extracts the 32-byte seed from the RFC 9881 `ML-DSA-XX-PrivateKey` CHOICE.
@@ -550,17 +550,17 @@ pub fn decode_mldsa_pkcs8_der(der: &[u8]) -> Result<MlDsaPrivateKey, Pkcs8Error>
         OID_ML_DSA_44 => {
             let key = crate::mldsa::MlDsa44SecretKey::new(&seed);
             check_mldsa_public_key(public_key, &key.public_key().to_bytes())?;
-            Ok(MlDsaPrivateKey::Dsa44(Box::new(key)))
+            Ok(MlDsaPrivateKey::Dsa44(key))
         }
         OID_ML_DSA_65 => {
             let key = crate::mldsa::MlDsa65SecretKey::new(&seed);
             check_mldsa_public_key(public_key, &key.public_key().to_bytes())?;
-            Ok(MlDsaPrivateKey::Dsa65(Box::new(key)))
+            Ok(MlDsaPrivateKey::Dsa65(key))
         }
         OID_ML_DSA_87 => {
             let key = crate::mldsa::MlDsa87SecretKey::new(&seed);
             check_mldsa_public_key(public_key, &key.public_key().to_bytes())?;
-            Ok(MlDsaPrivateKey::Dsa87(Box::new(key)))
+            Ok(MlDsaPrivateKey::Dsa87(key))
         }
         _ => Err(Pkcs8Error::UnsupportedAlgorithm),
     }

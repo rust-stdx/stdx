@@ -1,6 +1,6 @@
 use super::mlkem::{
     ML_KEM_768, MlKemError, SHARED_SECRET_SIZE, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand,
-    indcpa_secret_key_bytes,
+    encapsulation_key_modulus_check, indcpa_secret_key_bytes,
 };
 
 pub const PUBLIC_KEY_SIZE_768: usize = 1184;
@@ -114,10 +114,18 @@ impl TryFrom<&[u8]> for SecretKey768 {
 }
 
 impl PublicKey768 {
-    pub fn from_bytes(bytes: &[u8; PUBLIC_KEY_SIZE_768]) -> Self {
-        Self {
-            bytes: *bytes,
+    /// Parses an encapsulation key from its FIPS 203 encoding.
+    ///
+    /// Returns [`MlKemError::InvalidKey`] when the encoded `t̂` is not
+    /// canonical, i.e. when any of its coefficients is not in `[0, q-1]`
+    /// (FIPS 203 Section 7.2 modulus check).
+    pub fn from_bytes(bytes: &[u8; PUBLIC_KEY_SIZE_768]) -> Result<Self, MlKemError> {
+        if !encapsulation_key_modulus_check::<3>(bytes) {
+            return Err(MlKemError::InvalidKey);
         }
+        Ok(Self {
+            bytes: *bytes,
+        })
     }
 
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_SIZE_768] {
@@ -139,17 +147,11 @@ impl PublicKey768 {
     }
 }
 
-impl From<&[u8; PUBLIC_KEY_SIZE_768]> for PublicKey768 {
-    fn from(bytes: &[u8; PUBLIC_KEY_SIZE_768]) -> Self {
-        Self::from_bytes(bytes)
-    }
-}
-
 impl TryFrom<&[u8]> for PublicKey768 {
     type Error = MlKemError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self::from_bytes(bytes.try_into().map_err(|_| MlKemError::InvalidKey)?))
+        Self::from_bytes(bytes.try_into().map_err(|_| MlKemError::InvalidKey)?)
     }
 }
 
@@ -157,7 +159,7 @@ impl TryFrom<&[u8]> for PublicKey768 {
 mod tests {
     use super::{
         super::mlkem::{
-            ML_KEM_768, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand, decode_hex_array,
+            ML_KEM_768, Q, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand, decode_hex_array,
             sha3_256_hex,
         },
         *,
@@ -349,6 +351,28 @@ mod tests {
     }
 
     #[test]
+    fn ml_kem_768_rejects_non_canonical_encapsulation_key() {
+        let (_sk, pk) = generate_keypair_768().unwrap();
+        let base = pk.to_bytes();
+
+        // A freshly generated key is canonical.
+        assert!(PublicKey768::from_bytes(&base).is_ok());
+
+        // Overwrite the first 12-bit coefficient with `q` (out of range) and
+        // with the in-range boundary `q - 1`.
+        let set_first = |c: u16| {
+            let mut bytes = base;
+            bytes[0] = (c & 0xff) as u8;
+            bytes[1] = (bytes[1] & 0xf0) | ((c >> 8) as u8 & 0x0f);
+            bytes
+        };
+
+        assert!(PublicKey768::from_bytes(&set_first(Q as u16)).is_err());
+        assert!(PublicKey768::from_bytes(&set_first(0x0fff)).is_err());
+        assert!(PublicKey768::from_bytes(&set_first(Q as u16 - 1)).is_ok());
+    }
+
+    #[test]
     fn ml_kem_768_encaps_is_deterministic_with_same_coins() {
         let enc_coins = [9u8; 32];
         let key_coins = [7u8; 64];
@@ -514,9 +538,10 @@ mod tests {
                 let ek = decode_hex_array::<PUBLIC_KEY_SIZE_768>(ek_hex);
 
                 if result == "valid" {
+                    let public_key = PublicKey768::from_bytes(&ek)
+                        .unwrap_or_else(|_| panic!("wycheproof encaps tcId={} valid ek rejected", test["tcId"]));
                     let m = decode_hex_array::<32>(m_hex);
-                    let (k, c) =
-                        crypto_kem_enc_derand::<3, PUBLIC_KEY_SIZE_768, CIPHERTEXT_SIZE_768>(&ML_KEM_768, &ek, &m);
+                    let (k, c) = public_key.encapsulate_derand(&m);
                     let c_hex_out = hex::encode(c);
                     let k_hex_out = hex::encode(k);
                     assert_eq!(
@@ -527,6 +552,12 @@ mod tests {
                     assert_eq!(
                         k_hex_out, expected_k_hex,
                         "wycheproof encaps KAT tcId={} K mismatch",
+                        test["tcId"]
+                    );
+                } else {
+                    assert!(
+                        PublicKey768::from_bytes(&ek).is_err(),
+                        "wycheproof encaps tcId={} invalid ek accepted",
                         test["tcId"]
                     );
                 }

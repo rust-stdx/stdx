@@ -16,11 +16,17 @@ cryptography is pulled in.
 | Key exchange | `X25519MLKEM768` (post-quantum hybrid, preferred), `X25519`, `secp256r1`, `secp384r1` |
 | Signature verification | ECDSA P-256/P-384, Ed25519, RSA PKCS#1 v1.5 and PSS (SHA-256/384/512), ML-DSA-44/65/87 |
 | Signing | ECDSA P-256/P-384, Ed25519, ML-DSA-44/65/87 |
-| QUIC | RFC 9001 packet protection for all three cipher suites |
+| QUIC | RFC 9001 packet protection for all three cipher suites, including multipath nonces |
+
+RSA PKCS#1 v1.5 certificates are accepted both with the customary `NULL`
+`AlgorithmIdentifier` parameters and with the parameters absent (RFC 4055
+section 2.1).
 
 The `X25519MLKEM768` hybrid is offered first, so a post-quantum key share is
 sent by default in the ClientHello, while classical groups remain available
-for peers that do not support it.
+for peers that do not support it. Encapsulation keys received from a peer are
+validated per FIPS 203 section 7.2 (modulus check); a malformed key share is
+rejected as `PeerMisbehaved::InvalidKeyShare`.
 
 ## Usage
 

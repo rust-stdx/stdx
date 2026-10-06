@@ -540,6 +540,28 @@ fn polyvec_frombytes<const K: usize>(input: &[u8]) -> PolyVec<K> {
     out
 }
 
+/// FIPS 203 Section 7.2 modulus check for an ML-KEM encapsulation key.
+///
+/// Decodes the `ByteDecode₁₂` coefficients of the encoded `t̂` (the leading
+/// `polyvec_bytes::<K>()` bytes of the encapsulation key) and returns `false`
+/// when any coefficient is not in `[0, q-1]`. The trailing `ρ` seed is not
+/// inspected.
+#[inline]
+pub(crate) fn encapsulation_key_modulus_check<const K: usize>(public_key: &[u8]) -> bool {
+    let encoded = &public_key[..polyvec_bytes::<K>()];
+    for chunk in encoded.chunks(3) {
+        let b0 = chunk[0] as u16;
+        let b1 = chunk[1] as u16;
+        let b2 = chunk[2] as u16;
+        let c0 = (b0 | (b1 << 8)) & 0x0fff;
+        let c1 = ((b1 >> 4) | (b2 << 4)) & 0x0fff;
+        if c0 >= Q as u16 || c1 >= Q as u16 {
+            return false;
+        }
+    }
+    true
+}
+
 #[inline]
 fn polyvec_ntt<const K: usize>(polyvec: &mut PolyVec<K>) {
     for poly in &mut polyvec.vec {

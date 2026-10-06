@@ -3,6 +3,7 @@ alias ga="git add"
 alias gu="git add -u"
 alias gm="git commit -m"
 alias gp="git push"
+alias oc="opencode --standalone"
 
 export TZ="UTC"
 export DO_NOT_TRACK=1
