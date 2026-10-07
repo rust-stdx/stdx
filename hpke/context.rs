@@ -1,4 +1,5 @@
-//! HPKE key schedule, modes and encryption contexts (RFC 9180 Section 5).
+//! HPKE key schedule, modes and encryption contexts
+//! (`draft-ietf-hpke-hpke-05` Section 5).
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -8,149 +9,151 @@ use crypto::{Hash, MAX_HASH_OUTPUT_SIZE};
 
 use super::{HpkeError, aead::Aead, kdf::Kdf, kem::Kem, wipe};
 
-/// Maximum AEAD key size supported by the key schedule. The RFC 9180 AEADs use
-/// at most 32-byte keys.
+/// Maximum AEAD key size supported by the key schedule. The AEADs defined in
+/// this document use at most 32-byte keys.
 const MAX_AEAD_KEY_SIZE: usize = 64;
 
-/// Maximum AEAD nonce size supported by the contexts. The RFC 9180 AEADs use
-/// 12-byte nonces.
+/// Maximum AEAD nonce size supported by the contexts. The AEADs defined in this
+/// document use 12-byte nonces.
 const MAX_AEAD_NONCE_SIZE: usize = 64;
 
-/// HPKE mode values (RFC 9180 Section 5.1).
+/// HPKE mode values (`draft-ietf-hpke-hpke-05` Section 5.1).
+///
+/// The values `0x02` (`mode_auth`) and `0x03` (`mode_auth_psk`) were used by
+/// RFC 9180 and are RESERVED in `draft-ietf-hpke-hpke-05`, which removed the
+/// authenticated modes. They are deliberately not implemented here.
 const MODE_BASE: u8 = 0x00;
 const MODE_PRE_SHARED_KEY: u8 = 0x01;
-const MODE_AUTHENTICATED: u8 = 0x02;
-const MODE_AUTHENTICATED_PRE_SHARED_KEY: u8 = 0x03;
 
-/// The sender's view of an HPKE session mode.
+/// The HPKE session mode, shared by the sender and recipient roles.
 ///
-/// The mode determines how the sender authenticates itself: not at all
-/// ([`SenderMode::Base`]), with a pre-shared key
-/// ([`SenderMode::PreSharedKey`]), with a KEM secret key
-/// ([`SenderMode::Authenticated`]), or both
-/// ([`SenderMode::AuthenticatedPreSharedKey`]).
+/// The mode selects whether the key schedule is bound to a pre-shared key
+/// ([`Mode::PreSharedKey`]) or not ([`Mode::Base`]).
 ///
 /// Pre-shared key bytes and their identifier are carried together, so the
-/// inconsistent inputs rejected by RFC 9180 cannot be expressed.
-pub enum SenderMode<'a, K: Kem> {
-    /// No sender authentication.
-    Base,
-    /// Sender authentication through a pre-shared key.
-    PreSharedKey {
-        /// The pre-shared key. MUST contain at least 32 bytes of entropy.
-        pre_shared_key: &'a [u8],
-        /// A public identifier for the pre-shared key.
-        pre_shared_key_id: &'a [u8],
-    },
-    /// Sender authentication through a KEM secret key.
-    Authenticated {
-        /// The sender's static secret key.
-        sender_secret_key: &'a K::SecretKey,
-    },
-    /// Sender authentication through both a pre-shared key and a KEM secret
-    /// key.
-    AuthenticatedPreSharedKey {
-        /// The pre-shared key. MUST contain at least 32 bytes of entropy.
-        pre_shared_key: &'a [u8],
-        /// A public identifier for the pre-shared key.
-        pre_shared_key_id: &'a [u8],
-        /// The sender's static secret key.
-        sender_secret_key: &'a K::SecretKey,
-    },
-}
-
-/// The recipient's view of an HPKE session mode.
+/// inconsistent inputs rejected by the specification cannot be expressed.
 ///
-/// See [`SenderMode`] for the semantics of each mode.
-pub enum RecipientMode<'a, K: Kem> {
+/// `draft-ietf-hpke-hpke-05` removed the asymmetric authenticated modes of
+/// RFC 9180 (`mode_auth` and `mode_auth_psk`). For sender *identity*
+/// authentication, sign the `(encapped_key, ciphertext)` tuple (see the crate
+/// documentation); a pre-shared key only proves possession of the key.
+pub enum Mode<'a> {
     /// No sender authentication.
     Base,
-    /// Sender authentication through a pre-shared key.
+    /// Pre-shared key mode: the shared key is mixed into the key schedule,
+    /// proving possession of it. This does not authenticate a sender identity.
     PreSharedKey {
         /// The pre-shared key. MUST contain at least 32 bytes of entropy.
         pre_shared_key: &'a [u8],
         /// A public identifier for the pre-shared key.
+        ///
+        /// It's purpose is let a recipient pick which PSK to use out of several it holds, and
+        /// to be bound into the key schedule so a wrong id yields a different key.
+        ///
+        /// As per the spec, `pre_shared_key_id`
+        /// MUST not be empty in pre-shared key mode. We recommend the Nil UUID (`00000000-0000-0000-0000-000000000000`)
+        /// if you don't have a relevant identifier for the pre-shared key.
         pre_shared_key_id: &'a [u8],
-    },
-    /// Sender authentication through the sender's KEM public key.
-    Authenticated {
-        /// The sender's static public key.
-        sender_public_key: &'a K::PublicKey,
-    },
-    /// Sender authentication through both a pre-shared key and the sender's
-    /// KEM public key.
-    AuthenticatedPreSharedKey {
-        /// The pre-shared key. MUST contain at least 32 bytes of entropy.
-        pre_shared_key: &'a [u8],
-        /// A public identifier for the pre-shared key.
-        pre_shared_key_id: &'a [u8],
-        /// The sender's static public key.
-        sender_public_key: &'a K::PublicKey,
     },
 }
 
-/// The mode identifier and pre-shared key parameters shared by [`SenderMode`]
-/// and [`RecipientMode`].
-trait PreSharedKeyMode<'a> {
-    /// Returns `(mode, pre_shared_key, pre_shared_key_id)` (RFC 9180 Section 5.1).
-    fn pre_shared_key_parameters(&self) -> (u8, &'a [u8], &'a [u8]);
-}
-
-impl<'a, K: Kem> PreSharedKeyMode<'a> for SenderMode<'a, K> {
-    fn pre_shared_key_parameters(&self) -> (u8, &'a [u8], &'a [u8]) {
+impl<'a> Mode<'a> {
+    /// Ensures that in [`Mode::PreSharedKey`] mode both `pre_shared_key` and `pre_shared_key_id`
+    /// are not empty, as per the spec (`draft-ietf-hpke-hpke-05` Section 5.1 `VerifyPSKInputs`).
+    ///
+    /// Then decomposes the mode into the wire `mode` value, `pre_shared_key` and `pre_shared_key_id`.
+    fn validate_and_get_parts(&self) -> Result<(u8, &'a [u8], &'a [u8]), HpkeError> {
         match self {
-            SenderMode::Base => (MODE_BASE, &[], &[]),
-            SenderMode::Authenticated {
-                ..
-            } => (MODE_AUTHENTICATED, &[], &[]),
-            SenderMode::PreSharedKey {
+            Mode::Base => Ok((MODE_BASE, &[], &[])),
+            Mode::PreSharedKey {
                 pre_shared_key,
                 pre_shared_key_id,
-            } => (MODE_PRE_SHARED_KEY, pre_shared_key, pre_shared_key_id),
-            SenderMode::AuthenticatedPreSharedKey {
-                pre_shared_key,
-                pre_shared_key_id,
-                ..
-            } => (MODE_AUTHENTICATED_PRE_SHARED_KEY, pre_shared_key, pre_shared_key_id),
+            } => {
+                if pre_shared_key.is_empty() || pre_shared_key_id.is_empty() {
+                    return Err(HpkeError::ValidationError);
+                }
+                Ok((MODE_PRE_SHARED_KEY, pre_shared_key, pre_shared_key_id))
+            }
         }
     }
 }
 
-impl<'a, K: Kem> PreSharedKeyMode<'a> for RecipientMode<'a, K> {
-    fn pre_shared_key_parameters(&self) -> (u8, &'a [u8], &'a [u8]) {
-        match self {
-            RecipientMode::Base => (MODE_BASE, &[], &[]),
-            RecipientMode::Authenticated {
-                ..
-            } => (MODE_AUTHENTICATED, &[], &[]),
-            RecipientMode::PreSharedKey {
-                pre_shared_key,
-                pre_shared_key_id,
-            } => (MODE_PRE_SHARED_KEY, pre_shared_key, pre_shared_key_id),
-            RecipientMode::AuthenticatedPreSharedKey {
-                pre_shared_key,
-                pre_shared_key_id,
-                ..
-            } => (MODE_AUTHENTICATED_PRE_SHARED_KEY, pre_shared_key, pre_shared_key_id),
-        }
-    }
+/// Sets up a sender context (`draft-ietf-hpke-hpke-05` Section 5.1).
+///
+/// The encapsulated key must be transmitted to the recipient alongside the
+/// first message.
+///
+/// # Errors
+///
+/// - [`HpkeError::EncapError`] when the recipient's public key is invalid.
+/// - [`HpkeError::ValidationError`] when the pre-shared key or its identifier
+///   is empty in a pre-shared key mode.
+/// - [`HpkeError::Random`] when the operating system's random number generator
+///   is unavailable or fails.
+#[cfg(feature = "random")]
+pub fn new_sender<K: Kem, D: Kdf, A: Aead>(
+    mode: &Mode<'_>,
+    recipient_public_key: &K::PublicKey,
+    info: &[u8],
+) -> Result<(K::EncappedKey, SenderContext<A, D>), HpkeError> {
+    const { assert!(K::SHARED_SECRET_SIZE <= MAX_HASH_OUTPUT_SIZE) };
+
+    let (mode_id, pre_shared_key, pre_shared_key_id) = mode.validate_and_get_parts()?;
+
+    let (mut shared_secret, encapped_key) = K::encap(recipient_public_key)?;
+
+    let suite_id = ciphersuite_id::<K, D, A>();
+    let scheduled = key_schedule::<D, A>(mode_id, suite_id, &shared_secret, info, pre_shared_key, pre_shared_key_id)?;
+    wipe(shared_secret.as_mut());
+
+    let context = SenderContext(Context {
+        aead: scheduled.aead,
+        suite_id,
+        base_nonce: scheduled.base_nonce,
+        sequence_number: 0,
+        exporter_secret: scheduled.exporter_secret,
+        _kdf: PhantomData,
+    });
+    return Ok((encapped_key, context));
 }
 
-/// RFC 9180 Section 5.1 `VerifyPSKInputs`, restricted to the checks that the
-/// mode types cannot enforce statically: the "pre-shared key inputs provided
-/// together" and "no pre-shared key in Base/Authenticated modes" rules are
-/// encoded by [`SenderMode`] and [`RecipientMode`].
-fn verify_pre_shared_key_inputs(mode: u8, pre_shared_key: &[u8], pre_shared_key_id: &[u8]) -> Result<(), HpkeError> {
-    if matches!(mode, MODE_PRE_SHARED_KEY | MODE_AUTHENTICATED_PRE_SHARED_KEY)
-        && (pre_shared_key.is_empty() || pre_shared_key_id.is_empty())
-    {
-        return Err(HpkeError::ValidationError);
-    }
-    return Ok(());
+/// Sets up a recipient context (`draft-ietf-hpke-hpke-05` Section 5.1).
+///
+/// # Errors
+///
+/// - [`HpkeError::DecapError`] when the encapsulated key is invalid or the key
+///   exchange fails.
+/// - [`HpkeError::ValidationError`] when the pre-shared key or its identifier
+///   is empty in a pre-shared key mode.
+pub fn new_recipient<K: Kem, D: Kdf, A: Aead>(
+    mode: &Mode<'_>,
+    recipient_secret_key: &K::SecretKey,
+    encapped_key: &K::EncappedKey,
+    info: &[u8],
+) -> Result<RecipientContext<A, D>, HpkeError> {
+    const { assert!(K::SHARED_SECRET_SIZE <= MAX_HASH_OUTPUT_SIZE) };
+
+    let (mode_id, pre_shared_key, pre_shared_key_id) = mode.validate_and_get_parts()?;
+
+    let mut shared_secret = K::decap(encapped_key, recipient_secret_key)?;
+
+    let suite_id = ciphersuite_id::<K, D, A>();
+    let scheduled = key_schedule::<D, A>(mode_id, suite_id, &shared_secret, info, pre_shared_key, pre_shared_key_id)?;
+    wipe(shared_secret.as_mut());
+
+    let context = RecipientContext(Context {
+        aead: scheduled.aead,
+        suite_id,
+        base_nonce: scheduled.base_nonce,
+        sequence_number: 0,
+        exporter_secret: scheduled.exporter_secret,
+        _kdf: PhantomData,
+    });
+    return Ok(context);
 }
 
 /// Builds the HPKE `suite_id`: `"HPKE" || I2OSP(kem_id, 2) || I2OSP(kdf_id, 2)
-/// || I2OSP(aead_id, 2)` (RFC 9180 Section 5.1).
+/// || I2OSP(aead_id, 2)` (`draft-ietf-hpke-hpke-05` Section 5.1).
 fn ciphersuite_id<K: Kem, D: Kdf, A: Aead>() -> [u8; 10] {
     let mut suite_id = [0u8; 10];
     suite_id[..4].copy_from_slice(b"HPKE");
@@ -160,15 +163,16 @@ fn ciphersuite_id<K: Kem, D: Kdf, A: Aead>() -> [u8; 10] {
     return suite_id;
 }
 
-/// The result of the HPKE key schedule (RFC 9180 Section 5.1).
+/// The result of the HPKE key schedule (`draft-ietf-hpke-hpke-05` Section 5.1).
 struct KeySchedule<A: Aead> {
     aead: A,
     base_nonce: [u8; MAX_AEAD_NONCE_SIZE],
     exporter_secret: Hash,
 }
 
-/// RFC 9180 Section 5.1 `KeySchedule` for two-stage KDFs, or
-/// `draft-ietf-hpke-pq-05` Section 5.1 `KeySchedule` for single-stage KDFs.
+/// `draft-ietf-hpke-hpke-05` Section 5.1 `CombineSecrets_TwoStage` (identical
+/// to the RFC 9180 `KeySchedule`) for two-stage KDFs, or `CombineSecrets_OneStage`
+/// for single-stage KDFs.
 fn key_schedule<D: Kdf, A: Aead>(
     mode: u8,
     suite_id: [u8; 10],
@@ -190,7 +194,9 @@ fn key_schedule<D: Kdf, A: Aead>(
 
     const {
         assert!(A::KEY_SIZE <= MAX_AEAD_KEY_SIZE);
-        assert!(A::NONCE_SIZE >= 8 && A::NONCE_SIZE <= MAX_AEAD_NONCE_SIZE);
+        // `0` is the Export-Only pseudo-AEAD, which has no nonce; every other
+        // AEAD must have the nonce size the specification mandates.
+        assert!(A::NONCE_SIZE == 0 || (A::NONCE_SIZE >= 8 && A::NONCE_SIZE <= MAX_AEAD_NONCE_SIZE));
         assert!(D::OUTPUT_SIZE <= MAX_HASH_OUTPUT_SIZE);
     }
 
@@ -243,7 +249,8 @@ fn length_prefix(len: usize) -> [u8; 2] {
     return (len as u16).to_be_bytes();
 }
 
-/// `draft-ietf-hpke-pq-05` Section 5.1 `KeySchedule` for single-stage KDFs:
+/// `draft-ietf-hpke-hpke-05` Section 5.1 `CombineSecrets_OneStage` for
+/// single-stage KDFs:
 /// `secret = LabeledDerive(concat(lengthPrefixed(pre_shared_key),
 /// lengthPrefixed(shared_secret)), "secret", concat(mode,
 /// lengthPrefixed(pre_shared_key_id), lengthPrefixed(info)), KEY_SIZE + NONCE_SIZE + OUTPUT_SIZE)`,
@@ -258,8 +265,17 @@ fn single_stage_key_schedule<D: Kdf, A: Aead>(
 ) -> Result<KeySchedule<A>, HpkeError> {
     const {
         assert!(A::KEY_SIZE <= MAX_AEAD_KEY_SIZE);
-        assert!(A::NONCE_SIZE >= 8 && A::NONCE_SIZE <= MAX_AEAD_NONCE_SIZE);
+        // `0` is the Export-Only pseudo-AEAD, which has no nonce; every other
+        // AEAD must have the nonce size the specification mandates.
+        assert!(A::NONCE_SIZE == 0 || (A::NONCE_SIZE >= 8 && A::NONCE_SIZE <= MAX_AEAD_NONCE_SIZE));
         assert!(D::OUTPUT_SIZE <= MAX_HASH_OUTPUT_SIZE);
+    }
+
+    // `key_schedule` only dispatches here when `D::SINGLE_STAGE` is `true`, but
+    // the branch is a runtime one, so this function is also monomorphized for
+    // two-stage KDFs. Reject them at runtime instead of failing to compile.
+    if !D::SINGLE_STAGE {
+        return Err(HpkeError::NotSupported);
     }
 
     // The single-stage `LabeledDerive` encodes each length in two bytes.
@@ -309,7 +325,7 @@ fn single_stage_key_schedule<D: Kdf, A: Aead>(
 }
 
 /// Computes the per-message nonce `base_nonce XOR I2OSP(sequence_number, NONCE_SIZE)`
-/// (RFC 9180 Section 5.2).
+/// (`draft-ietf-hpke-hpke-05` Section 5.2).
 fn compute_nonce<A: Aead>(base_nonce: &[u8; MAX_AEAD_NONCE_SIZE], sequence_number: u64) -> [u8; MAX_AEAD_NONCE_SIZE] {
     let mut nonce = *base_nonce;
     let sequence_number_bytes = sequence_number.to_be_bytes();
@@ -320,7 +336,7 @@ fn compute_nonce<A: Aead>(base_nonce: &[u8; MAX_AEAD_NONCE_SIZE], sequence_numbe
     return nonce;
 }
 
-/// Shared state of an HPKE encryption context (RFC 9180 Section 5.1).
+/// Shared state of an HPKE encryption context (`draft-ietf-hpke-hpke-05` Section 5.1).
 ///
 /// This is the common implementation behind [`SenderContext`] and
 /// [`RecipientContext`]; the two wrappers restrict the exposed operations to
@@ -339,10 +355,27 @@ struct Context<A: Aead, D: Kdf> {
 
 impl<A: Aead, D: Kdf> Context<A, D> {
     fn seal_in_place(&mut self, in_out: &mut [u8], associated_data: &[u8]) -> Result<Hash, HpkeError> {
+        // The Export-Only pseudo-AEAD (`NONCE_SIZE`/`TAG_SIZE` of `0`) cannot
+        // encrypt; report it as unsupported rather than failing to compile. The
+        // `NONCE_SIZE < 8` bound also keeps `compute_nonce` from underflowing.
+        if A::NONCE_SIZE < 8 || A::TAG_SIZE == 0 {
+            return Err(HpkeError::NotSupported);
+        }
+
+        // `draft-ietf-hpke-hpke-05` Section 5.2: implementations MUST NOT
+        // encrypt plaintexts larger than the AEAD's `P_MAX`.
+        if in_out.len() as u64 > A::MAX_PLAINTEXT_SIZE {
+            return Err(HpkeError::MessageLimitReached);
+        }
+
         if self.sequence_number == u64::MAX {
             return Err(HpkeError::MessageLimitReached);
         }
 
+        // Computing the nonce, sealing, and incrementing the sequence number is
+        // a single `&mut self` operation, so it cannot be interleaved with
+        // another `seal`/`open` on the same context. This satisfies the
+        // atomicity requirement of `draft-ietf-hpke-hpke-05` Section 5.2.
         let nonce = compute_nonce::<A>(&self.base_nonce, self.sequence_number);
         let tag = self.aead.seal(in_out, &nonce[..A::NONCE_SIZE], associated_data)?;
         self.sequence_number += 1;
@@ -360,6 +393,19 @@ impl<A: Aead, D: Kdf> Context<A, D> {
     }
 
     fn open_in_place(&mut self, in_out: &mut [u8], associated_data: &[u8], tag: &[u8]) -> Result<(), HpkeError> {
+        // See `seal_in_place`: the Export-Only pseudo-AEAD cannot open, and the
+        // bound keeps `compute_nonce` from underflowing.
+        if A::NONCE_SIZE < 8 || A::TAG_SIZE == 0 {
+            return Err(HpkeError::NotSupported);
+        }
+
+        // `draft-ietf-hpke-hpke-05` Section 5.2: implementations MUST NOT open
+        // ciphertexts larger than the AEAD's `C_MAX`. The ciphertext here is
+        // the plaintext buffer plus the detached tag.
+        if (in_out.len() as u64).saturating_add(tag.len() as u64) > A::MAX_CIPHERTEXT_SIZE {
+            return Err(HpkeError::MessageLimitReached);
+        }
+
         let nonce = compute_nonce::<A>(&self.base_nonce, self.sequence_number);
         self.aead.open(in_out, &nonce[..A::NONCE_SIZE], associated_data, tag)?;
 
@@ -414,7 +460,8 @@ impl<A: Aead, D: Kdf> SenderContext<A, D> {
     ///
     /// # Errors
     ///
-    /// Returns [`HpkeError::MessageLimitReached`] when the context's sequence
+    /// Returns [`HpkeError::MessageLimitReached`] when `in_out` is longer than
+    /// the AEAD's maximum plaintext size (`P_MAX`) or the context's sequence
     /// number is exhausted, or [`HpkeError::NotSupported`] when the
     /// ciphersuite uses the [`ExportOnly`](super::aead::ExportOnly) pseudo-AEAD.
     pub fn seal_in_place(&mut self, in_out: &mut [u8], associated_data: &[u8]) -> Result<Hash, HpkeError> {
@@ -425,8 +472,9 @@ impl<A: Aead, D: Kdf> SenderContext<A, D> {
     ///
     /// # Errors
     ///
-    /// Returns [`HpkeError::MessageLimitReached`] when the context's sequence
-    /// number is exhausted, or [`HpkeError::NotSupported`] when the
+    /// Returns [`HpkeError::MessageLimitReached`] when `plaintext` is longer
+    /// than the AEAD's maximum plaintext size (`P_MAX`) or the context's
+    /// sequence number is exhausted, or [`HpkeError::NotSupported`] when the
     /// ciphersuite uses the [`ExportOnly`](super::aead::ExportOnly) pseudo-AEAD.
     #[cfg(feature = "alloc")]
     pub fn seal(&mut self, plaintext: &[u8], associated_data: &[u8]) -> Result<Vec<u8>, HpkeError> {
@@ -434,7 +482,18 @@ impl<A: Aead, D: Kdf> SenderContext<A, D> {
     }
 
     /// Derives `out.len()` bytes of exported key material, bound to
-    /// `exporter_context` (RFC 9180 Section 5.3).
+    /// `exporter_context` (`draft-ietf-hpke-hpke-05` Section 5.3).
+    ///
+    /// # Replay
+    ///
+    /// HPKE does not provide replay protection: replaying the encapsulated key
+    /// `enc` produces an identical context and therefore identical exported
+    /// secrets. Applications MUST NOT use an exported secret unless it is safe
+    /// for the same value to be produced more than once, and MUST NOT derive an
+    /// AEAD `(key, nonce)` pair from it (as the example in RFC 9180 Section 9.8
+    /// did). When an exported secret feeds encryption, mix in fresh
+    /// recipient-provided randomness, as in `draft-ietf-hpke-hpke-05`
+    /// Section 9.8.
     ///
     /// # Errors
     ///
@@ -460,17 +519,18 @@ impl<A: Aead, D: Kdf> RecipientContext<A, D> {
     ///
     /// Returns [`HpkeError::OpenError`] when the ciphertext is invalid (wrong
     /// key, tampered data or wrong associated data),
-    /// [`HpkeError::MessageLimitReached`] when the context's sequence number
-    /// is exhausted, or [`HpkeError::NotSupported`] when the ciphersuite uses
+    /// [`HpkeError::MessageLimitReached`] when the ciphertext is longer than
+    /// the AEAD's maximum (`C_MAX`) or the context's sequence number is
+    /// exhausted, or [`HpkeError::NotSupported`] when the ciphersuite uses
     /// the [`ExportOnly`](super::aead::ExportOnly) pseudo-AEAD.
     ///
     /// # Buffer contents on error
     ///
     /// When decryption succeeds but the sequence number is exhausted, the
     /// plaintext has already been written to `in_out` even though
-    /// [`HpkeError::MessageLimitReached`] is returned (matching RFC 9180
-    /// Section 5.2, which raises the error after `Open`). On
-    /// [`HpkeError::OpenError`] the buffer is left untouched.
+    /// [`HpkeError::MessageLimitReached`] is returned (matching
+    /// `draft-ietf-hpke-hpke-05` Section 5.2, which raises the error after
+    /// `Open`). On [`HpkeError::OpenError`] the buffer is left untouched.
     pub fn open_in_place(&mut self, in_out: &mut [u8], associated_data: &[u8], tag: &[u8]) -> Result<(), HpkeError> {
         return self.0.open_in_place(in_out, associated_data, tag);
     }
@@ -482,8 +542,9 @@ impl<A: Aead, D: Kdf> RecipientContext<A, D> {
     ///
     /// Returns [`HpkeError::OpenError`] when the ciphertext is invalid or too
     /// short to contain a tag, [`HpkeError::MessageLimitReached`] when the
-    /// context's sequence number is exhausted, or [`HpkeError::NotSupported`]
-    /// when the ciphersuite uses the
+    /// ciphertext is longer than the AEAD's maximum (`C_MAX`) or the context's
+    /// sequence number is exhausted, or [`HpkeError::NotSupported`] when the
+    /// ciphersuite uses the
     /// [`ExportOnly`](super::aead::ExportOnly) pseudo-AEAD.
     #[cfg(feature = "alloc")]
     pub fn open(&mut self, ciphertext: &[u8], associated_data: &[u8]) -> Result<Vec<u8>, HpkeError> {
@@ -491,7 +552,18 @@ impl<A: Aead, D: Kdf> RecipientContext<A, D> {
     }
 
     /// Derives `out.len()` bytes of exported key material, bound to
-    /// `exporter_context` (RFC 9180 Section 5.3).
+    /// `exporter_context` (`draft-ietf-hpke-hpke-05` Section 5.3).
+    ///
+    /// # Replay
+    ///
+    /// HPKE does not provide replay protection: replaying the encapsulated key
+    /// `enc` produces an identical context and therefore identical exported
+    /// secrets. Applications MUST NOT use an exported secret unless it is safe
+    /// for the same value to be produced more than once, and MUST NOT derive an
+    /// AEAD `(key, nonce)` pair from it (as the example in RFC 9180 Section 9.8
+    /// did). When an exported secret feeds encryption, mix in fresh
+    /// recipient-provided randomness, as in `draft-ietf-hpke-hpke-05`
+    /// Section 9.8.
     ///
     /// # Errors
     ///
@@ -503,107 +575,31 @@ impl<A: Aead, D: Kdf> RecipientContext<A, D> {
     }
 }
 
-/// Sets up a sender context and, for authenticated modes, proves possession of
-/// the sender's static key (RFC 9180 Section 5.1).
+/// Builds a sender context from an already-computed KEM `shared_secret`,
+/// skipping encapsulation.
 ///
-/// The encapsulated key must be transmitted to the recipient alongside the
-/// first message.
-///
-/// # Errors
-///
-/// - [`HpkeError::EncapError`] when the recipient's public key is invalid.
-/// - [`HpkeError::NotSupported`] when an authenticated mode is used with a KEM
-///   that does not support it (e.g. [`MLKEM768X25519`](super::kem::MLKEM768X25519)).
-/// - [`HpkeError::ValidationError`] when the pre-shared key or its identifier
-///   is empty in a pre-shared key mode.
-/// - [`HpkeError::Random`] when the operating system's random number generator
-///   is unavailable or fails.
-#[cfg(feature = "random")]
-pub fn new_sender<K: Kem, D: Kdf, A: Aead>(
-    mode: &SenderMode<'_, K>,
-    recipient_public_key: &K::PublicKey,
+/// This exists so the test suite can forward-check the vector corpus: given the
+/// `shared_secret` from a test vector, the resulting context must reproduce the
+/// vector's ciphertexts and exported values. It is not part of the public API.
+#[cfg(all(test, feature = "alloc", feature = "random"))]
+pub(crate) fn new_sender_from_shared_secret<K: Kem, D: Kdf, A: Aead>(
+    mode: &Mode<'_>,
+    shared_secret: &Hash,
     info: &[u8],
-) -> Result<(K::EncappedKey, SenderContext<A, D>), HpkeError> {
+) -> Result<SenderContext<A, D>, HpkeError> {
     const { assert!(K::SHARED_SECRET_SIZE <= MAX_HASH_OUTPUT_SIZE) };
 
-    let (mode_id, pre_shared_key, pre_shared_key_id) = mode.pre_shared_key_parameters();
-    verify_pre_shared_key_inputs(mode_id, pre_shared_key, pre_shared_key_id)?;
-
-    let (mut shared_secret, encapped_key) = match mode {
-        SenderMode::Base
-        | SenderMode::PreSharedKey {
-            ..
-        } => K::encap(recipient_public_key)?,
-        SenderMode::Authenticated {
-            sender_secret_key,
-        }
-        | SenderMode::AuthenticatedPreSharedKey {
-            sender_secret_key, ..
-        } => K::authenticated_encap(recipient_public_key, sender_secret_key)?,
-    };
+    let (mode_id, pre_shared_key, pre_shared_key_id) = mode.validate_and_get_parts()?;
 
     let suite_id = ciphersuite_id::<K, D, A>();
-    let scheduled = key_schedule::<D, A>(mode_id, suite_id, &shared_secret, info, pre_shared_key, pre_shared_key_id)?;
-    wipe(shared_secret.as_mut());
+    let scheduled = key_schedule::<D, A>(mode_id, suite_id, shared_secret, info, pre_shared_key, pre_shared_key_id)?;
 
-    let context = SenderContext(Context {
+    return Ok(SenderContext(Context {
         aead: scheduled.aead,
         suite_id,
         base_nonce: scheduled.base_nonce,
         sequence_number: 0,
         exporter_secret: scheduled.exporter_secret,
         _kdf: PhantomData,
-    });
-    return Ok((encapped_key, context));
-}
-
-/// Sets up a recipient context (RFC 9180 Section 5.1).
-///
-/// # Errors
-///
-/// - [`HpkeError::DecapError`] when the encapsulated key is invalid or the key
-///   exchange fails. Note that in authenticated modes a wrong sender public
-///   key does **not** fail here; it produces a different shared secret and the
-///   error surfaces as [`HpkeError::OpenError`] on the first message.
-/// - [`HpkeError::NotSupported`] when an authenticated mode is used with a KEM
-///   that does not support it (e.g. [`MLKEM768X25519`](super::kem::MLKEM768X25519)).
-/// - [`HpkeError::ValidationError`] when the pre-shared key or its identifier
-///   is empty in a pre-shared key mode.
-pub fn new_recipient<K: Kem, D: Kdf, A: Aead>(
-    mode: &RecipientMode<'_, K>,
-    recipient_secret_key: &K::SecretKey,
-    encapped_key: &K::EncappedKey,
-    info: &[u8],
-) -> Result<RecipientContext<A, D>, HpkeError> {
-    const { assert!(K::SHARED_SECRET_SIZE <= MAX_HASH_OUTPUT_SIZE) };
-
-    let (mode_id, pre_shared_key, pre_shared_key_id) = mode.pre_shared_key_parameters();
-    verify_pre_shared_key_inputs(mode_id, pre_shared_key, pre_shared_key_id)?;
-
-    let mut shared_secret = match mode {
-        RecipientMode::Base
-        | RecipientMode::PreSharedKey {
-            ..
-        } => K::decap(encapped_key, recipient_secret_key)?,
-        RecipientMode::Authenticated {
-            sender_public_key,
-        }
-        | RecipientMode::AuthenticatedPreSharedKey {
-            sender_public_key, ..
-        } => K::authenticated_decap(encapped_key, recipient_secret_key, sender_public_key)?,
-    };
-
-    let suite_id = ciphersuite_id::<K, D, A>();
-    let scheduled = key_schedule::<D, A>(mode_id, suite_id, &shared_secret, info, pre_shared_key, pre_shared_key_id)?;
-    wipe(shared_secret.as_mut());
-
-    let context = RecipientContext(Context {
-        aead: scheduled.aead,
-        suite_id,
-        base_nonce: scheduled.base_nonce,
-        sequence_number: 0,
-        exporter_secret: scheduled.exporter_secret,
-        _kdf: PhantomData,
-    });
-    return Ok(context);
+    }));
 }

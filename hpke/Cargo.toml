@@ -2,7 +2,7 @@
 name = "hpke"
 version = "0.1.0"
 edition = "2024"
-description = "Hybrid Public Key Encryption (RFC 9180) built on the stdx `crypto` crate"
+description = "Hybrid Public Key Encryption (draft-ietf-hpke-hpke-05, which obsoletes RFC 9180) built on the stdx `crypto` crate"
 
 [lib]
 path = "./hpke.rs"

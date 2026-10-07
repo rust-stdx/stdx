@@ -1,11 +1,11 @@
-//! HPKE tests, including the official RFC 9180 test vector corpus.
+//! HPKE tests, including the test vector corpus of `draft-ietf-hpke-hpke-05`
+//! (Appendices C and D) and the post-quantum vectors of `draft-ietf-hpke-pq-05`.
 
-use crypto::{aes::Aes256Gcm, chacha::ChaCha20Poly1305};
 use serde_json::Value;
 
 use crate::{
-    HpkeError, RecipientMode, SenderMode,
-    aead::ExportOnly,
+    HpkeError, Mode,
+    aead::{Aead, Aes256Gcm, ChaCha20Poly1305, ExportOnly},
     kdf::{Blake3, HkdfSha256, HkdfSha512, Kdf, Shake256},
     kem::{Kem, MLKEM768X25519, P256HkdfSha256, P521HkdfSha512, X25519HkdfSha256},
 };
@@ -18,59 +18,60 @@ fn hex_field(value: &Value, key: &str) -> Vec<u8> {
     }
 }
 
-/// Checks a single RFC 9180 test vector against the recipient-side key schedule.
+/// Serializes and hex-encodes a secret key.
+fn secret_key_hex<K: Kem>(secret_key: &K::SecretKey) -> String {
+    let mut bytes = vec![0u8; K::SECRET_KEY_SIZE];
+    K::secret_key_to_bytes(&mut bytes, secret_key).unwrap();
+    return hex::encode(bytes);
+}
+
+/// Serializes and hex-encodes a public key.
+fn public_key_hex<K: Kem>(public_key: &K::PublicKey) -> String {
+    let mut bytes = vec![0u8; K::PUBLIC_KEY_SIZE];
+    K::public_key_to_bytes(&mut bytes, public_key).unwrap();
+    return hex::encode(bytes);
+}
+
+/// Checks a single setup vector (Appendices C and D) against the recipient-side
+/// key schedule.
 ///
-/// The sender's key schedule is validated indirectly: re-encapsulating with
-/// the vector's ephemeral key must reproduce `encapped_key` and `shared_secret`, and
+/// The sender's key schedule is validated indirectly: re-encapsulating with the
+/// vector's ephemeral key must reproduce `skEm`/`pkEm` and `shared_secret`, and
 /// opening the vector's ciphertexts and reproducing its exported values
 /// exercises the complete key schedule.
 fn check_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
     let mode = vector["mode"].as_u64().unwrap() as u8;
     let info = hex_field(vector, "info");
 
-    // Recipient key pair.
+    // Recipient key pair. `skRm` is serialized verbatim: draft-ietf-hpke-hpke-05
+    // Section 7.1.2 no longer clamps X25519/X448 private keys.
     let (recipient_secret_key, recipient_public_key) = K::derive_keypair(&hex_field(vector, "ikmR")).unwrap();
-    let mut recipient_public_key_bytes = vec![0u8; K::PUBLIC_KEY_SIZE];
-    K::public_key_to_bytes(&mut recipient_public_key_bytes, &recipient_public_key).unwrap();
     assert_eq!(
-        hex::encode(&recipient_public_key_bytes),
+        secret_key_hex::<K>(&recipient_secret_key),
+        vector["skRm"].as_str().unwrap(),
+        "skRm mismatch"
+    );
+    assert_eq!(
+        public_key_hex::<K>(&recipient_public_key),
         vector["pkRm"].as_str().unwrap(),
         "pkRm mismatch"
     );
 
     // Ephemeral key pair.
     let (ephemeral_secret_key, ephemeral_public_key) = K::derive_keypair(&hex_field(vector, "ikmE")).unwrap();
-    let mut ephemeral_public_key_bytes = vec![0u8; K::PUBLIC_KEY_SIZE];
-    K::public_key_to_bytes(&mut ephemeral_public_key_bytes, &ephemeral_public_key).unwrap();
     assert_eq!(
-        hex::encode(&ephemeral_public_key_bytes),
+        secret_key_hex::<K>(&ephemeral_secret_key),
+        vector["skEm"].as_str().unwrap(),
+        "skEm mismatch"
+    );
+    assert_eq!(
+        public_key_hex::<K>(&ephemeral_public_key),
         vector["pkEm"].as_str().unwrap(),
         "pkEm mismatch"
     );
 
-    // Sender static key pair, for the authenticated modes.
-    let sender_static = if mode >= 2 {
-        let (sender_secret_key, sender_public_key) = K::derive_keypair(&hex_field(vector, "ikmS")).unwrap();
-        let mut sender_public_key_bytes = vec![0u8; K::PUBLIC_KEY_SIZE];
-        K::public_key_to_bytes(&mut sender_public_key_bytes, &sender_public_key).unwrap();
-        assert_eq!(
-            hex::encode(&sender_public_key_bytes),
-            vector["pkSm"].as_str().unwrap(),
-            "pkSm mismatch"
-        );
-        Some((sender_secret_key, sender_public_key))
-    } else {
-        None
-    };
-
     // Encapsulation.
-    let (shared_secret, encapped_key) = match &sender_static {
-        Some((sender_secret_key, _)) => {
-            K::authenticated_encap_with_ephemeral(&ephemeral_secret_key, &recipient_public_key, sender_secret_key)
-                .unwrap()
-        }
-        None => K::encap_with_ephemeral(&ephemeral_secret_key, &recipient_public_key).unwrap(),
-    };
+    let (shared_secret, encapped_key) = K::encap_with_ephemeral(&ephemeral_secret_key, &recipient_public_key).unwrap();
     assert_eq!(
         shared_secret.as_ref(),
         hex_field(vector, "shared_secret").as_slice(),
@@ -89,18 +90,10 @@ fn check_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value
     let pre_shared_key = hex_field(vector, "psk");
     let pre_shared_key_id = hex_field(vector, "psk_id");
     let recipient_mode = match mode {
-        0 => RecipientMode::<K>::Base,
-        1 => RecipientMode::PreSharedKey {
+        0 => Mode::Base,
+        1 => Mode::PreSharedKey {
             pre_shared_key: &pre_shared_key,
             pre_shared_key_id: &pre_shared_key_id,
-        },
-        2 => RecipientMode::Authenticated {
-            sender_public_key: &sender_static.as_ref().unwrap().1,
-        },
-        3 => RecipientMode::AuthenticatedPreSharedKey {
-            pre_shared_key: &pre_shared_key,
-            pre_shared_key_id: &pre_shared_key_id,
-            sender_public_key: &sender_static.as_ref().unwrap().1,
         },
         _ => panic!("unexpected mode {mode}"),
     };
@@ -137,6 +130,39 @@ fn check_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value
             "exported value mismatch"
         );
     }
+
+    // Forward check: the sender's key schedule, built from the vector's shared
+    // secret, must reproduce the published ciphertexts and exported values.
+    let sender_mode = match mode {
+        0 => Mode::Base,
+        1 => Mode::PreSharedKey {
+            pre_shared_key: &pre_shared_key,
+            pre_shared_key_id: &pre_shared_key_id,
+        },
+        _ => panic!("unexpected mode {mode}"),
+    };
+    let mut sender =
+        crate::context::new_sender_from_shared_secret::<K, D, A>(&sender_mode, &shared_secret, &info).unwrap();
+    if vector["aead_id"].as_u64().unwrap() != 0xffff {
+        for (i, encryption) in vector["encryptions"].as_array().unwrap().iter().enumerate() {
+            let associated_data = hex_field(encryption, "aad");
+            let plaintext = hex_field(encryption, "pt");
+            let expected = hex_field(encryption, "ct");
+            let ciphertext = sender.seal(&plaintext, &associated_data).unwrap();
+            assert_eq!(ciphertext, expected, "encryption {i} ciphertext mismatch");
+        }
+    }
+    for export in vector["exports"].as_array().unwrap() {
+        let exporter_context = hex_field(export, "exporter_context");
+        let len = export["L"].as_u64().unwrap() as usize;
+        let mut out = vec![0u8; len];
+        sender.export(&mut out, &exporter_context).unwrap();
+        assert_eq!(
+            hex::encode(&out),
+            export["exported_value"].as_str().unwrap(),
+            "exported value mismatch (sender)"
+        );
+    }
 }
 
 macro_rules! check_aead {
@@ -144,39 +170,40 @@ macro_rules! check_aead {
         let kdf_id = $vector["kdf_id"].as_u64().unwrap() as u16;
         let aead_id = $vector["aead_id"].as_u64().unwrap() as u16;
         match (kdf_id, aead_id) {
+            (0x0001, 0x0001) => check_vector::<$kem, HkdfSha256, TestAes128Gcm>($vector),
             (0x0001, 0x0002) => check_vector::<$kem, HkdfSha256, Aes256Gcm>($vector),
             (0x0001, 0x0003) => check_vector::<$kem, HkdfSha256, ChaCha20Poly1305>($vector),
             (0x0001, 0xffff) => check_vector::<$kem, HkdfSha256, ExportOnly>($vector),
+            (0x0003, 0x0001) => check_vector::<$kem, HkdfSha512, TestAes128Gcm>($vector),
             (0x0003, 0x0002) => check_vector::<$kem, HkdfSha512, Aes256Gcm>($vector),
             (0x0003, 0x0003) => check_vector::<$kem, HkdfSha512, ChaCha20Poly1305>($vector),
             (0x0003, 0xffff) => check_vector::<$kem, HkdfSha512, ExportOnly>($vector),
-            (0x0011, 0x0002) => check_vector::<$kem, Shake256, Aes256Gcm>($vector),
-            (0x0011, 0x0003) => check_vector::<$kem, Shake256, ChaCha20Poly1305>($vector),
-            (0x0011, 0xffff) => check_vector::<$kem, Shake256, ExportOnly>($vector),
             _ => panic!("unexpected KDF/AEAD combination {kdf_id:#06x}/{aead_id:#06x}"),
         }
     }};
 }
 
-/// Checks a single test vector from `draft-ietf-hpke-pq-05`.
+/// Checks a single setup vector from Appendix D ("Edge-Case Test Vectors").
 ///
-/// Unlike the RFC 9180 vectors, hybrid KEMs do not derive an ephemeral key
-/// pair from `ikmE`: `ikmE` is the KEM's deterministic encapsulation
-/// randomness, consumed by [`Kem::encap_deterministic`].
-fn check_pq_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
+/// Unlike Appendix C, the edge vectors do not list the ephemeral key pair, so
+/// the ephemeral key is reconstructed from `ikmE` via `encap_deterministic`
+/// (`draft-ietf-hpke-hpke-05` Appendix C.1).
+fn check_edge_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
+    let mode = vector["mode"].as_u64().unwrap() as u8;
     let info = hex_field(vector, "info");
 
-    // Recipient key pair.
     let (recipient_secret_key, recipient_public_key) = K::derive_keypair(&hex_field(vector, "ikmR")).unwrap();
-    let mut recipient_public_key_bytes = vec![0u8; K::PUBLIC_KEY_SIZE];
-    K::public_key_to_bytes(&mut recipient_public_key_bytes, &recipient_public_key).unwrap();
     assert_eq!(
-        hex::encode(&recipient_public_key_bytes),
+        secret_key_hex::<K>(&recipient_secret_key),
+        vector["skRm"].as_str().unwrap(),
+        "skRm mismatch"
+    );
+    assert_eq!(
+        public_key_hex::<K>(&recipient_public_key),
         vector["pkRm"].as_str().unwrap(),
         "pkRm mismatch"
     );
 
-    // Deterministic encapsulation from the vector's randomness.
     let (shared_secret, encapped_key) =
         K::encap_deterministic(&recipient_public_key, &hex_field(vector, "ikmE")).unwrap();
     assert_eq!(
@@ -192,31 +219,149 @@ fn check_pq_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Va
         "enc mismatch"
     );
 
-    // Recipient setup (the PQ vectors only exercise Base mode).
     let encapped_key_from_vector = K::encapped_key_from_bytes(&hex_field(vector, "enc")).unwrap();
-    let mut recipient = crate::new_recipient::<K, D, A>(
-        &RecipientMode::<K>::Base,
+    let pre_shared_key = hex_field(vector, "psk");
+    let pre_shared_key_id = hex_field(vector, "psk_id");
+    let recipient_mode = match mode {
+        0 => Mode::Base,
+        1 => Mode::PreSharedKey {
+            pre_shared_key: &pre_shared_key,
+            pre_shared_key_id: &pre_shared_key_id,
+        },
+        _ => panic!("unexpected mode {mode}"),
+    };
+    let mut recipient =
+        crate::new_recipient::<K, D, A>(&recipient_mode, &recipient_secret_key, &encapped_key_from_vector, &info)
+            .unwrap();
+
+    for (i, encryption) in vector["encryptions"].as_array().unwrap().iter().enumerate() {
+        let associated_data = hex_field(encryption, "aad");
+        let ciphertext = hex_field(encryption, "ct");
+        let plaintext = hex_field(encryption, "pt");
+
+        let split = ciphertext.len() - A::TAG_SIZE;
+        let (body, tag) = ciphertext.split_at(split);
+        let mut buffer = body.to_vec();
+        recipient
+            .open_in_place(&mut buffer, &associated_data, tag)
+            .unwrap_or_else(|err| panic!("encryption {i}: {err}"));
+        assert_eq!(buffer, plaintext, "encryption {i} plaintext mismatch");
+    }
+
+    for export in vector["exports"].as_array().unwrap() {
+        let exporter_context = hex_field(export, "exporter_context");
+        let len = export["L"].as_u64().unwrap() as usize;
+        let mut out = vec![0u8; len];
+        recipient.export(&mut out, &exporter_context).unwrap();
+        assert_eq!(
+            hex::encode(&out),
+            export["exported_value"].as_str().unwrap(),
+            "exported value mismatch"
+        );
+    }
+
+    // Forward check, as in `check_vector`.
+    let sender_mode = match mode {
+        0 => Mode::Base,
+        1 => Mode::PreSharedKey {
+            pre_shared_key: &pre_shared_key,
+            pre_shared_key_id: &pre_shared_key_id,
+        },
+        _ => panic!("unexpected mode {mode}"),
+    };
+    let mut sender =
+        crate::context::new_sender_from_shared_secret::<K, D, A>(&sender_mode, &shared_secret, &info).unwrap();
+    for (i, encryption) in vector["encryptions"].as_array().unwrap().iter().enumerate() {
+        let associated_data = hex_field(encryption, "aad");
+        let plaintext = hex_field(encryption, "pt");
+        let expected = hex_field(encryption, "ct");
+        let ciphertext = sender.seal(&plaintext, &associated_data).unwrap();
+        assert_eq!(ciphertext, expected, "encryption {i} ciphertext mismatch");
+    }
+}
+
+#[test]
+fn hpke_pq_vectors() {
+    let data: Value = serde_json::from_str(include_str!("testdata/hpke-pq-test-vectors.json")).unwrap();
+    let mut tested = 0usize;
+
+    for vector in data.as_array().unwrap() {
+        let kem_id = vector["kem_id"].as_u64().unwrap() as u16;
+        let kdf_id = vector["kdf_id"].as_u64().unwrap() as u16;
+        let aead_id = vector["aead_id"].as_u64().unwrap() as u16;
+
+        assert_eq!(kem_id, 0x647a, "only MLKEM768-X25519 PQ vectors are bundled");
+        assert_eq!(aead_id, 0x0003, "only the ChaCha20-Poly1305 PQ vectors are bundled");
+
+        // The PQ vectors exercise Base mode only.
+        assert_eq!(vector["mode"].as_u64().unwrap(), 0);
+
+        match kdf_id {
+            0x0001 => check_pq_vector::<HkdfSha256, ChaCha20Poly1305>(vector),
+            0x0011 => check_pq_vector::<Shake256, ChaCha20Poly1305>(vector),
+            _ => panic!("unexpected kdf_id {kdf_id:#06x}"),
+        }
+        tested += 1;
+    }
+
+    assert_eq!(tested, 2, "expected 2 supported draft-ietf-hpke-pq-05 vectors");
+}
+
+/// Checks a single setup vector from `draft-ietf-hpke-pq-05`.
+///
+/// Unlike the `draft-ietf-hpke-hpke` vectors, hybrid KEMs do not derive an
+/// ephemeral key pair from `ikmE`: `ikmE` is the KEM's deterministic
+/// encapsulation randomness, consumed by [`Kem::encap_deterministic`].
+fn check_pq_vector<D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
+    let info = hex_field(vector, "info");
+
+    // Recipient key pair.
+    let (recipient_secret_key, recipient_public_key) =
+        MLKEM768X25519::derive_keypair(&hex_field(vector, "ikmR")).unwrap();
+    assert_eq!(
+        public_key_hex::<MLKEM768X25519>(&recipient_public_key),
+        vector["pkRm"].as_str().unwrap(),
+        "pkRm mismatch"
+    );
+
+    // Deterministic encapsulation from the vector's randomness.
+    let (shared_secret, encapped_key) =
+        MLKEM768X25519::encap_deterministic(&recipient_public_key, &hex_field(vector, "ikmE")).unwrap();
+    assert_eq!(
+        shared_secret.as_ref(),
+        hex_field(vector, "shared_secret").as_slice(),
+        "shared_secret mismatch"
+    );
+    let mut encapped_key_bytes = vec![0u8; MLKEM768X25519::ENCAPPED_KEY_SIZE];
+    MLKEM768X25519::encapped_key_to_bytes(&mut encapped_key_bytes, &encapped_key).unwrap();
+    assert_eq!(
+        hex::encode(&encapped_key_bytes),
+        vector["enc"].as_str().unwrap(),
+        "enc mismatch"
+    );
+
+    // Recipient setup (the PQ vectors only exercise Base mode).
+    let encapped_key_from_vector = MLKEM768X25519::encapped_key_from_bytes(&hex_field(vector, "enc")).unwrap();
+    let mut recipient = crate::new_recipient::<MLKEM768X25519, D, A>(
+        &Mode::Base,
         &recipient_secret_key,
         &encapped_key_from_vector,
         &info,
     )
     .unwrap();
 
-    // Encryptions. The Export-Only pseudo-AEAD has no encryptions.
-    if vector["aead_id"].as_u64().unwrap() != 0xffff {
-        for (i, encryption) in vector["encryptions"].as_array().unwrap().iter().enumerate() {
-            let associated_data = hex_field(encryption, "aad");
-            let ciphertext = hex_field(encryption, "ct");
-            let plaintext = hex_field(encryption, "pt");
-
-            let split = ciphertext.len() - A::TAG_SIZE;
-            let (body, tag) = ciphertext.split_at(split);
-            let mut buffer = body.to_vec();
-            recipient
-                .open_in_place(&mut buffer, &associated_data, tag)
-                .unwrap_or_else(|err| panic!("encryption {i}: {err}"));
-            assert_eq!(buffer, plaintext, "encryption {i} plaintext mismatch");
-        }
+    // Encryptions.
+    for (i, encryption) in vector["encryptions"].as_array().unwrap().iter().enumerate() {
+        let associated_data = hex_field(encryption, "aad");
+        let ciphertext = hex_field(encryption, "ct");
+        let plaintext = hex_field(encryption, "pt");
+        let split = ciphertext.len() - A::TAG_SIZE;
+        let (body, tag) = ciphertext.split_at(split);
+        let mut buffer = body.to_vec();
+        recipient
+            .open_in_place(&mut buffer, &associated_data, tag)
+            .unwrap_or_else(|err| panic!("encryption {i}: {err}"));
+        assert_eq!(buffer, plaintext, "encryption {i} plaintext mismatch");
     }
 
     // Exported values.
@@ -234,42 +379,12 @@ fn check_pq_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Va
 }
 
 #[test]
-fn hpke_pq_vectors() {
-    let data: Value = serde_json::from_str(include_str!("testdata/hpke-pq-test-vectors.json")).unwrap();
-    let mut tested = 0usize;
-
-    for vector in data.as_array().unwrap() {
-        let kem_id = vector["kem_id"].as_u64().unwrap() as u16;
-        let kdf_id = vector["kdf_id"].as_u64().unwrap() as u16;
-        let aead_id = vector["aead_id"].as_u64().unwrap() as u16;
-
-        assert_eq!(kem_id, 0x647a, "only MLKEM768-X25519 PQ vectors are bundled");
-        assert_eq!(aead_id, 0x0003, "only the ChaCha20-Poly1305 PQ vectors are bundled");
-
-        match kdf_id {
-            0x0001 => check_pq_vector::<MLKEM768X25519, HkdfSha256, ChaCha20Poly1305>(vector),
-            0x0011 => check_pq_vector::<MLKEM768X25519, Shake256, ChaCha20Poly1305>(vector),
-            _ => panic!("unexpected kdf_id {kdf_id:#06x}"),
-        }
-        tested += 1;
-    }
-
-    assert_eq!(tested, 2, "expected 2 supported draft-ietf-hpke-pq-05 vectors");
-}
-
-#[test]
-fn rfc9180_vectors() {
+fn hpke_vectors() {
     let data: Value = serde_json::from_str(include_str!("testdata/test-vectors.json")).unwrap();
     let mut tested = 0usize;
 
     for vector in data.as_array().unwrap() {
         let kem_id = vector["kem_id"].as_u64().unwrap() as u16;
-        let aead_id = vector["aead_id"].as_u64().unwrap() as u16;
-
-        // AES-128-GCM (0x0001) is not shipped.
-        if !matches!(aead_id, 0x0002 | 0x0003 | 0xffff) {
-            continue;
-        }
 
         match kem_id {
             0x0020 => check_aead!(X25519HkdfSha256, vector),
@@ -282,7 +397,32 @@ fn rfc9180_vectors() {
         tested += 1;
     }
 
-    assert_eq!(tested, 72, "expected 72 supported RFC 9180 test vectors");
+    assert_eq!(tested, 48, "expected 48 supported draft-ietf-hpke-hpke-05 vectors");
+}
+
+#[test]
+fn hpke_edge_vectors() {
+    let data: Value = serde_json::from_str(include_str!("testdata/hpke-edge-test-vectors.json")).unwrap();
+    let mut tested = 0usize;
+
+    for vector in data.as_array().unwrap() {
+        let kem_id = vector["kem_id"].as_u64().unwrap() as u16;
+        let kdf_id = vector["kdf_id"].as_u64().unwrap() as u16;
+        let aead_id = vector["aead_id"].as_u64().unwrap() as u16;
+
+        // The edge vectors use DHKEM(X25519)/HKDF-SHA256/AES-128-GCM, except the
+        // P-256 rejection-sampling vector.
+        assert_eq!(kdf_id, 0x0001);
+        assert_eq!(aead_id, 0x0001);
+        match kem_id {
+            0x0020 => check_edge_vector::<X25519HkdfSha256, HkdfSha256, TestAes128Gcm>(vector),
+            0x0010 => check_edge_vector::<P256HkdfSha256, HkdfSha256, TestAes128Gcm>(vector),
+            _ => panic!("unexpected kem_id {kem_id:#06x}"),
+        }
+        tested += 1;
+    }
+
+    assert_eq!(tested, 5, "expected 5 edge-case vectors");
 }
 
 #[test]
@@ -290,12 +430,11 @@ fn roundtrip_all_suites() {
     fn roundtrip<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>() {
         let (recipient_secret_key, recipient_public_key) = K::generate_keypair().unwrap();
         let (encapped_key, mut sender) =
-            crate::new_sender::<K, D, A>(&SenderMode::Base, &recipient_public_key, b"info").unwrap();
+            crate::new_sender::<K, D, A>(&Mode::Base, &recipient_public_key, b"info").unwrap();
         let ciphertext = sender.seal(b"fronthand or backhand?", b"a gentleman's game").unwrap();
 
         let mut recipient =
-            crate::new_recipient::<K, D, A>(&RecipientMode::Base, &recipient_secret_key, &encapped_key, b"info")
-                .unwrap();
+            crate::new_recipient::<K, D, A>(&Mode::Base, &recipient_secret_key, &encapped_key, b"info").unwrap();
         let plaintext = recipient.open(&ciphertext, b"a gentleman's game").unwrap();
         assert_eq!(plaintext, b"fronthand or backhand?");
 
@@ -317,72 +456,13 @@ fn roundtrip_all_suites() {
 }
 
 #[test]
-fn roundtrip_authenticated_modes() {
-    fn roundtrip<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>() {
-        let (recipient_secret_key, recipient_public_key) = K::generate_keypair().unwrap();
-        let (sender_secret_key, sender_public_key) = K::generate_keypair().unwrap();
-
-        // Authenticated mode.
-        let (encapped_key, mut sender) = crate::new_sender::<K, D, A>(
-            &SenderMode::Authenticated {
-                sender_secret_key: &sender_secret_key,
-            },
-            &recipient_public_key,
-            b"info",
-        )
-        .unwrap();
-        let ciphertext = sender.seal(b"auth message", b"aad").unwrap();
-        let mut recipient = crate::new_recipient::<K, D, A>(
-            &RecipientMode::Authenticated {
-                sender_public_key: &sender_public_key,
-            },
-            &recipient_secret_key,
-            &encapped_key,
-            b"info",
-        )
-        .unwrap();
-        assert_eq!(recipient.open(&ciphertext, b"aad").unwrap(), b"auth message");
-
-        // AuthenticatedPreSharedKey mode.
-        let pre_shared_key = [0x42u8; 32];
-        let pre_shared_key_id = b"psk id";
-        let (encapped_key, mut sender) = crate::new_sender::<K, D, A>(
-            &SenderMode::AuthenticatedPreSharedKey {
-                pre_shared_key: &pre_shared_key,
-                pre_shared_key_id,
-                sender_secret_key: &sender_secret_key,
-            },
-            &recipient_public_key,
-            b"info",
-        )
-        .unwrap();
-        let ciphertext = sender.seal(b"auth-psk message", b"aad").unwrap();
-        let mut recipient = crate::new_recipient::<K, D, A>(
-            &RecipientMode::AuthenticatedPreSharedKey {
-                pre_shared_key: &pre_shared_key,
-                pre_shared_key_id,
-                sender_public_key: &sender_public_key,
-            },
-            &recipient_secret_key,
-            &encapped_key,
-            b"info",
-        )
-        .unwrap();
-        assert_eq!(recipient.open(&ciphertext, b"aad").unwrap(), b"auth-psk message");
-    }
-
-    roundtrip::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>();
-    roundtrip::<P256HkdfSha256, HkdfSha256, ChaCha20Poly1305>();
-}
-
-#[test]
 fn roundtrip_pre_shared_key_mode() {
     let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
     let pre_shared_key = [0x11u8; 32];
     let pre_shared_key_id = b"psk id";
 
     let (encapped_key, mut sender) = crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-        &SenderMode::PreSharedKey {
+        &Mode::PreSharedKey {
             pre_shared_key: &pre_shared_key,
             pre_shared_key_id,
         },
@@ -393,7 +473,7 @@ fn roundtrip_pre_shared_key_mode() {
     let ciphertext = sender.seal(b"psk message", b"").unwrap();
 
     let mut recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-        &RecipientMode::PreSharedKey {
+        &Mode::PreSharedKey {
             pre_shared_key: &pre_shared_key,
             pre_shared_key_id,
         },
@@ -407,7 +487,7 @@ fn roundtrip_pre_shared_key_mode() {
     // A different pre-shared key must not authenticate.
     let wrong_pre_shared_key = [0x22u8; 32];
     let mut recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-        &RecipientMode::PreSharedKey {
+        &Mode::PreSharedKey {
             pre_shared_key: &wrong_pre_shared_key,
             pre_shared_key_id,
         },
@@ -420,52 +500,142 @@ fn roundtrip_pre_shared_key_mode() {
 }
 
 #[test]
-fn mlkem768x25519_is_not_an_authenticated_kem() {
-    let (recipient_secret_key, recipient_public_key) = MLKEM768X25519::generate_keypair().unwrap();
-    let (sender_secret_key, _sender_public_key) = MLKEM768X25519::generate_keypair().unwrap();
+fn empty_pre_shared_key_inputs_are_rejected() {
+    let (_, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
 
-    let err = crate::new_sender::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(
-        &SenderMode::Authenticated {
-            sender_secret_key: &sender_secret_key,
+    // Empty pre-shared key.
+    let err = crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+        &Mode::PreSharedKey {
+            pre_shared_key: &[],
+            pre_shared_key_id: b"id",
         },
         &recipient_public_key,
         b"",
     )
     .err()
     .unwrap();
-    assert_eq!(err, HpkeError::NotSupported);
+    assert_eq!(err, HpkeError::ValidationError);
 
-    let (encapped_key, _sender) =
-        crate::new_sender::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(&SenderMode::Base, &recipient_public_key, b"")
-            .unwrap();
-    let err = crate::new_recipient::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(
-        &RecipientMode::Authenticated {
-            sender_public_key: &sender_secret_key.public_key(),
+    // Empty pre-shared key identifier.
+    let err = crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+        &Mode::PreSharedKey {
+            pre_shared_key: &[0x11u8; 32],
+            pre_shared_key_id: &[],
         },
-        &recipient_secret_key,
-        &encapped_key,
+        &recipient_public_key,
         b"",
     )
     .err()
     .unwrap();
-    assert_eq!(err, HpkeError::NotSupported);
+    assert_eq!(err, HpkeError::ValidationError);
+}
+
+/// Test-only AES-128-GCM, used to check the Appendix C and Appendix D vectors,
+/// which are defined for `aead_id` `0x0001`. The library itself ships only
+/// 256-bit AEADs; this type exists solely so the spec's vectors stay checkable.
+struct TestAes128Gcm(crypto::aes::Aes128Gcm);
+
+impl crypto::Aead for TestAes128Gcm {
+    const KEY_SIZE: usize = <crypto::aes::Aes128Gcm as crypto::Aead>::KEY_SIZE;
+    const TAG_SIZE: usize = <crypto::aes::Aes128Gcm as crypto::Aead>::TAG_SIZE;
+    const NONCE_SIZE: usize = <crypto::aes::Aes128Gcm as crypto::Aead>::NONCE_SIZE;
+
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8]) -> crypto::Hash {
+        return crypto::Aead::encrypt_in_place(&self.0, in_out, nonce, associated_data);
+    }
+
+    fn decrypt_in_place(
+        &self,
+        in_out: &mut [u8],
+        nonce: &[u8],
+        associated_data: &[u8],
+        tag: &[u8],
+    ) -> Result<(), crypto::AeadError> {
+        return crypto::Aead::decrypt_in_place(&self.0, in_out, nonce, associated_data, tag);
+    }
+}
+
+impl Aead for TestAes128Gcm {
+    const HPKE_AEAD_ID: u16 = 0x0001;
+    const MAX_PLAINTEXT_SIZE: u64 = (1u64 << 36) - 31;
+    const MAX_CIPHERTEXT_SIZE: u64 = (1u64 << 36) - 15;
+
+    fn new(key: &[u8]) -> Result<Self, HpkeError> {
+        let key: &[u8; 16] = key.try_into().map_err(|_| HpkeError::InvalidKey)?;
+        return Ok(TestAes128Gcm(crypto::aes::Aes128Gcm::new(key)));
+    }
+}
+
+/// A test-only AEAD with very small `P_MAX`/`C_MAX`, so the message length
+/// limits can be exercised without allocating gigabytes.
+struct LengthLimitedAead(Aes256Gcm);
+
+impl crypto::Aead for LengthLimitedAead {
+    const KEY_SIZE: usize = <Aes256Gcm as crypto::Aead>::KEY_SIZE;
+    const TAG_SIZE: usize = <Aes256Gcm as crypto::Aead>::TAG_SIZE;
+    const NONCE_SIZE: usize = <Aes256Gcm as crypto::Aead>::NONCE_SIZE;
+
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8]) -> crypto::Hash {
+        return crypto::Aead::encrypt_in_place(&self.0, in_out, nonce, associated_data);
+    }
+
+    fn decrypt_in_place(
+        &self,
+        in_out: &mut [u8],
+        nonce: &[u8],
+        associated_data: &[u8],
+        tag: &[u8],
+    ) -> Result<(), crypto::AeadError> {
+        return crypto::Aead::decrypt_in_place(&self.0, in_out, nonce, associated_data, tag);
+    }
+}
+
+impl Aead for LengthLimitedAead {
+    const HPKE_AEAD_ID: u16 = 0x0002;
+    const MAX_PLAINTEXT_SIZE: u64 = 8;
+    const MAX_CIPHERTEXT_SIZE: u64 = 8 + <Aes256Gcm as crypto::Aead>::TAG_SIZE as u64;
+
+    fn new(key: &[u8]) -> Result<Self, HpkeError> {
+        return <Aes256Gcm as Aead>::new(key).map(LengthLimitedAead);
+    }
+}
+
+#[test]
+fn plaintext_and_ciphertext_length_limits() {
+    let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
+    let (encapped_key, mut sender) =
+        crate::new_sender::<X25519HkdfSha256, HkdfSha256, LengthLimitedAead>(&Mode::Base, &recipient_public_key, b"")
+            .unwrap();
+
+    // At the limit: accepted.
+    assert!(sender.seal(&[0u8; 8], b"").is_ok());
+    // Over the limit: rejected before encryption.
+    assert_eq!(sender.seal(&[0u8; 9], b""), Err(HpkeError::MessageLimitReached));
+
+    let mut recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, LengthLimitedAead>(
+        &Mode::Base,
+        &recipient_secret_key,
+        &encapped_key,
+        b"",
+    )
+    .unwrap();
+    // `C_MAX` is 8 + tag; a larger ciphertext is rejected before decryption.
+    let oversized = vec![0u8; 8 + <Aes256Gcm as crypto::Aead>::TAG_SIZE + 1];
+    assert_eq!(recipient.open(&oversized, b""), Err(HpkeError::MessageLimitReached));
 }
 
 #[test]
 fn export_only_suite() {
     let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
-    let (encapped_key, sender) = crate::new_sender::<X25519HkdfSha256, HkdfSha256, ExportOnly>(
-        &SenderMode::Base,
-        &recipient_public_key,
-        b"info",
-    )
-    .unwrap();
+    let (encapped_key, sender) =
+        crate::new_sender::<X25519HkdfSha256, HkdfSha256, ExportOnly>(&Mode::Base, &recipient_public_key, b"info")
+            .unwrap();
 
     let mut sent = [0u8; 64];
     sender.export(&mut sent, b"exporter context").unwrap();
 
     let recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, ExportOnly>(
-        &RecipientMode::Base,
+        &Mode::Base,
         &recipient_secret_key,
         &encapped_key,
         b"info",
@@ -492,10 +662,9 @@ fn export_only_suite() {
 fn export_output_too_long() {
     let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
     let (encapped_key, sender) =
-        crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&SenderMode::Base, &recipient_public_key, b"")
-            .unwrap();
+        crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&Mode::Base, &recipient_public_key, b"").unwrap();
     let recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-        &RecipientMode::Base,
+        &Mode::Base,
         &recipient_secret_key,
         &encapped_key,
         b"",
@@ -512,15 +681,14 @@ fn export_output_too_long() {
 fn tampered_ciphertext_is_rejected() {
     let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
     let (encapped_key, mut sender) =
-        crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&SenderMode::Base, &recipient_public_key, b"")
-            .unwrap();
+        crate::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&Mode::Base, &recipient_public_key, b"").unwrap();
     let mut ciphertext = sender.seal(b"secret", b"").unwrap();
 
     let last = ciphertext.len() - 1;
     ciphertext[last] ^= 0x01;
 
     let mut recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-        &RecipientMode::Base,
+        &Mode::Base,
         &recipient_secret_key,
         &encapped_key,
         b"",
@@ -542,8 +710,15 @@ fn key_serialization_roundtrips() {
         K::secret_key_to_bytes(&mut secret_key_bytes, &secret_key).unwrap();
         let deserialized_secret_key = K::secret_key_from_bytes(&secret_key_bytes).unwrap();
 
-        // The public key derived from both secret keys must match, and both
-        // must agree with the serialized public key.
+        // Serializing a deserialized key reproduces the original bytes. For
+        // X25519 this is a verbatim copy: draft-ietf-hpke-hpke-05 Section 7.1.2
+        // does not clamp private keys.
+        let mut reencoded_secret_key = vec![0u8; K::SECRET_KEY_SIZE];
+        K::secret_key_to_bytes(&mut reencoded_secret_key, &deserialized_secret_key).unwrap();
+        assert_eq!(secret_key_bytes, reencoded_secret_key);
+
+        // The public key derived from both secret keys must match the serialized
+        // public key.
         let mut derived_public_key_bytes = vec![0u8; K::PUBLIC_KEY_SIZE];
         K::public_key_to_bytes(&mut derived_public_key_bytes, &K::derive_public_key(&deserialized_secret_key)).unwrap();
         assert_eq!(public_key_bytes, derived_public_key_bytes);
@@ -641,22 +816,15 @@ fn shake256_labeled_derive() {
         Shake256::labeled_derive(&mut too_long, &[b"ikm"], suite_id, b"label", &[]),
         Err(HpkeError::KdfOutputTooLong)
     );
-
-    // Two-stage KDFs do not implement `labeled_derive`.
-    assert_eq!(
-        HkdfSha256::labeled_derive(&mut a, &[b"ikm"], suite_id, b"label", &[]),
-        Err(HpkeError::NotSupported)
-    );
 }
 
 #[test]
 fn shake256_export_output_too_long() {
     let (recipient_secret_key, recipient_public_key) = MLKEM768X25519::generate_keypair().unwrap();
     let (encapped_key, sender) =
-        crate::new_sender::<MLKEM768X25519, Shake256, Aes256Gcm>(&SenderMode::Base, &recipient_public_key, b"")
-            .unwrap();
+        crate::new_sender::<MLKEM768X25519, Shake256, Aes256Gcm>(&Mode::Base, &recipient_public_key, b"").unwrap();
     let recipient = crate::new_recipient::<MLKEM768X25519, Shake256, Aes256Gcm>(
-        &RecipientMode::Base,
+        &Mode::Base,
         &recipient_secret_key,
         &encapped_key,
         b"",
@@ -712,9 +880,9 @@ fn blake3_labeled_derive() {
 fn blake3_export_output_too_long() {
     let (recipient_secret_key, recipient_public_key) = MLKEM768X25519::generate_keypair().unwrap();
     let (encapped_key, sender) =
-        crate::new_sender::<MLKEM768X25519, Blake3, Aes256Gcm>(&SenderMode::Base, &recipient_public_key, b"").unwrap();
+        crate::new_sender::<MLKEM768X25519, Blake3, Aes256Gcm>(&Mode::Base, &recipient_public_key, b"").unwrap();
     let recipient = crate::new_recipient::<MLKEM768X25519, Blake3, Aes256Gcm>(
-        &RecipientMode::Base,
+        &Mode::Base,
         &recipient_secret_key,
         &encapped_key,
         b"",

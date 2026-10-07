@@ -1,4 +1,4 @@
-//! Key encapsulation mechanisms (KEMs) for HPKE (RFC 9180 Section 4 and Section 7.1).
+//! Key encapsulation mechanisms (KEMs) for HPKE (`draft-ietf-hpke-hpke-05` Section 4 and Section 7.1).
 
 use crypto::{Hash, curve25519::x25519, p256, p521};
 
@@ -15,12 +15,10 @@ use super::{
 /// the recipient runs [`Kem::decap`] on the encapsulated key to recover the
 /// same shared secret.
 ///
-/// The four modes of HPKE only require `encap`/`decap`; the authenticated
-/// modes additionally require `authenticated_encap`/`authenticated_decap`,
-/// which are optional (RFC 9180 Section 7.1.5). KEMs without them (e.g.
-/// ML-KEM-based or hybrid post-quantum KEMs such as [`MLKEM768X25519`]) support
-/// only the Base and pre-shared key modes; calling a setup function with an
-/// authenticated mode returns [`HpkeError::NotSupported`].
+/// `draft-ietf-hpke-hpke-05` removed the authenticated modes of RFC 9180, so a
+/// KEM only needs `encap`/`decap`; the `AuthEncap`/`AuthDecap` interface is not
+/// part of HPKE anymore. Sender authentication is provided by the pre-shared
+/// key mode or by a signature over the `(encapped_key, ciphertext)` tuple.
 ///
 /// # Example
 ///
@@ -38,11 +36,11 @@ use super::{
 /// Implement this trait to use a custom KEM (e.g. ML-KEM for the
 /// post-quantum HPKE draft) inside HPKE. The shared secret returned by
 /// `encap`/`decap` must be exactly [`Kem::SHARED_SECRET_SIZE`] bytes long. Use
-/// [`Kdf::labeled_extract`] and
-/// [`Kdf::labeled_expand`] to derive keys exactly
-/// like the RFC 9180 KEMs do.
+/// [`Kdf::labeled_extract`]/[`Kdf::labeled_expand`] (two-stage KDFs) or
+/// [`Kdf::labeled_derive`] (single-stage KDFs) to derive keys exactly like the
+/// KEMs in `draft-ietf-hpke-hpke-05` do.
 pub trait Kem: Sized {
-    /// The HPKE KEM identifier (RFC 9180 Section 7.1, IANA "HPKE KEM
+    /// The HPKE KEM identifier (`draft-ietf-hpke-hpke-05` Section 7.1, IANA "HPKE KEM
     /// Identifiers"), used to build the ciphersuite `suite_id`.
     const HPKE_KEM_ID: u16;
 
@@ -82,8 +80,9 @@ pub trait Kem: Sized {
     ///
     /// `input_keying_material` SHOULD be at least
     /// [`Kem::SECRET_KEY_SIZE`] bytes long and contain at least that many
-    /// bytes of entropy (RFC 9180 Section 7.1.3). It MUST NOT be reused for
-    /// any other purpose, in particular not with another KEM.
+    /// bytes of entropy (`draft-ietf-hpke-hpke-05` Sections 7.1.3 and 9.2.1). It
+    /// MUST NOT be reused for any other purpose, in particular not with
+    /// another KEM.
     ///
     /// # Errors
     ///
@@ -243,65 +242,6 @@ pub trait Kem: Sized {
     /// Returns [`HpkeError::DecapError`] when `encapped_key` is invalid or when the
     /// key exchange fails.
     fn decap(encapped_key: &Self::EncappedKey, recipient_secret_key: &Self::SecretKey) -> Result<Hash, HpkeError>;
-
-    /// Authenticated encapsulation against `recipient_public_key` proving possession of the
-    /// secret key `sender_secret_key` (RFC 9180 Section 4.1 `AuthEncap`), using the given
-    /// ephemeral secret key `ephemeral_secret_key`.
-    ///
-    /// The default implementation always fails: authenticated encapsulation
-    /// is optional for a KEM (RFC 9180 Section 7.1.5).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`HpkeError::NotSupported`] by default, and
-    /// [`HpkeError::EncapError`] when `recipient_public_key` is invalid.
-    fn authenticated_encap_with_ephemeral(
-        _ephemeral_secret_key: &Self::SecretKey,
-        _recipient_public_key: &Self::PublicKey,
-        _sender_secret_key: &Self::SecretKey,
-    ) -> Result<(Hash, Self::EncappedKey), HpkeError> {
-        return Err(HpkeError::NotSupported);
-    }
-
-    /// Authenticated encapsulation with a freshly generated ephemeral key
-    /// pair. See [`Kem::authenticated_encap_with_ephemeral`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`HpkeError::NotSupported`] by default, [`HpkeError::EncapError`]
-    /// when `recipient_public_key` is invalid, or [`HpkeError::Random`] when the operating
-    /// system's random number generator is unavailable or fails.
-    #[cfg(feature = "random")]
-    fn authenticated_encap(
-        recipient_public_key: &Self::PublicKey,
-        sender_secret_key: &Self::SecretKey,
-    ) -> Result<(Hash, Self::EncappedKey), HpkeError> {
-        let (ephemeral_secret_key, _ephemeral_public_key) = Self::generate_keypair()?;
-        return Self::authenticated_encap_with_ephemeral(
-            &ephemeral_secret_key,
-            recipient_public_key,
-            sender_secret_key,
-        );
-    }
-
-    /// Authenticated decapsulation of `encapped_key` with `recipient_secret_key`, verifying that the
-    /// encapsulation was produced with the secret key matching `sender_public_key`
-    /// (RFC 9180 Section 4.1 `AuthDecap`).
-    ///
-    /// The default implementation always fails: authenticated decapsulation
-    /// is optional for a KEM (RFC 9180 Section 7.1.5).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`HpkeError::NotSupported`] by default, and
-    /// [`HpkeError::DecapError`] when `encapped_key` is invalid.
-    fn authenticated_decap(
-        _encapped_key: &Self::EncappedKey,
-        _recipient_secret_key: &Self::SecretKey,
-        _sender_public_key: &Self::PublicKey,
-    ) -> Result<Hash, HpkeError> {
-        return Err(HpkeError::NotSupported);
-    }
 }
 
 /// MLKEM768-X25519 hybrid post-quantum KEM (ML-KEM-768 with X25519), as
@@ -310,14 +250,20 @@ pub trait Kem: Sized {
 /// This is the same construction as X-Wing (`draft-connolly-cfrg-xwing-kem`),
 /// as noted in `draft-irtf-cfrg-concrete-hybrid-kems-03` Section 4.2.
 ///
-/// MLKEM768-X25519 is usable with the Base and pre-shared key modes of HPKE;
-/// it does not support the authenticated modes
-/// ([`SenderMode::Authenticated`](super::SenderMode::Authenticated) and
-/// [`SenderMode::AuthenticatedPreSharedKey`](super::SenderMode::AuthenticatedPreSharedKey)),
-/// which return [`HpkeError::NotSupported`].
+/// MLKEM768-X25519 is usable with the Base and pre-shared key modes of HPKE.
+/// `draft-ietf-hpke-hpke-05` removed the authenticated modes, so no KEM is
+/// required to provide `AuthEncap`/`AuthDecap`; for sender authentication, sign
+/// the `(encapped_key, ciphertext)` tuple instead.
 ///
 /// The KEM identifier is `0x647a`, as registered by the draft in the IANA
 /// "HPKE KEM Identifiers" registry.
+///
+/// # Key encoding
+///
+/// A secret key is the 32-byte X-Wing seed: [`Kem::secret_key_to_bytes`]
+/// returns that seed, and [`Kem::secret_key_from_bytes`] takes it and
+/// re-derives the full key pair (recomputing the public key). The seed is
+/// therefore the entire secret; treat it as such.
 ///
 /// # Example
 ///
@@ -450,7 +396,7 @@ impl Kem for MLKEM768X25519 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Diffie-Hellman KEM (RFC 9180 Section 4.1)
+// Diffie-Hellman KEM (draft-ietf-hpke-hpke-05 Section 4.5)
 
 /// Maximum serialized public key / encapsulated key size across the supported
 /// groups (P-521: 133 bytes).
@@ -458,12 +404,11 @@ const MAX_PUBLIC_KEY_SIZE: usize = 133;
 /// Maximum secret key and Diffie-Hellman output size across the supported
 /// groups (P-521: 66 bytes).
 const MAX_DIFFIE_HELLMAN_OUTPUT_SIZE: usize = 66;
-/// Maximum size of a KEM context:
-/// `encapped_key || recipient_public_key [|| sender_public_key]`.
-const MAX_KEM_CONTEXT: usize = 3 * MAX_PUBLIC_KEY_SIZE;
+/// Maximum size of a KEM context: `encapped_key || recipient_public_key`.
+const MAX_KEM_CONTEXT: usize = 2 * MAX_PUBLIC_KEY_SIZE;
 
-/// Builds the Diffie-Hellman KEM `suite_id`: `"KEM" || I2OSP(kem_id, 2)` (RFC 9180
-/// Section 4).
+/// Builds the Diffie-Hellman KEM `suite_id`: `"KEM" || I2OSP(kem_id, 2)`
+/// (`draft-ietf-hpke-hpke-05` Section 4.5).
 fn kem_suite_id(kem_id: u16) -> [u8; 5] {
     let mut suite_id = [0u8; 5];
     suite_id[..3].copy_from_slice(b"KEM");
@@ -472,17 +417,9 @@ fn kem_suite_id(kem_id: u16) -> [u8; 5] {
     return suite_id;
 }
 
-/// Applies the X25519 scalar clamping defined by RFC 7748 Section 5.
-fn clamp_scalar25519(mut scalar: [u8; 32]) -> [u8; 32] {
-    scalar[0] &= 248;
-    scalar[31] &= 127;
-    scalar[31] |= 64;
-    return scalar;
-}
-
 /// A Diffie-Hellman group usable by the Diffie-Hellman KEM construction.
 ///
-/// This trait is private: the crate provides the groups required by RFC 9180.
+/// This trait is private: the crate provides the groups required by `draft-ietf-hpke-hpke-05`.
 /// Custom KEMs are expected to implement [`Kem`] directly (the Diffie-Hellman KEM
 /// construction can be reproduced with [`Kdf::labeled_extract`] and
 /// [`Kdf::labeled_expand`]).
@@ -542,8 +479,8 @@ impl DiffieHellmanGroup for X25519Group {
     type PublicKey = x25519::PublicKey;
 
     fn diffie_hellman(secret_key: &Self::SecretKey, public_key: &Self::PublicKey, out: &mut [u8]) -> Result<(), ()> {
-        // `ecdh` rejects all-zero shared secrets, as RFC 9180 Section 7.1.4
-        // requires for X25519.
+        // `ecdh` rejects all-zero shared secrets, as draft-ietf-hpke-hpke-05
+        // Section 7.1.4 requires for X25519.
         let shared = secret_key.ecdh(public_key).map_err(|_| ())?;
         out.copy_from_slice(&shared);
         return Ok(());
@@ -570,20 +507,21 @@ impl DiffieHellmanGroup for X25519Group {
         if out.len() != Self::SECRET_KEY_SIZE {
             return Err(HpkeError::DeserializeError);
         }
-        // RFC 9180 Section 7.1.2 requires `SerializePrivateKey` to clamp.
-        out.copy_from_slice(&clamp_scalar25519(secret_key.to_bytes()));
+        // `draft-ietf-hpke-hpke-05` Section 7.1.2: X25519 private keys are
+        // identical to their byte string representation. The scalar is clamped
+        // inside `x25519` during scalar multiplication, not at serialization.
+        out.copy_from_slice(&secret_key.to_bytes());
         return Ok(());
     }
 
     fn deserialize_secret_key(bytes: &[u8]) -> Result<Self::SecretKey, HpkeError> {
         let bytes: &[u8; Self::SECRET_KEY_SIZE] = bytes.try_into().map_err(|_| HpkeError::DeserializeError)?;
-        // RFC 9180 Section 7.1.2 requires `DeserializePrivateKey` to clamp.
-        return Ok(x25519::SecretKey::from_bytes(&clamp_scalar25519(*bytes)));
+        return Ok(x25519::SecretKey::from_bytes(bytes));
     }
 
     fn scalar_from_candidate(bytes: &[u8]) -> Result<Self::SecretKey, ()> {
         let bytes: &[u8; Self::SECRET_KEY_SIZE] = bytes.try_into().map_err(|_| ())?;
-        return Ok(x25519::SecretKey::from_bytes(&clamp_scalar25519(*bytes)));
+        return Ok(x25519::SecretKey::from_bytes(bytes));
     }
 }
 
@@ -619,7 +557,7 @@ impl DiffieHellmanGroup for P256Group {
     }
 
     fn deserialize_public_key(bytes: &[u8]) -> Result<Self::PublicKey, HpkeError> {
-        // RFC 9180 Section 7.1.1 requires the uncompressed SEC1 encoding.
+        // draft-ietf-hpke-hpke-05 Section 7.1.1 requires the uncompressed SEC1 encoding.
         if bytes.len() != Self::PUBLIC_KEY_SIZE || bytes[0] != 0x04 {
             return Err(HpkeError::DeserializeError);
         }
@@ -702,7 +640,7 @@ impl DiffieHellmanGroup for P521Group {
     }
 }
 
-/// RFC 9180 Section 4.1 `ExtractAndExpand`.
+/// `draft-ietf-hpke-hpke-05` Section 4.5 `ExtractAndExpand_TwoStage`.
 fn extract_and_expand<K: Kdf>(kem_id: u16, diffie_hellman: &[u8], kem_context: &[u8]) -> Result<Hash, HpkeError> {
     const { assert!(K::OUTPUT_SIZE <= crypto::MAX_HASH_OUTPUT_SIZE) };
 
@@ -725,7 +663,7 @@ fn extract_and_expand<K: Kdf>(kem_id: u16, diffie_hellman: &[u8], kem_context: &
     return Ok(shared_secret);
 }
 
-/// RFC 9180 Section 7.1.3 `DeriveKeyPair` for a Diffie-Hellman KEM.
+/// `draft-ietf-hpke-hpke-05` Section 7.1.3 `DeriveKeyPair` for a Diffie-Hellman KEM.
 fn diffie_hellman_kem_derive_keypair<G: DiffieHellmanGroup, K: Kdf>(
     kem_id: u16,
     input_keying_material: &[u8],
@@ -775,7 +713,7 @@ fn diffie_hellman_kem_derive_keypair<G: DiffieHellmanGroup, K: Kdf>(
     return Ok((secret_key, public_key));
 }
 
-/// RFC 9180 Section 4.1 `Encap` with a caller-provided ephemeral key.
+/// `draft-ietf-hpke-hpke-05` Section 4.5 `Encap` with a caller-provided ephemeral key.
 fn diffie_hellman_kem_encap_with_ephemeral<G: DiffieHellmanGroup, K: Kdf>(
     kem_id: u16,
     ephemeral_secret_key: &G::SecretKey,
@@ -808,7 +746,7 @@ fn diffie_hellman_kem_encap_with_ephemeral<G: DiffieHellmanGroup, K: Kdf>(
     return Ok((shared_secret, ephemeral_public_key));
 }
 
-/// RFC 9180 Section 4.1 `Decap`.
+/// `draft-ietf-hpke-hpke-05` Section 4.5 `Decap`.
 fn diffie_hellman_kem_decap<G: DiffieHellmanGroup, K: Kdf>(
     kem_id: u16,
     encapped_key: &G::PublicKey,
@@ -836,101 +774,6 @@ fn diffie_hellman_kem_decap<G: DiffieHellmanGroup, K: Kdf>(
         kem_id,
         &diffie_hellman[..G::DIFFIE_HELLMAN_OUTPUT_SIZE],
         &kem_context[..2 * G::PUBLIC_KEY_SIZE],
-    )?;
-    wipe(&mut diffie_hellman);
-    return Ok(shared_secret);
-}
-
-/// RFC 9180 Section 4.1 `AuthEncap` with a caller-provided ephemeral key.
-fn diffie_hellman_kem_authenticated_encap_with_ephemeral<G: DiffieHellmanGroup, K: Kdf>(
-    kem_id: u16,
-    ephemeral_secret_key: &G::SecretKey,
-    recipient_public_key: &G::PublicKey,
-    sender_secret_key: &G::SecretKey,
-) -> Result<(Hash, G::PublicKey), HpkeError> {
-    const { assert!(G::SECRET_KEY_SIZE <= MAX_DIFFIE_HELLMAN_OUTPUT_SIZE && G::PUBLIC_KEY_SIZE <= MAX_PUBLIC_KEY_SIZE) };
-
-    // diffie_hellman = DH(ephemeral_secret_key, recipient_public_key)
-    //               || DH(sender_secret_key, recipient_public_key)
-    let mut diffie_hellman = [0u8; 2 * MAX_DIFFIE_HELLMAN_OUTPUT_SIZE];
-    G::diffie_hellman(
-        ephemeral_secret_key,
-        recipient_public_key,
-        &mut diffie_hellman[..G::DIFFIE_HELLMAN_OUTPUT_SIZE],
-    )
-    .map_err(|_| HpkeError::EncapError)?;
-    G::diffie_hellman(
-        sender_secret_key,
-        recipient_public_key,
-        &mut diffie_hellman[G::DIFFIE_HELLMAN_OUTPUT_SIZE..2 * G::DIFFIE_HELLMAN_OUTPUT_SIZE],
-    )
-    .map_err(|_| HpkeError::EncapError)?;
-
-    // kem_context = encapped_key || recipient_public_key || sender_public_key
-    let ephemeral_public_key = G::derive_public_key(ephemeral_secret_key);
-    let sender_public_key = G::derive_public_key(sender_secret_key);
-    let mut kem_context = [0u8; MAX_KEM_CONTEXT];
-    G::serialize_public_key(&mut kem_context[..G::PUBLIC_KEY_SIZE], &ephemeral_public_key)?;
-    G::serialize_public_key(
-        &mut kem_context[G::PUBLIC_KEY_SIZE..2 * G::PUBLIC_KEY_SIZE],
-        recipient_public_key,
-    )?;
-    G::serialize_public_key(
-        &mut kem_context[2 * G::PUBLIC_KEY_SIZE..3 * G::PUBLIC_KEY_SIZE],
-        &sender_public_key,
-    )?;
-
-    let shared_secret = extract_and_expand::<K>(
-        kem_id,
-        &diffie_hellman[..2 * G::DIFFIE_HELLMAN_OUTPUT_SIZE],
-        &kem_context[..3 * G::PUBLIC_KEY_SIZE],
-    )?;
-    wipe(&mut diffie_hellman);
-    return Ok((shared_secret, ephemeral_public_key));
-}
-
-/// RFC 9180 Section 4.1 `AuthDecap`.
-fn diffie_hellman_kem_authenticated_decap<G: DiffieHellmanGroup, K: Kdf>(
-    kem_id: u16,
-    encapped_key: &G::PublicKey,
-    recipient_secret_key: &G::SecretKey,
-    sender_public_key: &G::PublicKey,
-) -> Result<Hash, HpkeError> {
-    const { assert!(G::SECRET_KEY_SIZE <= MAX_DIFFIE_HELLMAN_OUTPUT_SIZE && G::PUBLIC_KEY_SIZE <= MAX_PUBLIC_KEY_SIZE) };
-
-    // diffie_hellman = DH(recipient_secret_key, ephemeral_public_key)
-    //               || DH(recipient_secret_key, sender_public_key)
-    let mut diffie_hellman = [0u8; 2 * MAX_DIFFIE_HELLMAN_OUTPUT_SIZE];
-    G::diffie_hellman(
-        recipient_secret_key,
-        encapped_key,
-        &mut diffie_hellman[..G::DIFFIE_HELLMAN_OUTPUT_SIZE],
-    )
-    .map_err(|_| HpkeError::DecapError)?;
-    G::diffie_hellman(
-        recipient_secret_key,
-        sender_public_key,
-        &mut diffie_hellman[G::DIFFIE_HELLMAN_OUTPUT_SIZE..2 * G::DIFFIE_HELLMAN_OUTPUT_SIZE],
-    )
-    .map_err(|_| HpkeError::DecapError)?;
-
-    // kem_context = encapped_key || recipient_public_key || sender_public_key
-    let recipient_public_key = G::derive_public_key(recipient_secret_key);
-    let mut kem_context = [0u8; MAX_KEM_CONTEXT];
-    G::serialize_public_key(&mut kem_context[..G::PUBLIC_KEY_SIZE], encapped_key)?;
-    G::serialize_public_key(
-        &mut kem_context[G::PUBLIC_KEY_SIZE..2 * G::PUBLIC_KEY_SIZE],
-        &recipient_public_key,
-    )?;
-    G::serialize_public_key(
-        &mut kem_context[2 * G::PUBLIC_KEY_SIZE..3 * G::PUBLIC_KEY_SIZE],
-        sender_public_key,
-    )?;
-
-    let shared_secret = extract_and_expand::<K>(
-        kem_id,
-        &diffie_hellman[..2 * G::DIFFIE_HELLMAN_OUTPUT_SIZE],
-        &kem_context[..3 * G::PUBLIC_KEY_SIZE],
     )?;
     wipe(&mut diffie_hellman);
     return Ok(shared_secret);
@@ -999,22 +842,6 @@ macro_rules! diffie_hellman_kem {
 
             fn decap(encapped_key: &Self::EncappedKey, recipient_secret_key: &Self::SecretKey) -> Result<Hash, HpkeError> {
                 return diffie_hellman_kem_decap::<$group, $kdf>($id, encapped_key, recipient_secret_key);
-            }
-
-            fn authenticated_encap_with_ephemeral(
-                ephemeral_secret_key: &Self::SecretKey,
-                recipient_public_key: &Self::PublicKey,
-                sender_secret_key: &Self::SecretKey,
-            ) -> Result<(Hash, Self::EncappedKey), HpkeError> {
-                return diffie_hellman_kem_authenticated_encap_with_ephemeral::<$group, $kdf>($id, ephemeral_secret_key, recipient_public_key, sender_secret_key);
-            }
-
-            fn authenticated_decap(
-                encapped_key: &Self::EncappedKey,
-                recipient_secret_key: &Self::SecretKey,
-                sender_public_key: &Self::PublicKey,
-            ) -> Result<Hash, HpkeError> {
-                return diffie_hellman_kem_authenticated_decap::<$group, $kdf>($id, encapped_key, recipient_secret_key, sender_public_key);
             }
         }
     };

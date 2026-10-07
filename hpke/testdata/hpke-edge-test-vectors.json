@@ -1,0 +1,196 @@
+[
+ {
+  "mode": 0,
+  "kem_id": 16,
+  "kdf_id": 1,
+  "aead_id": 1,
+  "info": "4f6465206f6e2061204772656369616e2055726e",
+  "ikmE": "4270e54ffd08d79d5928020af4686d8f6b7d35dbe470265f1f5aa22816ce860e",
+  "ikmR": "68706b652d656467652d703235362d72656a656374696f6e00000001c6be4ce7",
+  "skRm": "d9cbff7adaa1c604a2e4fcfb762c9e1c5ed7d2e33b15fcad4c6c3f23a9637325",
+  "pkRm": "04d3bec6a691f47bbedd5caa1d51c7228f6afeeec5576495b855bbe6595e49643570be005fc177b3d80f6eeef280b1cf8a565d7ca28116dee2e875550ef3050ca8",
+  "enc": "04a92719c6195d5085104f469a8b9814d5838ff72b60501e2c4466e5e67b325ac98536d7b61a1af4b78e5b7f951c0900be863c403ce65c9bfcb9382657222d18c4",
+  "shared_secret": "1f38c13d9156ad1439d1edf648a12bf9c62cecb95cbb2087e16683636744251a",
+  "key": "58337e18488e9e09ab4278759207d006",
+  "base_nonce": "d4967824655d4887a04b3d87",
+  "exporter_secret": "04f68c9f58b994666057b92606f7b738c47300fcb3a33bac157ee4a934bbae25",
+  "encryptions": [
+   {
+    "sequence number": 0,
+    "pt": "4265617574792069732074727574682c20747275746820626561757479",
+    "aad": "436f756e742d30",
+    "nonce": "d4967824655d4887a04b3d87",
+    "ct": "bcf25d5db84780b5b222eb26a63d8fb489c6a0bf1f6281cbc10c633707dbcda9af7cee7a57abdb59ce4c9d4162"
+   }
+  ],
+  "exports": [
+   {
+    "exporter_context": "54657374436f6e74657874",
+    "L": 32,
+    "exported_value": "abd921fc81dae75036e9146d2e5826e3ea075b410c1c46a0a0533a9e3e685490"
+   }
+  ],
+  "rejected_candidate": "ffffffffc6e92ab863d8293933c849d280fc9a40f07471a06702bdf2eac30fa2"
+ },
+ {
+  "mode": 0,
+  "kem_id": 32,
+  "kdf_id": 1,
+  "aead_id": 1,
+  "info": "4f6465206f6e2061204772656369616e2055726e",
+  "ikmE": "7268600d403fce431561aef583ee1613527cff655c1343f29812e66706df3234",
+  "ikmR": "6db9df30aa07dd42ee5e8181afdb977e538f5e1fec8a06223f33f7013e525037",
+  "skRm": "4612c550263fc8ad58375df3f557aac531d26850903e55a9f23f21d8534e8ac8",
+  "pkRm": "3948cfe0ad1ddb695d780e59077195da6c56506b027329794ab02bca80815c4d",
+  "enc": "37fda3567bdbd628e88668c3c8d7e97d1d1253b6d4ea6d44c150f741f1bf4431",
+  "shared_secret": "fe0e18c9f024ce43799ae393c7e8fe8fce9d218875e8227b0187c04e7d2ea1fc",
+  "key": "4531685d41d65f03dc48f6b8302c05b0",
+  "base_nonce": "56d890e5accaaf011cff4b7d",
+  "exporter_secret": "45ff1c2e220db587171952c0592d5f5ebe103f1561a2614e38f2ffd47e99e3f8",
+  "encryptions": [
+   {
+    "sequence number": 0,
+    "pt": "",
+    "aad": "436f756e742d30",
+    "nonce": "56d890e5accaaf011cff4b7d",
+    "ct": "3f431133aa05608a56675bec51d03e0f"
+   },
+   {
+    "sequence number": 1,
+    "pt": "4265617574792069732074727574682c20747275746820626561757479",
+    "aad": "",
+    "nonce": "56d890e5accaaf011cff4b7c",
+    "ct": "af2d7e9ac9ae7e270f46ba1f975be53c09f8d875bdc8535458c2494e8aa7d2bb71109b5730bb714a8e64e5cc16"
+   },
+   {
+    "sequence number": 2,
+    "pt": "00010002000300",
+    "aad": "436f756e742d30",
+    "nonce": "56d890e5accaaf011cff4b7f",
+    "ct": "0be99ddcad54aabf548b3dbae884aff7aaeb0afc9ab60f"
+   },
+   {
+    "sequence number": 3,
+    "pt": "4265617574792069732074727574682c20747275746820626561757479",
+    "aad": "00ff00ff00",
+    "nonce": "56d890e5accaaf011cff4b7e",
+    "ct": "6b0f4cd351730cd25993d8ad0f11bff1ef2c3a957cb4d8694bb06c60a2f65e4f4cf8c1ae35431071bb18eff3e8"
+   }
+  ],
+  "exports": [
+   {
+    "exporter_context": "",
+    "L": 32,
+    "exported_value": "3853fe2b4035195a573ffc53856e77058e15d9ea064de3e59f4961d0095250ee"
+   },
+   {
+    "exporter_context": "00",
+    "L": 32,
+    "exported_value": "2e8f0b54673c7029649d4eb9d5e33bf1872cf76d623ff164ac185da9e88c21a5"
+   },
+   {
+    "exporter_context": "0011002200",
+    "L": 32,
+    "exported_value": "73ac25f70dd55c215b4220e6978533ee2d3a559a48c507b11e200af81e64337a"
+   }
+  ]
+ },
+ {
+  "mode": 0,
+  "kem_id": 32,
+  "kdf_id": 1,
+  "aead_id": 1,
+  "info": "",
+  "ikmE": "7268600d403fce431561aef583ee1613527cff655c1343f29812e66706df3234",
+  "ikmR": "6db9df30aa07dd42ee5e8181afdb977e538f5e1fec8a06223f33f7013e525037",
+  "skRm": "4612c550263fc8ad58375df3f557aac531d26850903e55a9f23f21d8534e8ac8",
+  "pkRm": "3948cfe0ad1ddb695d780e59077195da6c56506b027329794ab02bca80815c4d",
+  "enc": "37fda3567bdbd628e88668c3c8d7e97d1d1253b6d4ea6d44c150f741f1bf4431",
+  "shared_secret": "fe0e18c9f024ce43799ae393c7e8fe8fce9d218875e8227b0187c04e7d2ea1fc",
+  "key": "a9b96236b306695e8729863403f68d4f",
+  "base_nonce": "0816b7f1635cce3ee2a7f611",
+  "exporter_secret": "ac9efc2aea9784504d6e817cf056845b1947cb604e6f398704c0524a1cc8e90f",
+  "encryptions": [
+   {
+    "sequence number": 0,
+    "pt": "4265617574792069732074727574682c20747275746820626561757479",
+    "aad": "436f756e742d30",
+    "nonce": "0816b7f1635cce3ee2a7f611",
+    "ct": "2a19b5c53b9bc4d52723cfa64b0c0532b9fd5473e8c1105285be1a5fd763463c3d34236f5d26ebfe906277e094"
+   }
+  ],
+  "exports": [
+   {
+    "exporter_context": "54657374436f6e74657874",
+    "L": 32,
+    "exported_value": "8a02de446479bb7d27490ed85a69c6bbaddd0969fbc84f7661ab038c9008f053"
+   }
+  ]
+ },
+ {
+  "mode": 0,
+  "kem_id": 32,
+  "kdf_id": 1,
+  "aead_id": 1,
+  "info": "f0000f00ff",
+  "ikmE": "7268600d403fce431561aef583ee1613527cff655c1343f29812e66706df3234",
+  "ikmR": "6db9df30aa07dd42ee5e8181afdb977e538f5e1fec8a06223f33f7013e525037",
+  "skRm": "4612c550263fc8ad58375df3f557aac531d26850903e55a9f23f21d8534e8ac8",
+  "pkRm": "3948cfe0ad1ddb695d780e59077195da6c56506b027329794ab02bca80815c4d",
+  "enc": "37fda3567bdbd628e88668c3c8d7e97d1d1253b6d4ea6d44c150f741f1bf4431",
+  "shared_secret": "fe0e18c9f024ce43799ae393c7e8fe8fce9d218875e8227b0187c04e7d2ea1fc",
+  "key": "7d8ac6f5d6276d9411b66d4bfa232381",
+  "base_nonce": "626c42fcd01b1690bf10cb44",
+  "exporter_secret": "47c5306e700000a21465f2efd0c81d8df46e607b538fb330b213726d1004899e",
+  "encryptions": [
+   {
+    "sequence number": 0,
+    "pt": "4265617574792069732074727574682c20747275746820626561757479",
+    "aad": "436f756e742d30",
+    "nonce": "626c42fcd01b1690bf10cb44",
+    "ct": "dccc58fdd5dd0f80a162809a6bd47bf881ce2821b5ab718892dd568e2dcef6c98750fa1dc39a6182802ef3416c"
+   }
+  ],
+  "exports": [
+   {
+    "exporter_context": "54657374436f6e74657874",
+    "L": 32,
+    "exported_value": "b16979c789e60ff4a21a3975b785ed3114d44525a3f660a4a848891dcf54446a"
+   }
+  ]
+ },
+ {
+  "mode": 1,
+  "kem_id": 32,
+  "kdf_id": 1,
+  "aead_id": 1,
+  "info": "4f6465206f6e2061204772656369616e2055726e",
+  "ikmE": "78628c354e46f3e169bd231be7b2ff1c77aa302460a26dbfa15515684c00130b",
+  "ikmR": "d4a09d09f575fef425905d2ab396c1449141463f698f8efdb7accfaff8995098",
+  "skRm": "c5eb01eb457fe6c6f57577c5413b931550a162c71a03ac8d196babbd4e5ce0fd",
+  "pkRm": "9fed7e8c17387560e92cc6462a68049657246a09bfa8ade7aefe589672016366",
+  "enc": "0ad0950d9fb9588e59690b74f1237ecdf1d775cd60be2eca57af5a4b0471c91b",
+  "shared_secret": "727699f009ffe3c076315019c69648366b69171439bd7dd0807743bde76986cd",
+  "key": "ca4f3f1e77364e55e5554d480a8ee58a",
+  "base_nonce": "a8cf850e9bdd7d73155a5243",
+  "exporter_secret": "d08a0e5476626a7fccf354ec6b1787a238e53f8e38e96af3d2c4f76f6295007b",
+  "encryptions": [
+   {
+    "sequence number": 0,
+    "pt": "4265617574792069732074727574682c20747275746820626561757479",
+    "aad": "436f756e742d30",
+    "nonce": "a8cf850e9bdd7d73155a5243",
+    "ct": "cf34c6d0f86cd81c527cff7a2a20541cd017877d6e95f82f9dc13e6937bef65723bf43d4a2362690c20591ce67"
+   }
+  ],
+  "exports": [
+   {
+    "exporter_context": "54657374436f6e74657874",
+    "L": 32,
+    "exported_value": "000521bf952f7f7c56cf7dbf40ec1f6943a3233abe36a72d20aa4f87e0d90a95"
+   }
+  ],
+  "psk": "0000000000000000111111111111111100000000000000002222222222222222",
+  "psk_id": "0050534b00696400"
+ }
+]

@@ -1,4 +1,5 @@
-//! Key derivation functions for HPKE (RFC 9180 Section 4 and Section 7.2).
+//! Key derivation functions for HPKE (`draft-ietf-hpke-hpke-05` Section 4 and
+//! Section 7.2).
 
 use crypto::{
     Hash, MAX_HASH_OUTPUT_SIZE,
@@ -8,14 +9,14 @@ use crypto::{
 
 use super::HpkeError;
 
-/// The HPKE version label used by the labeled derivations (RFC 9180 Section 4
-/// and `draft-ietf-hpke-pq-05` Section 5).
+/// The HPKE version label used by the labeled derivations
+/// (`draft-ietf-hpke-hpke-05` Section 4.4).
 const VERSION_LABEL: &[u8] = b"HPKE-v1";
 
 /// Key derivation function (KDF) usable within an HPKE ciphersuite.
 ///
-/// The default implementations follow the RFC 9180 constructions on top of
-/// HKDF (RFC 5869) with the hash [`Kdf::Hash`]. `suite_id` is the caller's domain
+/// The default implementations follow the `draft-ietf-hpke-hpke-05`
+/// constructions on top of HKDF (RFC 5869) with the hash [`Kdf::Hash`]. `suite_id` is the caller's domain
 /// separator: the 5-byte KEM `suite_id` (`"KEM" || I2OSP(kem_id, 2)`) inside a
 /// KEM, or the 10-byte ciphersuite `suite_id` (`"HPKE" || I2OSP(kem_id, 2) ||
 /// I2OSP(kdf_id, 2) || I2OSP(aead_id, 2)`) everywhere else. Passing the wrong
@@ -26,14 +27,22 @@ const VERSION_LABEL: &[u8] = b"HPKE-v1";
 ///
 /// # Single-stage KDFs
 ///
-/// The RFC 9180 key schedule is *two-stage*: it is built from
-/// [`Kdf::labeled_extract`] and [`Kdf::labeled_expand`]. KDFs based on an
-/// extendable-output function, such as the SHAKE256 KDF of
-/// `draft-ietf-hpke-pq-05`, are *single-stage*: they derive the whole key
-/// schedule from a single [`Kdf::labeled_derive`] call. A single-stage KDF
-/// sets [`Kdf::SINGLE_STAGE`] to `true` and overrides
+/// The two-stage key schedule is built from
+/// [`Kdf::labeled_extract`] and [`Kdf::labeled_expand`]. `draft-ietf-hpke-hpke-05` also defines
+/// single-stage KDFs which derive the whole key schedule from a single [`Kdf::labeled_derive`] call,
+/// such as the SHAKE256 KDF of `draft-ietf-hpke-pq-05`.
+/// A single-stage KDF sets [`Kdf::SINGLE_STAGE`] to `true` and overrides
 /// [`Kdf::labeled_derive`] (its [`Kdf::labeled_extract`] and
 /// [`Kdf::labeled_expand`] implementations are never used).
+///
+/// # Input length restrictions
+///
+/// A single-stage `LabeledDerive` prefixes each length with two bytes, so the
+/// `psk`, `psk_id`, and `info` inputs are limited to 65,535 bytes; the key
+/// schedule and single-stage export enforce this (`draft-ietf-hpke-hpke-05`
+/// Section 7.2.1). For two-stage KDFs the inputs are streamed into the
+/// underlying KDF, so `info` values of at least 16,384 bytes are supported, as
+/// Section 7.2.1 recommends.
 ///
 /// # Example
 ///
@@ -46,7 +55,7 @@ const VERSION_LABEL: &[u8] = b"HPKE-v1";
 /// HkdfSha256::labeled_expand(&mut output_keying_material, &pseudorandom_key, suite_id, b"label", b"info").unwrap();
 /// ```
 pub trait Kdf {
-    /// The HPKE KDF identifier (RFC 9180 Section 7.2, IANA "HPKE KDF
+    /// The HPKE KDF identifier (`draft-ietf-hpke-hpke-05` Section 7.2, IANA "HPKE KDF
     /// Identifiers"), used to build the ciphersuite `suite_id`.
     const HPKE_KDF_ID: u16;
 
@@ -58,15 +67,16 @@ pub trait Kdf {
     /// Must not exceed [`MAX_HASH_OUTPUT_SIZE`].
     const OUTPUT_SIZE: usize = <Self::Hash as crypto::Hasher>::OUTPUT_SIZE;
 
-    /// Whether this is a single-stage KDF (`draft-ietf-hpke-pq-05` Section 5).
+    /// Whether this is a single-stage KDF (`draft-ietf-hpke-hpke-05` Section 4).
     ///
-    /// Two-stage KDFs (the default) use the RFC 9180 key schedule built on
+    /// Two-stage KDFs (the default) use the two-stage key schedule built on
     /// [`Kdf::labeled_extract`] and [`Kdf::labeled_expand`]. Single-stage KDFs
     /// (e.g. [`Shake256`]) build the schedule from a single
     /// [`Kdf::labeled_derive`] call and MUST override it.
     const SINGLE_STAGE: bool = false;
 
-    /// RFC 9180 Section 4 `LabeledExtract(salt, label, input_keying_material)`:
+    /// `draft-ietf-hpke-hpke-05` Section 4.4
+    /// `LabeledExtract(salt, label, input_keying_material)`:
     /// `Extract(salt, "HPKE-v1" || suite_id || label || input_keying_material)`.
     ///
     /// `salt` may be empty, in which case the HKDF default salt (a string of
@@ -83,7 +93,8 @@ pub trait Kdf {
         return mac.finalize();
     }
 
-    /// RFC 9180 Section 4 `LabeledExpand(pseudorandom_key, label, info, L)`:
+    /// `draft-ietf-hpke-hpke-05` Section 4.4
+    /// `LabeledExpand(pseudorandom_key, label, info, L)`:
     /// `Expand(pseudorandom_key, I2OSP(L, 2) || "HPKE-v1" || suite_id || label || info, L)`,
     /// where `L == out.len()`. The `info` string is absorbed incrementally, so
     /// it may be arbitrarily long.
@@ -143,7 +154,7 @@ pub trait Kdf {
         return Ok(());
     }
 
-    /// `draft-ietf-hpke-pq-05` Section 5
+    /// `draft-ietf-hpke-hpke-05` Section 4.4
     /// `LabeledDerive(input_keying_material, label, context, L)`:
     /// `Derive(input_keying_material || "HPKE-v1" || suite_id ||
     /// I2OSP(len(label), 2) || label || I2OSP(L, 2) || context, L)`, where
@@ -195,7 +206,7 @@ impl Kdf for HkdfSha512 {
 ///
 /// SHAKE256 is a single-stage KDF with an output size of 64 bytes. It derives
 /// the key schedule with a single [`Kdf::labeled_derive`] call instead of the
-/// RFC 9180 `LabeledExtract`/`LabeledExpand` construction, and is a natural
+/// two-stage `LabeledExtract`/`LabeledExpand` construction, and is a natural
 /// pairing with the hybrid post-quantum KEMs defined in the same draft.
 ///
 /// # Example
