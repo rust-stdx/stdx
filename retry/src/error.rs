@@ -1,4 +1,4 @@
-use std::fmt::{self, Display, Formatter};
+use core::fmt::{self, Display, Formatter};
 
 /// Error returned when all retry attempts are exhausted.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,4 +40,4 @@ impl<E: Display> Display for Error<E> {
     }
 }
 
-impl<E: Display + std::fmt::Debug> std::error::Error for Error<E> {}
+impl<E: Display + core::fmt::Debug> core::error::Error for Error<E> {}

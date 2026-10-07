@@ -57,8 +57,8 @@ impl Display for MaxMindDBError {
     }
 }
 
-// Use default implementation for `std::error::Error`
-impl std::error::Error for MaxMindDBError {}
+// Use default implementation for `core::error::Error`
+impl core::error::Error for MaxMindDBError {}
 
 impl de::Error for MaxMindDBError {
     fn custom<T: Display>(msg: T) -> Self {

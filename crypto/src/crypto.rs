@@ -85,8 +85,7 @@ impl core::fmt::Display for HashError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for HashError {}
+impl core::error::Error for HashError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AeadError {
@@ -107,8 +106,7 @@ impl core::fmt::Display for AeadError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for AeadError {}
+impl core::error::Error for AeadError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EllipticCurveError {
@@ -131,8 +129,7 @@ impl core::fmt::Display for EllipticCurveError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for EllipticCurveError {}
+impl core::error::Error for EllipticCurveError {}
 
 impl From<RandomError> for EllipticCurveError {
     fn from(err: RandomError) -> Self {
@@ -159,8 +156,7 @@ impl core::fmt::Display for RsaError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for RsaError {}
+impl core::error::Error for RsaError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HkdfError {
@@ -179,8 +175,7 @@ impl core::fmt::Display for HkdfError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for HkdfError {}
+impl core::error::Error for HkdfError {}
 
 /// Error returned when the operating system's random number generator fails.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -204,8 +199,7 @@ impl core::fmt::Display for RandomError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for RandomError {}
+impl core::error::Error for RandomError {}
 
 #[cfg(feature = "random")]
 impl From<getrandom::Error> for RandomError {

@@ -119,4 +119,6 @@ Any contribution submitted for inclusion in this project shall be licensed as ab
 | `serde_urlencoded` | https://github.com/nox/serde_urlencoded | 0cca840185fa85b39e2cc8a0b2547fff5ace8e68 | MIT |
 | `serde_yaml` | https://github.com/dtolnay/serde-yaml | 2009506d33767dfc88e979d6bc0d53d09f941c94 | MIT |
 | `tld` | https://github.com/rushmorem/publicsuffix | 47958d65a3eab3a01e4a9cf46ccf40c11a7e8052 | MIT |
+| `thiserror` | https://github.com/dtolnay/thiserror | b1827ee06f81a7d7f954e676771e19a97f9f8e3b | MIT OR Apache-2.0 |
 | `unsafe_libyaml` | https://crates.io/crates/unsafe-libyaml | 417668ce6565ece14bbd9b4a73137d9241ea1365 | MIT |
+| `zeroize` | https://github.com/RustCrypto/utils | 34a6ebcb9b920ec7ae5809e470fce94fe7c0cb55 | Apache-2.0 OR MIT |

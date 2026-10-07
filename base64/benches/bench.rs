@@ -1,7 +1,9 @@
+use std::hint::black_box;
+
 use base64::{
     Alphabet, decode_into, decode_into_constant_time, encode, encode_into, encode_into_constant_time, encoded_length,
 };
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 const DATA_SIZES: &[usize] = &[32, 256, 4096, 64 * 1024];
 

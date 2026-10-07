@@ -8,8 +8,6 @@ description = "Semantic Versioning 2.0 parser and comparator"
 path = "./semver.rs"
 
 [features]
-default = ["std"]
-std = ["serde/std"]
 serde = ["dep:serde"]
 
 [dependencies]

@@ -104,6 +104,12 @@ let key: [u8; 32] = pbkdf2::derive(b"password", b"salt", 600_000);
 // Constant-time comparison
 use constant_time_eq::constant_time_eq;
 assert!(constant_time_eq(b"secret", b"secret"));
+
+// Secure zeroization of secrets in memory
+use zeroize::{Zeroize, Zeroizing};
+let mut key = [0u8; 32];
+key.zeroize();
+let key = Zeroizing::new([0u8; 32]); // automatically zeroized on drop
 ```
 
 ### TLS (rustls)

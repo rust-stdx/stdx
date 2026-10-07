@@ -1,19 +1,21 @@
 use std::collections::BTreeSet as Set;
 
-use proc_macro2::{Delimiter, Group, Span, TokenStream, TokenTree};
-use quote::{ToTokens, format_ident, quote};
+use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::{
-    Attribute, Error, Ident, Index, LitInt, LitStr, Meta, Result, Token, braced, bracketed, parenthesized,
-    parse::{ParseStream, discouraged::Speculative},
+    Attribute, Error, ExprPath, Ident, Index, LitFloat, LitInt, LitStr, Meta, Result, Token, braced, bracketed,
+    parenthesized,
+    parse::{End, ParseStream, discouraged::Speculative},
     token,
 };
 
 pub struct Attrs<'a> {
     pub display: Option<Display<'a>>,
-    pub source: Option<&'a Attribute>,
+    pub source: Option<Source<'a>>,
     pub backtrace: Option<&'a Attribute>,
-    pub from: Option<&'a Attribute>,
+    pub from: Option<From<'a>>,
     pub transparent: Option<Transparent<'a>>,
+    pub fmt: Option<Fmt<'a>>,
 }
 
 #[derive(Clone)]
@@ -23,13 +25,33 @@ pub struct Display<'a> {
     pub args: TokenStream,
     pub requires_fmt_machinery: bool,
     pub has_bonus_display: bool,
+    pub infinite_recursive: bool,
     pub implied_bounds: Set<(usize, Trait)>,
+    pub bindings: Vec<(Ident, TokenStream)>,
+}
+
+#[derive(Copy, Clone)]
+pub struct Source<'a> {
+    pub original: &'a Attribute,
+    pub span: Span,
+}
+
+#[derive(Copy, Clone)]
+pub struct From<'a> {
+    pub original: &'a Attribute,
+    pub span: Span,
 }
 
 #[derive(Copy, Clone)]
 pub struct Transparent<'a> {
     pub original: &'a Attribute,
     pub span: Span,
+}
+
+#[derive(Clone)]
+pub struct Fmt<'a> {
+    pub original: &'a Attribute,
+    pub path: ExprPath,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -45,13 +67,14 @@ pub enum Trait {
     UpperExp,
 }
 
-pub fn get(input: &[Attribute]) -> Result<Attrs<'_>> {
+pub fn get(input: &[Attribute]) -> Result<Attrs> {
     let mut attrs = Attrs {
         display: None,
         source: None,
         backtrace: None,
         from: None,
         transparent: None,
+        fmt: None,
     };
 
     for attr in input {
@@ -62,7 +85,13 @@ pub fn get(input: &[Attribute]) -> Result<Attrs<'_>> {
             if attrs.source.is_some() {
                 return Err(Error::new_spanned(attr, "duplicate #[source] attribute"));
             }
-            attrs.source = Some(attr);
+            let span = (attr.pound_token.span)
+                .join(attr.bracket_token.span.join())
+                .unwrap_or(attr.path().get_ident().unwrap().span());
+            attrs.source = Some(Source {
+                original: attr,
+                span,
+            });
         } else if attr.path().is_ident("backtrace") {
             attr.meta.require_path_only()?;
             if attrs.backtrace.is_some() {
@@ -80,7 +109,13 @@ pub fn get(input: &[Attribute]) -> Result<Attrs<'_>> {
             if attrs.from.is_some() {
                 return Err(Error::new_spanned(attr, "duplicate #[from] attribute"));
             }
-            attrs.from = Some(attr);
+            let span = (attr.pound_token.span)
+                .join(attr.bracket_token.span.join())
+                .unwrap_or(attr.path().get_ident().unwrap().span());
+            attrs.from = Some(From {
+                original: attr,
+                span,
+            });
         }
     }
 
@@ -88,10 +123,17 @@ pub fn get(input: &[Attribute]) -> Result<Attrs<'_>> {
 }
 
 fn parse_error_attribute<'a>(attrs: &mut Attrs<'a>, attr: &'a Attribute) -> Result<()> {
-    syn::custom_keyword!(transparent);
+    mod kw {
+        syn::custom_keyword!(transparent);
+        syn::custom_keyword!(fmt);
+    }
 
     attr.parse_args_with(|input: ParseStream| {
-        if let Some(kw) = input.parse::<Option<transparent>>()? {
+        let lookahead = input.lookahead1();
+        let fmt = if lookahead.peek(LitStr) {
+            input.parse::<LitStr>()?
+        } else if lookahead.peek(kw::transparent) {
+            let kw: kw::transparent = input.parse()?;
             if attrs.transparent.is_some() {
                 return Err(Error::new_spanned(attr, "duplicate #[error(transparent)] attribute"));
             }
@@ -100,14 +142,24 @@ fn parse_error_attribute<'a>(attrs: &mut Attrs<'a>, attr: &'a Attribute) -> Resu
                 span: kw.span,
             });
             return Ok(());
-        }
+        } else if lookahead.peek(kw::fmt) {
+            input.parse::<kw::fmt>()?;
+            input.parse::<Token![=]>()?;
+            let path: ExprPath = input.parse()?;
+            if attrs.fmt.is_some() {
+                return Err(Error::new_spanned(attr, "duplicate #[error(fmt = ...)] attribute"));
+            }
+            attrs.fmt = Some(Fmt {
+                original: attr,
+                path,
+            });
+            return Ok(());
+        } else {
+            return Err(lookahead.error());
+        };
 
-        let fmt: LitStr = input.parse()?;
-
-        let ahead = input.fork();
-        ahead.parse::<Option<Token![,]>>()?;
-        let args = if ahead.is_empty() {
-            input.advance_to(&ahead);
+        let args = if input.is_empty() || input.peek(Token![,]) && input.peek2(End) {
+            input.parse::<Option<Token![,]>>()?;
             TokenStream::new()
         } else {
             parse_token_expr(input, false)?
@@ -121,7 +173,9 @@ fn parse_error_attribute<'a>(attrs: &mut Attrs<'a>, attr: &'a Attribute) -> Resu
             args,
             requires_fmt_machinery,
             has_bonus_display: false,
+            infinite_recursive: false,
             implied_bounds: Set::new(),
+            bindings: Vec::new(),
         };
         if attrs.display.is_some() {
             return Err(Error::new_spanned(attr, "only one #[error(...)] attribute is allowed"));
@@ -133,22 +187,68 @@ fn parse_error_attribute<'a>(attrs: &mut Attrs<'a>, attr: &'a Attribute) -> Resu
 
 fn parse_token_expr(input: ParseStream, mut begin_expr: bool) -> Result<TokenStream> {
     let mut tokens = Vec::new();
+    let mut turbofish = 0usize;
     while !input.is_empty() {
+        if input.peek(token::Group) {
+            let group: TokenTree = input.parse()?;
+            tokens.push(group);
+            begin_expr = false;
+            continue;
+        }
+
         if begin_expr && input.peek(Token![.]) {
             if input.peek2(Ident) {
                 input.parse::<Token![.]>()?;
                 begin_expr = false;
                 continue;
-            }
-            if input.peek2(LitInt) {
+            } else if input.peek2(LitInt) {
                 input.parse::<Token![.]>()?;
                 let int: Index = input.parse()?;
-                let ident = format_ident!("_{}", int.index, span = int.span);
-                tokens.push(TokenTree::Ident(ident));
+                tokens.push({
+                    let ident = format_ident!("_{}", int.index, span = int.span);
+                    TokenTree::Ident(ident)
+                });
                 begin_expr = false;
                 continue;
+            } else if input.peek2(LitFloat) {
+                let ahead = input.fork();
+                ahead.parse::<Token![.]>()?;
+                let float: LitFloat = ahead.parse()?;
+                let repr = float.to_string();
+                let mut indices = repr.split('.').map(syn::parse_str::<Index>);
+                if let (Some(Ok(first)), Some(Ok(second)), None) = (indices.next(), indices.next(), indices.next()) {
+                    input.advance_to(&ahead);
+                    tokens.push({
+                        let ident = format_ident!("_{}", first, span = float.span());
+                        TokenTree::Ident(ident)
+                    });
+                    tokens.push({
+                        let mut punct = Punct::new('.', Spacing::Alone);
+                        punct.set_span(float.span());
+                        TokenTree::Punct(punct)
+                    });
+                    tokens.push({
+                        let mut literal = Literal::u32_unsuffixed(second.index);
+                        literal.set_span(float.span());
+                        TokenTree::Literal(literal)
+                    });
+                    begin_expr = false;
+                    continue;
+                }
             }
         }
+
+        let closes_turbofish = if input.peek(Token![<]) {
+            if turbofish > 0 || follows_path_sep(&tokens) {
+                turbofish += 1;
+            }
+            false
+        } else if turbofish > 0 && input.peek(Token![>]) && !follows_hyphen(&tokens) {
+            turbofish -= 1;
+            true
+        } else {
+            false
+        };
 
         begin_expr = input.peek(Token![break])
             || input.peek(Token![continue])
@@ -165,7 +265,7 @@ fn parse_token_expr(input: ParseStream, mut begin_expr: bool) -> Result<TokenStr
             || input.peek(Token![,])
             || input.peek(Token![/])
             || input.peek(Token![=])
-            || input.peek(Token![>])
+            || input.peek(Token![>]) && !closes_turbofish
             || input.peek(Token![<])
             || input.peek(Token![|])
             || input.peek(Token![%])
@@ -202,21 +302,59 @@ fn parse_token_expr(input: ParseStream, mut begin_expr: bool) -> Result<TokenStr
     Ok(TokenStream::from_iter(tokens))
 }
 
+fn follows_path_sep(tokens: &[TokenTree]) -> bool {
+    matches!(
+        tokens.last_chunk(),
+        Some([TokenTree::Punct(p), TokenTree::Punct(q)])
+            if p.spacing() == Spacing::Joint
+                && p.as_char() == ':'
+                && q.as_char() == ':',
+    )
+}
+
+fn follows_hyphen(tokens: &[TokenTree]) -> bool {
+    matches!(
+        tokens.last(),
+        Some(TokenTree::Punct(p))
+            if p.spacing() == Spacing::Joint && p.as_char() == '-',
+    )
+}
+
 impl ToTokens for Display<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        if self.infinite_recursive {
+            let span = self.fmt.span();
+            tokens.extend(quote_spanned! {span=>
+                #[warn(unconditional_recursion)]
+                fn _fmt() { _fmt() }
+            });
+        }
+
         let fmt = &self.fmt;
         let args = &self.args;
 
         // Currently `write!(f, "text")` produces less efficient code than
         // `f.write_str("text")`. We recognize the case when the format string
         // has no braces and no interpolated values, and generate simpler code.
-        tokens.extend(if self.requires_fmt_machinery {
+        let write = if self.requires_fmt_machinery {
             quote! {
                 ::core::write!(__formatter, #fmt #args)
             }
         } else {
             quote! {
                 __formatter.write_str(#fmt)
+            }
+        };
+
+        tokens.extend(if self.bindings.is_empty() {
+            write
+        } else {
+            let locals = self.bindings.iter().map(|(local, _value)| local);
+            let values = self.bindings.iter().map(|(_local, value)| value);
+            quote! {
+                match (#(#values,)*) {
+                    (#(#locals,)*) => #write
+                }
             }
         });
     }

@@ -9,8 +9,6 @@
 //! This library provides a convenient derive macro for the standard library's
 //! [`std::error::Error`] trait.
 //!
-//! [`std::error::Error`]: https://doc.rust-lang.org/std/error/trait.Error.html
-//!
 //! <br>
 //!
 //! # Example
@@ -40,14 +38,14 @@
 //! # Details
 //!
 //! - Thiserror deliberately does not appear in your public API. You get the
-//!   same thing as if you had written an implementation of `std::error::Error`
-//!   by hand, and switching from handwritten impls to thiserror or vice versa
-//!   is not a breaking change.
+//!   same thing as if you had written an implementation of
+//!   [`std::error::Error`] by hand, and switching from handwritten impls to
+//!   thiserror or vice versa is not a breaking change.
 //!
 //! - Errors may be enums, structs with named fields, tuple structs, or unit
 //!   structs.
 //!
-//! - A `Display` impl is generated for your error if you provide
+//! - A [`Display`] impl is generated for your error if you provide
 //!   `#[error("...")]` messages on the struct or each variant of your enum, as
 //!   shown above in the example.
 //!
@@ -67,7 +65,7 @@
 //!   #
 //!   #[derive(Error, Debug)]
 //!   pub enum Error {
-//!       #[error("invalid rdo_lookahead_frames {0} (expected < {})", i32::MAX)]
+//!       #[error("invalid rdo_lookahead_frames {0} (expected < {max})", max = i32::MAX)]
 //!       InvalidLookahead(u32),
 //!   }
 //!   ```
@@ -98,27 +96,39 @@
 //!   }
 //!   ```
 //!
-//! - A `From` impl is generated for each variant containing a `#[from]`
+//! - A [`From`] impl is generated for each variant that contains a `#[from]`
 //!   attribute.
 //!
-//!   Note that the variant must not contain any other fields beyond the source
-//!   error and possibly a backtrace. A backtrace is captured from within the
-//!   `From` impl if there is a field for it.
+//!   The variant using `#[from]` must not contain any other fields beyond the
+//!   source error (and possibly a backtrace &mdash; see below). Usually
+//!   `#[from]` fields are unnamed, but `#[from]` is allowed on a named field
+//!   too.
 //!
 //!   ```rust
-//!   # const IGNORE: &str = stringify! {
+//!   # use core::fmt::{self, Display};
+//!   # use std::io;
+//!   # use thiserror::Error;
+//!   #
+//!   # mod globset {
+//!   #     #[derive(thiserror::Error, Debug)]
+//!   #     #[error("...")]
+//!   #     pub struct Error;
+//!   # }
+//!   #
 //!   #[derive(Error, Debug)]
 //!   pub enum MyError {
-//!       Io {
-//!           #[from]
-//!           source: io::Error,
-//!           backtrace: Backtrace,
-//!       },
+//!       Io(#[from] io::Error),
+//!       Glob(#[from] globset::Error),
 //!   }
-//!   # };
+//!   #
+//!   # impl Display for MyError {
+//!   #     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//!   #         unimplemented!()
+//!   #     }
+//!   # }
 //!   ```
 //!
-//! - The Error trait's `source()` method is implemented to return whichever
+//! - The Error trait's [`source()`] method is implemented to return whichever
 //!   field has a `#[source]` attribute or is named `source`, if any. This is
 //!   for identifying the underlying lower level error that caused your error.
 //!
@@ -146,9 +156,10 @@
 //!   # }
 //!   ```
 //!
-//! - The Error trait's `provide()` method is implemented to provide whichever
+//! - The Error trait's [`provide()`] method is implemented to provide whichever
 //!   field has a type named `Backtrace`, if any, as a
-//!   `std::backtrace::Backtrace`.
+//!   [`std::backtrace::Backtrace`]. Using `Backtrace` in errors requires a
+//!   nightly compiler with Rust version 1.73 or newer.
 //!
 //!   ```rust
 //!   # const IGNORE: &str = stringify! {
@@ -164,8 +175,9 @@
 //!
 //! - If a field is both a source (named `source`, or has `#[source]` or
 //!   `#[from]` attribute) *and* is marked `#[backtrace]`, then the Error
-//!   trait's `provide()` method is forwarded to the source's `provide` so that
-//!   both layers of the error share the same backtrace.
+//!   trait's [`provide()`] method is forwarded to the source's `provide` so
+//!   that both layers of the error share the same backtrace. The `#[backtrace]`
+//!   attribute requires a nightly compiler with Rust version 1.73 or newer.
 //!
 //!   ```rust
 //!   # const IGNORE: &str = stringify! {
@@ -179,7 +191,23 @@
 //!   # };
 //!   ```
 //!
-//! - Errors may use `error(transparent)` to forward the source and Display
+//! - For variants that use `#[from]` and also contain a `Backtrace` field, a
+//!   backtrace is captured from within the `From` impl.
+//!
+//!   ```rust
+//!   # const IGNORE: &str = stringify! {
+//!   #[derive(Error, Debug)]
+//!   pub enum MyError {
+//!       Io {
+//!           #[from]
+//!           source: io::Error,
+//!           backtrace: Backtrace,
+//!       },
+//!   }
+//!   # };
+//!   ```
+//!
+//! - Errors may use `error(transparent)` to forward the source and [`Display`]
 //!   methods straight through to an underlying error without adding an
 //!   additional message. This would be appropriate for enums that need an
 //!   "anything else" variant.
@@ -226,10 +254,15 @@
 //! - See also the [`anyerr`] library for a convenient single error type to use
 //!   in application code.
 //!
-//!   [`anyerr`]: https://github.com/rust-stdx/stdx
+//! [`anyerr`]: https://github.com/rust-stdx/stdx
+//! [`source()`]: std::error::Error::source
+//! [`provide()`]: std::error::Error::provide
+//! [`Display`]: std::fmt::Display
 
-#![doc(html_root_url = "https://docs.rs/thiserror/1.0.61")]
+#![no_std]
+#![doc(html_root_url = "https://docs.rs/thiserror/2.0.21")]
 #![allow(
+    clippy::elidable_lifetime_names,
     clippy::module_name_repetitions,
     clippy::needless_lifetimes,
     clippy::return_self_not_must_use,
@@ -240,21 +273,19 @@
 #[cfg(all(thiserror_nightly_testing, not(error_generic_member_access)))]
 compile_error!("Build script probe failed to compile.");
 
+#[cfg(feature = "std")]
+extern crate std;
+#[cfg(feature = "std")]
+extern crate std as core;
+
 mod aserror;
 mod display;
 #[cfg(error_generic_member_access)]
 mod provide;
+mod var;
 
 pub use thiserror_impl::*;
 
-// Not public API.
-#[doc(hidden)]
-pub mod __private {
-    #[doc(hidden)]
-    pub use crate::aserror::AsDynError;
-    #[doc(hidden)]
-    pub use crate::display::AsDisplay;
-    #[cfg(error_generic_member_access)]
-    #[doc(hidden)]
-    pub use crate::provide::ThiserrorProvide;
-}
+mod private;
+
+include!(concat!(env!("OUT_DIR"), "/private.rs"));

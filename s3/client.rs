@@ -47,7 +47,7 @@ pub struct Client<H: HttpClient> {
 #[derive(Debug)]
 pub enum Error {
     InvalidConfig(&'static str),
-    Http(Box<dyn std::error::Error + Send + Sync>),
+    Http(Box<dyn core::error::Error + Send + Sync>),
     Time(std::time::SystemTimeError),
     Xml(quick_xml::DeError),
     Api { status: u16, body: String },
@@ -68,8 +68,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for Error {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             Error::Http(err) => Some(&**err),
             _ => None,
@@ -89,7 +89,7 @@ impl From<quick_xml::DeError> for Error {
     }
 }
 
-pub type HttpError = Box<dyn std::error::Error + Send + Sync>;
+pub type HttpError = Box<dyn core::error::Error + Send + Sync>;
 
 /// A pinned, boxed async stream of byte chunks.
 pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, HttpError>> + Send>>;

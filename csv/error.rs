@@ -34,7 +34,7 @@ pub struct ReadError {
     pub line: usize,
     pub column: usize,
     #[cfg(feature = "std")]
-    source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    source: Option<Box<dyn core::error::Error + Send + Sync + 'static>>,
 }
 
 impl ReadError {
@@ -54,7 +54,7 @@ impl ReadError {
 
     /// The inner source error, if any (e.g. the original `std::io::Error` or serde error).
     #[cfg(feature = "std")]
-    pub fn into_source(self) -> Option<Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub fn into_source(self) -> Option<Box<dyn core::error::Error + Send + Sync + 'static>> {
         self.source
     }
 }
@@ -108,17 +108,20 @@ impl fmt::Display for ReadError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for ReadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source
-            .as_ref()
-            .map(|b| b.as_ref() as &(dyn std::error::Error + 'static))
+impl core::error::Error for ReadError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        #[cfg(feature = "std")]
+        {
+            self.source
+                .as_ref()
+                .map(|b| b.as_ref() as &(dyn core::error::Error + 'static))
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            None
+        }
     }
 }
-
-#[cfg(all(not(feature = "std"), feature = "serde"))]
-impl core::error::Error for ReadError {}
 
 #[cfg(feature = "std")]
 impl From<std::io::Error> for ReadError {
@@ -171,18 +174,15 @@ impl fmt::Display for WriteError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for WriteError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for WriteError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
+            #[cfg(feature = "std")]
             WriteError::Io(e) => Some(e),
             _ => None,
         }
     }
 }
-
-#[cfg(not(feature = "std"))]
-impl core::error::Error for WriteError {}
 
 #[cfg(feature = "std")]
 impl From<std::io::Error> for WriteError {

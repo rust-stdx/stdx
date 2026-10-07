@@ -1,5 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(test), no_std)]
 
 //! A [Semantic Versioning 2.0.0] parser and comparator.
 //!
@@ -114,8 +114,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for ParseError {}
+impl core::error::Error for ParseError {}
 
 /// A parsed pre-release identifier: either a numeric value or an alphanumeric string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

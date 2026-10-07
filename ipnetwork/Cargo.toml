@@ -8,7 +8,7 @@ keywords = ["network", "ip", "address", "cidr"]
 readme = "README.md"
 categories = ["network-programming", "parser-implementations"]
 edition = "2021"
-rust-version = "1.80.0"
+rust-version = "1.85"
 
 [dependencies]
 serde = { workspace = true, optional = true, features = ["std", "derive"] }

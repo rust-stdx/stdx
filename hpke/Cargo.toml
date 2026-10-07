@@ -8,10 +8,9 @@ description = "Hybrid Public Key Encryption (draft-ietf-hpke-hpke-05, which obso
 path = "./hpke.rs"
 
 [features]
-default = ["std", "zeroize"]
+default = ["alloc", "random", "zeroize"]
 alloc = ["crypto/alloc"]
 random = ["crypto/random"]
-std = ["alloc", "random", "crypto/std"]
 zeroize = ["dep:zeroize", "crypto/zeroize"]
 
 [dependencies]

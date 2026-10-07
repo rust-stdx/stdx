@@ -1,4 +1,4 @@
-#![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![cfg_attr(not(test), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! Fast base32 encoding and decoding with SIMD acceleration, constant-time
@@ -23,8 +23,7 @@
 //!
 //! | Flag    | Description                                             |
 //! |---------|---------------------------------------------------------|
-//! | `std`   | [`std::error::Error`] trait impls (enabled by default)  |
-//! | `alloc` | `String`/`Vec`-returning convenience APIs               |
+//! | `alloc` | `String`/`Vec`-returning convenience APIs (enabled by default) |
 //! | `serde` | Serde [`serialize`](crate::serde::serialize)/[`deserialize`](crate::serde::deserialize) helpers  |
 //!
 //! # Performance
@@ -150,11 +149,9 @@ impl core::fmt::Display for DecodeError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for EncodeError {}
+impl core::error::Error for EncodeError {}
 
-#[cfg(feature = "std")]
-impl std::error::Error for DecodeError {}
+impl core::error::Error for DecodeError {}
 
 /// Returns the size in bytes of the input data after base32 encoding.
 ///

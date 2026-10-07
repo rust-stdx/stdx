@@ -459,8 +459,7 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 /// A wall clock used to check tokens expiration.
 ///

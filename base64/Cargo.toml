@@ -8,9 +8,8 @@ description = "Fast base64 encoding and decoding with SIMD acceleration when ava
 path = "./base64.rs"
 
 [features]
-default = ["std"]
+default = ["alloc"]
 alloc = []
-std = ["alloc"]
 serde = ["dep:serde"]
 
 [dependencies]

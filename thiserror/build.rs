@@ -1,16 +1,33 @@
 use std::{
     env,
     ffi::OsString,
+    fs,
+    io::ErrorKind,
     iter,
-    path::Path,
+    path::{Path, PathBuf},
     process::{self, Command, Stdio},
+    str,
 };
+
+const PRIVATE: &str = "\
+#[doc(hidden)]
+pub mod __private$$ {
+    #[doc(hidden)]
+    pub use crate::private::*;
+}
+";
 
 fn main() {
     println!("cargo:rerun-if-changed=build/probe.rs");
 
     println!("cargo:rustc-check-cfg=cfg(error_generic_member_access)");
     println!("cargo:rustc-check-cfg=cfg(thiserror_nightly_testing)");
+    println!("cargo:rustc-check-cfg=cfg(thiserror_no_backtrace_type)");
+
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let patch_version = env::var("CARGO_PKG_VERSION_PATCH").unwrap();
+    let module = PRIVATE.replace("$$", &patch_version);
+    fs::write(out_dir.join("private.rs"), module).unwrap();
 
     let error_generic_member_access;
     let consider_rustc_bootstrap;
@@ -54,6 +71,23 @@ fn main() {
     if consider_rustc_bootstrap {
         println!("cargo:rerun-if-env-changed=RUSTC_BOOTSTRAP");
     }
+
+    // core::error::Error stabilized in Rust 1.81
+    // https://blog.rust-lang.org/2024/09/05/Rust-1.81.0.html#coreerrorerror
+    let rustc = rustc_minor_version();
+    if cfg!(not(feature = "std")) && rustc.is_some_and(|rustc| rustc < 81) {
+        println!("cargo:rustc-cfg=feature=\"std\"");
+    }
+
+    let Some(rustc) = rustc else {
+        return;
+    };
+
+    // std::backtrace::Backtrace stabilized in Rust 1.65
+    // https://blog.rust-lang.org/2022/11/03/Rust-1.65.0.html#stabilized-apis
+    if rustc < 65 {
+        println!("cargo:rustc-cfg=thiserror_no_backtrace_type");
+    }
 }
 
 fn compile_probe(rustc_bootstrap: bool) -> bool {
@@ -70,7 +104,15 @@ fn compile_probe(rustc_bootstrap: bool) -> bool {
 
     let rustc = cargo_env_var("RUSTC");
     let out_dir = cargo_env_var("OUT_DIR");
+    let out_subdir = Path::new(&out_dir).join("probe");
     let probefile = Path::new("build").join("probe.rs");
+
+    if let Err(err) = fs::create_dir(&out_subdir) {
+        if err.kind() != ErrorKind::AlreadyExists {
+            eprintln!("Failed to create {}: {}", out_subdir.display(), err);
+            process::exit(1);
+        }
+    }
 
     let rustc_wrapper = env::var_os("RUSTC_WRAPPER").filter(|wrapper| !wrapper.is_empty());
     let rustc_workspace_wrapper = env::var_os("RUSTC_WORKSPACE_WRAPPER").filter(|wrapper| !wrapper.is_empty());
@@ -92,7 +134,7 @@ fn compile_probe(rustc_bootstrap: bool) -> bool {
         .arg("--cap-lints=allow")
         .arg("--emit=dep-info,metadata")
         .arg("--out-dir")
-        .arg(out_dir)
+        .arg(&out_subdir)
         .arg(probefile);
 
     if let Some(target) = env::var_os("TARGET") {
@@ -108,15 +150,46 @@ fn compile_probe(rustc_bootstrap: bool) -> bool {
         }
     }
 
-    match cmd.status() {
+    let success = match cmd.status() {
         Ok(status) => status.success(),
         Err(_) => false,
+    };
+
+    // Clean up to avoid leaving nondeterministic absolute paths in the dep-info
+    // file in OUT_DIR, which causes nonreproducible builds in build systems
+    // that treat the entire OUT_DIR as an artifact.
+    if let Err(err) = fs::remove_dir_all(&out_subdir) {
+        // libc::ENOTEMPTY
+        // Some filesystems (NFSv3) have timing issues under load where '.nfs*'
+        // dummy files can continue to get created for a short period after the
+        // probe command completes, breaking remove_dir_all.
+        // To be replaced with ErrorKind::DirectoryNotEmpty (Rust 1.83+).
+        const ENOTEMPTY: i32 = 39;
+
+        if !(err.kind() == ErrorKind::NotFound || (cfg!(target_os = "linux") && err.raw_os_error() == Some(ENOTEMPTY)))
+        {
+            eprintln!("Failed to clean up {}: {}", out_subdir.display(), err);
+            process::exit(1);
+        }
     }
+
+    success
+}
+
+fn rustc_minor_version() -> Option<u32> {
+    let rustc = cargo_env_var("RUSTC");
+    let output = Command::new(rustc).arg("--version").output().ok()?;
+    let version = str::from_utf8(&output.stdout).ok()?;
+    let mut pieces = version.split('.');
+    if pieces.next() != Some("rustc 1") {
+        return None;
+    }
+    pieces.next()?.parse().ok()
 }
 
 fn cargo_env_var(key: &str) -> OsString {
     env::var_os(key).unwrap_or_else(|| {
-        eprintln!("Environment variable ${} is not set during execution of build script", key,);
+        eprintln!("Environment variable ${key} is not set during execution of build script");
         process::exit(1);
     })
 }

@@ -51,8 +51,7 @@ impl From<DerError> for EcdsaError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for EcdsaError {}
+impl core::error::Error for EcdsaError {}
 
 fn push_length(out: &mut Vec<u8>, len: usize) {
     if len < 0x80 {

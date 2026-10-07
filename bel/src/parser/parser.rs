@@ -1,4 +1,5 @@
-use std::{cell::RefCell, error::Error, fmt::Display, mem, ops::Deref, rc::Rc, sync::Arc};
+use core::error::Error;
+use std::{cell::RefCell, fmt::Display, mem, ops::Deref, rc::Rc, sync::Arc};
 
 use antlr4rust::{
     InputStream, Parser as AntlrParser,

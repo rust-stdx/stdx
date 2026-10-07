@@ -36,8 +36,7 @@ impl core::fmt::Display for DerError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for DerError {}
+impl core::error::Error for DerError {}
 
 const TAG_INTEGER: u8 = 0x02;
 const TAG_BIT_STRING: u8 = 0x03;

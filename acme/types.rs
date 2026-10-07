@@ -142,7 +142,7 @@ impl fmt::Display for Problem {
     }
 }
 
-impl std::error::Error for Problem {}
+impl core::error::Error for Problem {}
 
 #[derive(Debug, Serialize)]
 pub(crate) struct FinalizeRequest {

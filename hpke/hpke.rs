@@ -166,7 +166,7 @@
 //! - There is no forward secrecy against recipient static key compromise:
 //!   anyone with the recipient's secret key can decrypt all past captures.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(test), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

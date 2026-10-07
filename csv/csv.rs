@@ -20,7 +20,7 @@
 //!
 //! | Flag | Default | Description |
 //! |------|---------|-------------|
-//! | `std` | on | Enables `std::io::Read` support for `Reader`, `Writer`, and `std::error::Error` impls. |
+//! | `std` | on | Enables `std::io::Read` support for `Reader`, and `Writer` impls. |
 //! | `serde` | off | Enables `Row::deserialize()` + `Writer::serialize()` for serde support. |
 //!
 //! # Streaming from any [`Read`] source

@@ -18,12 +18,11 @@
 //! using the display impl avoids a temporary allocation.
 #![forbid(unsafe_code)]
 
-use std::{
+use core::{
     error,
     fmt::{self, Display, Formatter},
-    io,
-    time::SystemTime,
 };
+use std::{io, time::SystemTime};
 
 pub use date::HttpDate;
 

@@ -8,9 +8,8 @@ description = "Fast hex encoding and decoding with SIMD, constant-time ops, and 
 path = "./hex.rs"
 
 [features]
-default = ["std"]
+default = ["alloc"]
 alloc = []
-std = ["alloc"]
 serde = ["dep:serde"]
 
 [dependencies]

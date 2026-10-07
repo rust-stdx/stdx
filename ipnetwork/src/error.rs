@@ -1,4 +1,5 @@
-use std::{error::Error, fmt, net::AddrParseError};
+use core::{error::Error, fmt};
+use std::net::AddrParseError;
 
 use crate::error::IpNetworkError::*;
 
@@ -23,16 +24,7 @@ impl fmt::Display for IpNetworkError {
     }
 }
 
-impl Error for IpNetworkError {
-    fn description(&self) -> &str {
-        match *self {
-            InvalidAddr(_) => "address is invalid",
-            InvalidPrefix => "prefix is invalid",
-            InvalidCidrFormat(_) => "cidr is invalid",
-            NetworkSizeError(_) => "network size error",
-        }
-    }
-}
+impl Error for IpNetworkError {}
 
 impl From<AddrParseError> for IpNetworkError {
     fn from(e: AddrParseError) -> Self {

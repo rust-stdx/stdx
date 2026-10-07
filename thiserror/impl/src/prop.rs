@@ -1,25 +1,25 @@
 use proc_macro2::Span;
-use syn::{Member, Type};
+use syn::Type;
 
 use crate::{
     ast::{Enum, Field, Struct, Variant},
-    span::MemberSpan,
+    unraw::MemberUnraw,
 };
 
 impl Struct<'_> {
-    pub(crate) fn from_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn from_field(&self) -> Option<&Field> {
         from_field(&self.fields)
     }
 
-    pub(crate) fn source_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn source_field(&self) -> Option<&Field> {
         source_field(&self.fields)
     }
 
-    pub(crate) fn backtrace_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn backtrace_field(&self) -> Option<&Field> {
         backtrace_field(&self.fields)
     }
 
-    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field> {
         let backtrace_field = self.backtrace_field()?;
         distinct_backtrace_field(backtrace_field, self.from_field())
     }
@@ -39,25 +39,29 @@ impl Enum<'_> {
     pub(crate) fn has_display(&self) -> bool {
         self.attrs.display.is_some()
             || self.attrs.transparent.is_some()
-            || self.variants.iter().any(|variant| variant.attrs.display.is_some())
+            || self.attrs.fmt.is_some()
+            || self
+                .variants
+                .iter()
+                .any(|variant| variant.attrs.display.is_some() || variant.attrs.fmt.is_some())
             || self.variants.iter().all(|variant| variant.attrs.transparent.is_some())
     }
 }
 
 impl Variant<'_> {
-    pub(crate) fn from_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn from_field(&self) -> Option<&Field> {
         from_field(&self.fields)
     }
 
-    pub(crate) fn source_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn source_field(&self) -> Option<&Field> {
         source_field(&self.fields)
     }
 
-    pub(crate) fn backtrace_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn backtrace_field(&self) -> Option<&Field> {
         backtrace_field(&self.fields)
     }
 
-    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field<'_>> {
+    pub(crate) fn distinct_backtrace_field(&self) -> Option<&Field> {
         let backtrace_field = self.backtrace_field()?;
         distinct_backtrace_field(backtrace_field, self.from_field())
     }
@@ -70,11 +74,11 @@ impl Field<'_> {
 
     pub(crate) fn source_span(&self) -> Span {
         if let Some(source_attr) = &self.attrs.source {
-            source_attr.path().get_ident().unwrap().span()
+            source_attr.span
         } else if let Some(from_attr) = &self.attrs.from {
-            from_attr.path().get_ident().unwrap().span()
+            from_attr.span
         } else {
-            self.member.member_span()
+            self.member.span()
         }
     }
 }
@@ -96,7 +100,7 @@ fn source_field<'a, 'b>(fields: &'a [Field<'b>]) -> Option<&'a Field<'b>> {
     }
     for field in fields {
         match &field.member {
-            Member::Named(ident) if ident == "source" => return Some(field),
+            MemberUnraw::Named(ident) if ident == "source" => return Some(field),
             _ => {}
         }
     }
@@ -122,7 +126,7 @@ fn distinct_backtrace_field<'a, 'b>(
     backtrace_field: &'a Field<'b>,
     from_field: Option<&Field>,
 ) -> Option<&'a Field<'b>> {
-    if from_field.map_or(false, |from_field| from_field.member == backtrace_field.member) {
+    if from_field.is_some_and(|from_field| from_field.member == backtrace_field.member) {
         None
     } else {
         Some(backtrace_field)

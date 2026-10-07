@@ -7,9 +7,8 @@ edition = "2024"
 path = "./base32.rs"
 
 [features]
-default = ["std"]
+default = ["alloc"]
 alloc = []
-std = ["alloc"]
 serde = ["dep:serde"]
 
 [dependencies]

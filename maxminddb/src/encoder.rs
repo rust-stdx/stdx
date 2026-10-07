@@ -16,7 +16,7 @@ impl fmt::Display for SerError {
     }
 }
 
-impl std::error::Error for SerError {}
+impl core::error::Error for SerError {}
 
 impl ser::Error for SerError {
     fn custom<T: fmt::Display>(msg: T) -> Self {

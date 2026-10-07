@@ -19,7 +19,7 @@ mod ext {
     #[cfg(feature = "std")]
     impl<E> StdError for E
     where
-        E: std::error::Error + Send + Sync + 'static,
+        E: core::error::Error + Send + Sync + 'static,
     {
         fn ext_context<C>(self, context: C) -> Error
         where

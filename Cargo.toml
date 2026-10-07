@@ -59,6 +59,7 @@ members = [
     "term",
     "thiserror",
     "thiserror/impl",
+    "thiserror/tests/no-std",
     "tld",
     "tokio_fast_udp",
     "tools/crypt",
@@ -67,6 +68,8 @@ members = [
     "unsafe_libyaml",
     "uuid",
     "xxhash",
+    "zeroize",
+    "zeroize/zeroize_derive",
 ]
 
 # The following packages may stack overflow in WASM debug builds so we need to force them to compile to
@@ -114,7 +117,7 @@ tracing = "0.1"
 unicode-width = "0.1"
 url = "2"
 walkdir = "2"
-zeroize = { version = "1", default-features = false, features = ["simd", "derive"] }
+zeroize = { path = "zeroize", default-features = false, features = ["derive"] }
 
 
 # For macros

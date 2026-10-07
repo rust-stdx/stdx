@@ -354,10 +354,6 @@ impl fmt::Display for CsvError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for CsvError {}
-
-#[cfg(all(not(feature = "std"), feature = "serde"))]
 impl core::error::Error for CsvError {}
 
 // ── Serialization ─────────────────────────────────────────────────────

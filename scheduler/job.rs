@@ -65,7 +65,7 @@ impl JobScheduler {
 pub type JobFn = dyn 'static
     + Send
     + Sync
-    + Fn() -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>;
+    + Fn() -> Pin<Box<dyn Future<Output = Result<(), Box<dyn core::error::Error + Send + Sync>>> + Send>>;
 
 pub struct Job {
     function: Arc<JobFn>,
@@ -83,7 +83,7 @@ impl Job {
         F: 'static
             + Send
             + Sync
-            + Fn() -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>,
+            + Fn() -> Pin<Box<dyn Future<Output = Result<(), Box<dyn core::error::Error + Send + Sync>>> + Send>>,
     >(
         group: G,
         name: N,
@@ -143,7 +143,7 @@ impl Job {
         })
     }
 
-    async fn exec(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn exec(&self) -> Result<(), Box<dyn core::error::Error + Send + Sync>> {
         let function = self.function.clone();
         (function)().await
     }

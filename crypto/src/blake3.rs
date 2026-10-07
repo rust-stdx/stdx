@@ -67,7 +67,6 @@ use crate::{Bytes, Hash, Hasher, Xof};
 /// let hash = hasher.sum();
 /// ```
 #[derive(Clone)]
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Blake3 {
     hasher: blake3::Hasher,
 }
@@ -126,6 +125,35 @@ impl Hasher for Blake3 {
     }
 }
 
+/// Best-effort erasure of the internal hasher state.
+///
+/// `blake3::Hasher` only exposes a volatile `Zeroize` implementation behind
+/// blake3's own (crates.io) `zeroize` feature. Enabling that feature would pull
+/// a second, incompatible `zeroize` trait into the dependency graph, so this
+/// implementation instead overwrites the hasher with a fresh instance, replacing
+/// any keyed state with public constants, and passes it through
+/// [`zeroize::optimization_barrier`] so the write cannot be optimized away.
+///
+/// Note that, unlike the other hashers in this crate, this does not guarantee
+/// that intermediate copies of the key material are erased from the stack.
+#[cfg(feature = "zeroize")]
+impl zeroize::Zeroize for Blake3 {
+    fn zeroize(&mut self) {
+        self.hasher = blake3::Hasher::new();
+        zeroize::optimization_barrier(&self.hasher);
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl Drop for Blake3 {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(self);
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl zeroize::ZeroizeOnDrop for Blake3 {}
+
 /// BLAKE3 extensible-output function (XOF) reader.
 ///
 /// Produced by [`Blake3::finalize_xof`]. Implements the [`Xof`] trait.
@@ -140,7 +168,6 @@ impl Hasher for Blake3 {
 /// xof.squeeze(&mut out);
 /// ```
 #[derive(Clone)]
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Blake3XofReader {
     reader: blake3::OutputReader,
 }

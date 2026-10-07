@@ -1,22 +1,16 @@
 derive(Error)
 =============
 
-[<img alt="github" src="https://img.shields.io/badge/github-dtolnay/thiserror-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/dtolnay/thiserror)
-[<img alt="crates.io" src="https://img.shields.io/crates/v/thiserror.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/thiserror)
-[<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-thiserror-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/thiserror)
-[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/dtolnay/thiserror/ci.yml?branch=master&style=for-the-badge" height="20">](https://github.com/dtolnay/thiserror/actions?query=branch%3Amaster)
-
 This library provides a convenient derive macro for the standard library's
-[`std::error::Error`] trait.
+[`std::error::Error`] and [`core::error::Error`] traits.
 
 [`std::error::Error`]: https://doc.rust-lang.org/std/error/trait.Error.html
+[`core::error::Error`]: https://doc.rust-lang.org/core/error/trait.Error.html
 
 ```toml
 [dependencies]
-thiserror = "1.0"
+thiserror = "2"
 ```
-
-*Compiler support: requires rustc 1.56+*
 
 <br>
 
@@ -70,7 +64,7 @@ pub enum DataStoreError {
   ```rust
   #[derive(Error, Debug)]
   pub enum Error {
-      #[error("invalid rdo_lookahead_frames {0} (expected < {})", i32::MAX)]
+      #[error("invalid rdo_lookahead_frames {0} (expected < {max})", max = i32::MAX)]
       InvalidLookahead(u32),
   }
   ```
@@ -88,20 +82,18 @@ pub enum DataStoreError {
   }
   ```
 
-- A `From` impl is generated for each variant containing a `#[from]` attribute.
+- A `From` impl is generated for each variant that contains a `#[from]`
+  attribute.
 
-  Note that the variant must not contain any other fields beyond the source
-  error and possibly a backtrace. A backtrace is captured from within the `From`
-  impl if there is a field for it.
+  The variant using `#[from]` must not contain any other fields beyond the
+  source error (and possibly a backtrace &mdash; see below). Usually `#[from]`
+  fields are unnamed, but `#[from]` is allowed on a named field too.
 
   ```rust
   #[derive(Error, Debug)]
   pub enum MyError {
-      Io {
-          #[from]
-          source: io::Error,
-          backtrace: Backtrace,
-      },
+      Io(#[from] io::Error),
+      Glob(#[from] globset::Error),
   }
   ```
 
@@ -125,7 +117,9 @@ pub enum DataStoreError {
   ```
 
 - The Error trait's `provide()` method is implemented to provide whichever field
-  has a type named `Backtrace`, if any, as a `std::backtrace::Backtrace`.
+  has a type named `Backtrace`, if any, as a `std::backtrace::Backtrace`. Using
+  `Backtrace` in errors requires a nightly compiler with Rust version 1.73 or
+  newer.
 
   ```rust
   use std::backtrace::Backtrace;
@@ -140,7 +134,9 @@ pub enum DataStoreError {
 - If a field is both a source (named `source`, or has `#[source]` or `#[from]`
   attribute) *and* is marked `#[backtrace]`, then the Error trait's `provide()`
   method is forwarded to the source's `provide` so that both layers of the error
-  share the same backtrace.
+  share the same backtrace. The `#[backtrace]` attribute requires a nightly
+  compiler with Rust version 1.73 or newer.
+
 
   ```rust
   #[derive(Error, Debug)]
@@ -148,6 +144,20 @@ pub enum DataStoreError {
       Io {
           #[backtrace]
           source: io::Error,
+      },
+  }
+  ```
+
+- For variants that use `#[from]` and also contain a `Backtrace` field, a
+  backtrace is captured from within the `From` impl.
+
+  ```rust
+  #[derive(Error, Debug)]
+  pub enum MyError {
+      Io {
+          #[from]
+          source: io::Error,
+          backtrace: Backtrace,
       },
   }
   ```

@@ -1,4 +1,4 @@
-use std::{
+use core::{
     error::Error,
     fmt::{Display, Formatter},
 };
@@ -15,7 +15,7 @@ pub enum SchedulerError {
         message: String,
     },
     JobExecutionError {
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: Box<dyn core::error::Error + Send + Sync>,
     },
     JobExecutionPanic {
         cause: String,
@@ -23,7 +23,7 @@ pub enum SchedulerError {
 }
 
 impl Display for SchedulerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             SchedulerError::ScheduleDefinitionError {
                 message,

@@ -28,7 +28,7 @@
 //! | Feature    | Description                                                                 |
 //! |------------|-----------------------------------------------------------------------------|
 //! | `default`  | Enables the `std` feature.                                                  |
-//! | `std`      | Enables `std`-dependent features such as `std::error::Error` on error types, `serde` integration, and the ability to pass `#[derive(Serialize)]` structs directly to [`Engine::render`]. |
+//! | `std`      | Enables `std`-dependent features such as `serde` integration and the ability to pass `#[derive(Serialize)]` structs directly to [`Engine::render`]. |
 //!
 //! # Working with slices and vectors
 //!

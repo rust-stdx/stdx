@@ -1,5 +1,5 @@
+use core::error::Error as StdError;
 use std::{
-    error::Error as StdError,
     fmt::{self, Debug, Display},
     io, result, string,
     sync::Arc,

@@ -102,8 +102,8 @@
 #![deny(missing_docs)]
 #![cfg_attr(test, deny(warnings))]
 
+use core::error::Error;
 use std::{
-    error::Error,
     ffi::OsStr,
     fmt,
     iter::{IntoIterator, repeat},
