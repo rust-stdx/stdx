@@ -46,6 +46,41 @@ impl core::fmt::Display for XWingError {
     }
 }
 
+/// Generate an X-Wing keypair.
+///
+/// See [`SecretKey`] for a usage example. Returns [`XWingError::Random`]
+/// when the operating system's random number generator is unavailable or
+/// fails.
+#[cfg(feature = "random")]
+pub fn generate_keypair() -> Result<(SecretKey, PublicKey), XWingError> {
+    let seed: [u8; SECRET_KEY_SIZE] = crate::random::bytes()?;
+    Ok(generate_keypair_derand(&seed))
+}
+
+/// Generates a deterministic X-Wing keypair from the given 32-byte seed.
+///
+/// This is the deterministic variant of [`generate_keypair`], intended for
+/// protocols that need reproducible key generation (e.g. HPKE's
+/// `DeriveKeyPair` and test vectors). The same seed always yields the same
+/// keypair.
+pub fn generate_keypair_derand(secret_key: &[u8; SECRET_KEY_SIZE]) -> (SecretKey, PublicKey) {
+    let (mlkem_sk, x25519_sk, mlkem_pk, x25519_pk) = expand_decapsulation_key(secret_key);
+
+    let secret_key = SecretKey {
+        bytes: *secret_key,
+        x25519_secret_key: x25519_sk,
+        x25519_public_key_bytes: x25519_pk.to_bytes(),
+        mlkem_secret_key: mlkem_sk,
+    };
+
+    let public_key = PublicKey {
+        mlkem_public_key: mlkem_pk,
+        x25519_public_key: x25519_pk,
+    };
+
+    (secret_key, public_key)
+}
+
 /// X-Wing hybrid KEM decapsulation (secret) key.
 ///
 /// Combines an ML-KEM-768 and an X25519 secret key as specified in the
@@ -175,59 +210,18 @@ impl PublicKey {
     }
 }
 
-/// Generate an X-Wing keypair.
-///
-/// This is a convenience wrapper around [`SecretKey`] generation.
-///
-/// See [`SecretKey`] for a usage example. Returns [`XWingError::Random`]
-/// when the operating system's random number generator is unavailable or
-/// fails.
-#[cfg(feature = "random")]
-pub fn generate_keypair() -> Result<(SecretKey, PublicKey), XWingError> {
-    let seed: [u8; SECRET_KEY_SIZE] = crate::random::bytes()?;
-    Ok(generate_keypair_derand(&seed))
-}
-
-/// Generates a deterministic X-Wing keypair from the given 32-byte seed.
-///
-/// This is the deterministic variant of [`generate_keypair`], intended for
-/// protocols that need reproducible key generation (e.g. HPKE's
-/// `DeriveKeyPair` and test vectors). The same seed always yields the same
-/// keypair.
-pub fn generate_keypair_derand(secret_key: &[u8; SECRET_KEY_SIZE]) -> (SecretKey, PublicKey) {
-    let (mlkem_sk, x25519_sk, mlkem_pk, x25519_pk) = expand_decapsulation_key(secret_key);
-
-    let secret_key = SecretKey {
-        bytes: *secret_key,
-        x25519_secret_key: x25519_sk,
-        x25519_public_key_bytes: x25519_pk.to_bytes(),
-        mlkem_secret_key: mlkem_sk,
-    };
-
-    let public_key = PublicKey {
-        mlkem_public_key: mlkem_pk,
-        x25519_public_key: x25519_pk,
-    };
-
-    (secret_key, public_key)
-}
-
 fn expand_decapsulation_key(
     secret_key: &[u8; 32],
 ) -> (mlkem::SecretKey768, x25519::SecretKey, mlkem::PublicKey768, x25519::PublicKey) {
     let mut expanded_secret_key = [0u8; 96];
     Shake256::hash(secret_key, &mut expanded_secret_key);
 
-    let (sk_m, pk_m) = derive_mlkeem_keys(&expanded_secret_key);
+    let (sk_m, pk_m) = mlkem::generate_keypair_768_derand(&expanded_secret_key[..64].try_into().unwrap());
 
     let sk_x = x25519::SecretKey::from_bytes(&expanded_secret_key[64..96].try_into().unwrap());
     let pk_x = sk_x.public_key();
 
     (sk_m, sk_x, pk_m, pk_x)
-}
-
-fn derive_mlkeem_keys(expnded_secret_key: &[u8; 96]) -> (mlkem::SecretKey768, mlkem::PublicKey768) {
-    mlkem::generate_keypair_768_derand(&expnded_secret_key[..64].try_into().unwrap())
 }
 
 fn combiner(
