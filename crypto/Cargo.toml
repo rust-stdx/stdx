@@ -51,6 +51,10 @@ name = "mac"
 harness = false
 
 [[bench]]
+name = "pbkdf"
+harness = false
+
+[[bench]]
 name = "signatures"
 harness = false
 

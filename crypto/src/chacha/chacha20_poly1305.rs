@@ -138,6 +138,7 @@ impl XChaCha20Poly1305 {
         };
     }
 
+    #[inline]
     fn derive_subkey(&self, nonce: &[u8; 24]) -> ([u8; 32], [u8; 12]) {
         let subkey = hchacha20(&self.key, nonce[..16].try_into().unwrap());
         let mut ietf_nonce = [0u8; 12];
