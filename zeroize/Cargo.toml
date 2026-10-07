@@ -1,0 +1,28 @@
+[package]
+name = "zeroize"
+version = "1.9.1"
+authors = ["The RustCrypto Project Developers"]
+edition = "2024"
+rust-version = "1.85"
+description = "Securely clear secrets from memory with a simple trait built on stable Rust primitives which guarantee memory is zeroed using an operation that will not be 'optimized away' by the compiler."
+readme = "README.md"
+license = "MIT"
+keywords = ["memory", "memset", "secure", "volatile", "zero"]
+categories = ["cryptography", "memory-management", "no-std", "os"]
+
+[lib]
+path = "./zeroize.rs"
+
+[features]
+default = ["alloc"]
+alloc = []
+std = ["alloc"]
+derive = ["dep:zeroize_derive"]
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { workspace = true, optional = true }
+zeroize_derive = { path = "zeroize_derive", optional = true }
+
+[package.metadata.docs.rs]
+all-features = true

@@ -1,0 +1,22 @@
+[package]
+name = "zeroize_derive"
+version = "1.5.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Custom derive support for zeroize"
+readme = "README.md"
+license = "MIT"
+keywords = ["memory", "memset", "secure", "volatile", "zero"]
+categories = ["cryptography", "memory-management", "no-std", "os"]
+
+[lib]
+path = "./zeroize_derive.rs"
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["clone-impls", "full", "visit"] }
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--document-private-items"]
