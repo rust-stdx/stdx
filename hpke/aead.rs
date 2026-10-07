@@ -8,13 +8,10 @@ use super::HpkeError;
 ///
 /// An AEAD is the symmetric cipher used to seal and open messages. This trait
 /// only adds what HPKE itself needs on top of [`crypto::Aead`] (from which the
-/// nonce size `Nn`, tag size `Nt`, and the underlying cipher operations are
-/// inherited):
+/// nonce size, tag size, and the underlying cipher operations are inherited):
 ///
-/// - [`Aead::AEAD_ID`], the IANA "HPKE AEAD Identifiers" value used to build
+/// - [`Aead::HPKE_AEAD_ID`], the IANA "HPKE AEAD Identifiers" value used to build
 ///   the ciphersuite `suite_id`,
-/// - [`Aead::KEY_SIZE`], the amount of key material (`Nk`) the HPKE key
-///   schedule must derive, and
 /// - [`Aead::new`], the construction of a ready-to-use cipher from the
 ///   raw key schedule output.
 ///
@@ -37,7 +34,7 @@ use super::HpkeError;
 /// supported as long as `KEY_SIZE` is at most 64 bytes and `NONCE_SIZE` is
 /// between 8 and 64 bytes; larger values fail to compile when the cipher is
 /// used with [`new_sender`](crate::new_sender) or
-/// [`new_receiver`](crate::new_receiver).
+/// [`new_recipient`](crate::new_recipient).
 pub trait Aead: Sized + crypto::Aead {
     /// The HPKE AEAD identifier (RFC 9180 Section 7.3, IANA "HPKE AEAD
     /// Identifiers"), used to build the ciphersuite `suite_id`.
@@ -49,7 +46,7 @@ pub trait Aead: Sized + crypto::Aead {
     /// # Errors
     ///
     /// Returns [`HpkeError::DeserializeError`] when `key` does not have
-    /// exactly [`Aead::KEY_SIZE`] bytes.
+    /// exactly [`crypto::Aead::KEY_SIZE`] bytes.
     fn new(key: &[u8]) -> Result<Self, HpkeError>;
 
     /// Encrypts `in_out` in place and returns the detached authentication tag,
@@ -59,8 +56,8 @@ pub trait Aead: Sized + crypto::Aead {
     ///
     /// Returns [`HpkeError::NotSupported`] when the cipher is the
     /// [`ExportOnly`] pseudo-AEAD.
-    fn seal(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<Hash, HpkeError> {
-        return Ok(crypto::Aead::encrypt_in_place(self, in_out, nonce, aad));
+    fn seal(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8]) -> Result<Hash, HpkeError> {
+        return Ok(crypto::Aead::encrypt_in_place(self, in_out, nonce, associated_data));
     }
 
     /// Decrypts `in_out` in place using the detached authentication `tag`,
@@ -71,8 +68,9 @@ pub trait Aead: Sized + crypto::Aead {
     /// Returns [`HpkeError::OpenError`] when authentication fails, or
     /// [`HpkeError::NotSupported`] when the cipher is the [`ExportOnly`]
     /// pseudo-AEAD.
-    fn open(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), HpkeError> {
-        return crypto::Aead::decrypt_in_place(self, in_out, nonce, aad, tag).map_err(|_| HpkeError::OpenError);
+    fn open(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8], tag: &[u8]) -> Result<(), HpkeError> {
+        return crypto::Aead::decrypt_in_place(self, in_out, nonce, associated_data, tag)
+            .map_err(|_| HpkeError::OpenError);
     }
 }
 
@@ -81,7 +79,7 @@ impl Aead for Aes256Gcm {
     const HPKE_AEAD_ID: u16 = 0x0002;
 
     fn new(key: &[u8]) -> Result<Self, HpkeError> {
-        let key: &[u8; 32] = key.try_into().map_err(|_| HpkeError::DeserializeError)?;
+        let key: &[u8; 32] = key.try_into().map_err(|_| HpkeError::InvalidKey)?;
         return Ok(Aes256Gcm::new(key));
     }
 }
@@ -91,7 +89,7 @@ impl Aead for ChaCha20Poly1305 {
     const HPKE_AEAD_ID: u16 = 0x0003;
 
     fn new(key: &[u8]) -> Result<Self, HpkeError> {
-        let key: &[u8; 32] = key.try_into().map_err(|_| HpkeError::DeserializeError)?;
+        let key: &[u8; 32] = key.try_into().map_err(|_| HpkeError::InvalidKey)?;
         return Ok(ChaCha20Poly1305::new(key));
     }
 }
@@ -100,7 +98,7 @@ impl Aead for ChaCha20Poly1305 {
 ///
 /// Ciphersuites using this "AEAD" can only derive secrets through
 /// [`SenderContext::export`](crate::SenderContext::export) and
-/// [`ReceiverContext::export`](crate::ReceiverContext::export); [`Aead::seal`]
+/// [`RecipientContext::export`](crate::RecipientContext::export); [`Aead::seal`]
 /// and [`Aead::open`] return [`HpkeError::NotSupported`].
 ///
 /// The [`crypto::Aead`] implementation below only exists to satisfy the
@@ -114,7 +112,7 @@ impl crypto::Aead for ExportOnly {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
-    fn encrypt_in_place(&self, _in_out: &mut [u8], _nonce: &[u8], _aad: &[u8]) -> Hash {
+    fn encrypt_in_place(&self, _in_out: &mut [u8], _nonce: &[u8], _associated_data: &[u8]) -> Hash {
         return Hash::from([0u8; Self::TAG_SIZE]);
     }
 
@@ -122,7 +120,7 @@ impl crypto::Aead for ExportOnly {
         &self,
         _in_out: &mut [u8],
         _nonce: &[u8],
-        _aad: &[u8],
+        _associated_data: &[u8],
         _tag: &[u8],
     ) -> Result<(), crypto::AeadError> {
         return Err(crypto::AeadError::Unsupported);
@@ -136,14 +134,14 @@ impl Aead for ExportOnly {
         if key.is_empty() {
             return Ok(ExportOnly);
         }
-        return Err(HpkeError::DeserializeError);
+        return Err(HpkeError::InvalidKey);
     }
 
-    fn seal(&self, _in_out: &mut [u8], _nonce: &[u8], _aad: &[u8]) -> Result<Hash, HpkeError> {
+    fn seal(&self, _in_out: &mut [u8], _nonce: &[u8], _associated_data: &[u8]) -> Result<Hash, HpkeError> {
         return Err(HpkeError::NotSupported);
     }
 
-    fn open(&self, _in_out: &mut [u8], _nonce: &[u8], _aad: &[u8], _tag: &[u8]) -> Result<(), HpkeError> {
+    fn open(&self, _in_out: &mut [u8], _nonce: &[u8], _associated_data: &[u8], _tag: &[u8]) -> Result<(), HpkeError> {
         return Err(HpkeError::NotSupported);
     }
 }

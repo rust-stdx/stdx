@@ -6,12 +6,14 @@
 //! additional ones which authenticate possession of a KEM private key.
 //!
 //! A ciphersuite is a triple `(KEM, KDF, AEAD)` selected at compile time via
-//! type parameters. The crate ships the RFC 9180 registered algorithms plus
-//! the X-Wing hybrid post-quantum KEM:
+//! type parameters. The crate ships the RFC 9180 registered algorithms, the
+//! MLKEM768-X25519 hybrid post-quantum KEM (KEM id `0x647a`) and the SHAKE256
+//! single-stage KDF (KDF id `0x0011`) from `draft-ietf-hpke-pq-05`:
 //!
-//! - KEMs: [`kem::X25519HkdfSha256`], [`kem::P256HkdfSha256`],
-//!   [`kem::P521HkdfSha512`], [`kem::XWing`]
-//! - KDFs: [`kdf::HkdfSha256`], [`kdf::HkdfSha512`]
+//! - KEMs: [`kem::MLKEM768X25519`], [`kem::X25519HkdfSha256`],
+//!   [`kem::P256HkdfSha256`], [`kem::P521HkdfSha512`]
+//! - KDFs: [`kdf::HkdfSha256`], [`kdf::HkdfSha512`], [`kdf::Shake256`],
+//!   [`kdf::Blake3`] (unofficial KDF id `0xFF01`, see the type docs)
 //! - AEADs: [`crypto::aes::Aes256Gcm`], [`crypto::chacha::ChaCha20Poly1305`],
 //!   [`aead::ExportOnly`]
 //!
@@ -20,26 +22,58 @@
 //!
 //! # Example
 //!
-//! One-shot encryption with the X25519 + HKDF-SHA256 + AES-256-GCM suite:
+//! One-shot encryption with the hybrid post-quantum MLKEM768-X25519 +
+//! SHAKE256 + ChaCha20-Poly1305 suite:
+//!
+//! ```
+//! use crypto::chacha::ChaCha20Poly1305;
+//! use hpke::{
+//!     self, RecipientMode, SenderMode, kdf::Shake256, kem::Kem, kem::MLKEM768X25519,
+//! };
+//!
+//! let (bob_sk, bob_pk) = MLKEM768X25519::generate_keypair().unwrap();
+//!
+//! let info = b"Alice and Bob's weekly chat";
+//! let (encapped_key, mut sender) = hpke::new_sender::<MLKEM768X25519, Shake256, ChaCha20Poly1305>(
+//!     &SenderMode::Base, &bob_pk, info,
+//! ).unwrap();
+//! let ciphertext = sender.seal(b"fronthand or backhand?", b"a gentleman's game").unwrap();
+//!
+//! let mut recipient = hpke::new_recipient::<MLKEM768X25519, Shake256, ChaCha20Poly1305>(
+//!     &RecipientMode::Base, &bob_sk, &encapped_key, info,
+//! ).unwrap();
+//! let plaintext = recipient.open(&ciphertext, b"a gentleman's game").unwrap();
+//! assert_eq!(plaintext, b"fronthand or backhand?");
+//! ```
+//!
+//! # Sender authentication
+//!
+//! The hybrid post-quantum KEMs do not support the authenticated modes
+//! (`Authenticated`/`AuthenticatedPreSharedKey`, `draft-ietf-hpke-pq-05`
+//! Section 7.2). When sender authentication is required, use a
+//! Diffie-Hellman KEM such as [`kem::X25519HkdfSha256`]. For a post-quantum
+//! alternative, sign the `(encapped_key, ciphertext)` tuple with a
+//! post-quantum signature scheme.
 //!
 //! ```
 //! use crypto::aes::Aes256Gcm;
 //! use hpke::{
-//!     self, ModeReceiver, ModeSender, kdf::HkdfSha256, kem::Kem, kem::X25519HkdfSha256,
+//!     self, RecipientMode, SenderMode, kdf::HkdfSha256, kem::Kem, kem::X25519HkdfSha256,
 //! };
 //!
 //! let (bob_sk, bob_pk) = X25519HkdfSha256::generate_keypair().unwrap();
+//! let (alice_sk, alice_pk) = X25519HkdfSha256::generate_keypair().unwrap();
 //!
 //! let info = b"Alice and Bob's weekly chat";
-//! let (enc, mut sender) = hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-//!     &ModeSender::Base, &bob_pk, info,
+//! let (encapped_key, mut sender) = hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+//!     &SenderMode::Authenticated { sender_secret_key: &alice_sk }, &bob_pk, info,
 //! ).unwrap();
 //! let ciphertext = sender.seal(b"fronthand or backhand?", b"a gentleman's game").unwrap();
 //!
-//! let mut receiver = hpke::new_receiver::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-//!     &ModeReceiver::Base, &bob_sk, &enc, info,
+//! let mut recipient = hpke::new_recipient::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+//!     &RecipientMode::Authenticated { sender_public_key: &alice_pk }, &bob_sk, &encapped_key, info,
 //! ).unwrap();
-//! let plaintext = receiver.open(&ciphertext, b"a gentleman's game").unwrap();
+//! let plaintext = recipient.open(&ciphertext, b"a gentleman's game").unwrap();
 //! assert_eq!(plaintext, b"fronthand or backhand?");
 //! ```
 //!
@@ -47,19 +81,19 @@
 //!
 //! - Messages **must** be sealed and opened in the same order. There is no
 //!   tolerance for reordering or loss; per-message context (e.g. a counter)
-//!   can be authenticated by passing it as `aad`.
+//!   can be authenticated by passing it as `associated_data`.
 //! - Never call `seal` twice with the same nonce: this is catastrophic for the
 //!   confidentiality of all messages sent under a context. HPKE prevents this
 //!   internally by deriving the per-message nonce from a sequence number.
-//! - The Auth and AuthPSK modes of DHKEM-based suites are vulnerable to key
-//!   compromise impersonation (KCI): if the recipient's secret key leaks, an
-//!   attacker can forge messages appearing to come from any sender. Sign the
-//!   `(enc, ciphertext)` tuple if sender authenticity must hold after a
-//!   recipient key compromise.
-//! - PSKs must contain at least 32 bytes of entropy. Low-entropy PSKs are
-//!   vulnerable to dictionary attacks.
+//! - The authenticated modes of Diffie-Hellman KEM suites are vulnerable to
+//!   key compromise impersonation (KCI): if the recipient's secret key leaks,
+//!   an attacker can forge messages appearing to come from any sender. Sign
+//!   the `(encapped_key, ciphertext)` tuple if sender authenticity must hold
+//!   after a recipient key compromise.
+//! - Pre-shared keys must contain at least 32 bytes of entropy. Low-entropy
+//!   pre-shared keys are vulnerable to dictionary attacks.
 //! - There is no forward secrecy against recipient static key compromise:
-//!   anyone with `skR` can decrypt all past captures.
+//!   anyone with the recipient's secret key can decrypt all past captures.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -74,9 +108,12 @@ pub mod kem;
 #[cfg(all(test, feature = "alloc", feature = "random"))]
 mod tests;
 
+pub use aead::Aead;
 #[cfg(feature = "random")]
 pub use context::new_sender;
-pub use context::{ModeReceiver, ModeSender, ReceiverContext, SenderContext, new_receiver};
+pub use context::{RecipientContext, RecipientMode, SenderContext, SenderMode, new_recipient};
+pub use kdf::Kdf;
+pub use kem::Kem;
 
 /// Best-effort wipe of transient secret buffers.
 ///
@@ -98,8 +135,8 @@ pub(crate) fn wipe(_bytes: &mut [u8]) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HpkeError {
     /// A KEM input or output failed validation (e.g. an invalid or low-order
-    /// public key was provided), or a PSK-mode input is missing (an empty PSK
-    /// or PSK identifier).
+    /// public key was provided), or a pre-shared key mode input is missing (an
+    /// empty pre-shared key or pre-shared key identifier).
     ValidationError,
     /// A key, encapsulated key or ciphertext could not be deserialized
     /// (e.g. wrong length or malformed encoding).
@@ -108,7 +145,7 @@ pub enum HpkeError {
     /// invalid).
     EncapError,
     /// The decapsulation step failed (e.g. the encapsulated key is invalid,
-    /// or the DH output was rejected).
+    /// or the Diffie-Hellman output was rejected).
     DecapError,
     /// The AEAD failed to decrypt the ciphertext (wrong key, tampered
     /// ciphertext or wrong associated data).
@@ -125,8 +162,12 @@ pub enum HpkeError {
     NotSupported,
     /// The pseudorandom key given to the KDF expand step does not have the
     /// expected length.
-    InvalidPrk,
-    /// The KDF was asked for more output than it can produce (`> 255 * Nh`).
+    InvalidPseudorandomKey,
+    /// The key given to the AEAD does not have the expected length.
+    InvalidKey,
+    /// The KDF was asked for more output than it can produce
+    /// (`255 * OUTPUT_SIZE` for two-stage KDFs, `2^16 - 1` bytes for
+    /// single-stage KDFs).
     KdfOutputTooLong,
     /// An underlying AEAD error.
     Aead(crypto::AeadError),
@@ -151,8 +192,9 @@ impl core::fmt::Display for HpkeError {
             HpkeError::DeriveKeyPairError => write!(f, "key pair derivation failed"),
             HpkeError::MessageLimitReached => write!(f, "message limit reached"),
             HpkeError::NotSupported => write!(f, "operation is not supported"),
-            HpkeError::InvalidPrk => write!(f, "PRK has an invalid length"),
-            HpkeError::KdfOutputTooLong => write!(f, "KDF output length exceeds limit (255 * Nh)"),
+            HpkeError::InvalidPseudorandomKey => write!(f, "pseudorandom key has an invalid length"),
+            HpkeError::InvalidKey => write!(f, "key has an invalid length"),
+            HpkeError::KdfOutputTooLong => write!(f, "KDF output length exceeds the limit"),
             HpkeError::Aead(err) => write!(f, "{err}"),
             HpkeError::EllipticCurve(err) => write!(f, "{err}"),
             HpkeError::MlKem(err) => write!(f, "{err}"),
@@ -174,7 +216,7 @@ impl From<crypto::AeadError> for HpkeError {
 impl From<crypto::HkdfError> for HpkeError {
     fn from(err: crypto::HkdfError) -> Self {
         match err {
-            crypto::HkdfError::PrkIsTooShort(_) => HpkeError::InvalidPrk,
+            crypto::HkdfError::PrkIsTooShort(_) => HpkeError::InvalidPseudorandomKey,
             crypto::HkdfError::OutputIsTooLong => HpkeError::KdfOutputTooLong,
         }
     }

@@ -1,9 +1,9 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::aes::Aes256Gcm;
 use hpke::{
-    self, ModeReceiver, ModeSender,
+    self, RecipientMode, SenderMode,
     kdf::HkdfSha256,
-    kem::{Kem, P256HkdfSha256, X25519HkdfSha256, XWing},
+    kem::{Kem, MLKEM768X25519, P256HkdfSha256, X25519HkdfSha256},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024];
@@ -13,24 +13,39 @@ const INFO: &[u8] = b"HPKE benchmark";
 fn bench_setup(c: &mut Criterion) {
     let mut group = c.benchmark_group("hpke-setup");
 
-    let (_sk, pk) = X25519HkdfSha256::generate_keypair().unwrap();
+    let (_recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
     group.bench_function(BenchmarkId::from_parameter("X25519-HKDF-SHA256-AES256GCM"), |b| {
         b.iter(|| {
-            let _ = hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&ModeSender::Base, &pk, INFO).unwrap();
+            let _ = hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+                &SenderMode::Base,
+                &recipient_public_key,
+                INFO,
+            )
+            .unwrap();
         });
     });
 
-    let (_sk, pk) = P256HkdfSha256::generate_keypair().unwrap();
+    let (_recipient_secret_key, recipient_public_key) = P256HkdfSha256::generate_keypair().unwrap();
     group.bench_function(BenchmarkId::from_parameter("P-256-HKDF-SHA256-AES256GCM"), |b| {
         b.iter(|| {
-            let _ = hpke::new_sender::<P256HkdfSha256, HkdfSha256, Aes256Gcm>(&ModeSender::Base, &pk, INFO).unwrap();
+            let _ = hpke::new_sender::<P256HkdfSha256, HkdfSha256, Aes256Gcm>(
+                &SenderMode::Base,
+                &recipient_public_key,
+                INFO,
+            )
+            .unwrap();
         });
     });
 
-    let (_sk, pk) = XWing::generate_keypair().unwrap();
-    group.bench_function(BenchmarkId::from_parameter("X-Wing-HKDF-SHA256-AES256GCM"), |b| {
+    let (_recipient_secret_key, recipient_public_key) = MLKEM768X25519::generate_keypair().unwrap();
+    group.bench_function(BenchmarkId::from_parameter("MLKEM768-X25519-HKDF-SHA256-AES256GCM"), |b| {
         b.iter(|| {
-            let _ = hpke::new_sender::<XWing, HkdfSha256, Aes256Gcm>(&ModeSender::Base, &pk, INFO).unwrap();
+            let _ = hpke::new_sender::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(
+                &SenderMode::Base,
+                &recipient_public_key,
+                INFO,
+            )
+            .unwrap();
         });
     });
 
@@ -42,32 +57,39 @@ fn bench_seal(c: &mut Criterion) {
         let mut group = c.benchmark_group(format!("hpke-seal-{size}"));
         group.throughput(Throughput::Bytes(size as u64));
 
-        let (_sk, pk) = X25519HkdfSha256::generate_keypair().unwrap();
+        let (_recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
         group.bench_function(BenchmarkId::from_parameter("X25519-HKDF-SHA256-AES256GCM"), |b| {
             b.iter_batched(
                 || {
-                    let (enc, context) =
-                        hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&ModeSender::Base, &pk, INFO)
-                            .unwrap();
-                    (enc, context, vec![0xA5u8; size])
+                    let (encapped_key, context) = hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+                        &SenderMode::Base,
+                        &recipient_public_key,
+                        INFO,
+                    )
+                    .unwrap();
+                    (encapped_key, context, vec![0xA5u8; size])
                 },
-                |(_enc, mut context, mut data)| {
-                    let _tag = context.seal_in_place(&mut data, b"aad").unwrap();
+                |(_encapped_key, mut context, mut data)| {
+                    let _tag = context.seal_in_place(&mut data, b"associated data").unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
         });
 
-        let (_sk, pk) = XWing::generate_keypair().unwrap();
-        group.bench_function(BenchmarkId::from_parameter("X-Wing-HKDF-SHA256-AES256GCM"), |b| {
+        let (_recipient_secret_key, recipient_public_key) = MLKEM768X25519::generate_keypair().unwrap();
+        group.bench_function(BenchmarkId::from_parameter("MLKEM768-X25519-HKDF-SHA256-AES256GCM"), |b| {
             b.iter_batched(
                 || {
-                    let (enc, context) =
-                        hpke::new_sender::<XWing, HkdfSha256, Aes256Gcm>(&ModeSender::Base, &pk, INFO).unwrap();
-                    (enc, context, vec![0xA5u8; size])
+                    let (encapped_key, context) = hpke::new_sender::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(
+                        &SenderMode::Base,
+                        &recipient_public_key,
+                        INFO,
+                    )
+                    .unwrap();
+                    (encapped_key, context, vec![0xA5u8; size])
                 },
-                |(_enc, mut context, mut data)| {
-                    let _tag = context.seal_in_place(&mut data, b"aad").unwrap();
+                |(_encapped_key, mut context, mut data)| {
+                    let _tag = context.seal_in_place(&mut data, b"associated data").unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -82,26 +104,31 @@ fn bench_open(c: &mut Criterion) {
         let mut group = c.benchmark_group(format!("hpke-open-{size}"));
         group.throughput(Throughput::Bytes(size as u64));
 
-        let (sk, pk) = X25519HkdfSha256::generate_keypair().unwrap();
+        let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
         group.bench_function(BenchmarkId::from_parameter("X25519-HKDF-SHA256-AES256GCM"), |b| {
             b.iter_batched(
                 || {
-                    let (enc, mut sender) =
-                        hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(&ModeSender::Base, &pk, INFO)
-                            .unwrap();
-                    let mut data = vec![0xA5u8; size];
-                    let tag = sender.seal_in_place(&mut data, b"aad").unwrap();
-                    let receiver = hpke::new_receiver::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
-                        &ModeReceiver::Base,
-                        &sk,
-                        &enc,
+                    let (encapped_key, mut sender) = hpke::new_sender::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+                        &SenderMode::Base,
+                        &recipient_public_key,
                         INFO,
                     )
                     .unwrap();
-                    (receiver, data, tag)
+                    let mut data = vec![0xA5u8; size];
+                    let tag = sender.seal_in_place(&mut data, b"associated data").unwrap();
+                    let recipient = hpke::new_recipient::<X25519HkdfSha256, HkdfSha256, Aes256Gcm>(
+                        &RecipientMode::Base,
+                        &recipient_secret_key,
+                        &encapped_key,
+                        INFO,
+                    )
+                    .unwrap();
+                    (recipient, data, tag)
                 },
-                |(mut receiver, mut data, tag)| {
-                    receiver.open_in_place(&mut data, b"aad", tag.as_ref()).unwrap();
+                |(mut recipient, mut data, tag)| {
+                    recipient
+                        .open_in_place(&mut data, b"associated data", tag.as_ref())
+                        .unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
