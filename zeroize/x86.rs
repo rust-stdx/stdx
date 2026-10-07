@@ -13,6 +13,9 @@ macro_rules! impl_zeroize_for_simd_register {
             impl Zeroize for $type {
                 #[inline]
                 fn zeroize(&mut self) {
+                    // Safety:
+                    //
+                    // All-zeroes is a valid bit pattern for every SIMD register type.
                     volatile_write(self, unsafe { core::mem::zeroed() });
                 }
             }

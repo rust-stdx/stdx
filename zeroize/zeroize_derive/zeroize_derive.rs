@@ -45,7 +45,7 @@ fn derive_zeroize_impl(input: DeriveInput) -> TokenStream {
             .auto_params
             .iter()
             .map(|type_param| -> WherePredicate {
-                parse_quote! {#type_param: Zeroize}
+                parse_quote! {#type_param: ::zeroize::Zeroize}
             })
             .collect(),
     };
@@ -145,19 +145,21 @@ struct BoundAccumulator<'a> {
 
 impl<'ast> Visit<'ast> for BoundAccumulator<'ast> {
     fn visit_path(&mut self, path: &'ast syn::Path) {
-        if path.segments.len() != 1 {
-            return;
-        }
-
-        if let Some(segment) = path.segments.first() {
-            for param in &self.generics.params {
-                if let syn::GenericParam::Type(type_param) = param {
-                    if type_param.ident == segment.ident && !self.params.contains(&segment.ident) {
-                        self.params.push(type_param.ident.clone());
+        if path.segments.len() == 1 {
+            if let Some(segment) = path.segments.first() {
+                for param in &self.generics.params {
+                    if let syn::GenericParam::Type(type_param) = param {
+                        if type_param.ident == segment.ident && !self.params.contains(&segment.ident) {
+                            self.params.push(type_param.ident.clone());
+                        }
                     }
                 }
             }
         }
+
+        // Recurse into the path so that type parameters nested inside another type (e.g. the `T`
+        // in `Vec<T>` or `Option<Box<[T]>>`) are still picked up.
+        syn::visit::visit_path(self, path);
     }
 }
 
@@ -549,6 +551,21 @@ mod tests {
                     }
                 }
             },
+        );
+    }
+
+    #[test]
+    fn zeroize_generic_nested_params() {
+        // Type parameters nested inside another type must still produce a bound, and that bound
+        // must be fully qualified so the derive works without `Zeroize` being imported.
+        let output = derive_zeroize_impl(
+            syn::parse_str("struct Z<T> { a: Vec<T>, b: Option<T>, c: [T; 2] }").expect("Failed to parse test input"),
+        )
+        .to_string();
+
+        assert!(
+            output.contains("T : :: zeroize :: Zeroize"),
+            "missing qualified `Zeroize` bound in: {output}"
         );
     }
 

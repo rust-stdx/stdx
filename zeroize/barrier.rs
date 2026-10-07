@@ -13,7 +13,6 @@
 /// # Examples
 /// ```
 /// use core::num::NonZeroU32;
-/// use zeroize::{ZeroizeOnDrop, zeroize_flat_type};
 ///
 /// # type ThirdPartyType = u32;
 ///
@@ -65,6 +64,12 @@ pub fn optimization_barrier<T: ?Sized>(val: &T) {
             target_arch = "x86_64",
         )
     ))]
+    // Safety:
+    //
+    // The asm block only passes the address of `val` in a register and does not read or write
+    // any memory itself (`readonly`), so it has no additional requirements. Not specifying
+    // `nomem` is intentional: it makes the compiler assume the block may read memory, which is
+    // what prevents earlier writes to `val` from being optimized away.
     unsafe {
         core::arch::asm!(
             "# {}",
@@ -93,6 +98,11 @@ pub fn optimization_barrier<T: ?Sized>(val: &T) {
         fn custom_black_box(p: *const u8) {
             use core::mem::MaybeUninit;
 
+            // Safety:
+            //
+            // Callers only pass a non-null pointer to a live value (`custom_black_box` is only
+            // called when `size_of_val(val) > 0`), and `MaybeUninit<u8>` accepts any byte, so
+            // the volatile read is valid even for uninitialized padding.
             let _: MaybeUninit<u8> = unsafe { core::ptr::read_volatile(p.cast()) };
         }
 

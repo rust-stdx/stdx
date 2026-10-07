@@ -172,27 +172,16 @@ fn zeroize_string_entire_capacity() {
     assert!(as_vec.iter().all(|byte| *byte == 0));
 }
 
-// TODO(tarcieri): debug flaky test (with potential UB?) See: RustCrypto/utils#774
 #[cfg(feature = "std")]
-#[ignore]
 #[test]
 fn zeroize_c_string() {
     let mut cstring = CString::new("Hello, world!").expect("CString::new failed");
-    let orig_len = cstring.as_bytes().len();
-    let orig_ptr = cstring.as_bytes().as_ptr();
     cstring.zeroize();
-    // This doesn't quite test that the original memory has been cleared, but only that
-    // cstring now owns an empty buffer
+
+    // `zeroize()` converts the buffer to a `Vec<u8>` and back, so afterwards the `CString` owns
+    // an empty buffer containing exactly one NUL byte.
     assert!(cstring.as_bytes().is_empty());
-    for i in 0..orig_len {
-        unsafe {
-            // Using a simple deref, only one iteration of the loop is performed
-            // presumably because after zeroize, the internal buffer has a length of one/
-            // `read_volatile` seems to "fix" this
-            // Note that this is very likely UB
-            assert_eq!(orig_ptr.add(i).read_volatile(), 0);
-        }
-    }
+    assert_eq!(cstring.as_bytes_with_nul(), &[0]);
 }
 
 #[cfg(feature = "alloc")]
@@ -302,4 +291,50 @@ fn zeroizing_dyn_trait() {
     let inner: &dyn TestTrait = core::ops::Deref::deref(inner);
 
     assert_eq!(inner.data(), &[0, 0, 0, 0]);
+}
+
+/// `Option<Z>` must end up as `None` even when the all-zero bit pattern is `Some`, as is the case
+/// for niche types such as `char`.
+#[test]
+fn zeroize_option_niche() {
+    let mut opt_char: Option<char> = Some('A');
+    opt_char.zeroize();
+    assert!(opt_char.is_none());
+
+    let mut opt_nonzero: Option<NonZeroU8> = NonZeroU8::new(42);
+    opt_nonzero.zeroize();
+    assert!(opt_nonzero.is_none());
+}
+
+/// Zeroizing a `str` cannot change its length (that lives in the pointer), so the contents become
+/// all-NUL rather than the string becoming empty. `String` on the other hand is truncated.
+#[test]
+fn zeroize_str_keeps_length() {
+    let mut string = String::from("hello");
+    let s: &mut str = &mut string;
+    s.zeroize();
+
+    assert_eq!(s.len(), 5);
+    assert!(s.bytes().all(|b| b == 0));
+
+    // `String`'s own impl (only available with `alloc`) truncates instead.
+    #[cfg(feature = "alloc")]
+    {
+        let mut string = String::from("hello");
+        string.zeroize();
+        assert!(string.is_empty());
+    }
+}
+
+/// Zero-sized element types must not be treated as a huge number of elements.
+#[test]
+#[cfg(feature = "alloc")]
+fn zeroize_zst_vec() {
+    let mut vec: Vec<()> = vec![(); 5];
+    vec.zeroize();
+    assert!(vec.is_empty());
+
+    let mut vec: Vec<[u8; 0]> = vec![[0u8; 0]; 5];
+    vec.zeroize();
+    assert!(vec.is_empty());
 }

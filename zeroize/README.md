@@ -17,13 +17,15 @@ many documented "tricks" to attempt to avoid these optimizations and ensure
 that a zeroing routine is performed reliably.
 
 This crate isn't about tricks: it uses [core::ptr::write_volatile]
-and [core::sync::atomic] memory fences to provide easy-to-use, portable
-zeroing behavior which works on all of Rust's core number types and slices
-thereof, implemented in pure Rust with no usage of FFI or assembly.
+to provide easy-to-use, portable zeroing behavior which works on all of Rust's
+core number types and slices thereof. On supported architectures a minimal
+inline-assembly optimization barrier stops the compiler from eliding the writes,
+with a portable `core::hint::black_box` fallback on every other target.
 
 - No insecure fallbacks!
-- No dependencies!
-- No FFI or inline assembly! **WASM friendly** (and tested)!
+- No required dependencies!
+- No FFI! A minimal optimization barrier uses inline assembly on supported targets, with a
+  portable fallback that keeps **WASM** working.
 - `#![no_std]` i.e. **embedded-friendly**!
 - No functionality besides securely zeroing memory!
 - (Optional) Custom derive support for zeroing complex structures
@@ -55,5 +57,4 @@ secret.zeroize();
 [Documentation]: https://docs.rs/zeroize/
 [Zeroing memory securely is hard]: http://www.daemonology.net/blog/2014-09-04-how-to-zero-a-buffer.html
 [core::ptr::write_volatile]: https://doc.rust-lang.org/core/ptr/fn.write_volatile.html
-[core::sync::atomic]: https://doc.rust-lang.org/stable/core/sync/atomic/index.html
 [good cryptographic hygiene]: https://github.com/veorq/cryptocoding#clean-memory-of-secret-data

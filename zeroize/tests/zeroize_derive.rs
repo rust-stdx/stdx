@@ -371,3 +371,46 @@ fn derive_zeroize_used_param() {
         used: T,
     }
 }
+
+/// Type parameters nested inside another type (e.g. `Vec<T>`) must receive inferred bounds.
+#[test]
+#[cfg(feature = "alloc")]
+fn derive_generic_nested_params() {
+    #[derive(Zeroize)]
+    struct Z<T> {
+        vec: Vec<T>,
+        arr: [T; 2],
+        opt: Option<T>,
+    }
+
+    let mut value = Z {
+        vec: vec![1u8, 2, 3],
+        arr: [4, 5],
+        opt: Some(6),
+    };
+
+    value.zeroize();
+
+    assert!(value.vec.is_empty());
+    assert_eq!(value.arr, [0, 0]);
+    assert!(value.opt.is_none());
+}
+
+/// The generated impls must use fully-qualified paths, so deriving does not require `Zeroize` to
+/// be imported at the use site (checked here inside a module without the import).
+#[test]
+#[cfg(feature = "alloc")]
+fn derive_does_not_require_import() {
+    mod inner {
+        #[derive(zeroize::Zeroize)]
+        pub struct Z<T> {
+            pub vec: Vec<T>,
+        }
+    }
+
+    let mut value = inner::Z {
+        vec: vec![1u8, 2],
+    };
+    value.zeroize();
+    assert!(value.vec.is_empty());
+}

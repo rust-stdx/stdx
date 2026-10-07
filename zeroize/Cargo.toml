@@ -24,5 +24,12 @@ serde = ["dep:serde"]
 serde = { workspace = true, optional = true }
 zeroize_derive = { path = "zeroize_derive", optional = true }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false
+
 [package.metadata.docs.rs]
 all-features = true

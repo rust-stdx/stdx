@@ -3635,6 +3635,7 @@ dependencies = [
 name = "zeroize"
 version = "1.9.1"
 dependencies = [
+ "criterion",
  "serde",
  "zeroize_derive",
 ]

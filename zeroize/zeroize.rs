@@ -1,7 +1,6 @@
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("README.md")]
-#![allow(clippy::undocumented_unsafe_blocks, reason = "TODO")]
 
 //! ## Usage
 //!
@@ -74,6 +73,11 @@
 //!
 //! On the field level:
 //! - `#[zeroize(skip)]`: skips this field or variant when calling `zeroize()`
+//!
+//! Note that the `Zeroize` derive infers a `Zeroize` bound for every type parameter used in a
+//! field. The `ZeroizeOnDrop` derive does not infer any bounds: its generated `Drop` impl
+//! requires each field to implement either `Zeroize` or `ZeroizeOnDrop`, so generic types must
+//! carry the necessary bounds themselves.
 //!
 //! Example which derives `Drop`:
 //!
@@ -160,7 +164,9 @@
 //! via Rust move semantics, however note that stack spilling and other optimizations may leave
 //! temporary copies of data from the heap on the stack.
 //!
-//! [`zeroize_stack`] can be used to zeroize stack memory.
+//! This crate deliberately does not provide a portable "zeroize the stack" API: identifying the
+//! stack region used by a computation cannot be done reliably from safe Rust, so such an API
+//! tends to give a false sense of security.
 //!
 //! [`Pin`][`core::pin::Pin`] can be leveraged in conjunction with this crate to ensure data kept
 //! on the stack isn't moved.
@@ -237,6 +243,23 @@ pub trait Zeroize {
     /// Zero out this object from memory using Rust intrinsics which ensure the
     /// zeroization operation is not "optimized away" by the compiler.
     fn zeroize(&mut self);
+
+    /// Zeroize every element of `slice`.
+    ///
+    /// This is an implementation detail used by the container impls (`[Z; N]`, `Vec<Z>`,
+    /// `Box<[Z]>`) so they can select the most efficient strategy for the element type: the
+    /// blanket impl for [`DefaultIsZeroes`] types overrides it with a single bulk volatile
+    /// write, while other element types fall back to calling [`zeroize`][Zeroize::zeroize] on
+    /// each element.
+    #[doc(hidden)]
+    fn zeroize_slice(slice: &mut [Self])
+    where
+        Self: Sized,
+    {
+        for elem in slice {
+            elem.zeroize();
+        }
+    }
 }
 
 /// Marker trait signifying that this type will [`Zeroize::zeroize`] itself on [`Drop`].
@@ -265,6 +288,27 @@ where
     fn zeroize(&mut self) {
         volatile_write(self, Z::default());
     }
+
+    fn zeroize_slice(slice: &mut [Z]) {
+        zeroize_slice_default(slice);
+    }
+}
+
+/// Bulk zeroization of a mutable slice of [`DefaultIsZeroes`] elements.
+///
+/// This performs a single volatile set over the whole slice, which is considerably faster than
+/// calling [`Zeroize::zeroize`] once per element.
+#[inline(always)]
+fn zeroize_slice_default<Z: DefaultIsZeroes>(slice: &mut [Z]) {
+    let size = slice.len().checked_mul(size_of::<Z>()).expect("overflow");
+    assert!(isize::try_from(size).is_ok());
+
+    // Safety:
+    //
+    // The slice is well aligned and backed by a single allocation of at least `slice.len()`
+    // elements of type `Z`. `slice.len() * size_of::<Z>()` is at most `isize::MAX` because of the
+    // assertion above, so the memory does not wrap around the address space.
+    unsafe { volatile_set(slice.as_mut_ptr(), Z::default(), slice.len()) };
 }
 
 macro_rules! impl_zeroize_with_default {
@@ -333,7 +377,7 @@ where
     Z: Zeroize,
 {
     fn zeroize(&mut self) {
-        self.iter_mut().zeroize();
+        Z::zeroize_slice(self);
     }
 }
 
@@ -421,7 +465,7 @@ impl<Z> Zeroize for [MaybeUninit<Z>] {
         // Safety:
         //
         // This is safe, because every valid pointer is well aligned for u8
-        // and it is backed by a single allocated object for at least `self.len() * size_pf::<Z>()` bytes.
+        // and it is backed by a single allocated object for at least `self.len() * size_of::<Z>()` bytes.
         // and 0 is a valid value for `MaybeUninit<Z>`
         // The memory of the slice should not wrap around the address space.
         unsafe { volatile_set(ptr, MaybeUninit::zeroed(), size) }
@@ -441,18 +485,15 @@ where
     Z: DefaultIsZeroes,
 {
     fn zeroize(&mut self) {
-        assert!(isize::try_from(self.len()).is_ok());
-
-        // Safety:
-        //
-        // This is safe, because the slice is well aligned and is backed by a single allocated
-        // object for at least `self.len()` elements of type `Z`.
-        // `self.len()` is also not larger than an `isize`, because of the assertion above.
-        // The memory of the slice should not wrap around the address space.
-        unsafe { volatile_set(self.as_mut_ptr(), Z::default(), self.len()) };
+        zeroize_slice_default(self);
     }
 }
 
+/// Overwrites the contents of the string slice with NUL (`\0`) bytes.
+///
+/// Note that, unlike the `String` implementation, this cannot change the length of the string,
+/// because `str` is a dynamically sized view whose length is stored in the pointer. The result is
+/// therefore a string of the same length whose bytes are all `\0`, which is still valid UTF-8.
 impl Zeroize for str {
     fn zeroize(&mut self) {
         // Safety:
@@ -466,7 +507,7 @@ impl<Z> Zeroize for PhantomData<Z> {
     fn zeroize(&mut self) {}
 }
 
-/// [`PhantomData` is always zero sized so provide a `ZeroizeOnDrop` implementation.
+/// [`PhantomData`] is always zero sized so provide a [`ZeroizeOnDrop`] implementation.
 impl<Z> ZeroizeOnDrop for PhantomData<Z> {}
 
 macro_rules! impl_zeroize_tuple {
@@ -512,7 +553,7 @@ where
         self.spare_capacity_mut().zeroize();
 
         // Zeroize all the initialized elements.
-        self.iter_mut().zeroize();
+        Z::zeroize_slice(self);
 
         // Set the Vec's length to 0 and drop all the (already-zeroized) elements.
         self.clear();
@@ -530,7 +571,7 @@ where
     /// Unlike `Vec`, `Box<[Z]>` cannot reallocate, so we can be sure that we are not leaving
     /// values on the heap.
     fn zeroize(&mut self) {
-        self.iter_mut().zeroize();
+        Z::zeroize_slice(self);
     }
 }
 
@@ -547,6 +588,10 @@ impl Zeroize for Box<str> {
 #[cfg(feature = "alloc")]
 impl Zeroize for String {
     fn zeroize(&mut self) {
+        // Safety:
+        //
+        // The bytes are immediately zeroized, and a slice of NUL bytes is valid UTF-8, so the
+        // `String` remains a valid UTF-8 buffer (with length 0) when the borrow ends.
         unsafe { self.as_mut_vec() }.zeroize();
     }
 }
@@ -571,7 +616,9 @@ impl Zeroize for CString {
         // expect() should never fail, because zeroize() truncates the Vec
         let zeroed = CString::new(buf).expect("buf not truncated");
 
-        // Replace self by the zeroed CString to maintain the original ptr of the buffer
+        // Replace the (now empty) `self` with the zeroed `CString`. The original buffer has
+        // already been zeroed above; it may be reused or shrunk in place here, but its previous
+        // contents are gone either way.
         let _ = mem::replace(self, zeroed);
     }
 }
@@ -721,6 +768,10 @@ where
 /// Perform a volatile write to the destination
 #[inline(always)]
 fn volatile_write<T: Copy + Sized>(dst: &mut T, src: T) {
+    // Safety:
+    //
+    // `dst` is a valid, aligned reference, so it is valid for a write of `size_of::<T>()` bytes,
+    // and `src` is a valid `T`.
     unsafe { ptr::write_volatile(dst, src) }
 }
 
@@ -735,6 +786,30 @@ fn volatile_write<T: Copy + Sized>(dst: &mut T, src: T) {
 #[inline(always)]
 unsafe fn volatile_set<T: Copy + Sized>(dst: *mut T, src: T, count: usize) {
     // TODO(tarcieri): use `volatile_set_memory` when stabilized
+    //
+    // Zero-sized types have nothing to write.
+    if size_of::<T>() == 0 {
+        return;
+    }
+
+    // Fast path: for 1-byte types (e.g. `u8`, `i8`, `bool` or `MaybeUninit<u8>`) the value's
+    // bytes can be replicated across machine words and written with far fewer volatile stores.
+    // This is the common case for byte buffers such as `Vec<u8>` and `String`.
+    if size_of::<T>() == 1 {
+        // Safety:
+        //
+        // `T` has size 1 and implements `Copy`, so `src` consists of exactly one initialized,
+        // valid byte with no padding, and may be read as a `u8`.
+        let byte = unsafe { *(&src as *const T).cast::<u8>() };
+
+        // Safety:
+        //
+        // `dst` and `count` satisfy the requirements of `volatile_set_bytes` (which are the same
+        // as this function's), and `byte` is a valid `u8`.
+        unsafe { volatile_set_bytes(dst.cast::<u8>(), byte, count) };
+        return;
+    }
+
     for i in 0..count {
         // Safety:
         //
@@ -751,62 +826,46 @@ unsafe fn volatile_set<T: Copy + Sized>(dst: *mut T, src: T, count: usize) {
     }
 }
 
-/// Zeroizes a flat type/struct. Only zeroizes the values that it owns, and it does not work on
-/// dynamically sized values or trait objects. It would be inefficient to use this function on a
-/// type that already implements `ZeroizeOnDrop`.
+/// Volatile `memset` of `count` bytes at `dst` with `byte`.
+///
+/// Writes are performed a machine word at a time once the destination is word-aligned (with
+/// leading/trailing single-byte writes to cover any misalignment), which issues substantially
+/// fewer volatile stores than a byte-at-a-time loop.
 ///
 /// # Safety
-/// - The type must not contain references to outside data or dynamically sized data, such as
-///   `Vec<T>` or `String`.
-/// - Values stored in the type must not have `Drop` impls.
-/// - This function can invalidate the type if it is used after this function is called on it.
-///   It is advisable to call this function only in `impl Drop`.
-/// - The bit pattern of all zeroes must be valid for the data being zeroized. This may not be
-///   true for enums and pointers.
-///
-/// # Incompatible data types
-/// Some data types that cannot be safely zeroized using `zeroize_flat_type` include,
-/// but are not limited to:
-/// - References: `&T` and `&mut T`
-/// - Non-nullable types: `NonNull<T>`, `NonZeroU32`, etc.
-/// - Enums with explicit non-zero tags.
-/// - Smart pointers and collections: `Arc<T>`, `Box<T>`, `Vec<T>`, `HashMap<K, V>`, `String`, etc.
-///
-/// # Examples
-/// Safe usage for a struct containing strictly flat data:
-/// ```
-/// use zeroize::{ZeroizeOnDrop, zeroize_flat_type};
-///
-/// struct DataToZeroize {
-///     flat_data_1: [u8; 32],
-///     flat_data_2: SomeMoreFlatData,
-/// }
-///
-/// struct SomeMoreFlatData(u64);
-///
-/// impl Drop for DataToZeroize {
-///     fn drop(&mut self) {
-///         unsafe { zeroize_flat_type(self as *mut Self) }
-///     }
-/// }
-/// impl ZeroizeOnDrop for DataToZeroize {}
-///
-/// let mut data = DataToZeroize {
-///     flat_data_1: [3u8; 32],
-///     flat_data_2: SomeMoreFlatData(123u64)
-/// };
-///
-/// // data gets zeroized when dropped
-/// ```
+/// Same requirements as [`volatile_set`], for `T = u8`.
 #[inline(always)]
-pub unsafe fn zeroize_flat_type<F: Sized>(data: *mut F) {
-    let size = size_of::<F>();
-    // Safety:
-    //
-    // This is safe because `size_of<T>()` returns the exact size of the object in memory, and
-    // `data_ptr` points directly to the first byte of the data.
-    unsafe {
-        volatile_set(data.cast::<u8>(), 0, size);
+unsafe fn volatile_set_bytes(dst: *mut u8, byte: u8, count: usize) {
+    let word_size = size_of::<usize>();
+
+    // Write single bytes until the destination is aligned for a `usize` store.
+    let head = (word_size - (dst as usize % word_size)) % word_size;
+    let head = head.min(count);
+    for i in 0..head {
+        // Safety:
+        //
+        // `i < head <= count`, so `dst.add(i)` is within the allocation, and `dst` is a valid
+        // (align 1) pointer.
+        unsafe { ptr::write_volatile(dst.add(i), byte) };
+    }
+
+    let word = usize::from_ne_bytes([byte; size_of::<usize>()]);
+    let mut i = head;
+    while i + word_size <= count {
+        // Safety:
+        //
+        // `i + word_size <= count`, so `dst.add(i)` covers `word_size` in-bounds bytes, and it is
+        // aligned for `usize` because `i` is a multiple of `word_size` past an aligned `head`.
+        unsafe { ptr::write_volatile(dst.add(i).cast::<usize>(), word) };
+        i += word_size;
+    }
+
+    while i < count {
+        // Safety:
+        //
+        // `i < count`, so `dst.add(i)` is within the allocation.
+        unsafe { ptr::write_volatile(dst.add(i), byte) };
+        i += 1;
     }
 }
 
