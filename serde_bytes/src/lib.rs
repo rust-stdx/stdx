@@ -14,7 +14,6 @@
 //! wrapper type.
 //!
 //! ```
-//! # use serde_derive::{Deserialize, Serialize};
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Deserialize, Serialize)]
@@ -68,7 +67,6 @@ pub use crate::{bytearray::ByteArray, bytes::Bytes, de::Deserialize, ser::Serial
 /// - `#[serde(serialize_with = "serde_bytes::serialize")]`
 ///
 /// ```
-/// # use serde_derive::Serialize;
 /// use serde::Serialize;
 ///
 /// #[derive(Serialize)]
@@ -99,7 +97,6 @@ where
 /// - `#[serde(deserialize_with = "serde_bytes::deserialize")]`
 ///
 /// ```
-/// # use serde_derive::Deserialize;
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]

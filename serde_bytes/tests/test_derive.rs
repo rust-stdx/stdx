@@ -2,8 +2,8 @@
 
 use std::borrow::Cow;
 
+use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteArray, ByteBuf, Bytes};
-use serde_derive::{Deserialize, Serialize};
 use serde_test::{Token, assert_tokens};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

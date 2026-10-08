@@ -2272,7 +2272,6 @@ version = "0.11.19"
 dependencies = [
  "serde",
  "serde_core",
- "serde_derive",
  "serde_json",
  "serde_test",
 ]
