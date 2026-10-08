@@ -53,7 +53,7 @@ pub struct Metadata {
     hash: [u8; 32],
     last_modified: Option<u64>,
     created: Option<u64>,
-    #[cfg(feature = "mime-guess")]
+    #[cfg(feature = "guess-media-type")]
     mimetype: Cow<'static, str>,
 }
 
@@ -63,13 +63,13 @@ impl Metadata {
         hash: [u8; 32],
         last_modified: Option<u64>,
         created: Option<u64>,
-        #[cfg(feature = "mime-guess")] mimetype: &'static str,
+        #[cfg(feature = "guess-media-type")] mimetype: &'static str,
     ) -> Self {
         Self {
             hash,
             last_modified,
             created,
-            #[cfg(feature = "mime-guess")]
+            #[cfg(feature = "guess-media-type")]
             mimetype: Cow::Borrowed(mimetype),
         }
     }
@@ -92,7 +92,7 @@ impl Metadata {
     }
 
     /// The mime type of the file
-    #[cfg(feature = "mime-guess")]
+    #[cfg(feature = "guess-media-type")]
     pub fn mimetype(&self) -> &str {
         &self.mimetype
     }
@@ -122,8 +122,8 @@ pub fn read_file_from_fs(file_path: &Path) -> io::Result<EmbeddedFile> {
         .and_then(|created| created.duration_since(SystemTime::UNIX_EPOCH).ok())
         .map(|secs| secs.as_secs());
 
-    #[cfg(feature = "mime-guess")]
-    let mimetype = mime_guess::from_path(file_path).first_or_octet_stream().to_string();
+    #[cfg(feature = "guess-media-type")]
+    let mimetype = media_type::from_path(file_path).first_or_octet_stream().to_string();
 
     Ok(EmbeddedFile {
         data,
@@ -131,7 +131,7 @@ pub fn read_file_from_fs(file_path: &Path) -> io::Result<EmbeddedFile> {
             hash,
             last_modified: source_date_epoch.or(last_modified),
             created: source_date_epoch.or(created),
-            #[cfg(feature = "mime-guess")]
+            #[cfg(feature = "guess-media-type")]
             mimetype: mimetype.into(),
         },
     })

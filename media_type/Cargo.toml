@@ -1,0 +1,23 @@
+[package]
+name = "media_type"
+version = "0.1.0"
+description = "Media types (formerly known as MIME types): parsing, constants, and file extension guessing."
+keywords = ["mime", "media-type", "filesystem", "extension"]
+license = "MIT"
+edition = "2024"
+rust-version = "1.85"
+
+[lib]
+path = "./media_type.rs"
+
+[features]
+default = ["std", "reverse-lookup"]
+# Enable the owned, allocating parts of the API (`parse`, `FromStr`, `MediaTypeIter`, ...).
+alloc = []
+# Enable `std`-only conveniences such as `from_path`.
+std = ["alloc"]
+# Generate and expose the media type -> extensions reverse lookup.
+reverse-lookup = []
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--generate-link-to-definition"]

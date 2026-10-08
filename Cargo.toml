@@ -32,13 +32,14 @@ members = [
     "hpke",
     "html_escape",
     "httpdate",
+    "indexmap",
     "ipnetwork",
     "json_rpc",
     "jwt",
     "mail_builder",
     "maxminddb",
+    "media_type",
     "memmem",
-    "mime_guess",
     "net",
     "num_cpus",
     "percent_encoding",
@@ -49,6 +50,7 @@ members = [
     "s3",
     "scheduler",
     "semver",
+    "serde_bytes",
     "serde_urlencoded",
     "serde_yaml",
     "single_instance",
@@ -87,7 +89,7 @@ opt-level = 3
 anyerr = { path = "anyerr" }
 antlr4rust = "=0.3.0-rc2"
 arbitrary = { version = "1", features = ["derive"] }
-axum = { version = "0.7", default-features = false, features = ["http1", "json", "tokio"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "f3149ec5bb5449af877ba20377a11008ff499fa2" } # 1.8.7
 bytes = { version = "1", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "oldtime", "serde", "std", ] }
@@ -95,22 +97,20 @@ futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }
 heapless = "0.9"
 hyper = { version = "1", features = ["full"] }
-indexmap = { version = "2" }
+indexmap = { path = "indexmap" }
 libc = "0.2"
 memchr = { version = "2", default-features = false }
-mime = "0.3"
 nix = { version = "0.31", features = ["socket"] }
 nom = "8"
 paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
 quick-xml = { version = "0.38", features = ["serialize"] }
 rand = "0.10"
 regex = { version = "1" }
-reqwest = { version = "0.13", default-features = false, features = ["charset", "gzip", "http2", "multipart", "json", "rustls", "zstd"] }
+reqwest = { version = "0.13", default-features = false, features = ["gzip", "http2", "json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["std"] }
 serde = { version = "1", default-features = false }
-serde_bytes = "0.11"
+serde_core = { version = "1", default-features = false }
 serde_json = "1"
-smallvec = { version = "2.0.0-alpha.12" }
 sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "b54008a329541c0ce230d8b203e0c00fc8e8ea48" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"

@@ -29,5 +29,5 @@ embed_utils = { path = "../embed_utils"}
 debug-embed = []
 # interpolate-folder-path = ["shellexpand"]
 # compression = []
-mime-guess = ["embed_utils/mime-guess"]
+guess-media-type = ["embed_utils/guess-media-type"]
 # include-exclude = ["rust-embed-utils/include-exclude"]

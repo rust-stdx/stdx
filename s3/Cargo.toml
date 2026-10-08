@@ -14,6 +14,7 @@ reqwest = ["dep:reqwest"]
 base64 = { path = "../base64" }
 bytes = { workspace = true }
 crypto = { path = "../crypto" }
+crypto_rustls = { path = "../crypto_rustls" }
 futures-util = { workspace = true }
 hex = { path = "../hex" }
 quick-xml = { workspace = true }

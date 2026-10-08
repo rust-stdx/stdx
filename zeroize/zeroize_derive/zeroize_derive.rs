@@ -23,7 +23,6 @@ const ZEROIZE_ATTR: &str = "zeroize";
 /// Supports the following attributes:
 ///
 /// On the item level:
-/// - `#[zeroize(drop)]`: *deprecated* use `ZeroizeOnDrop` instead
 /// - `#[zeroize(bound = "T: MyTrait")]`: this replaces any trait bounds
 ///   inferred by zeroize-derive
 ///
@@ -56,31 +55,13 @@ fn derive_zeroize_impl(input: DeriveInput) -> TokenStream {
 
     let (impl_gen, type_gen, where_) = generics.split_for_impl();
 
-    let drop_impl = if attributes.drop {
-        quote! {
-            #[doc(hidden)]
-            impl #impl_gen Drop for #ty_name #type_gen #where_ {
-                fn drop(&mut self) {
-                    self.zeroize()
-                }
-            }
-        }
-    } else {
-        quote! {}
-    };
-
     let zeroizers = generate_fields(&input, quote! { zeroize });
-    let zeroize_impl = quote! {
+    quote! {
         impl #impl_gen ::zeroize::Zeroize for #ty_name #type_gen #where_ {
             fn zeroize(&mut self) {
                 #zeroizers
             }
         }
-    };
-
-    quote! {
-        #zeroize_impl
-        #drop_impl
     }
 }
 
@@ -121,8 +102,6 @@ fn derive_zeroize_on_drop_impl(input: DeriveInput) -> TokenStream {
 /// Custom derive attributes for `Zeroize`
 #[derive(Default)]
 struct ZeroizeAttrs {
-    /// Derive a `Drop` impl which calls zeroize on this type
-    drop: bool,
     /// Custom bounds as defined by the user
     bound: Option<Bounds>,
     /// Type parameters in use by fields
@@ -230,35 +209,9 @@ impl ZeroizeAttrs {
         }
     }
 
-    /// Parse `#[zeroize(...)]` attribute metadata (e.g. `drop`)
+    /// Parse `#[zeroize(...)]` attribute metadata
     fn parse_meta(&mut self, meta: &Meta, variant: Option<&Variant>, binding: Option<&Field>) {
-        if meta.path().is_ident("drop") {
-            assert!(!self.drop, "duplicate #[zeroize] drop flags");
-
-            match (variant, binding) {
-                (_variant, Some(_binding)) => {
-                    // structs don't have a variant prefix, and only structs have bindings outside of a variant
-                    let item_kind = match variant {
-                        Some(_) => "enum",
-                        None => "struct",
-                    };
-                    panic!(
-                        concat!(
-                            "The #[zeroize(drop)] attribute is not allowed on {} fields. ",
-                            "Use it on the containing {} instead.",
-                        ),
-                        item_kind, item_kind,
-                    )
-                }
-                (Some(_variant), None) => panic!(concat!(
-                    "The #[zeroize(drop)] attribute is not allowed on enum variants. ",
-                    "Use it on the containing enum instead.",
-                )),
-                (None, None) => (),
-            };
-
-            self.drop = true;
-        } else if meta.path().is_ident("bound") {
+        if meta.path().is_ident("bound") {
             assert!(self.bound.is_none(), "duplicate #[zeroize] bound flags");
 
             match (variant, binding) {
@@ -466,42 +419,6 @@ mod tests {
     }
 
     #[test]
-    fn zeroize_with_drop() {
-        test_derive(
-            derive_zeroize_impl,
-            quote! {
-                #[zeroize(drop)]
-                struct Z {
-                    a: String,
-                    b: Vec<u8>,
-                    c: [u8; 3],
-                }
-            },
-            quote! {
-                impl ::zeroize::Zeroize for Z {
-                    fn zeroize(&mut self) {
-                        match self {
-                            #[allow(unused_variables, unused_assignments)]
-                            Z { a, b, c } => {
-                                a.zeroize();
-                                b.zeroize();
-                                c.zeroize()
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                #[doc(hidden)]
-                impl Drop for Z {
-                    fn drop(&mut self) {
-                        self.zeroize()
-                    }
-                }
-            },
-        );
-    }
-
-    #[test]
     fn zeroize_with_skip() {
         test_derive(
             derive_zeroize_impl,
@@ -528,6 +445,17 @@ mod tests {
                 }
             },
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "unknown #[zeroize] attribute type")]
+    fn zeroize_drop_attribute_removed() {
+        parse_zeroize_test(stringify!(
+            #[zeroize(drop)]
+            struct Z {
+                a: String,
+            }
+        ));
     }
 
     #[test]
@@ -600,130 +528,6 @@ mod tests {
                 impl ::zeroize::ZeroizeOnDrop for Z {}
             },
         );
-    }
-
-    #[test]
-    fn zeroize_on_struct() {
-        parse_zeroize_test(stringify!(
-            #[zeroize(drop)]
-            struct Z {
-                a: String,
-                b: Vec<u8>,
-                c: [u8; 3],
-            }
-        ));
-    }
-
-    #[test]
-    fn zeroize_on_enum() {
-        parse_zeroize_test(stringify!(
-            #[zeroize(drop)]
-            enum Z {
-                Variant1 { a: String, b: Vec<u8>, c: [u8; 3] },
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on struct fields")]
-    fn zeroize_on_struct_field() {
-        parse_zeroize_test(stringify!(
-            struct Z {
-                #[zeroize(drop)]
-                a: String,
-                b: Vec<u8>,
-                c: [u8; 3],
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on struct fields")]
-    fn zeroize_on_tuple_struct_field() {
-        parse_zeroize_test(stringify!(
-            struct Z(#[zeroize(drop)] String);
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on struct fields")]
-    fn zeroize_on_second_field() {
-        parse_zeroize_test(stringify!(
-            struct Z {
-                a: String,
-                #[zeroize(drop)]
-                b: Vec<u8>,
-                c: [u8; 3],
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on enum fields")]
-    fn zeroize_on_tuple_enum_variant_field() {
-        parse_zeroize_test(stringify!(
-            enum Z {
-                Variant(#[zeroize(drop)] String),
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on enum fields")]
-    fn zeroize_on_enum_variant_field() {
-        parse_zeroize_test(stringify!(
-            enum Z {
-                Variant {
-                    #[zeroize(drop)]
-                    a: String,
-                    b: Vec<u8>,
-                    c: [u8; 3],
-                },
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on enum fields")]
-    fn zeroize_on_enum_second_variant_field() {
-        parse_zeroize_test(stringify!(
-            enum Z {
-                Variant1 {
-                    a: String,
-                    b: Vec<u8>,
-                    c: [u8; 3],
-                },
-                Variant2 {
-                    #[zeroize(drop)]
-                    a: String,
-                    b: Vec<u8>,
-                    c: [u8; 3],
-                },
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on enum variants")]
-    fn zeroize_on_enum_variant() {
-        parse_zeroize_test(stringify!(
-            enum Z {
-                #[zeroize(drop)]
-                Variant,
-            }
-        ));
-    }
-
-    #[test]
-    #[should_panic(expected = "#[zeroize(drop)] attribute is not allowed on enum variants")]
-    fn zeroize_on_enum_second_variant() {
-        parse_zeroize_test(stringify!(
-            enum Z {
-                Variant1,
-                #[zeroize(drop)]
-                Variant2,
-            }
-        ));
     }
 
     #[test]

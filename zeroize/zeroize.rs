@@ -62,7 +62,6 @@
 //! Attributes supported for `Zeroize`:
 //!
 //! On the item level:
-//! - `#[zeroize(drop)]`: *deprecated* use `ZeroizeOnDrop` instead
 //! - `#[zeroize(bound = "T: MyTrait")]`: this replaces any trait bounds
 //!   inferred by zeroize
 //!

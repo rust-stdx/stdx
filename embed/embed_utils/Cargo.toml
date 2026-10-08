@@ -19,7 +19,7 @@ crypto = { path = "../../crypto" }
 walkdir = { workspace = true }
 
 
-mime_guess = { path = "../../mime_guess", optional = true }
+media_type = { path = "../../media_type", optional = true }
 
 # [dependencies.globset]
 # version = "0.4.8"
@@ -27,5 +27,5 @@ mime_guess = { path = "../../mime_guess", optional = true }
 
 [features]
 debug-embed = []
-mime-guess = ["dep:mime_guess"]
+guess-media-type = ["dep:media_type"]
 # include-exclude = ["globset"]

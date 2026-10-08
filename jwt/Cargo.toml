@@ -19,4 +19,3 @@ crypto = { path = "../crypto" }
 serde = { workspace = true, default_features = false, features = ["alloc", "derive"] }
 serde_json = { workspace = true }
 small_collections = { path = "../small_collections", default-features = false, features = ["serde"] }
-smallvec = { workspace = true, features = ["serde"] }

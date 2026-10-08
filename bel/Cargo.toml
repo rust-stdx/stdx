@@ -34,4 +34,4 @@ serde_json = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-serde_bytes = { workspace = true }
+serde_bytes = { path = "../serde_bytes" }

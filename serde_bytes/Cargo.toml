@@ -1,0 +1,26 @@
+[package]
+name = "serde_bytes"
+version = "0.11.19"
+categories = ["encoding", "no-std", "no-std::no-alloc"]
+description = "Optimized handling of `&[u8]` and `Vec<u8>` for Serde"
+edition = "2024"
+keywords = ["serde", "serialization", "no_std", "bytes"]
+license = "MIT"
+rust-version = "1.85"
+
+[features]
+default = ["std"]
+std = ["alloc", "serde_core/std"]
+alloc = ["serde_core/alloc"]
+
+[dependencies]
+serde_core = { workspace = true }
+
+[target.'cfg(any())'.dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_derive = "1"
+serde_json = { workspace = true }
+serde_test = "1"

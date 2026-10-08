@@ -6,8 +6,7 @@ use crypto::{
     p256, p384, p521,
 };
 use serde::{Deserialize, Serialize};
-use small_collections::SmallString;
-use smallvec::SmallVec;
+use small_collections::{SmallString, SmallVec};
 
 use crate::{Algorithm, Error, RsaPublicKey, SecretKey};
 

@@ -1,34 +1,115 @@
 extern crate alloc;
 
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+use alloc::{borrow::Cow, string::String, vec::Vec};
+use core::str::FromStr;
+
+/// A string that stores up to `N` bytes inline (on the stack) and spills onto
+/// the heap once it grows past that inline capacity.
+///
+/// `SmallString` behaves like [`alloc::string::String`] for the operations it
+/// exposes: it dereferences to `str`, so all string methods are available. The
+/// only difference is *where* short strings are stored: values whose UTF-8
+/// length fits in `N` bytes never touch the allocator.
+///
+/// # Examples
+///
+/// ```
+/// use small_collections::SmallString;
+///
+/// let mut s: SmallString<8> = SmallString::new();
+/// s.push_str("hello");
+/// assert!(s.is_inline());
+/// assert_eq!(&*s, "hello");
+///
+/// // Pushing past `N` bytes automatically spills onto the heap.
+/// s.push_str(" world");
+/// assert!(!s.is_inline());
+/// assert_eq!(s.as_str(), "hello world");
+/// ```
+///
+/// # Invariants
+///
+/// * The `Inline` variant never holds more than `N` bytes.
+/// * A value only ever moves from `Inline` to `Heap` on growth; it moves back
+///   to `Inline` only through [`SmallString::shrink_to_fit`] or
+///   [`SmallString::shrink_to`]. [`SmallString::clear`] and
+///   [`SmallString::truncate`] keep the current storage.
+///
+/// # Serialization
+///
+/// With the `serde` feature enabled, a `SmallString` serializes exactly like a
+/// `str` (for example the JSON string `"hello"`), regardless of whether its
+/// contents are stored inline or on the heap. This matches the flat sequence
+/// representation used by [`SmallVec`](crate::SmallVec).
+#[derive(Clone)]
 pub enum SmallString<const N: usize> {
+    /// Data stored inline, on the stack, with a fixed capacity of `N` bytes.
     Inline(heapless::String<N>),
+    /// Data spilled onto the heap, growing as needed.
     Heap(alloc::string::String),
 }
 
 impl<const N: usize> SmallString<N> {
-    #[inline(always)]
+    /// Creates a new, empty `SmallString` using its inline storage.
+    ///
+    /// This never allocates.
+    #[inline]
     pub fn new() -> Self {
         SmallString::Inline(heapless::String::new())
     }
 
-    /// Copy the content of an `&str` into a new [`SmallString`].
-    /// The data is stored inline if possible.
-    #[inline(always)]
+    /// Returns the inline capacity, `N`.
+    #[inline]
+    pub const fn inline_size() -> usize {
+        N
+    }
+
+    /// Copies the contents of an `&str` into a new [`SmallString`].
+    ///
+    /// The data is stored inline when its UTF-8 length is at most `N`,
+    /// otherwise it is copied onto the heap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use small_collections::SmallString;
+    ///
+    /// let inline: SmallString<8> = SmallString::from_str("hello");
+    /// assert!(inline.is_inline());
+    ///
+    /// let heap: SmallString<2> = SmallString::from_str("hello");
+    /// assert!(!heap.is_inline());
+    /// ```
+    // Kept as an infallible inherent constructor alongside the `FromStr`
+    // impl; the name mirrors std's `String`-like constructors.
+    #[allow(clippy::should_implement_trait)]
+    #[inline]
     pub fn from_str(s: &str) -> Self {
-        let mut str = Self::new();
-        str.push_str(s);
-        str
+        let mut out = Self::new();
+        out.push_str(s);
+        out
     }
 
-    /// Creates a [`SmallString`] from an already heap-allocateed String.
-    #[inline(always)]
-    pub fn from_string(s: alloc::string::String) -> Self {
-        Self::Heap(s)
+    /// Creates a [`SmallString`] from an already heap-allocated `String`.
+    ///
+    /// The existing allocation is preserved, so the result always uses the
+    /// `Heap` variant, except for an empty `String` with no capacity, which
+    /// returns an inline `SmallString` (matching
+    /// [`SmallVec::from_vec`](crate::SmallVec::from_vec)). Use
+    /// [`SmallString::from_str`] if you want a short string to move inline.
+    #[inline]
+    pub fn from_string(s: String) -> Self {
+        if s.capacity() == 0 { Self::new() } else { Self::Heap(s) }
     }
 
-    #[inline(always)]
+    /// Moves the contents of a `SmallString` with a different inline capacity
+    /// into this one.
+    ///
+    /// The bytes are stored inline when they fit in `N`, otherwise they are
+    /// spilled onto the heap. Unlike [`SmallString::from_string`], this does
+    /// not preserve an existing heap allocation when the contents would fit
+    /// inline.
+    #[inline]
     pub fn from_small_string<const M: usize>(input: SmallString<M>) -> Self {
         match input {
             SmallString::Heap(s) if s.len() <= N => SmallString::from_str(&s),
@@ -39,41 +120,67 @@ impl<const N: usize> SmallString<N> {
 
     /// Converts a `Vec` of bytes to a [`SmallString`].
     ///
-    /// If the bytes are not valid UTF-8, this returns an error.
-    /// If valid, it attempts to store them inline if they fit.
-    #[inline(always)]
-    pub fn from_utf8(bytes: alloc::vec::Vec<u8>) -> Result<Self, alloc::string::FromUtf8Error> {
-        Ok(Self::Heap(alloc::string::String::from_utf8(bytes)?))
+    /// The bytes are stored inline when they fit in `N`, otherwise they are
+    /// moved onto the heap.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the bytes are not valid UTF-8.
+    #[inline]
+    pub fn from_utf8(bytes: Vec<u8>) -> Result<Self, alloc::string::FromUtf8Error> {
+        let s = String::from_utf8(bytes)?;
+        Ok(if s.len() <= N {
+            Self::from_str(&s)
+        } else {
+            Self::from_string(s)
+        })
     }
 
     /// Converts a slice of bytes to a [`SmallString`].
     ///
-    /// If the bytes are not valid UTF-8, this returns an error.
-    /// If valid, it attempts to store them inline if they fit.
-    #[inline(always)]
+    /// The bytes are stored inline when they fit in `N`, otherwise they are
+    /// copied onto the heap.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the bytes are not valid UTF-8.
+    #[inline]
     pub fn from_utf8_slice(bytes: &[u8]) -> Result<Self, core::str::Utf8Error> {
         Ok(Self::from_str(core::str::from_utf8(bytes)?))
     }
 
-    /// Converts a slice of bytes to a [`SmallString`], replacing invalid characters.
-    #[inline(always)]
+    /// Converts a slice of bytes to a [`SmallString`], replacing invalid
+    /// sequences with U+FFFD.
+    ///
+    /// Input that is already valid UTF-8 is copied directly, without
+    /// allocating. When replacements are needed, the result is stored inline
+    /// if it fits in `N` and on the heap otherwise.
+    #[inline]
     pub fn from_utf8_lossy(bytes: &[u8]) -> Self {
-        // TODO: should we move back to inline if str.len() allows it but str is owned?
-        let str = alloc::string::String::from_utf8_lossy(bytes);
-        match str {
-            alloc::borrow::Cow::Borrowed(borrowed) => Self::from_str(borrowed),
-            alloc::borrow::Cow::Owned(owned) => Self::from_string(owned),
+        match String::from_utf8_lossy(bytes) {
+            Cow::Borrowed(borrowed) => Self::from_str(borrowed),
+            Cow::Owned(owned) => {
+                if owned.len() <= N {
+                    Self::from_str(&owned)
+                } else {
+                    Self::from_string(owned)
+                }
+            }
         }
     }
 
-    /// Returns `true` if the string is currently storing data inline (on the stack).
-    #[inline(always)]
+    /// Returns `true` if the string is currently storing data inline (on the
+    /// stack).
+    #[inline]
     pub fn is_inline(&self) -> bool {
         matches!(self, SmallString::Inline(_))
     }
 
     /// Returns the total capacity (in bytes) of the string.
-    #[inline(always)]
+    ///
+    /// For an inline string this is always `N`; for a spilled string it is the
+    /// current heap capacity.
+    #[inline]
     pub fn capacity(&self) -> usize {
         match self {
             SmallString::Inline(_) => N,
@@ -81,8 +188,9 @@ impl<const N: usize> SmallString<N> {
         }
     }
 
-    /// Returns the length of this [`SmallString`] in bytes, not [`char`]s or graphemes.
-    #[inline(always)]
+    /// Returns the length of this [`SmallString`] in bytes, not [`char`]s or
+    /// graphemes.
+    #[inline]
     pub fn len(&self) -> usize {
         match self {
             SmallString::Inline(str) => str.len(),
@@ -90,17 +198,18 @@ impl<const N: usize> SmallString<N> {
         }
     }
 
-    /// Returns `true` if this [`SmallString`] has a length of zero, and `false` otherwise.
-    #[inline(always)]
+    /// Returns `true` if this [`SmallString`] has a length of zero.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Truncates this [`SmallString`], removing all contents.
     ///
-    /// While this means the [`SmallString`] will have a length of zero, it does not
-    /// touch its capacity.
-    #[inline(always)]
+    /// While this means the [`SmallString`] will have a length of zero, it
+    /// does not touch its capacity or change its storage (inline stays inline,
+    /// heap stays heap).
+    #[inline]
     pub fn clear(&mut self) {
         match self {
             SmallString::Inline(str) => str.clear(),
@@ -108,36 +217,43 @@ impl<const N: usize> SmallString<N> {
         }
     }
 
-    #[inline(always)]
+    /// Extracts a string slice containing the entire `SmallString`.
+    #[inline]
     pub fn as_str(&self) -> &str {
         // Leverage Deref
         self
     }
 
-    #[inline(always)]
+    /// Extracts a mutable string slice containing the entire `SmallString`.
+    ///
+    /// Mutating the slice must preserve valid UTF-8; methods such as
+    /// [`str::make_ascii_uppercase`] do.
+    #[inline]
     pub fn as_mut_str(&mut self) -> &mut str {
         // Leverage DerefMut
         self
     }
 
     /// Converts a [`SmallString`] into a byte slice.
-    #[inline(always)]
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         self.as_str().as_bytes()
     }
 
+    /// Returns a mutable byte slice over the contents.
+    ///
     /// # Safety
     ///
     /// The caller must ensure that the content of the slice remains valid UTF-8.
     /// If this invariant is violated, it is Undefined Behavior.
-    #[inline(always)]
+    #[inline]
     pub unsafe fn as_bytes_mut(&mut self) -> &mut [u8] {
         unsafe { self.as_mut_str().as_bytes_mut() }
     }
 
     /// Removes the last character from the string buffer and returns it.
-    /// Returns None if the string is empty.
-    #[inline(always)]
+    /// Returns [`None`] if the string is empty.
+    #[inline]
     pub fn pop(&mut self) -> Option<char> {
         match self {
             SmallString::Inline(str) => str.pop(),
@@ -145,13 +261,16 @@ impl<const N: usize> SmallString<N> {
         }
     }
 
-    /// Shortens this String to the specified length.
-    /// If new_len >= current length, this does nothing.
+    /// Shortens this string to the specified length.
+    ///
+    /// If `new_len` is greater than or equal to the current length, this does
+    /// nothing. Keeps the current storage.
     ///
     /// # Panics
     ///
-    /// Panics if `new_len` does not lie on a [`char`] boundary.
-    #[inline(always)]
+    /// Panics if `new_len` is less than the current length and does not lie on
+    /// a [`char`] boundary.
+    #[inline]
     pub fn truncate(&mut self, new_len: usize) {
         match self {
             SmallString::Inline(str) => str.truncate(new_len),
@@ -159,82 +278,189 @@ impl<const N: usize> SmallString<N> {
         }
     }
 
+    /// Appends a string slice to the end of this string, spilling onto the
+    /// heap if the inline capacity is exceeded.
     #[inline]
     pub fn push_str(&mut self, input: &str) {
         match self {
-            SmallString::Heap(str) => str.push_str(input),
-            SmallString::Inline(str) => {
-                if str.len() + input.len() <= N {
-                    // guaranteed success
-                    let _ = str.push_str(input);
+            SmallString::Heap(s) => s.push_str(input),
+            SmallString::Inline(s) => {
+                // `s.len() <= N`, so this subtraction cannot underflow.
+                if input.len() <= N - s.len() {
+                    // guaranteed to succeed
+                    let _ = s.push_str(input);
                 } else {
                     // we need to spill on the heap
-                    let new_capacity = core::cmp::max(str.len() + input.len(), N * 2);
-                    let mut heap_str = alloc::string::String::with_capacity(new_capacity);
-                    heap_str.push_str(str.as_str());
-                    heap_str.push_str(input);
-                    *self = SmallString::Heap(heap_str)
+                    let new_capacity = s.len().saturating_add(input.len()).max(N.saturating_mul(2));
+                    let mut heap = String::with_capacity(new_capacity);
+                    heap.push_str(s.as_str());
+                    heap.push_str(input);
+                    *self = SmallString::Heap(heap);
                 }
             }
         }
     }
 
+    /// Appends a character to the end of this string, spilling onto the heap
+    /// if the inline capacity is exceeded.
     #[inline]
     pub fn push(&mut self, ch: char) {
         match self {
-            SmallString::Heap(str) => str.push(ch),
-            SmallString::Inline(str) => {
+            SmallString::Heap(s) => s.push(ch),
+            SmallString::Inline(s) => {
                 let char_len = ch.len_utf8();
-                if str.len() + char_len <= N {
-                    // guaranteed success
-                    let _ = str.push(ch);
+                // `s.len() <= N`, so this subtraction cannot underflow.
+                if char_len <= N - s.len() {
+                    // guaranteed to succeed
+                    let _ = s.push(ch);
                 } else {
                     // we need to spill on the heap
-                    let new_capacity = core::cmp::max(str.len() + char_len, N * 2);
-                    let mut heap_str = alloc::string::String::with_capacity(new_capacity);
-                    heap_str.push_str(str.as_str());
-                    heap_str.push(ch);
-                    *self = SmallString::Heap(heap_str)
+                    let new_capacity = s.len().saturating_add(char_len).max(N.saturating_mul(2));
+                    let mut heap = String::with_capacity(new_capacity);
+                    heap.push_str(s.as_str());
+                    heap.push(ch);
+                    *self = SmallString::Heap(heap);
                 }
             }
         }
     }
 
+    /// Reserves capacity for at least `additional` more bytes, spilling onto
+    /// the heap if needed.
+    ///
+    /// After this call, [`capacity`](SmallString::capacity) is at least
+    /// `len() + additional`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity overflows `usize` or the allocator reports a
+    /// failure.
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
         match self {
-            SmallString::Heap(str) => str.reserve(additional),
-            SmallString::Inline(str) => {
-                if str.len() + additional > N {
+            SmallString::Heap(s) => s.reserve(additional),
+            SmallString::Inline(s) => {
+                if additional > N - s.len() {
                     // spill to heap
-                    let new_capacity = core::cmp::max(str.len() + additional, N * 2);
-                    let mut heap_str = alloc::string::String::with_capacity(new_capacity);
-                    heap_str.push_str(str);
-                    *self = SmallString::Heap(heap_str)
+                    let new_capacity = s.len().saturating_add(additional).max(N.saturating_mul(2));
+                    let mut heap = String::with_capacity(new_capacity);
+                    heap.push_str(s);
+                    *self = SmallString::Heap(heap);
                 }
             }
         }
+    }
+
+    /// Reserves capacity for exactly `additional` more bytes, spilling onto the
+    /// heap if needed.
+    ///
+    /// Prefer [`SmallString::reserve`] when `additional` is only an estimate.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity overflows `usize` or the allocator reports a
+    /// failure.
+    #[inline]
+    pub fn reserve_exact(&mut self, additional: usize) {
+        match self {
+            SmallString::Heap(s) => s.reserve_exact(additional),
+            SmallString::Inline(s) => {
+                if additional > N - s.len() {
+                    // spill to heap
+                    let new_capacity = s.len().saturating_add(additional).max(N.saturating_add(1));
+                    let mut heap = String::with_capacity(new_capacity);
+                    heap.push_str(s);
+                    *self = SmallString::Heap(heap);
+                }
+            }
+        }
+    }
+
+    /// Shrinks the string as much as possible: an inline string is unchanged,
+    /// while a spilled string whose contents fit in `N` bytes moves back
+    /// inline.
+    #[inline]
+    pub fn shrink_to_fit(&mut self) {
+        if let SmallString::Heap(s) = self {
+            if s.len() <= N {
+                *self = SmallString::from_str(s.as_str());
+            } else {
+                s.shrink_to_fit();
+            }
+        }
+    }
+
+    /// Shrinks the string's capacity to at least `min_capacity` bytes, moving
+    /// it back inline when the result fits in `N`.
+    ///
+    /// Does nothing when the current capacity is already at or below
+    /// `min_capacity`.
+    #[inline]
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        if let SmallString::Heap(s) = self
+            && s.capacity() > min_capacity
+        {
+            let target = s.len().max(min_capacity);
+            if target <= N {
+                *self = SmallString::from_str(s.as_str());
+            } else {
+                s.shrink_to(target);
+            }
+        }
+    }
+
+    /// Converts this `SmallString` into an [`alloc::string::String`], reusing
+    /// the heap allocation when spilled.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use small_collections::SmallString;
+    ///
+    /// let s: SmallString<8> = SmallString::from_str("hello");
+    /// assert_eq!(s.into_string(), "hello");
+    /// ```
+    #[inline]
+    pub fn into_string(self) -> String {
+        match self {
+            SmallString::Inline(s) => String::from(s.as_str()),
+            SmallString::Heap(s) => s,
+        }
+    }
+
+    /// Converts this `SmallString` into a byte vector, reusing the heap
+    /// allocation when spilled.
+    #[inline]
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.into_string().into_bytes()
     }
 }
 
 impl<const N: usize> From<&str> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn from(s: &str) -> Self {
         Self::from_str(s)
     }
 }
 
 impl<const N: usize> From<alloc::string::String> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn from(s: alloc::string::String) -> Self {
         Self::from_string(s)
+    }
+}
+
+impl<const N: usize> From<SmallString<N>> for alloc::string::String {
+    #[inline]
+    fn from(this: SmallString<N>) -> Self {
+        this.into_string()
     }
 }
 
 impl<const N: usize> core::ops::Deref for SmallString<N> {
     type Target = str;
 
-    #[inline(always)]
+    #[inline]
     fn deref(&self) -> &Self::Target {
         match self {
             SmallString::Inline(str) => str.as_str(),
@@ -244,7 +470,7 @@ impl<const N: usize> core::ops::Deref for SmallString<N> {
 }
 
 impl<const N: usize> core::ops::DerefMut for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             SmallString::Inline(str) => str.as_mut_str(),
@@ -254,21 +480,30 @@ impl<const N: usize> core::ops::DerefMut for SmallString<N> {
 }
 
 impl<const N: usize> Default for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<const N: usize> core::fmt::Display for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Display::fmt(self.as_str(), f) // Delegate to str implementation
     }
 }
 
+impl<const N: usize> core::fmt::Debug for SmallString<N> {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // Delegate to `str`'s `Debug` so the output is a quoted string,
+        // regardless of the underlying storage.
+        core::fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
 impl<const N: usize> core::fmt::Write for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         self.push_str(s);
         Ok(())
@@ -276,7 +511,7 @@ impl<const N: usize> core::fmt::Write for SmallString<N> {
 }
 
 impl<const N: usize, const M: usize> PartialEq<SmallString<M>> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &SmallString<M>) -> bool {
         self.as_str() == other.as_str()
     }
@@ -285,49 +520,63 @@ impl<const N: usize, const M: usize> PartialEq<SmallString<M>> for SmallString<N
 impl<const N: usize> Eq for SmallString<N> {}
 
 impl<const N: usize> PartialEq<str> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
     }
 }
 
 impl<'a, const N: usize> PartialEq<&'a str> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &&'a str) -> bool {
         self.as_str() == *other
     }
 }
 
 impl<const N: usize> PartialEq<SmallString<N>> for &str {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &SmallString<N>) -> bool {
         *self == other.as_str()
     }
 }
 
 impl<const N: usize> PartialEq<alloc::string::String> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn eq(&self, other: &alloc::string::String) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
+impl<const N: usize> PartialEq<SmallString<N>> for alloc::string::String {
+    #[inline]
+    fn eq(&self, other: &SmallString<N>) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl<const N: usize> PartialEq<SmallString<N>> for str {
+    #[inline]
+    fn eq(&self, other: &SmallString<N>) -> bool {
+        self == other.as_str()
+    }
+}
+
 impl<const N: usize, const M: usize> PartialOrd<SmallString<M>> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn partial_cmp(&self, other: &SmallString<M>) -> Option<core::cmp::Ordering> {
         Some(self.as_str().cmp(other.as_str()))
     }
 }
 
 impl<const N: usize> Ord for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.as_str().cmp(other.as_str())
     }
 }
 
 impl<const N: usize> core::hash::Hash for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.as_str().hash(state);
     }
@@ -340,7 +589,7 @@ impl<const N: usize> core::borrow::Borrow<str> for SmallString<N> {
 }
 
 impl<const N: usize> core::borrow::BorrowMut<str> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn borrow_mut(&mut self) -> &mut str {
         self.as_mut_str()
     }
@@ -353,9 +602,16 @@ impl<const N: usize> AsRef<str> for SmallString<N> {
 }
 
 impl<const N: usize> AsRef<[u8]> for SmallString<N> {
-    #[inline(always)]
+    #[inline]
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl<const N: usize> AsMut<str> for SmallString<N> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut str {
+        self.as_mut_str()
     }
 }
 
@@ -404,6 +660,58 @@ impl<'a, const N: usize> Extend<&'a str> for SmallString<N> {
         for str_slice in iter {
             self.push_str(str_slice);
         }
+    }
+}
+
+impl<const N: usize> FromStr for SmallString<N> {
+    type Err = core::convert::Infallible;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut out = Self::new();
+        out.push_str(s);
+        Ok(out)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<const N: usize> serde::Serialize for SmallString<N> {
+    #[inline]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, const N: usize> serde::Deserialize<'de> for SmallString<N> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct SmallStringVisitor<const N: usize>;
+
+        impl<'de, const N: usize> serde::de::Visitor<'de> for SmallStringVisitor<N> {
+            type Value = SmallString<N>;
+
+            fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                formatter.write_str("a string")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(SmallString::from_str(v))
+            }
+
+            fn visit_borrowed_str<E: serde::de::Error>(self, v: &'de str) -> Result<Self::Value, E> {
+                Ok(SmallString::from_str(v))
+            }
+
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
+                Ok(if v.len() <= N {
+                    SmallString::from_str(&v)
+                } else {
+                    SmallString::from_string(v)
+                })
+            }
+        }
+
+        deserializer.deserialize_str(SmallStringVisitor::<N>)
     }
 }
 
@@ -513,7 +821,7 @@ mod tests {
     #[test]
     fn test_from_utf8_valid() {
         let s: SmallString<16> = SmallString::from_utf8(b"hello".to_vec()).unwrap();
-        assert!(s.is_inline() == false);
+        assert!(s.is_inline());
         assert_eq!(s.as_str(), "hello");
     }
 
@@ -526,7 +834,7 @@ mod tests {
     #[test]
     fn test_from_utf8_slice_valid() {
         let s: SmallString<16> = SmallString::from_utf8_slice(b"hello").unwrap();
-        assert!(s.is_inline() == true);
+        assert!(s.is_inline());
         assert_eq!(s.as_str(), "hello");
     }
 
@@ -796,9 +1104,10 @@ mod tests {
     fn test_reserve_on_heap() {
         let mut s: SmallString<4> = SmallString::from_str("hello world");
         assert!(!s.is_inline());
-        let cap_before = s.capacity();
         s.reserve(50);
-        assert!(s.capacity() >= cap_before + 50);
+        // `String::reserve` guarantees room for `len + additional` bytes,
+        // regardless of the pre-existing capacity.
+        assert!(s.capacity() >= s.len() + 50);
         assert_eq!(s.as_str(), "hello world");
     }
 
@@ -848,21 +1157,21 @@ mod tests {
     #[test]
     fn test_deref_inline() {
         let s: SmallString<16> = SmallString::from_str("hello");
-        let r: &str = &*s;
+        let r: &str = &s;
         assert_eq!(r, "hello");
     }
 
     #[test]
     fn test_deref_heap() {
         let s: SmallString<4> = SmallString::from_str("long string");
-        let r: &str = &*s;
+        let r: &str = &s;
         assert_eq!(r, "long string");
     }
 
     #[test]
     fn test_deref_mut() {
         let mut s: SmallString<16> = SmallString::from_str("hello");
-        let r: &mut str = &mut *s;
+        let r: &mut str = &mut s;
         r.make_ascii_uppercase();
         assert_eq!(s.as_str(), "HELLO");
     }
@@ -886,19 +1195,19 @@ mod tests {
     #[test]
     fn test_debug_inline() {
         let s: SmallString<16> = SmallString::from_str("hello");
-        assert_eq!(format!("{:?}", s), "Inline(\"hello\")");
+        assert_eq!(format!("{s:?}"), "\"hello\"");
     }
 
     #[test]
     fn test_debug_heap() {
         let s: SmallString<4> = SmallString::from_str("hello world");
-        assert_eq!(format!("{:?}", s), "Heap(\"hello world\")");
+        assert_eq!(format!("{s:?}"), "\"hello world\"");
     }
 
     #[test]
     fn test_fmt_write() {
         let mut s: SmallString<16> = SmallString::new();
-        write!(&mut s, "hello {} {}", "world", 42).unwrap();
+        write!(&mut s, "hello world {}", 42).unwrap();
         assert_eq!(s.as_str(), "hello world 42");
         assert!(s.is_inline());
     }
@@ -1345,21 +1654,272 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn test_serde_roundtrip_inline() {
-        let s: SmallString<16> = SmallString::from_str("hello");
-        let json = serde_json::to_string(&s).unwrap();
-        let deserialized: SmallString<16> = serde_json::from_str(&json).unwrap();
-        assert_eq!(s, deserialized);
-        assert!(deserialized.is_inline());
+    fn test_serde_serializes_as_flat_string() {
+        let inline: SmallString<16> = SmallString::from_str("hello");
+        let heap: SmallString<2> = SmallString::from_str("hello");
+        assert!(inline.is_inline());
+        assert!(!heap.is_inline());
+
+        // Both representations produce the same, plain JSON string.
+        assert_eq!(serde_json::to_string(&inline).unwrap(), "\"hello\"");
+        assert_eq!(serde_json::to_string(&heap).unwrap(), "\"hello\"");
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn test_serde_roundtrip_heap() {
-        let s: SmallString<4> = SmallString::from_str("hello world long");
-        let json = serde_json::to_string(&s).unwrap();
-        let deserialized: SmallString<4> = serde_json::from_str(&json).unwrap();
-        assert_eq!(s, deserialized);
-        // Deserialized smallstring will fit inline on the target size
+    fn test_serde_deserializes_into_inline_or_heap() {
+        let inline: SmallString<16> = serde_json::from_str("\"hello\"").unwrap();
+        assert!(inline.is_inline());
+        assert_eq!(inline.as_str(), "hello");
+
+        // The value doesn't fit inline, so it must land on the heap even
+        // though the source JSON is identical.
+        let heap: SmallString<2> = serde_json::from_str("\"hello\"").unwrap();
+        assert!(!heap.is_inline());
+        assert_eq!(heap.as_str(), "hello");
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_roundtrip_both_variants() {
+        let inline: SmallString<16> = SmallString::from_str("hello");
+        let json = serde_json::to_string(&inline).unwrap();
+        let back: SmallString<16> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, inline);
+        assert!(back.is_inline());
+
+        let heap: SmallString<4> = SmallString::from_str("hello world");
+        let json = serde_json::to_string(&heap).unwrap();
+        let back: SmallString<4> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, heap);
+        assert!(!back.is_inline());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_rejects_non_string() {
+        let result: Result<SmallString<16>, _> = serde_json::from_str("42");
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Inline placement of byte constructors
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_from_utf8_inline_when_fits() {
+        let s: SmallString<16> = SmallString::from_utf8(b"hello".to_vec()).unwrap();
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_from_utf8_spills_when_too_long() {
+        let s: SmallString<2> = SmallString::from_utf8(b"hello".to_vec()).unwrap();
+        assert!(!s.is_inline());
+        assert_eq!(s.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_from_utf8_empty_is_inline() {
+        let s: SmallString<4> = SmallString::from_utf8(Vec::new()).unwrap();
+        assert!(s.is_inline());
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn test_from_utf8_lossy_owned_fits_inline() {
+        // Invalid input forces the owned `Cow` path.
+        let s: SmallString<16> = SmallString::from_utf8_lossy(&[0xFF, 0xFE]);
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "\u{FFFD}\u{FFFD}");
+    }
+
+    // -----------------------------------------------------------------------
+    // Construction / conversion additions
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_inline_size() {
+        assert_eq!(<SmallString<8>>::inline_size(), 8);
+        assert_eq!(<SmallString<0>>::inline_size(), 0);
+    }
+
+    #[test]
+    fn test_from_string_empty_has_no_allocation() {
+        let s: SmallString<8> = SmallString::from_string(String::new());
+        assert!(s.is_inline());
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn test_from_string_empty_with_capacity_stays_heap() {
+        let source = String::with_capacity(8);
+        let s: SmallString<64> = SmallString::from_string(source);
+        assert!(!s.is_inline());
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn test_into_string() {
+        let inline: SmallString<16> = SmallString::from_str("hi");
+        assert_eq!(inline.into_string(), "hi");
+
+        let heap: SmallString<2> = SmallString::from_str("hello");
+        assert!(!heap.is_inline());
+        assert_eq!(heap.into_string(), "hello");
+    }
+
+    #[test]
+    fn test_into_bytes() {
+        let s: SmallString<16> = SmallString::from_str("hé");
+        assert_eq!(s.into_bytes(), b"h\xC3\xA9".to_vec());
+    }
+
+    #[test]
+    fn test_from_small_string_for_string() {
+        let s: SmallString<4> = SmallString::from_str("hello");
+        let owned: String = String::from(s);
+        assert_eq!(owned, "hello");
+    }
+
+    #[test]
+    fn test_from_str_trait_and_parse() {
+        use core::str::FromStr;
+
+        let s = <SmallString<8> as FromStr>::from_str("hi").unwrap();
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "hi");
+
+        let parsed: SmallString<16> = "parsed".parse().unwrap();
+        assert_eq!(parsed.as_str(), "parsed");
+    }
+
+    #[test]
+    fn test_as_mut_str_impl() {
+        let mut s: SmallString<16> = SmallString::from_str("hello");
+        let r: &mut str = s.as_mut();
+        r.make_ascii_uppercase();
+        assert_eq!(s.as_str(), "HELLO");
+    }
+
+    // -----------------------------------------------------------------------
+    // Shrinking
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_shrink_to_fit_moves_back_inline() {
+        let mut s: SmallString<8> = SmallString::from_str("hello world");
+        assert!(!s.is_inline());
+        s.truncate(5);
+        assert!(!s.is_inline());
+        s.shrink_to_fit();
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_shrink_to_fit_stays_heap_when_too_long() {
+        let mut s: SmallString<2> = SmallString::from_str("hello");
+        s.shrink_to_fit();
+        assert!(!s.is_inline());
+        assert_eq!(s.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_shrink_to_moves_back_inline() {
+        let mut s: SmallString<8> = SmallString::from_str("hello world");
+        assert!(!s.is_inline());
+        s.truncate(5);
+        s.shrink_to(1);
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_shrink_to_on_inline_is_noop() {
+        let mut s: SmallString<16> = SmallString::from_str("hello");
+        s.shrink_to(100);
+        assert!(s.is_inline());
+        s.shrink_to_fit();
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "hello");
+    }
+
+    #[test]
+    fn test_reserve_exact_spills() {
+        let mut s: SmallString<4> = SmallString::from_str("ab");
+        s.reserve_exact(10);
+        assert!(!s.is_inline());
+        assert!(s.capacity() >= 12);
+        assert_eq!(s.as_str(), "ab");
+    }
+
+    // -----------------------------------------------------------------------
+    // Reverse equality and hashing helpers
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_reverse_partial_eq_string_and_str() {
+        let s: SmallString<16> = SmallString::from_str("hello");
+        assert_eq!(String::from("hello"), s);
+        assert!(*"hello" == s);
+        assert!(*"nope" != s);
+    }
+
+    #[test]
+    fn test_borrow_str_hashmap_lookup() {
+        use std::collections::HashMap;
+
+        let mut map = HashMap::new();
+        let key: SmallString<16> = SmallString::from_str("key1");
+        map.insert(key, 1);
+        assert_eq!(map.get("key1"), Some(&1));
+    }
+
+    // -----------------------------------------------------------------------
+    // More edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    #[should_panic]
+    fn test_truncate_non_char_boundary_panics() {
+        let mut s: SmallString<16> = SmallString::from_str("a🦀b");
+        // 2 is inside the 4-byte crab.
+        s.truncate(2);
+    }
+
+    #[test]
+    fn test_truncate_past_len_is_noop_even_off_boundary() {
+        let mut s: SmallString<16> = SmallString::from_str("a🦀b");
+        s.truncate(100);
+        assert_eq!(s.as_str(), "a🦀b");
+    }
+
+    #[test]
+    fn test_push_multibyte_exact_boundary() {
+        // 'a' (1 byte) + '🦀' (4 bytes) == 5 == N, so it stays inline.
+        let mut s: SmallString<5> = SmallString::from_str("a");
+        s.push('🦀');
+        assert!(s.is_inline());
+        assert_eq!(s.as_str(), "a🦀");
+    }
+
+    #[test]
+    fn test_fmt_write_char() {
+        use core::fmt::Write;
+
+        let mut s: SmallString<16> = SmallString::new();
+        s.write_char('é').unwrap();
+        assert_eq!(s.as_str(), "é");
+    }
+
+    #[test]
+    fn test_pop_keeps_heap_storage() {
+        let mut s: SmallString<2> = SmallString::from_str("hello");
+        assert!(!s.is_inline());
+        assert_eq!(s.pop(), Some('o'));
+        assert!(!s.is_inline());
+        assert_eq!(s.as_str(), "hell");
     }
 }

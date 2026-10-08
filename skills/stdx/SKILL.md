@@ -220,9 +220,9 @@ let id = Uuid::new_v7();
 use semver::Version;
 let v = "1.2.3".parse::<Version>()?;
 
-// MIME type detection
-use mime_guess::from_path;
-let mime = from_path("photo.jpg").first_or_octet_stream();
+// Media type detection
+use media_type::from_path;
+let media_type = from_path("photo.jpg").first_or_octet_stream();
 
 // Cron expression parsing
 use cron::Schedule;

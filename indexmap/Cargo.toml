@@ -1,0 +1,32 @@
+[package]
+name = "indexmap"
+edition = "2024"
+version = "2.14.2"
+license = "MIT"
+description = "A hash table with consistent order and fast iteration."
+keywords = ["hashmap", "no_std"]
+categories = ["data-structures", "no-std"]
+rust-version = "1.85"
+
+[lib]
+path = "src/indexmap.rs"
+bench = false
+
+[dependencies]
+hashbrown = { version = "0.17", default-features = false }
+serde_core = { workspace = true, optional = true, default-features = false }
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[features]
+default = ["std"]
+std = []
+serde = ["dep:serde_core"]
+
+# for testing only, of course
+test_debug = []
+
+[package.metadata.docs.rs]
+features = ["serde"]

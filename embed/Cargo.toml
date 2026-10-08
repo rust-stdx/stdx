@@ -23,13 +23,13 @@ embed_utils = { path = "./embed_utils"}
 debug-embed = ["embed_impl/debug-embed", "embed_utils/debug-embed"]
 #interpolate-folder-path = ["rust-embed-impl/interpolate-folder-path"]
 #compression = ["rust-embed-impl/compression", "include-flate"]
-mime-guess = ["embed_impl/mime-guess", "embed_utils/mime-guess"]
+guess-media-type = ["embed_impl/guess-media-type", "embed_utils/guess-media-type"]
 #include-exclude = ["rust-embed-impl/include-exclude", "rust-embed-utils/include-exclude"]
-#actix = ["actix-web", "mime_guess"]
-#warp-ex = ["warp", "tokio", "mime_guess"]
-#axum-ex = ["axum", "tokio", "mime_guess"]
-#poem-ex = ["poem", "tokio", "mime_guess", "hex"]
-#salvo-ex = ["salvo", "tokio", "mime_guess", "hex"]
+#actix = ["actix-web", "media_type"]
+#warp-ex = ["warp", "tokio", "media_type"]
+#axum-ex = ["axum", "tokio", "media_type"]
+#poem-ex = ["poem", "tokio", "media_type", "hex"]
+#salvo-ex = ["salvo", "tokio", "media_type", "hex"]
 
 
 
@@ -81,11 +81,11 @@ mime-guess = ["embed_impl/mime-guess", "embed_utils/mime-guess"]
 #[[test]]
 #name = "mime_guess"
 #path = "tests/mime_guess.rs"
-#required-features = ["mime-guess"]
+#required-features = ["guess-media-type"]
 
 #include-flate = { version = "0.3", optional = true }
 #actix-web = { version = "4", optional = true }
-#mime_guess = { version = "2", optional = true }
+#media_type = { path = "../../media_type", optional = true }
 #hex = { version = "0.4.3", optional = true }
 #tokio = { version = "1.0", optional = true, features = ["macros", "rt-multi-thread"] }
 #warp = { version = "0.3", default-features = false, optional = true }

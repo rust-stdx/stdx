@@ -30,7 +30,7 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
 
   match Assets::get(path) {
     Some(content) => {
-      let mime = mime_guess::from_path(path).first_or_octet_stream();
+      let mime = media_type::from_path(path).first_or_octet_stream();
 
       ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
     }

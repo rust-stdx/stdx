@@ -343,7 +343,7 @@ impl PublicKey {
     /// Returns the public exponent `e` as big-endian bytes, trimmed of leading zeros.
     /// (e.g. `[1, 0, 1]` for 65537).
     #[cfg(feature = "alloc")]
-    pub fn e_bytes(&self) -> smallvec::SmallVec<u8, 4> {
+    pub fn e_bytes(&self) -> small_collections::SmallVec<u8, 4> {
         let full = self.e.to_be_bytes_fixed::<{ RSA_MAX_BYTES }>();
         full[full.len() - self.e_len..].into()
     }

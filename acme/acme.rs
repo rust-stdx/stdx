@@ -193,6 +193,7 @@ impl Account {
     /// The [`AccountCredentials`] type is opaque, but supports deserialization.
     // #[cfg(feature = "hyper-rustls")]
     pub async fn from_credentials(credentials: AccountCredentials) -> Result<Self, Error> {
+        crypto_rustls::install_default_rustls_provider();
         Ok(Self {
             inner: Arc::new(AccountInner::from_credentials(credentials, reqwest::Client::new()).await?),
         })

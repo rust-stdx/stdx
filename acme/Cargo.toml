@@ -9,6 +9,7 @@ path = "./acme.rs"
 [dependencies]
 base64 = { path = "../base64" }
 crypto = { path = "../crypto" }
+crypto_rustls = { path = "../crypto_rustls" }
 thiserror = { path = "../thiserror" }
 
 reqwest = { workspace = true }

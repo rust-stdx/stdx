@@ -25,7 +25,14 @@ pub struct SendRequestInput<B: Serialize> {
 }
 
 impl Client {
+    /// Builds a client for the Postmark API.
+    ///
+    /// Installs the stdx rustls `CryptoProvider` as the process default (if
+    /// none is installed yet) before creating the underlying `reqwest` client,
+    /// because `reqwest` is compiled with the `rustls-no-provider` feature and
+    /// would otherwise panic for lack of a cryptography provider.
     pub fn new(account_api_token: Option<String>) -> Client {
+        crypto_rustls::install_default_rustls_provider();
         let http_client = reqwest::Client::new();
 
         return Client {

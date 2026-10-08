@@ -6,6 +6,7 @@ use crypto::{
     p256, p384, p521,
 };
 use jwt::*;
+use small_collections::SmallString;
 
 fn claims() -> serde_json::Value {
     serde_json::json!({ "sub": "user123", "exp": 9999999999_u64, "nbf": 0_u64 })
@@ -553,8 +554,8 @@ fn key_malformed_ec_key_is_rejected() {
         algorithm: Algorithm::ES512,
         crypto: JwkCrypto::Ec {
             curve: EcCurve::P521,
-            x: smallvec::SmallVec::from_slice_copy(&[0u8; 32]),
-            y: smallvec::SmallVec::from_slice_copy(&[0u8; 32]),
+            x: small_collections::SmallVec::from_slice(&[0u8; 32]),
+            y: small_collections::SmallVec::from_slice(&[0u8; 32]),
             d: None,
         },
     };
@@ -569,10 +570,72 @@ fn key_akp_with_wrong_algorithm_is_rejected() {
         r#use: KeyUse::Sign,
         algorithm: Algorithm::ES256,
         crypto: JwkCrypto::Akp {
-            pub_key: smallvec::SmallVec::from_slice_copy(&[0u8; 4]),
+            pub_key: small_collections::SmallVec::from_slice(&[0u8; 4]),
             private_key: None,
         },
     };
 
     assert!(matches!(Key::try_from(&jwk), Err(Error::InvalidKey)));
+}
+
+// ---------------------------------------------------------------------------
+// Wire-format regressions: `SmallString` must serialize as a plain JSON
+// string, never as a tagged enum exposing its inline/heap representation.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn header_serializes_small_strings_as_plain_json_strings() {
+    let header = Header {
+        alg: Algorithm::EdDSA,
+        cty: Some(SmallString::from_str("JWT")),
+        kid: Some(SmallString::from_str("key-1")),
+        x5t: Some(SmallString::from_str("thumbprint")),
+        x5t_s256: Some(SmallString::from_str("sha256-thumbprint")),
+        ..Default::default()
+    };
+
+    let json = serde_json::to_string(&header).unwrap();
+    assert!(json.contains(r#""cty":"JWT""#), "{json}");
+    assert!(json.contains(r#""kid":"key-1""#), "{json}");
+    assert!(json.contains(r#""x5t":"thumbprint""#), "{json}");
+    assert!(json.contains(r#""x5t#S256":"sha256-thumbprint""#), "{json}");
+    assert!(!json.contains("Inline"), "{json}");
+    assert!(!json.contains("Heap"), "{json}");
+
+    let back: Header = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, header);
+}
+
+#[test]
+fn registered_claims_serialize_small_strings_as_plain_json_strings() {
+    let claims = RegisteredClaims {
+        iss: Some(SmallString::from_str("issuer")),
+        sub: Some(SmallString::from_str("subject")),
+        aud: Some(SmallString::from_str("audience")),
+        exp: Some(9_999_999_999),
+        nbf: None,
+        iat: None,
+        jti: Some(SmallString::from_str("id-1")),
+    };
+
+    let json = serde_json::to_string(&claims).unwrap();
+    assert!(json.contains(r#""iss":"issuer""#), "{json}");
+    assert!(json.contains(r#""sub":"subject""#), "{json}");
+    assert!(json.contains(r#""aud":"audience""#), "{json}");
+    assert!(json.contains(r#""jti":"id-1""#), "{json}");
+    assert!(!json.contains("Inline"), "{json}");
+
+    let back: RegisteredClaims = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, claims);
+}
+
+#[test]
+fn jwk_kid_serializes_as_plain_json_string() {
+    let secret_key = p256::SecretKey::generate().unwrap();
+    let mut public_jwk = Jwk::from(&secret_key.public_key());
+    public_jwk.kid = SmallString::from_str("kid-123");
+
+    let json = serde_json::to_string(&public_jwk).unwrap();
+    assert!(json.contains(r#""kid":"kid-123""#), "{json}");
+    assert!(!json.contains("Inline"), "{json}");
 }

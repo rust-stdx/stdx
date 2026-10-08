@@ -288,12 +288,12 @@ fn embed_file(
         Some(created) => quote! { ::std::option::Option::Some(#created) },
         None => quote! { ::std::option::Option::None },
     };
-    #[cfg(feature = "mime-guess")]
+    #[cfg(feature = "guess-media-type")]
     let mimetype_tokens = {
         let mt = file.metadata.mimetype();
         quote! { , #mt }
     };
-    #[cfg(not(feature = "mime-guess"))]
+    #[cfg(not(feature = "guess-media-type"))]
     let mimetype_tokens = TokenStream2::new();
 
     let embedding_code = if metadata_only {

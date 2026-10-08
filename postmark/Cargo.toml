@@ -7,5 +7,6 @@ edition = "2024"
 path = "./postmark.rs"
 
 [dependencies]
+crypto_rustls = { path = "../crypto_rustls" }
 reqwest = { workspace = true }
 serde = { workspace = true }

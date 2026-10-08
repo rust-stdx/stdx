@@ -10,11 +10,13 @@ path = "small_collections.rs"
 [features]
 default = ["std"]
 
-serde = ["dep:serde", "heapless/serde"]
+bytes = ["dep:bytes"]
+serde = ["dep:serde", "serde/alloc"]
 std = ["serde?/std"]
 
 [dependencies]
-serde = { workspace = true, optional = true, default_features = false, features = ["derive"] }
+bytes = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, default-features = false }
 heapless = { workspace = true }
 
 [dev-dependencies]

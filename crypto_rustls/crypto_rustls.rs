@@ -31,12 +31,11 @@
 //! configuration:
 //!
 //! ```ignore
-//! crypto_rustls::default_provider()
-//!     .install_default()
-//!     .expect("failed to install CryptoProvider");
+//! crypto_rustls::install_default_rustls_provider();
 //! ```
 //!
-//! Or pass it explicitly to `ClientConfig::builder_with_provider()` /
+//! Or pass [`default_provider`] explicitly to
+//! `ClientConfig::builder_with_provider()` /
 //! `ServerConfig::builder_with_provider()`.
 
 mod aead;
@@ -68,4 +67,22 @@ pub fn default_provider() -> CryptoProvider {
         secure_random: &random::RngProvider,
         key_provider: &sign::Provider,
     }
+}
+
+/// Installs [`default_provider`] as the process-default rustls
+/// [`CryptoProvider`].
+///
+/// This is the intended entry point when `rustls` (or `reqwest`) is compiled
+/// without a built-in cryptography provider, such as when using reqwest's
+/// `rustls-no-provider` feature. Call it once before building any rustls
+/// configuration.
+///
+/// The call is safe to repeat and never panics: the provider is installed only
+/// on the first call, and if a provider is already installed as the process
+/// default, that provider is left untouched.
+pub fn install_default_rustls_provider() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _ = default_provider().install_default();
+    });
 }
