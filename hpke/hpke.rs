@@ -149,15 +149,12 @@
 //! - Messages **must** be sealed and opened in the same order. There is no
 //!   tolerance for reordering or loss; per-message context (e.g. a counter)
 //!   can be authenticated by passing it as `associated_data`.
-//! - Never call `seal` twice with the same nonce: this is catastrophic for the
-//!   confidentiality of all messages sent under a context. HPKE prevents this
-//!   internally by deriving the per-message nonce from a sequence number.
 //! - Replaying an `encapped_key` reproduces the same context, so exported
 //!   secrets are not replay protected. Do not derive an AEAD `(key, nonce)`
 //!   pair from an exported secret; mix in fresh recipient-provided randomness
 //!   (`draft-ietf-hpke-hpke-05` Section 9.8).
-//! - Plaintexts larger than the AEAD's `P_MAX` (or ciphertexts larger than
-//!   `C_MAX`) are rejected rather than processed, as `draft-ietf-hpke-hpke-05`
+//! - Plaintexts larger than the AEAD's `MAX_PLAINTEXT_SIZE` (or ciphertexts larger than
+//!   `MAX_CIPHERTEXT_SIZE`) are rejected rather than processed, as `draft-ietf-hpke-hpke-05`
 //!   Section 5.2 requires. Sealing and opening also take `&mut self`, so nonce
 //!   derivation, encryption, and sequence-number advancement cannot be
 //!   interleaved on a shared context.
