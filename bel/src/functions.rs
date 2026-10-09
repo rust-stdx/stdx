@@ -402,7 +402,7 @@ pub mod time {
     }
 
     pub fn unix(This(this): This<DateTime>) -> Result<Value> {
-        Ok((this.unix_seconds()).into())
+        Ok((this.unix()).into())
     }
 }
 

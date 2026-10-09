@@ -100,6 +100,14 @@ pub(crate) fn parse_bytes(input: &[u8], default_zone: Option<TimeZone>) -> Resul
     }
 }
 
+/// Parses `input` as raw bytes using a specific [`Format`].
+pub(crate) fn parse_bytes_with_format(input: &[u8], format: Format) -> Result<DateTime, Error> {
+    match core::str::from_utf8(input) {
+        Ok(text) => parse_with_format(text, format),
+        Err(_) => Err(error::parse("input is not valid UTF-8")),
+    }
+}
+
 /// Strictly parses an RFC 3339 date-time.
 fn parse_rfc3339_strict(input: &str) -> Result<DateTime, Error> {
     if !rfc3339_shape(input) {

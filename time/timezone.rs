@@ -160,6 +160,7 @@ impl TimeZone {
 
     /// Returns the canonical name of this time zone, if it has one.
     #[must_use]
+    #[inline]
     pub const fn name(&self) -> Option<&'static str> {
         match self.zone {
             ZoneKind::Utc => Some("UTC"),

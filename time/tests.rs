@@ -19,16 +19,16 @@ fn parse(s: &str) -> DateTime {
 #[test]
 fn unix_epoch() {
     let dt = parse("1970-01-01T00:00:00Z");
-    assert_eq!(dt.unix_seconds(), 0);
+    assert_eq!(dt.unix(), 0);
     assert_eq!(dt.unix_nanos(), 0);
     assert_eq!(dt, DateTime::UNIX_EPOCH);
 }
 
 #[test]
 fn epoch_boundaries() {
-    assert_eq!(parse("1969-12-31T23:59:59Z").unix_seconds(), -1);
-    assert_eq!(parse("2001-09-09T01:46:40Z").unix_seconds(), 1_000_000_000);
-    assert_eq!(DateTime::from_unix_seconds(-1).unwrap().to_string(), "1969-12-31T23:59:59Z");
+    assert_eq!(parse("1969-12-31T23:59:59Z").unix(), -1);
+    assert_eq!(parse("2001-09-09T01:46:40Z").unix(), 1_000_000_000);
+    assert_eq!(DateTime::from_unix(-1).unwrap().to_string(), "1969-12-31T23:59:59Z");
 }
 
 #[test]
@@ -74,8 +74,8 @@ fn weekday_and_iso_week() {
 #[test]
 fn parse_offsets() {
     let base = civil::days_from_civil(2024, 1, 1) * 86_400;
-    assert_eq!(parse("2024-01-01T00:00:00+05:30").unix_seconds(), base - (5 * 3600 + 30 * 60));
-    assert_eq!(parse("2024-01-01T00:00:00-08:00").unix_seconds(), base + 8 * 3600);
+    assert_eq!(parse("2024-01-01T00:00:00+05:30").unix(), base - (5 * 3600 + 30 * 60));
+    assert_eq!(parse("2024-01-01T00:00:00-08:00").unix(), base + 8 * 3600);
     assert_eq!(parse("2024-01-01T00:00:00+0530").offset(), 5 * 3600 + 30 * 60);
     assert_eq!(parse("2024-01-01T00:00:00-08").offset(), -8 * 3600);
     assert_eq!(parse("2024-01-01t00:00:00z").offset(), 0);
@@ -92,7 +92,7 @@ fn parse_fractions() {
 #[test]
 fn parse_date_only() {
     let dt = parse("2024-01-01");
-    assert_eq!(dt.unix_seconds(), civil::days_from_civil(2024, 1, 1) * 86_400);
+    assert_eq!(dt.unix(), civil::days_from_civil(2024, 1, 1) * 86_400);
     assert_eq!(dt.offset(), 0);
 }
 
@@ -109,7 +109,7 @@ fn parse_with_timezone_uses_default_zone() {
         let zone = TimeZone::named("America/New_York").unwrap();
         let dt = DateTime::parse_with_timezone("2024-01-01T09:00", zone).unwrap();
         // 09:00 EST is 14:00 UTC.
-        assert_eq!(dt.unix_seconds(), civil::days_from_civil(2024, 1, 1) * 86_400 + 14 * 3600);
+        assert_eq!(dt.unix(), civil::days_from_civil(2024, 1, 1) * 86_400 + 14 * 3600);
         assert_eq!(dt.to_string(), "2024-01-01T09:00:00-05:00[America/New_York]");
     }
 }
@@ -155,8 +155,8 @@ fn arithmetic() {
     );
 
     let later = parse("2024-01-01T00:00:10.5Z");
-    assert_eq!(later.duration_since(&dt).unwrap(), Duration::new(10, 500_000_000));
-    assert!(dt.duration_since(&later).is_err());
+    assert_eq!(later.duration_since(dt).unwrap(), Duration::new(10, 500_000_000));
+    assert!(dt.duration_since(later).is_err());
 }
 
 #[test]
@@ -293,7 +293,7 @@ mod zones {
     #[test]
     fn annotation_without_offset() {
         let dt = parse("2024-01-01T09:00[America/New_York]");
-        assert_eq!(dt.unix_seconds(), civil::days_from_civil(2024, 1, 1) * 86_400 + 14 * 3600);
+        assert_eq!(dt.unix(), civil::days_from_civil(2024, 1, 1) * 86_400 + 14 * 3600);
     }
 
     #[test]
@@ -359,10 +359,10 @@ fn weekday_numbers() {
 
 #[test]
 fn negative_unix_normalization() {
-    let dt = DateTime::from_unix(-1, 500_000_000).unwrap();
-    assert_eq!(dt.unix_seconds(), -1);
+    let dt = DateTime::from_unix_nanos(-500_000_000).unwrap();
+    assert_eq!(dt.unix(), -1);
     assert_eq!(dt.unix_nanos(), -500_000_000);
-    assert_eq!(dt.unix_seconds(), -1);
+    assert_eq!(dt.unix(), -1);
     // `-1s + 0.5s` is `1969-12-31T23:59:59.5Z`.
     assert_eq!(dt.to_string(), "1969-12-31T23:59:59.500Z");
 }
@@ -378,7 +378,7 @@ fn negative_year_roundtrip() {
 fn offset_with_seconds() {
     let dt = parse("2024-01-01T00:00:00+00:00:30");
     assert_eq!(dt.offset(), 30);
-    assert_eq!(dt.unix_seconds(), civil::days_from_civil(2024, 1, 1) * 86_400 - 30);
+    assert_eq!(dt.unix(), civil::days_from_civil(2024, 1, 1) * 86_400 - 30);
     assert!("2024-01-01T00:00:00+00:00:60".parse::<DateTime>().is_err());
     assert!("2024-01-01T00:00:00+23:60".parse::<DateTime>().is_err());
 }
@@ -516,7 +516,7 @@ fn tzif_rejects_out_of_range_indices() {
 fn now_is_recent() {
     let now = DateTime::now();
     assert!(now.year() >= 2024, "unexpected year: {}", now.year());
-    assert!(now.unix_seconds() > 1_700_000_000);
+    assert!(now.unix() > 1_700_000_000);
 }
 
 #[cfg(feature = "timezone-system")]
@@ -540,7 +540,7 @@ fn format_parse_fuzz() {
     let mut seconds = -3_000_000_000i64;
     let mut nanos = 0u32;
     while seconds < 4_000_000_000 {
-        let dt = DateTime::from_unix(seconds, i64::from(nanos)).unwrap();
+        let dt = DateTime::from_unix_nanos(i128::from(seconds) * 1_000_000_000 + i128::from(nanos)).unwrap();
         let text = dt.to_string();
         let back: DateTime = text.parse().unwrap_or_else(|err| panic!("{text:?}: {err}"));
         assert_eq!(back, dt, "round trip failed for {text}");
@@ -699,7 +699,7 @@ fn parse_http_dates() {
     ] {
         let dt = DateTime::parse_with_format(text, Format::HttpDate).unwrap();
         assert_eq!(dt, expected, "{text}");
-        assert_eq!(dt.unix_seconds(), 784_111_777, "{text}");
+        assert_eq!(dt.unix(), 784_111_777, "{text}");
     }
     for bad in [
         "Sun, 06 Nov 1994 08:49:37",      // missing GMT
@@ -779,13 +779,13 @@ fn system_time_roundtrip() {
     use std::time::SystemTime;
 
     for seconds in [0i64, 1, -1, 1_700_000_000, -1_000_000, -62_135_596_800] {
-        let dt = DateTime::from_unix_seconds(seconds).unwrap();
+        let dt = DateTime::from_unix(seconds).unwrap();
         let system: SystemTime = dt.into();
         let back = DateTime::try_from(system).unwrap();
         assert_eq!(back, dt, "{seconds}");
     }
 
-    let dt = DateTime::from_unix(1, 500_000_000).unwrap();
+    let dt = DateTime::from_unix_nanos(1_500_000_000).unwrap();
     let system: SystemTime = dt.into();
     assert_eq!(DateTime::try_from(system).unwrap(), dt);
 }
@@ -809,17 +809,17 @@ fn leap_second_is_accepted_and_never_emitted() {
 fn signed_duration_since_is_normalized() {
     let later = parse("2024-01-01T00:00:00.250Z");
     let earlier = parse("2023-12-31T23:59:59.500Z");
-    assert_eq!(later.signed_duration_since(&earlier), (0, 750_000_000));
-    assert_eq!(earlier.signed_duration_since(&later), (-1, 250_000_000));
-    assert_eq!(later.duration_since(&earlier).unwrap(), Duration::new(0, 750_000_000));
-    assert_eq!(earlier.duration_until(&later).unwrap(), Duration::new(0, 750_000_000));
+    assert_eq!(later.signed_duration_since(earlier), (0, 750_000_000));
+    assert_eq!(earlier.signed_duration_since(later), (-1, 250_000_000));
+    assert_eq!(later.duration_since(earlier).unwrap(), Duration::new(0, 750_000_000));
+    assert_eq!(earlier.duration_until(later).unwrap(), Duration::new(0, 750_000_000));
 }
 
 #[test]
 fn strict_format_checks() {
     // A historical offset with a seconds component is not representable in a
     // conformant RFC 3339 / ISO 8601 / RFC 9557 / RFC 2822 string.
-    let base = DateTime::from_unix_seconds(-2_200_000_000).unwrap();
+    let base = DateTime::from_unix(-2_200_000_000).unwrap();
     let dt = base.in_timezone(TimeZone::fixed(1172).unwrap());
     assert_eq!(dt.offset(), 1172);
     assert!(dt.format(Format::Rfc3339).to_string().contains("+00:19:32"));
@@ -881,8 +881,19 @@ fn strict_parse_with_format() {
 #[test]
 fn parse_bytes_slice() {
     let dt = DateTime::parse_bytes(b"2024-01-01T00:00:00Z").unwrap();
-    assert_eq!(dt.unix_seconds(), civil::days_from_civil(2024, 1, 1) * 86_400);
+    assert_eq!(dt.unix(), civil::days_from_civil(2024, 1, 1) * 86_400);
     assert!(DateTime::parse_bytes(&[0xff, 0xfe, 0xfd]).is_err());
+}
+
+#[test]
+fn parse_bytes_with_format_slice() {
+    assert_eq!(
+        DateTime::parse_bytes_with_format(b"Mon, 01 Jan 2024 12:34:56 GMT", Format::Rfc2822).unwrap(),
+        parse("2024-01-01T12:34:56Z")
+    );
+    // A format mismatch and non-UTF-8 input are both rejected.
+    assert!(DateTime::parse_bytes_with_format(b"2024-01-01T00:00:00Z", Format::DateOnly).is_err());
+    assert!(DateTime::parse_bytes_with_format(&[0xff, 0xfe], Format::Rfc3339).is_err());
 }
 
 #[cfg(feature = "std")]
@@ -891,7 +902,7 @@ fn monotonic_measurement() {
     let start = DateTime::now();
     assert!(start.has_monotonic());
     let end = DateTime::now();
-    let elapsed = end.duration_since(&start).unwrap();
+    let elapsed = end.duration_since(start).unwrap();
     assert!(elapsed < Duration::from_secs(60));
     assert!(start.elapsed().is_ok());
 
@@ -1063,23 +1074,22 @@ fn disambiguation_matches_classification() {
         "Europe/Dublin",
     ] {
         let zone = TimeZone::named(name).unwrap();
-        let limit = parse("2026-01-01T00:00:00Z").unix_seconds();
+        let limit = parse("2026-01-01T00:00:00Z").unix();
         let mut cursor = parse("2024-01-01T00:00:00Z").in_timezone(zone);
         let mut folds = 0usize;
         let mut gaps = 0usize;
         while let (_, Some(end)) = cursor.zone_bounds() {
-            if end.unix_seconds() > limit {
+            if end.unix() > limit {
                 break;
             }
-            let instant = end.unix_seconds();
+            let instant = end.unix();
             let before = zone.offset_at(instant - 1);
             let after = zone.offset_at(instant);
             if before != after {
                 let low = instant + i64::from(before.min(after));
                 let high = instant + i64::from(before.max(after));
                 for local in [low - 1, low, low + 1, (low + high) / 2, high - 1, high] {
-                    let (year, month, day, hour, minute, second, _) =
-                        DateTime::from_unix_seconds(local).unwrap().parts();
+                    let (year, month, day, hour, minute, second, _) = DateTime::from_unix(local).unwrap().parts();
                     let ambiguity = zone.ambiguity(year, month, day, hour, minute, second).unwrap();
                     let resolve =
                         |strategy| DateTime::from_parts_with(year, month, day, hour, minute, second, 0, zone, strategy);

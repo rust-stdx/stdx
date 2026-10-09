@@ -96,6 +96,7 @@ impl Weekday {
 
     /// Returns the English name of the weekday.
     #[must_use]
+    #[inline]
     pub const fn name(self) -> &'static str {
         match self {
             Weekday::Monday => "Monday",
@@ -110,6 +111,7 @@ impl Weekday {
 
     /// Returns the three-letter English abbreviation of the weekday.
     #[must_use]
+    #[inline]
     pub const fn short_name(self) -> &'static str {
         match self {
             Weekday::Monday => "Mon",
@@ -124,6 +126,7 @@ impl Weekday {
 
     /// Returns the ISO day number, `Monday = 1 ..= Sunday = 7`.
     #[must_use]
+    #[inline]
     pub const fn number_from_monday(self) -> u8 {
         match self {
             Weekday::Monday => 1,
@@ -138,6 +141,7 @@ impl Weekday {
 
     /// Returns the day number with `Sunday = 0 ..= Saturday = 6`.
     #[must_use]
+    #[inline]
     pub const fn number_from_sunday(self) -> u8 {
         match self {
             Weekday::Sunday => 0,
@@ -210,19 +214,9 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if the instant is outside the supported range.
-    pub fn from_unix_seconds(seconds: i64) -> Result<DateTime, Error> {
-        DateTime::from_unix(seconds, 0)
-    }
-
-    /// Creates a `DateTime` from seconds and nanoseconds since the Unix epoch,
-    /// in UTC. `nanoseconds` may be negative and need not be normalized.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the instant is outside the supported range.
-    pub fn from_unix(seconds: i64, nanoseconds: i64) -> Result<DateTime, Error> {
-        let total = i128::from(seconds) * 1_000_000_000 + i128::from(nanoseconds);
-        DateTime::from_unix_nanos(total)
+    #[inline]
+    pub fn from_unix(seconds: i64) -> Result<DateTime, Error> {
+        DateTime::from_unix_nanos(i128::from(seconds) * 1_000_000_000)
     }
 
     /// Creates a `DateTime` from nanoseconds since the Unix epoch, in UTC.
@@ -230,6 +224,7 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if the instant is outside the supported range.
+    #[inline]
     pub fn from_unix_nanos(nanoseconds: i128) -> Result<DateTime, Error> {
         let seconds = i64::try_from(nanoseconds.div_euclid(1_000_000_000))
             .map_err(|_| error::out_of_range("instant is outside the supported range"))?;
@@ -303,6 +298,7 @@ impl DateTime {
         DateTime::from_raw_checked(instant, nanosecond, zone)
     }
 
+    #[inline]
     pub(crate) fn from_raw_checked(secs: i64, nanos: u32, zone: TimeZone) -> Result<DateTime, Error> {
         if !(MIN_SECS..=MAX_SECS).contains(&secs) {
             return Err(error::out_of_range("instant is outside the supported range"));
@@ -335,7 +331,8 @@ impl DateTime {
                 }
             }
         };
-        let utc = DateTime::from_unix(seconds, i64::from(nanos)).unwrap_or(DateTime::UNIX_EPOCH);
+        let utc = DateTime::from_unix_nanos(i128::from(seconds) * 1_000_000_000 + i128::from(nanos))
+            .unwrap_or(DateTime::UNIX_EPOCH);
         let mut result = utc.in_timezone(zone);
         result.monotonic = Some(std::time::Instant::now());
         result
@@ -392,6 +389,18 @@ impl DateTime {
     /// Returns an error if the input cannot be parsed or is out of range.
     pub fn parse_bytes_with_timezone(input: &[u8], zone: TimeZone) -> Result<DateTime, Error> {
         parse::parse_bytes(input, Some(zone))
+    }
+
+    /// Parses a byte slice using a specific [`Format`].
+    ///
+    /// This accepts the same grammar as [`DateTime::parse_with_format`] and
+    /// never allocates; non-UTF-8 input is rejected.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be parsed or is out of range.
+    pub fn parse_bytes_with_format(input: &[u8], format: Format) -> Result<DateTime, Error> {
+        parse::parse_bytes_with_format(input, format)
     }
 
     /// Parses a string using a specific [`Format`].
@@ -460,36 +469,35 @@ impl DateTime {
 
     /// Returns the number of whole seconds since the Unix epoch.
     #[must_use]
-    pub const fn unix_seconds(&self) -> i64 {
+    #[inline]
+    pub const fn unix(&self) -> i64 {
         self.secs
     }
 
     /// Returns the number of nanoseconds since the Unix epoch.
     #[must_use]
+    #[inline]
     pub const fn unix_nanos(&self) -> i128 {
         self.secs as i128 * 1_000_000_000 + self.nanos as i128
     }
 
-    /// Returns the sub-second component, in nanoseconds (`0..1_000_000_000`).
-    #[must_use]
-    pub const fn subsec_nanosecond(&self) -> u32 {
-        self.nanos
-    }
-
     /// Returns the UTC offset in seconds east of Greenwich.
     #[must_use]
+    #[inline]
     pub const fn offset(&self) -> i32 {
         self.offset
     }
 
     /// Returns the time zone associated with this value.
     #[must_use]
+    #[inline]
     pub const fn timezone(&self) -> TimeZone {
         self.zone
     }
 
     /// Returns the canonical name of the time zone, if it has one.
     #[must_use]
+    #[inline]
     pub const fn timezone_name(&self) -> Option<&'static str> {
         self.zone.annotation_name()
     }
@@ -502,7 +510,8 @@ impl DateTime {
 
     /// Returns the local time at this instant in `zone`.
     #[must_use]
-    pub fn in_timezone(self, zone: TimeZone) -> DateTime {
+    #[inline]
+    pub fn in_timezone(&self, zone: TimeZone) -> DateTime {
         let offset = zone.offset_at(self.secs);
         DateTime {
             secs: self.secs,
@@ -516,6 +525,7 @@ impl DateTime {
 
     /// Returns the local civil fields: `(year, month, day, hour, minute,
     /// second, nanosecond)`.
+    #[inline]
     pub(crate) fn parts(&self) -> (i32, u8, u8, u8, u8, u8, u32) {
         let local = self.secs + i64::from(self.offset);
         let days = local.div_euclid(civil::SECS_PER_DAY);
@@ -529,60 +539,70 @@ impl DateTime {
 
     /// Returns the calendar year.
     #[must_use]
+    #[inline]
     pub fn year(&self) -> i32 {
         self.parts().0
     }
 
     /// Returns the month (`1..=12`).
     #[must_use]
+    #[inline]
     pub fn month(&self) -> u8 {
         self.parts().1
     }
 
     /// Returns the day of the month (`1..=31`).
     #[must_use]
+    #[inline]
     pub fn day(&self) -> u8 {
         self.parts().2
     }
 
     /// Returns the hour (`0..=23`).
     #[must_use]
+    #[inline]
     pub fn hour(&self) -> u8 {
         self.parts().3
     }
 
     /// Returns the minute (`0..=59`).
     #[must_use]
+    #[inline]
     pub fn minute(&self) -> u8 {
         self.parts().4
     }
 
     /// Returns the second (`0..=59`).
     #[must_use]
+    #[inline]
     pub fn second(&self) -> u8 {
         self.parts().5
     }
 
     /// Returns the nanosecond (`0..1_000_000_000`).
     #[must_use]
+    #[inline]
     pub fn nanosecond(&self) -> u32 {
         self.nanos
     }
 
     /// Returns the millisecond (`0..1000`).
     #[must_use]
+    #[inline]
     pub fn millisecond(&self) -> u32 {
         self.nanos / 1_000_000
     }
 
     /// Returns the microsecond (`0..1_000_000`).
     #[must_use]
+    #[inline]
     pub fn microsecond(&self) -> u32 {
         self.nanos / 1_000
     }
 
     /// Returns the day of the week.
     #[must_use]
+    #[inline]
     pub fn weekday(&self) -> Weekday {
         let days = (self.secs + i64::from(self.offset)).div_euclid(civil::SECS_PER_DAY);
         Weekday::from_index(civil::weekday_from_days(days))
@@ -590,6 +610,7 @@ impl DateTime {
 
     /// Returns the day of the year (`1..=366`).
     #[must_use]
+    #[inline]
     pub fn ordinal(&self) -> u16 {
         let (year, month, day, ..) = self.parts();
         civil::ordinal(year, month, day)
@@ -597,6 +618,7 @@ impl DateTime {
 
     /// Returns the ISO 8601 week-based year and week number.
     #[must_use]
+    #[inline]
     pub fn iso_week(&self) -> (i32, u8) {
         let (year, month, day, ..) = self.parts();
         civil::iso_week(year, month, day)
@@ -672,7 +694,7 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if `earlier` is later than `self`.
-    pub fn duration_since(&self, earlier: &DateTime) -> Result<core::time::Duration, Error> {
+    pub fn duration_since(&self, earlier: DateTime) -> Result<core::time::Duration, Error> {
         let (seconds, nanos) = self.signed_duration_since(earlier);
         if seconds < 0 {
             return Err(error::out_of_range("earlier is later than self"));
@@ -688,8 +710,8 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if `later` is earlier than `self`.
-    pub fn duration_until(&self, later: &DateTime) -> Result<core::time::Duration, Error> {
-        later.duration_since(self)
+    pub fn duration_until(&self, later: DateTime) -> Result<core::time::Duration, Error> {
+        later.duration_since(*self)
     }
 
     /// Returns the signed difference `self - other` as
@@ -700,7 +722,7 @@ impl DateTime {
     /// The monotonic clock is used when both values carry a reading (see
     /// [`DateTime::duration_since`]).
     #[must_use]
-    pub fn signed_duration_since(&self, other: &DateTime) -> (i64, u32) {
+    pub fn signed_duration_since(&self, other: DateTime) -> (i64, u32) {
         #[cfg(feature = "std")]
         if let (Some(left), Some(right)) = (self.monotonic, other.monotonic) {
             return difference_between(left, right);
@@ -722,7 +744,7 @@ impl DateTime {
     /// (only possible without a monotonic reading).
     #[cfg(feature = "std")]
     pub fn elapsed(&self) -> Result<core::time::Duration, Error> {
-        DateTime::now_in(self.zone).duration_since(self)
+        DateTime::now_in(self.zone).duration_since(*self)
     }
 
     /// Returns `true` if this value carries a monotonic clock reading, which
@@ -768,7 +790,7 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if the result is out of range.
-    pub fn add_days(self, days: i64) -> Result<DateTime, Error> {
+    pub fn add_days(&self, days: i64) -> Result<DateTime, Error> {
         let (year, month, day, hour, minute, second, nanos) = self.parts();
         let target = civil::days_from_civil(year, month, day)
             .checked_add(days)
@@ -783,7 +805,7 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if the result is out of range.
-    pub fn add_months(self, months: i32) -> Result<DateTime, Error> {
+    pub fn add_months(&self, months: i32) -> Result<DateTime, Error> {
         let (year, month, day, hour, minute, second, nanos) = self.parts();
         let total = i64::from(year) * 12 + i64::from(month) - 1 + i64::from(months);
         let new_year = i32::try_from(total.div_euclid(12))
@@ -799,7 +821,7 @@ impl DateTime {
     /// # Errors
     ///
     /// Returns an error if the result is out of range.
-    pub fn add_years(self, years: i32) -> Result<DateTime, Error> {
+    pub fn add_years(&self, years: i32) -> Result<DateTime, Error> {
         let (year, month, day, hour, minute, second, nanos) = self.parts();
         let new_year = year
             .checked_add(years)
@@ -808,7 +830,7 @@ impl DateTime {
         DateTime::from_parts(new_year, month, new_day, hour, minute, second, nanos, self.zone)
     }
 
-    fn in_timezone_checked(self, zone: TimeZone) -> Result<DateTime, Error> {
+    fn in_timezone_checked(&self, zone: TimeZone) -> Result<DateTime, Error> {
         if self.secs < MIN_SECS || self.secs > MAX_SECS {
             return Err(error::out_of_range("instant is outside the supported range"));
         }
@@ -835,12 +857,14 @@ fn difference_between(left: std::time::Instant, right: std::time::Instant) -> (i
 }
 
 impl Default for DateTime {
+    #[inline]
     fn default() -> DateTime {
         DateTime::UNIX_EPOCH
     }
 }
 
 impl PartialEq for DateTime {
+    #[inline]
     fn eq(&self, other: &DateTime) -> bool {
         self.secs == other.secs && self.nanos == other.nanos
     }
@@ -849,18 +873,21 @@ impl PartialEq for DateTime {
 impl Eq for DateTime {}
 
 impl PartialOrd for DateTime {
+    #[inline]
     fn partial_cmp(&self, other: &DateTime) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for DateTime {
+    #[inline]
     fn cmp(&self, other: &DateTime) -> Ordering {
         (self.secs, self.nanos).cmp(&(other.secs, other.nanos))
     }
 }
 
 impl Hash for DateTime {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.secs.hash(state);
         self.nanos.hash(state);
@@ -944,7 +971,7 @@ impl TryFrom<std::time::SystemTime> for DateTime {
                 }
             }
         };
-        DateTime::from_unix(seconds, i64::from(nanos))
+        DateTime::from_unix_nanos(i128::from(seconds) * 1_000_000_000 + i128::from(nanos))
     }
 }
 

@@ -178,7 +178,7 @@ pub mod test {
 
         let next = schedule.next(&now).unwrap();
 
-        assert!(next.unix_seconds() >= now.unix_seconds() + (secs as i64));
+        assert!(next.unix() >= now.unix() + (secs as i64));
     }
 
     #[test]
@@ -188,10 +188,10 @@ pub mod test {
         let mut schedule = (Duration::new(secs, 0), true).to_scheduler().unwrap();
 
         let first = schedule.next(&now).unwrap();
-        assert_eq!(now.unix_seconds(), first.unix_seconds());
+        assert_eq!(now.unix(), first.unix());
 
         let next = schedule.next(&now).unwrap();
-        assert!(next.unix_seconds() >= now.unix_seconds() + (secs as i64));
+        assert!(next.unix() >= now.unix() + (secs as i64));
     }
 
     #[test]

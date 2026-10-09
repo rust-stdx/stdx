@@ -91,7 +91,7 @@ impl JobExecutorInternal {
                 if !job_scheduler.job.is_running().await {
                     let job_clone = job_scheduler.clone();
 
-                    let timestamp = DateTime::now_in(TimeZone::UTC).unix_seconds();
+                    let timestamp = DateTime::now_in(TimeZone::UTC).unix();
                     let group = job_clone.job.group().to_owned();
                     let name = job_clone.job.name().to_owned();
 

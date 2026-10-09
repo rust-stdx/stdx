@@ -87,7 +87,7 @@
 //! use time::{DateTime, TimeZone};
 //!
 //! let dt: DateTime = "2024-07-11T01:14:00Z".parse().unwrap();
-//! assert_eq!(dt.unix_seconds(), 1_720_660_440);
+//! assert_eq!(dt.unix(), 1_720_660_440);
 //!
 //! // Requires the default `timezone-db` feature.
 //! if let Ok(ny) = TimeZone::named("America/New_York") {
