@@ -1,0 +1,35 @@
+[package]
+name = "time"
+version = "0.1.0"
+description = "Date and time handling with an embedded IANA time zone database."
+keywords = ["date", "time", "timezone", "tzdb", "no_std"]
+license = "MIT"
+edition = "2024"
+rust-version = "1.85"
+
+[lib]
+path = "./time.rs"
+
+[features]
+default = ["std", "timezone-db"]
+# Enables reading the clock and the system time zone. It uses `alloc`
+# internally, but no public API requires a dynamic allocator.
+std = []
+# Embeds a copy of the IANA Time Zone Database into the binary. Works without
+# `std`, and is enabled by default.
+timezone-db = []
+# Reads time zone rules from the system copy of the IANA database (for example
+# `/usr/share/zoneinfo`). Implies `std`.
+timezone-system = ["std", "dep:small_collections"]
+# Serde support using the RFC 3339 / RFC 9557 representation.
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { workspace = true, optional = true, default-features = false, features = ["derive"] }
+small_collections = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true

@@ -31,6 +31,9 @@ check_no_std:
 	cargo check --no-default-features --target thumbv7em-none-eabi -p crypto
 	cargo check --no-default-features --features zeroize --target thumbv7em-none-eabi -p crypto
 	cargo check --no-default-features --features alloc,zeroize --target thumbv7em-none-eabi -p crypto
+	cargo check --no-default-features --target thumbv7em-none-eabi -p time
+	cargo check --no-default-features --features timezone-db --target thumbv7em-none-eabi -p time
+	cargo check --no-default-features --features serde,timezone-db --target thumbv7em-none-eabi -p time
 
 
 .PHONY: check_all

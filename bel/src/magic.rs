@@ -19,8 +19,8 @@ impl_conversions!(
 
 #[cfg(feature = "time")]
 impl_conversions!(
-    chrono::Duration => Value::Duration,
-    chrono::DateTime<chrono::FixedOffset> => Value::Timestamp,
+    crate::duration::Duration => Value::Duration,
+    time::DateTime => Value::Timestamp,
 );
 
 #[cfg(feature = "regex")]

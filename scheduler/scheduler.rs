@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use chrono::prelude::*;
+use time::DateTime;
 
 use crate::error::SchedulerError;
 
@@ -28,7 +28,7 @@ impl Scheduler {
     }
 
     // Determine the next time we should execute (from a reference point)
-    pub fn next(&mut self, after: &DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub fn next(&mut self, after: &DateTime) -> Option<DateTime> {
         match *self {
             Scheduler::Cron(ref cs) => cs.after(after).next(),
 
@@ -40,13 +40,7 @@ impl Scheduler {
                     *execute_at_startup = false;
                     Some(*after)
                 } else {
-                    let ch_duration = match chrono::Duration::from_std(*interval_duration) {
-                        Ok(value) => value,
-                        Err(_) => {
-                            return None;
-                        }
-                    };
-                    Some(*after + ch_duration)
+                    after.checked_add(*interval_duration).ok()
                 }
             }
 
@@ -166,36 +160,38 @@ impl From<Vec<Scheduler>> for Scheduler {
 #[cfg(test)]
 pub mod test {
 
+    use time::TimeZone;
+
     use super::*;
 
     #[test]
     fn never_should_not_schedule() {
         let mut schedule = Scheduler::Never;
-        assert_eq!(None, schedule.next(&Utc::now()))
+        assert_eq!(None, schedule.next(&DateTime::now_in(TimeZone::UTC)))
     }
 
     #[test]
     fn interval_should_schedule_plus_duration() {
-        let now = Utc::now();
+        let now = DateTime::now_in(TimeZone::UTC);
         let secs = 10;
         let mut schedule = Duration::new(secs, 0).to_scheduler().unwrap();
 
         let next = schedule.next(&now).unwrap();
 
-        assert!(next.timestamp() >= now.timestamp() + (secs as i64));
+        assert!(next.unix_seconds() >= now.unix_seconds() + (secs as i64));
     }
 
     #[test]
     fn interval_should_schedule_at_startup() {
-        let now = Utc::now();
+        let now = DateTime::now_in(TimeZone::UTC);
         let secs = 10;
         let mut schedule = (Duration::new(secs, 0), true).to_scheduler().unwrap();
 
         let first = schedule.next(&now).unwrap();
-        assert_eq!(now.timestamp(), first.timestamp());
+        assert_eq!(now.unix_seconds(), first.unix_seconds());
 
         let next = schedule.next(&now).unwrap();
-        assert!(next.timestamp() >= now.timestamp() + (secs as i64));
+        assert!(next.unix_seconds() >= now.unix_seconds() + (secs as i64));
     }
 
     #[test]
@@ -259,9 +255,9 @@ pub mod test {
     #[test]
     fn cron_should_be_time_zone_aware_with_utc() {
         let mut schedule = "* 11 10 * * *".to_scheduler().unwrap();
-        let date = Utc.with_ymd_and_hms(2010, 1, 1, 10, 10, 0).unwrap();
+        let date = DateTime::from_parts(2010, 1, 1, 10, 10, 0, 0, TimeZone::UTC).unwrap();
 
-        let expected_utc = Utc.with_ymd_and_hms(2010, 1, 1, 10, 11, 0).unwrap();
+        let expected_utc = DateTime::from_parts(2010, 1, 1, 10, 11, 0, 0, TimeZone::UTC).unwrap();
 
         let next = schedule.next(&date).unwrap();
 
@@ -285,27 +281,27 @@ pub mod test {
         let mut schedule = Scheduler::from(&[&"* 10 10 * * *", &"* 20 20 * * *"]).unwrap();
 
         {
-            let date = Utc.with_ymd_and_hms(2010, 1, 1, 10, 8, 0).unwrap();
-            let expected = Utc.with_ymd_and_hms(2010, 1, 1, 10, 10, 0).unwrap();
+            let date = DateTime::from_parts(2010, 1, 1, 10, 8, 0, 0, TimeZone::UTC).unwrap();
+            let expected = DateTime::from_parts(2010, 1, 1, 10, 10, 0, 0, TimeZone::UTC).unwrap();
 
             let next = schedule.next(&date).unwrap();
-            assert_eq!(next.with_timezone(&Utc), expected);
+            assert_eq!(next, expected);
         }
 
         {
-            let date = Utc.with_ymd_and_hms(2010, 1, 1, 11, 8, 0).unwrap();
-            let expected = Utc.with_ymd_and_hms(2010, 1, 1, 20, 20, 0).unwrap();
+            let date = DateTime::from_parts(2010, 1, 1, 11, 8, 0, 0, TimeZone::UTC).unwrap();
+            let expected = DateTime::from_parts(2010, 1, 1, 20, 20, 0, 0, TimeZone::UTC).unwrap();
 
             let next = schedule.next(&date).unwrap();
-            assert_eq!(next.with_timezone(&Utc), expected);
+            assert_eq!(next, expected);
         }
 
         {
-            let date = Utc.with_ymd_and_hms(2010, 1, 1, 22, 8, 0).unwrap();
-            let expected = Utc.with_ymd_and_hms(2010, 1, 2, 10, 10, 0).unwrap();
+            let date = DateTime::from_parts(2010, 1, 1, 22, 8, 0, 0, TimeZone::UTC).unwrap();
+            let expected = DateTime::from_parts(2010, 1, 2, 10, 10, 0, 0, TimeZone::UTC).unwrap();
 
             let next = schedule.next(&date).unwrap();
-            assert_eq!(next.with_timezone(&Utc), expected);
+            assert_eq!(next, expected);
         }
     }
 }

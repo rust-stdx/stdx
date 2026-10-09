@@ -1,13 +1,207 @@
-use chrono::Duration;
+//! A signed duration type for the expression language.
+//!
+//! The standard [`core::time::Duration`] is unsigned, but BEL's duration
+//! arithmetic (subtraction, negation) needs signed values. This type stores a
+//! signed count of nanoseconds in an `i128`, which is far larger than any
+//! duration the language needs.
+
+use core::ops::{Add, Mul, Neg, Sub};
+
 use nom::{
     IResult, Parser, branch::alt, bytes::complete::tag, character::complete::char, combinator::opt, multi::many1,
     number::complete::double,
 };
 
-// Constants representing time units in nanoseconds
-const SECOND: u64 = 1_000_000_000;
-const MILLISECOND: u64 = 1_000_000;
-const MICROSECOND: u64 = 1_000;
+const NANOS_PER_SECOND: i128 = 1_000_000_000;
+
+/// A signed duration with nanosecond precision.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Debug)]
+pub struct Duration {
+    nanos: i128,
+}
+
+impl Duration {
+    /// The zero duration.
+    pub const ZERO: Duration = Duration {
+        nanos: 0,
+    };
+
+    /// Creates a duration from a signed number of nanoseconds.
+    #[must_use]
+    pub const fn from_nanos(nanos: i128) -> Duration {
+        Duration {
+            nanos,
+        }
+    }
+
+    /// Creates a duration from a signed number of nanoseconds.
+    #[must_use]
+    pub const fn nanoseconds(nanos: i64) -> Duration {
+        Duration {
+            nanos: nanos as i128,
+        }
+    }
+
+    /// Creates a duration from a signed number of microseconds.
+    #[must_use]
+    pub const fn microseconds(micros: i64) -> Duration {
+        Duration {
+            nanos: micros as i128 * 1_000,
+        }
+    }
+
+    /// Creates a duration from a signed number of milliseconds.
+    #[must_use]
+    pub const fn milliseconds(millis: i64) -> Duration {
+        Duration {
+            nanos: millis as i128 * 1_000_000,
+        }
+    }
+
+    /// Creates a duration from a signed number of seconds.
+    #[must_use]
+    pub const fn seconds(seconds: i64) -> Duration {
+        Duration {
+            nanos: seconds as i128 * NANOS_PER_SECOND,
+        }
+    }
+
+    /// Creates a duration from a signed number of minutes.
+    #[must_use]
+    pub const fn minutes(minutes: i64) -> Duration {
+        Duration {
+            nanos: minutes as i128 * 60 * NANOS_PER_SECOND,
+        }
+    }
+
+    /// Creates a duration from a signed number of hours.
+    #[must_use]
+    pub const fn hours(hours: i64) -> Duration {
+        Duration {
+            nanos: hours as i128 * 3600 * NANOS_PER_SECOND,
+        }
+    }
+
+    /// Returns the total number of nanoseconds.
+    #[must_use]
+    pub const fn as_nanos(self) -> i128 {
+        self.nanos
+    }
+
+    /// Returns the total number of nanoseconds, or `None` if it does not fit in
+    /// an `i64`.
+    #[must_use]
+    pub const fn num_nanoseconds(self) -> Option<i64> {
+        if self.nanos >= i64::MIN as i128 && self.nanos <= i64::MAX as i128 {
+            Some(self.nanos as i64)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the number of whole seconds, truncated toward zero.
+    #[must_use]
+    pub const fn num_seconds(self) -> i64 {
+        (self.nanos / NANOS_PER_SECOND) as i64
+    }
+
+    /// Returns `true` if this duration is zero.
+    #[must_use]
+    pub const fn is_zero(self) -> bool {
+        self.nanos == 0
+    }
+
+    /// Returns `true` if this duration is negative.
+    #[must_use]
+    pub const fn is_negative(self) -> bool {
+        self.nanos < 0
+    }
+
+    /// Adds two durations, returning `None` on overflow.
+    #[must_use]
+    pub const fn checked_add(self, other: Duration) -> Option<Duration> {
+        match self.nanos.checked_add(other.nanos) {
+            Some(nanos) => Some(Duration {
+                nanos,
+            }),
+            None => None,
+        }
+    }
+
+    /// Subtracts two durations, returning `None` on overflow.
+    #[must_use]
+    pub const fn checked_sub(self, other: Duration) -> Option<Duration> {
+        match self.nanos.checked_sub(other.nanos) {
+            Some(nanos) => Some(Duration {
+                nanos,
+            }),
+            None => None,
+        }
+    }
+
+    /// Returns the whole seconds component used for serialization.
+    pub(crate) const fn serialized_secs(self) -> i64 {
+        (self.nanos / NANOS_PER_SECOND) as i64
+    }
+
+    /// Returns the sub-second nanosecond component used for serialization.
+    pub(crate) const fn serialized_nanos(self) -> i32 {
+        (self.nanos % NANOS_PER_SECOND) as i32
+    }
+
+    /// Rebuilds a duration from the serialized `(secs, nanos)` pair.
+    pub(crate) const fn from_secs_nanos(secs: i64, nanos: i32) -> Duration {
+        Duration {
+            nanos: secs as i128 * NANOS_PER_SECOND + nanos as i128,
+        }
+    }
+}
+
+impl core::fmt::Display for Duration {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&format_duration(self))
+    }
+}
+
+impl Add for Duration {
+    type Output = Duration;
+
+    fn add(self, rhs: Duration) -> Duration {
+        Duration {
+            nanos: self.nanos + rhs.nanos,
+        }
+    }
+}
+
+impl Sub for Duration {
+    type Output = Duration;
+
+    fn sub(self, rhs: Duration) -> Duration {
+        Duration {
+            nanos: self.nanos - rhs.nanos,
+        }
+    }
+}
+
+impl Mul<i32> for Duration {
+    type Output = Duration;
+
+    fn mul(self, rhs: i32) -> Duration {
+        Duration {
+            nanos: self.nanos * rhs as i128,
+        }
+    }
+}
+
+impl Neg for Duration {
+    type Output = Duration;
+
+    fn neg(self) -> Duration {
+        Duration {
+            nanos: -self.nanos,
+        }
+    }
+}
 
 /// Parses a duration string into a [`Duration`]. Duration strings support the
 /// following grammar:
@@ -31,12 +225,12 @@ const MICROSECOND: u64 = 1_000;
 pub fn parse_duration(i: &str) -> IResult<&str, Duration> {
     let (i, neg) = opt(parse_negative).parse(i)?;
     if i == "0" {
-        return Ok((i, Duration::zero()));
+        return Ok((i, Duration::ZERO));
     }
     let (i, duration) = many1(parse_number_unit)
         .parse(i)
-        .map(|(i, d)| (i, d.iter().fold(Duration::zero(), |acc, next| acc + *next)))?;
-    Ok((i, duration * if neg.is_some() { -1 } else { 1 }))
+        .map(|(i, d)| (i, d.iter().fold(Duration::ZERO, |acc, next| acc + *next)))?;
+    Ok((i, if neg.is_some() { -duration } else { duration }))
 }
 
 enum Unit {
@@ -86,16 +280,17 @@ fn parse_unit(i: &str) -> IResult<&str, Unit> {
 }
 
 fn to_duration(num: f64, unit: Unit) -> Duration {
-    Duration::nanoseconds((num * unit.nanos() as f64).trunc() as i64)
+    Duration::from_nanos((num * unit.nanos() as f64).trunc() as i128)
 }
 
-/// Formats a [`Duration`] into a string. String returns a string representing the
-/// duration in the form "72h3m0.5s". Leading zero units are omitted. As a special
-/// case, durations less than one second format use a smaller unit (milli-, micro-,
-/// or nanoseconds) to ensure that the leading digit is non-zero. The zero duration
-/// formats as 0s.
+/// Formats a [`Duration`] into a string. The returned string represents the
+/// duration in the form "72h3m0.5s". Leading zero units are omitted. As a
+/// special case, durations less than one second format use a smaller unit
+/// (milli-, micro-, or nanoseconds) to ensure that the leading digit is
+/// non-zero. The zero duration formats as `0s`.
 ///
-/// This is a direct port of the Go version of the time.Duration(0).String() function.
+/// This is a direct port of the Go version of the `time.Duration.String()`
+/// function.
 pub fn format_duration(d: &Duration) -> String {
     let buf = &mut [0u8; 32];
     let mut w = buf.len();
@@ -174,6 +369,10 @@ pub fn format_duration(d: &Duration) -> String {
     String::from_utf8_lossy(&buf[w..]).into_owned()
 }
 
+const SECOND: u64 = 1_000_000_000;
+const MILLISECOND: u64 = 1_000_000;
+const MICROSECOND: u64 = 1_000;
+
 fn format_float(buf: &mut [u8], mut v: u64, prec: usize) -> (usize, u64) {
     let mut w = buf.len();
     let mut print = false;
@@ -210,9 +409,7 @@ fn format_int(buf: &mut [u8], mut v: u64) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Duration;
-
-    use crate::duration::{format_duration, parse_duration};
+    use crate::duration::{Duration, format_duration, parse_duration};
 
     fn assert_duration(input: &str, expected: Duration) {
         let (_, duration) = parse_duration(input).unwrap();
@@ -258,15 +455,15 @@ mod tests {
         "1ns" => Duration::nanoseconds(1),
         "1.1ns" => Duration::nanoseconds(1),
         "1.123us" => Duration::microseconds(1) + Duration::nanoseconds(123),
-        "0s" => Duration::zero(),
-        "0h0m0s" => Duration::zero(),
+        "0s" => Duration::ZERO,
+        "0h0m0s" => Duration::ZERO,
         "0h0m1s" => Duration::seconds(1),
-        "0" => Duration::zero(),
-        "-0" => Duration::zero(),
+        "0" => Duration::ZERO,
+        "-0" => Duration::ZERO,
     }
 
     assert_duration_format! {
-        Duration::zero() => "0s",
+        Duration::ZERO => "0s",
         Duration::nanoseconds(1) => "1ns",
         Duration::nanoseconds(1100) => "1.1µs",
         Duration::microseconds(2200) => "2.2ms",

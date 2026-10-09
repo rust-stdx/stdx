@@ -1,8 +1,8 @@
-#[cfg(feature = "time")]
-use chrono::Duration;
 use thiserror::Error;
 
 use crate::Value;
+#[cfg(feature = "time")]
+use crate::duration::Duration;
 
 #[derive(Debug, Clone, Error)]
 #[error("unable to convert value to json: {0:?}")]
@@ -53,7 +53,7 @@ impl Value {
             Value::Bytes(ref b) => base64::encode(b.as_slice(), base64::Alphabet::Standard).into(),
             Value::Null => serde_json::Value::Null,
             #[cfg(feature = "time")]
-            Value::Timestamp(ref dt) => dt.to_rfc3339().into(),
+            Value::Timestamp(ref dt) => dt.to_string().into(),
             #[cfg(feature = "time")]
             Value::Duration(ref v) => serde_json::Value::Number(serde_json::Number::from(
                 v.num_nanoseconds().ok_or(ConvertToJsonError::DurationOverflow(v))?,
@@ -67,10 +67,10 @@ impl Value {
 mod tests {
     use std::collections::HashMap;
 
-    #[cfg(feature = "time")]
-    use chrono::Duration;
     use serde_json::json;
 
+    #[cfg(feature = "time")]
+    use crate::duration::Duration;
     use crate::{Value as CelValue, objects::Map};
 
     #[test]

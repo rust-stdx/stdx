@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::Utc;
+use time::{DateTime, TimeZone};
 use tokio::{sync::RwLock, task::JoinHandle};
 #[cfg(feature = "tracing")]
 use tracing::*;
@@ -91,7 +91,7 @@ impl JobExecutorInternal {
                 if !job_scheduler.job.is_running().await {
                     let job_clone = job_scheduler.clone();
 
-                    let timestamp = Utc::now().timestamp();
+                    let timestamp = DateTime::now_in(TimeZone::UTC).unix_seconds();
                     let group = job_clone.job.group().to_owned();
                     let name = job_clone.job.name().to_owned();
 
@@ -272,7 +272,7 @@ pub mod test {
         time::Duration,
     };
 
-    use chrono::Utc;
+    use time::{DateTime, TimeZone};
     use tokio::sync::mpsc::channel;
 
     use super::*;
@@ -385,13 +385,13 @@ pub mod test {
             .await
             .unwrap();
 
-        let before_millis = Utc::now().timestamp_millis();
+        let before_millis = DateTime::now_in(TimeZone::UTC).unix_nanos() / 1_000_000;
         for i in 0..100 {
             println!("run_pending {i}");
             executor.executor.run_pending_jobs().await;
             tokio::time::sleep(Duration::new(0, 1_000_000)).await;
         }
-        let after_millis = Utc::now().timestamp_millis();
+        let after_millis = DateTime::now_in(TimeZone::UTC).unix_nanos() / 1_000_000;
 
         assert!((after_millis - before_millis) >= 100);
         assert!((after_millis - before_millis) < 1000);

@@ -31,7 +31,6 @@ members = [
     "hostname",
     "hpke",
     "html_escape",
-    "httpdate",
     "indexmap",
     "ipnetwork",
     "json_rpc",
@@ -62,6 +61,7 @@ members = [
     "thiserror",
     "thiserror/impl",
     "thiserror/tests/no-std",
+    "time",
     "tld",
     "tokio_fast_udp",
     "tools/crypt",
@@ -92,7 +92,6 @@ arbitrary = { version = "1", features = ["derive"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "f3149ec5bb5449af877ba20377a11008ff499fa2" } # 1.8.7
 bytes = { version = "1", default-features = false }
-chrono = { version = "0.4", default-features = false, features = ["clock", "oldtime", "serde", "std", ] }
 futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }
 heapless = "0.9"
@@ -112,6 +111,8 @@ serde = { version = "1", default-features = false }
 serde_core = { version = "1", default-features = false }
 serde_json = "1"
 serde_test = "1"
+small_collections = { path = "small_collections" }
+time = { path = "time" }
 sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "b54008a329541c0ce230d8b203e0c00fc8e8ea48" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"

@@ -12,8 +12,12 @@ edition = "2024"
 [lib]
 name = "cron"
 
+[[test]]
+name = "cron_integration"
+path = "_tests/lib.rs"
+
 [dependencies]
-chrono = { workspace = true }
+time = { workspace = true }
 nom = { workspace = true }
 # once_cell = "1.10"
 

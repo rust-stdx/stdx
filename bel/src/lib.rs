@@ -23,7 +23,7 @@ pub mod objects;
 mod resolvers;
 
 #[cfg(feature = "time")]
-mod duration;
+pub mod duration;
 
 #[cfg(feature = "ip")]
 pub use ser::Ip;

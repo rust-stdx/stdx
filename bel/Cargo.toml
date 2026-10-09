@@ -12,8 +12,8 @@ default = ["regex", "time", "ip"]
 ip = ["dep:ipnetwork"]
 json = ["dep:serde_json", "dep:base64"]
 regex = ["dep:regex"]
-time = ["dep:chrono"]
-# arbitrary = ["dep:arbitrary", "chrono?/arbitrary", "chrono?/std"]
+time = ["dep:time"]
+# arbitrary = ["dep:arbitrary", "time?/arbitrary", "time?/std"]
 # dhat-heap = [ ] # if you are doing heap profiling
 
 
@@ -28,7 +28,7 @@ paste = { workspace = true }
 serde = { workspace = true, features = ["derive", "std"] }
 
 arbitrary = { workspace = true, optional = true }
-chrono = { workspace = true, optional = true }
+time = { workspace = true, optional = true, features = ["serde"] }
 regex = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 

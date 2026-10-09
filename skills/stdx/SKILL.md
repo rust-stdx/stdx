@@ -186,10 +186,10 @@ use ipnetwork::IpNetwork;
 let net: IpNetwork = "192.168.1.0/24".parse()?;
 assert!(net.contains("192.168.1.100".parse()?));
 
-// HTTP date parsing
-use httpdate;
-let date = httpdate::parse_http_date("Wed, 21 Oct 2015 07:28:00 GMT")?;
-let header = httpdate::fmt_http_date(date);
+// HTTP date parsing and formatting
+use time::{DateTime, Format};
+let date = DateTime::parse_with_format("Wed, 21 Oct 2015 07:28:00 GMT", Format::HttpDate)?;
+let header = date.format(Format::HttpDate).to_string();
 ```
 
 ### Strings & Templates

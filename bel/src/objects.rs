@@ -11,7 +11,7 @@ use std::{
 };
 
 #[cfg(feature = "time")]
-use chrono::TimeZone;
+use time::{DateTime, TimeZone};
 
 use crate::{
     ExecutionError, Expression,
@@ -30,22 +30,12 @@ use crate::{
 ///
 /// https://github.com/google/cel-spec/blob/master/doc/langdef.md#overflow
 #[cfg(feature = "time")]
-static MAX_TIMESTAMP: LazyLock<chrono::DateTime<chrono::FixedOffset>> = LazyLock::new(|| {
-    let naive = chrono::NaiveDate::from_ymd_opt(9999, 12, 31)
-        .unwrap()
-        .and_hms_nano_opt(23, 59, 59, 999_999_999)
-        .unwrap();
-    chrono::FixedOffset::east_opt(0).unwrap().from_utc_datetime(&naive)
-});
+static MAX_TIMESTAMP: LazyLock<DateTime> =
+    LazyLock::new(|| DateTime::from_parts(9999, 12, 31, 23, 59, 59, 999_999_999, TimeZone::UTC).unwrap());
 
 #[cfg(feature = "time")]
-static MIN_TIMESTAMP: LazyLock<chrono::DateTime<chrono::FixedOffset>> = LazyLock::new(|| {
-    let naive = chrono::NaiveDate::from_ymd_opt(1, 1, 1)
-        .unwrap()
-        .and_hms_opt(0, 0, 0)
-        .unwrap();
-    chrono::FixedOffset::east_opt(0).unwrap().from_utc_datetime(&naive)
-});
+static MIN_TIMESTAMP: LazyLock<DateTime> =
+    LazyLock::new(|| DateTime::from_parts(1, 1, 1, 0, 0, 0, 0, TimeZone::UTC).unwrap());
 
 #[derive(Debug, PartialEq, Clone)]
 // #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
@@ -211,9 +201,9 @@ pub enum Value {
     Bytes(Arc<Vec<u8>>),
     Bool(bool),
     #[cfg(feature = "time")]
-    Duration(chrono::Duration),
+    Duration(crate::duration::Duration),
     #[cfg(feature = "time")]
-    Timestamp(chrono::DateTime<chrono::FixedOffset>),
+    Timestamp(DateTime),
     #[cfg(feature = "regex")]
     Regex(regex::Regex),
     #[cfg(feature = "ip")]
@@ -842,16 +832,13 @@ impl ops::Add<Value> for Value {
             }
             #[cfg(feature = "time")]
             (Value::Duration(l), Value::Duration(r)) => l
-                .checked_add(&r)
+                .checked_add(r)
                 .ok_or(ExecutionError::Overflow("add", l.into(), r.into()))
                 .map(Value::Duration),
             #[cfg(feature = "time")]
             (Value::Timestamp(l), Value::Duration(r)) => checked_op(TsOp::Add, &l, &r),
             #[cfg(feature = "time")]
-            (Value::Duration(l), Value::Timestamp(r)) => r
-                .checked_add_signed(l)
-                .ok_or(ExecutionError::Overflow("add", l.into(), r.into()))
-                .map(Value::Timestamp),
+            (Value::Duration(l), Value::Timestamp(r)) => checked_op(TsOp::Add, &r, &l),
             (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("add", left, right)),
         }
     }
@@ -876,13 +863,15 @@ impl ops::Sub<Value> for Value {
 
             #[cfg(feature = "time")]
             (Value::Duration(l), Value::Duration(r)) => l
-                .checked_sub(&r)
+                .checked_sub(r)
                 .ok_or(ExecutionError::Overflow("sub", l.into(), r.into()))
                 .map(Value::Duration),
             #[cfg(feature = "time")]
             (Value::Timestamp(l), Value::Duration(r)) => checked_op(TsOp::Sub, &l, &r),
             #[cfg(feature = "time")]
-            (Value::Timestamp(l), Value::Timestamp(r)) => Value::Duration(l.signed_duration_since(r)).into(),
+            (Value::Timestamp(l), Value::Timestamp(r)) => {
+                Value::Duration(crate::duration::Duration::from_nanos(l.unix_nanos() - r.unix_nanos())).into()
+            }
             (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("sub", left, right)),
         }
     }
@@ -984,15 +973,19 @@ impl TsOp {
 /// the resulting timestamp does not overflow the data type internal limits, as well as the timestamp
 /// limits defined in the cel-spec. See [`MAX_TIMESTAMP`] and [`MIN_TIMESTAMP`] for more details.
 #[cfg(feature = "time")]
-fn checked_op(op: TsOp, lhs: &chrono::DateTime<chrono::FixedOffset>, rhs: &chrono::Duration) -> ResolveResult {
-    // Add lhs and rhs together, checking for data type overflow
-    let result = match op {
-        TsOp::Add => lhs.checked_add_signed(*rhs),
-        TsOp::Sub => lhs.checked_sub_signed(*rhs),
+fn checked_op(op: TsOp, lhs: &DateTime, rhs: &crate::duration::Duration) -> ResolveResult {
+    // Add lhs and rhs together, checking for data type overflow.
+    let delta = rhs.as_nanos();
+    let nanos = match op {
+        TsOp::Add => lhs.unix_nanos().checked_add(delta),
+        TsOp::Sub => lhs.unix_nanos().checked_sub(delta),
     }
     .ok_or(ExecutionError::Overflow(op.str(), (*lhs).into(), (*rhs).into()))?;
 
-    // Check for cel-spec limits
+    let result = DateTime::from_unix_nanos(nanos)
+        .map_err(|_| ExecutionError::Overflow(op.str(), (*lhs).into(), (*rhs).into()))?;
+
+    // Check for cel-spec limits.
     if result > *MAX_TIMESTAMP || result < *MIN_TIMESTAMP {
         Err(ExecutionError::Overflow(op.str(), (*lhs).into(), (*rhs).into()))
     } else {

@@ -3,7 +3,7 @@ use std::{
     ops::Bound::{Included, Unbounded},
 };
 
-use chrono::{DateTime, Datelike, Timelike, Utc, offset::TimeZone};
+use time::{DateTime, TimeZone};
 
 use crate::{ordinal::*, queries::*, time_unit::*};
 
@@ -27,10 +27,7 @@ impl Schedule {
         }
     }
 
-    fn next_after<Z>(&self, after: &DateTime<Z>) -> Option<DateTime<Z>>
-    where
-        Z: TimeZone,
-    {
+    fn next_after(&self, after: &DateTime) -> Option<DateTime> {
         let mut query = NextAfterQuery::from(after);
         for year in self
             .fields
@@ -75,20 +72,24 @@ impl Schedule {
                             let second_range = (Included(second_start), Included(Seconds::inclusive_max()));
 
                             for second in self.fields.seconds.ordinals().range(second_range).cloned() {
-                                let timezone = after.timezone();
-                                let candidate = if let Some(candidate) = timezone
-                                    .ymd(year as i32, month, day_of_month)
-                                    .and_hms_opt(hour, minute, second)
-                                {
-                                    candidate
-                                } else {
-                                    continue;
+                                let candidate = match DateTime::from_parts(
+                                    year as i32,
+                                    month as u8,
+                                    day_of_month as u8,
+                                    hour as u8,
+                                    minute as u8,
+                                    second as u8,
+                                    0,
+                                    after.timezone(),
+                                ) {
+                                    Ok(candidate) => candidate,
+                                    Err(_) => continue,
                                 };
                                 if !self
                                     .fields
                                     .days_of_week
                                     .ordinals()
-                                    .contains(&candidate.weekday().number_from_sunday())
+                                    .contains(&((candidate.weekday().number_from_sunday() as Ordinal) + 1))
                                 {
                                     continue 'day_loop;
                                 }
@@ -108,10 +109,7 @@ impl Schedule {
         None
     }
 
-    fn prev_from<Z>(&self, before: &DateTime<Z>) -> Option<DateTime<Z>>
-    where
-        Z: TimeZone,
-    {
+    fn prev_from(&self, before: &DateTime) -> Option<DateTime> {
         let mut query = PrevFromQuery::from(before);
         for year in self
             .fields
@@ -167,20 +165,24 @@ impl Schedule {
                             let second_range = (Included(Seconds::inclusive_min()), Included(second_start));
 
                             for second in self.fields.seconds.ordinals().range(second_range).rev().cloned() {
-                                let timezone = before.timezone();
-                                let candidate = if let Some(candidate) = timezone
-                                    .ymd(year as i32, month, day_of_month)
-                                    .and_hms_opt(hour, minute, second)
-                                {
-                                    candidate
-                                } else {
-                                    continue;
+                                let candidate = match DateTime::from_parts(
+                                    year as i32,
+                                    month as u8,
+                                    day_of_month as u8,
+                                    hour as u8,
+                                    minute as u8,
+                                    second as u8,
+                                    0,
+                                    before.timezone(),
+                                ) {
+                                    Ok(candidate) => candidate,
+                                    Err(_) => continue,
                                 };
                                 if !self
                                     .fields
                                     .days_of_week
                                     .ordinals()
-                                    .contains(&candidate.weekday().number_from_sunday())
+                                    .contains(&((candidate.weekday().number_from_sunday() as Ordinal) + 1))
                                 {
                                     continue 'day_loop;
                                 }
@@ -202,41 +204,32 @@ impl Schedule {
 
     /// Provides an iterator which will return each DateTime that matches the schedule starting with
     /// the current time if applicable.
-    pub fn upcoming<Z>(&self, timezone: Z) -> ScheduleIterator<'_, Z>
-    where
-        Z: TimeZone,
-    {
-        self.after(&timezone.from_utc_datetime(&Utc::now().naive_utc()))
+    pub fn upcoming(&self, timezone: TimeZone) -> ScheduleIterator<'_> {
+        self.after(&DateTime::now_in(timezone))
     }
 
     /// The same, but with an iterator with a static ownership
-    pub fn upcoming_owned<Z: TimeZone>(&self, timezone: Z) -> OwnedScheduleIterator<Z> {
-        self.after_owned(timezone.from_utc_datetime(&Utc::now().naive_utc()))
+    pub fn upcoming_owned(&self, timezone: TimeZone) -> OwnedScheduleIterator {
+        self.after_owned(DateTime::now_in(timezone))
     }
 
     /// Like the `upcoming` method, but allows you to specify a start time other than the present.
-    pub fn after<Z>(&self, after: &DateTime<Z>) -> ScheduleIterator<'_, Z>
-    where
-        Z: TimeZone,
-    {
+    pub fn after(&self, after: &DateTime) -> ScheduleIterator<'_> {
         ScheduleIterator::new(self, after)
     }
 
     /// The same, but with a static ownership.
-    pub fn after_owned<Z: TimeZone>(&self, after: DateTime<Z>) -> OwnedScheduleIterator<Z> {
+    pub fn after_owned(&self, after: DateTime) -> OwnedScheduleIterator {
         OwnedScheduleIterator::new(self.clone(), after)
     }
 
-    pub fn includes<Z>(&self, date_time: DateTime<Z>) -> bool
-    where
-        Z: TimeZone,
-    {
+    pub fn includes(&self, date_time: DateTime) -> bool {
         self.fields.years.includes(date_time.year() as Ordinal)
             && self.fields.months.includes(date_time.month() as Ordinal)
             && self
                 .fields
                 .days_of_week
-                .includes(date_time.weekday().number_from_sunday())
+                .includes((date_time.weekday().number_from_sunday() as Ordinal) + 1)
             && self.fields.days_of_month.includes(date_time.day() as Ordinal)
             && self.fields.hours.includes(date_time.hour() as Ordinal)
             && self.fields.minutes.includes(date_time.minute() as Ordinal)
@@ -328,38 +321,29 @@ impl ScheduleFields {
     }
 }
 
-pub struct ScheduleIterator<'a, Z>
-where
-    Z: TimeZone,
-{
+pub struct ScheduleIterator<'a> {
     schedule: &'a Schedule,
-    previous_datetime: Option<DateTime<Z>>,
+    previous_datetime: Option<DateTime>,
 }
 //TODO: Cutoff datetime?
 
-impl<'a, Z> ScheduleIterator<'a, Z>
-where
-    Z: TimeZone,
-{
-    fn new(schedule: &'a Schedule, starting_datetime: &DateTime<Z>) -> Self {
+impl<'a> ScheduleIterator<'a> {
+    fn new(schedule: &'a Schedule, starting_datetime: &DateTime) -> Self {
         ScheduleIterator {
             schedule,
-            previous_datetime: Some(starting_datetime.clone()),
+            previous_datetime: Some(*starting_datetime),
         }
     }
 }
 
-impl<'a, Z> Iterator for ScheduleIterator<'a, Z>
-where
-    Z: TimeZone,
-{
-    type Item = DateTime<Z>;
+impl Iterator for ScheduleIterator<'_> {
+    type Item = DateTime;
 
-    fn next(&mut self) -> Option<DateTime<Z>> {
+    fn next(&mut self) -> Option<DateTime> {
         let previous = self.previous_datetime.take()?;
 
         if let Some(next) = self.schedule.next_after(&previous) {
-            self.previous_datetime = Some(next.clone());
+            self.previous_datetime = Some(next);
             Some(next)
         } else {
             None
@@ -367,15 +351,12 @@ where
     }
 }
 
-impl<'a, Z> DoubleEndedIterator for ScheduleIterator<'a, Z>
-where
-    Z: TimeZone,
-{
+impl DoubleEndedIterator for ScheduleIterator<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let previous = self.previous_datetime.take()?;
 
         if let Some(prev) = self.schedule.prev_from(&previous) {
-            self.previous_datetime = Some(prev.clone());
+            self.previous_datetime = Some(prev);
             Some(prev)
         } else {
             None
@@ -384,19 +365,13 @@ where
 }
 
 /// A `ScheduleIterator` with a static lifetime.
-pub struct OwnedScheduleIterator<Z>
-where
-    Z: TimeZone,
-{
+pub struct OwnedScheduleIterator {
     schedule: Schedule,
-    previous_datetime: Option<DateTime<Z>>,
+    previous_datetime: Option<DateTime>,
 }
 
-impl<Z> OwnedScheduleIterator<Z>
-where
-    Z: TimeZone,
-{
-    pub fn new(schedule: Schedule, starting_datetime: DateTime<Z>) -> Self {
+impl OwnedScheduleIterator {
+    pub fn new(schedule: Schedule, starting_datetime: DateTime) -> Self {
         Self {
             schedule,
             previous_datetime: Some(starting_datetime),
@@ -404,17 +379,14 @@ where
     }
 }
 
-impl<Z> Iterator for OwnedScheduleIterator<Z>
-where
-    Z: TimeZone,
-{
-    type Item = DateTime<Z>;
+impl Iterator for OwnedScheduleIterator {
+    type Item = DateTime;
 
-    fn next(&mut self) -> Option<DateTime<Z>> {
+    fn next(&mut self) -> Option<DateTime> {
         let previous = self.previous_datetime.take()?;
 
         if let Some(next) = self.schedule.next_after(&previous) {
-            self.previous_datetime = Some(next.clone());
+            self.previous_datetime = Some(next);
             Some(next)
         } else {
             None
@@ -422,12 +394,12 @@ where
     }
 }
 
-impl<Z: TimeZone> DoubleEndedIterator for OwnedScheduleIterator<Z> {
+impl DoubleEndedIterator for OwnedScheduleIterator {
     fn next_back(&mut self) -> Option<Self::Item> {
         let previous = self.previous_datetime.take()?;
 
         if let Some(prev) = self.schedule.prev_from(&previous) {
-            self.previous_datetime = Some(prev.clone());
+            self.previous_datetime = Some(prev);
             Some(prev)
         } else {
             None
@@ -463,7 +435,7 @@ mod test {
         let expression = "0 5,13,40-42 17 1 Jan *";
         let schedule = Schedule::from_str(expression).unwrap();
 
-        let next = schedule.next_after(&Utc::now());
+        let next = schedule.next_after(&DateTime::now_in(TimeZone::UTC));
         println!("NEXT AFTER for {} {:?}", expression, next);
         assert!(next.is_some());
 
@@ -481,7 +453,7 @@ mod test {
     fn test_prev_from() {
         let expression = "0 5,13,40-42 17 1 Jan *";
         let schedule = Schedule::from_str(expression).unwrap();
-        let prev = schedule.prev_from(&Utc::now());
+        let prev = schedule.prev_from(&DateTime::now_in(TimeZone::UTC));
         println!("PREV FROM for {} {:?}", expression, prev);
         assert!(prev.is_some());
     }
@@ -490,7 +462,7 @@ mod test {
     fn test_next_after() {
         let expression = "0 5,13,40-42 17 1 Jan *";
         let schedule = Schedule::from_str(expression).unwrap();
-        let next = schedule.next_after(&Utc::now());
+        let next = schedule.next_after(&DateTime::now_in(TimeZone::UTC));
         println!("NEXT AFTER for {} {:?}", expression, next);
         assert!(next.is_some());
     }
@@ -499,7 +471,7 @@ mod test {
     fn test_upcoming_utc() {
         let expression = "0 0,30 0,6,12,18 1,15 Jan-March Thurs";
         let schedule = Schedule::from_str(expression).unwrap();
-        let mut upcoming = schedule.upcoming(Utc);
+        let mut upcoming = schedule.upcoming(TimeZone::UTC);
         let next1 = upcoming.next();
         assert!(next1.is_some());
         let next2 = upcoming.next();
@@ -515,7 +487,7 @@ mod test {
     fn test_upcoming_utc_owned() {
         let expression = "0 0,30 0,6,12,18 1,15 Jan-March Thurs";
         let schedule = Schedule::from_str(expression).unwrap();
-        let mut upcoming = schedule.upcoming_owned(Utc);
+        let mut upcoming = schedule.upcoming_owned(TimeZone::UTC);
         let next1 = upcoming.next();
         assert!(next1.is_some());
         let next2 = upcoming.next();
@@ -531,7 +503,7 @@ mod test {
     fn test_upcoming_rev_utc() {
         let expression = "0 0,30 0,6,12,18 1,15 Jan-March Thurs";
         let schedule = Schedule::from_str(expression).unwrap();
-        let mut upcoming = schedule.upcoming(Utc).rev();
+        let mut upcoming = schedule.upcoming(TimeZone::UTC).rev();
         let prev1 = upcoming.next();
         assert!(prev1.is_some());
         let prev2 = upcoming.next();
@@ -547,7 +519,7 @@ mod test {
     fn test_upcoming_rev_utc_owned() {
         let expression = "0 0,30 0,6,12,18 1,15 Jan-March Thurs";
         let schedule = Schedule::from_str(expression).unwrap();
-        let mut upcoming = schedule.upcoming_owned(Utc).rev();
+        let mut upcoming = schedule.upcoming_owned(TimeZone::UTC).rev();
         let prev1 = upcoming.next();
         assert!(prev1.is_some());
         let prev2 = upcoming.next();
@@ -561,10 +533,9 @@ mod test {
 
     #[test]
     fn test_upcoming_local() {
-        use chrono::Local;
         let expression = "0 0,30 0,6,12,18 1,15 Jan-March Thurs";
         let schedule = Schedule::from_str(expression).unwrap();
-        let mut upcoming = schedule.upcoming(Local);
+        let mut upcoming = schedule.upcoming(TimeZone::system().unwrap_or(TimeZone::UTC));
         let next1 = upcoming.next();
         assert!(next1.is_some());
         let next2 = upcoming.next();
@@ -642,7 +613,7 @@ mod test {
 
     #[test]
     fn test_no_panic_on_leap_day_time_after() {
-        let dt = chrono::DateTime::parse_from_rfc3339("2024-02-29T10:00:00.000+08:00").unwrap();
+        let dt = "2024-02-29T10:00:00.000+08:00".parse::<DateTime>().unwrap();
         let schedule = Schedule::from_str("0 0 0 * * * 2100").unwrap();
         let next = schedule.after(&dt).next().unwrap();
         assert!(next > dt); // test is ensuring line above does not panic

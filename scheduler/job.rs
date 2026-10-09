@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use chrono::{DateTime, Utc};
+use time::{DateTime, TimeZone};
 use tokio::sync::{Mutex, RwLock};
 #[cfg(feature = "tracing")]
 use tracing::*;
@@ -10,14 +10,14 @@ use crate::{error::SchedulerError, scheduler::Scheduler};
 pub struct JobScheduler {
     pub job: Job,
     schedule: Mutex<Scheduler>,
-    next_run_at: Mutex<Option<DateTime<Utc>>>,
-    last_run_at: Mutex<Option<DateTime<Utc>>>,
+    next_run_at: Mutex<Option<DateTime>>,
+    last_run_at: Mutex<Option<DateTime>>,
 }
 
 impl JobScheduler {
     pub fn new(mut schedule: Scheduler, job: Job) -> Self {
         // Determine the next time it should run
-        let next_run_at = schedule.next(&Utc::now());
+        let next_run_at = schedule.next(&DateTime::now_in(TimeZone::UTC));
         JobScheduler {
             job,
             schedule: Mutex::new(schedule),
@@ -35,7 +35,7 @@ impl JobScheduler {
 
         // Check if NOW is on or after next_run_at
         if let Some(next_run_at) = self.next_run_at.lock().await.as_ref() {
-            *next_run_at < Utc::now()
+            *next_run_at < DateTime::now_in(TimeZone::UTC)
         } else {
             false
         }
@@ -46,7 +46,7 @@ impl JobScheduler {
         // Execute the job function
         let run_result = self.job.run().await;
 
-        let now = Utc::now();
+        let now = DateTime::now_in(TimeZone::UTC);
 
         let mut schedule = self.schedule.lock().await;
 

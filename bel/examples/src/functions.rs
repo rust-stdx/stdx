@@ -1,8 +1,10 @@
 #![allow(clippy::too_many_arguments)]
 use std::sync::Arc;
 
-use bel::{Context, ExecutionError, FunctionContext, Program, ResolveResult, Value, extractors::This};
-use chrono::{DateTime, Duration, FixedOffset};
+use bel::{
+    Context, ExecutionError, FunctionContext, Program, ResolveResult, Value, duration::Duration, extractors::This,
+};
+use time::DateTime;
 
 fn main() {
     let program = Program::compile("add(2, 3) == 5 && ''.isEmpty() && fail()").unwrap();
@@ -58,8 +60,8 @@ fn primitives(
     _e: Arc<String>,
     _f: Arc<Vec<u8>>,
     _g: Duration,
-    _h: DateTime<FixedOffset>,
+    _h: DateTime,
     _i: Arc<Vec<Value>>,
 ) -> Duration {
-    Duration::zero()
+    Duration::ZERO
 }

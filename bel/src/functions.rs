@@ -166,7 +166,7 @@ pub fn string(ftx: &FunctionContext, value: Value) -> Result<Value> {
     Ok(match value {
         Value::String(v) => Value::String(v.clone()),
         #[cfg(feature = "time")]
-        Value::Timestamp(t) => Value::String(t.to_rfc3339().into()),
+        Value::Timestamp(t) => Value::String(t.to_string().into()),
         #[cfg(feature = "time")]
         Value::Duration(v) => Value::String(crate::duration::format_duration(&v).into()),
         Value::Int(v) => Value::String(v.to_string().into()),
@@ -315,7 +315,7 @@ pub fn ip(ftx: &FunctionContext, value: Value) -> Result<Value> {
 pub mod time {
     use std::sync::Arc;
 
-    use chrono::{Datelike, Days, Months, Timelike, Utc};
+    use time::{DateTime, TimeZone};
 
     use super::Result;
     use crate::{ExecutionError, Value, magic::This};
@@ -340,76 +340,69 @@ pub mod time {
     }
 
     /// Timestamp parses the provided argument into a [`Value::Timestamp`] value.
-    /// The
     pub fn timestamp(value: Arc<String>) -> Result<Value> {
-        Ok(Value::Timestamp(chrono::DateTime::parse_from_rfc3339(value.as_str()).map_err(
-            |e| ExecutionError::function_error("timestamp", e.to_string().as_str()),
-        )?))
+        Ok(Value::Timestamp(_timestamp(value.as_str())?))
     }
 
     /// A wrapper around [`parse_duration`] that converts errors into [`ExecutionError`].
     /// and only returns the duration, rather than returning the remaining input.
-    fn _duration(i: &str) -> Result<chrono::Duration> {
+    fn _duration(i: &str) -> Result<crate::duration::Duration> {
         let (_, duration) = crate::duration::parse_duration(i)
             .map_err(|e| ExecutionError::function_error("duration", e.to_string()))?;
         Ok(duration)
     }
 
-    fn _timestamp(i: &str) -> Result<chrono::DateTime<chrono::FixedOffset>> {
-        chrono::DateTime::parse_from_rfc3339(i).map_err(|e| ExecutionError::function_error("timestamp", e.to_string()))
+    fn _timestamp(i: &str) -> Result<DateTime> {
+        i.parse::<DateTime>()
+            .map_err(|e| ExecutionError::function_error("timestamp", e.to_string()))
     }
 
-    pub fn timestamp_year(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
+    pub fn timestamp_year(This(this): This<DateTime>) -> Result<Value> {
         Ok(this.year().into())
     }
 
-    pub fn timestamp_month(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
-        Ok((this.month0() as i32).into())
+    pub fn timestamp_month(This(this): This<DateTime>) -> Result<Value> {
+        Ok(((this.month() as i32) - 1).into())
     }
 
-    pub fn timestamp_year_day(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
-        let year = this
-            .checked_sub_days(Days::new(this.day0() as u64))
-            .unwrap()
-            .checked_sub_months(Months::new(this.month0()))
-            .unwrap();
-        Ok(this.signed_duration_since(year).num_days().into())
+    pub fn timestamp_year_day(This(this): This<DateTime>) -> Result<Value> {
+        Ok(((this.ordinal() as i32) - 1).into())
     }
 
-    pub fn timestamp_month_day(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
-        Ok((this.day0() as i32).into())
+    pub fn timestamp_month_day(This(this): This<DateTime>) -> Result<Value> {
+        Ok(((this.day() as i32) - 1).into())
     }
 
-    pub fn timestamp_date(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
+    pub fn timestamp_date(This(this): This<DateTime>) -> Result<Value> {
         Ok((this.day() as i32).into())
     }
 
-    pub fn timestamp_weekday(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
-        Ok((this.weekday().num_days_from_sunday() as i32).into())
+    pub fn timestamp_weekday(This(this): This<DateTime>) -> Result<Value> {
+        Ok((this.weekday().number_from_sunday() as i32).into())
     }
 
-    pub fn timestamp_hours(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
+    pub fn timestamp_hours(This(this): This<DateTime>) -> Result<Value> {
         Ok((this.hour() as i32).into())
     }
 
-    pub fn timestamp_minutes(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
+    pub fn timestamp_minutes(This(this): This<DateTime>) -> Result<Value> {
         Ok((this.minute() as i32).into())
     }
 
-    pub fn timestamp_seconds(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
+    pub fn timestamp_seconds(This(this): This<DateTime>) -> Result<Value> {
         Ok((this.second() as i32).into())
     }
 
-    pub fn timestamp_millis(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
-        Ok((this.timestamp_subsec_millis() as i32).into())
+    pub fn timestamp_millis(This(this): This<DateTime>) -> Result<Value> {
+        Ok((this.millisecond() as i32).into())
     }
 
     pub fn now() -> Result<Value> {
-        Ok(Value::Timestamp(Utc::now().fixed_offset()))
+        Ok(Value::Timestamp(DateTime::now_in(TimeZone::UTC)))
     }
 
-    pub fn unix(This(this): This<chrono::DateTime<chrono::FixedOffset>>) -> Result<Value> {
-        Ok((this.timestamp()).into())
+    pub fn unix(This(this): This<DateTime>) -> Result<Value> {
+        Ok((this.unix_seconds()).into())
     }
 }
 
@@ -633,7 +626,7 @@ mod tests {
             ),
             (
                 "timestamp string",
-                r#"String(Timestamp("2023-05-28T00:00:00Z")) == "2023-05-28T00:00:00+00:00""#,
+                r#"String(Timestamp("2023-05-28T00:00:00Z")) == "2023-05-28T00:00:00Z""#,
             ),
             ("timestamp year", r#"Timestamp("2023-05-28T00:00:00Z").year() == 2023"#),
             ("timestamp month", r#"Timestamp("2023-05-28T00:00:00Z").month() == 4"#),
@@ -668,27 +661,27 @@ mod tests {
             (
                 "timestamp out of range",
                 r#"Timestamp("0000-01-00T00:00:00Z")"#,
-                "Error executing function 'timestamp': input is out of range",
+                "Error executing function 'timestamp': day is not valid for the given month",
             ),
             (
                 "timestamp out of range",
                 r#"Timestamp("9999-12-32T23:59:59.999999999Z")"#,
-                "Error executing function 'timestamp': input is out of range",
+                "Error executing function 'timestamp': day is not valid for the given month",
             ),
             (
                 "timestamp overflow",
                 r#"Timestamp("9999-12-31T23:59:59Z") + Duration("1s")"#,
-                "Overflow from binary operator 'add': Timestamp(9999-12-31T23:59:59+00:00), Duration(TimeDelta { secs: 1, nanos: 0 })",
+                "Overflow from binary operator 'add': Timestamp(9999-12-31T23:59:59Z), Duration(Duration { nanos: 1000000000 })",
             ),
             (
                 "timestamp underflow",
                 r#"Timestamp("0001-01-01T00:00:00Z") - Duration("1s")"#,
-                "Overflow from binary operator 'sub': Timestamp(0001-01-01T00:00:00+00:00), Duration(TimeDelta { secs: 1, nanos: 0 })",
+                "Overflow from binary operator 'sub': Timestamp(0001-01-01T00:00:00Z), Duration(Duration { nanos: 1000000000 })",
             ),
             (
                 "timestamp underflow",
                 r#"Timestamp("0001-01-01T00:00:00Z") + Duration("-1s")"#,
-                "Overflow from binary operator 'add': Timestamp(0001-01-01T00:00:00+00:00), Duration(TimeDelta { secs: -1, nanos: 0 })",
+                "Overflow from binary operator 'add': Timestamp(0001-01-01T00:00:00Z), Duration(Duration { nanos: -1000000000 })",
             ),
         ]
         .iter()
@@ -715,8 +708,7 @@ mod tests {
     #[test]
     fn test_timestamp_variable() {
         let mut context = Context::default();
-        let ts: chrono::DateTime<chrono::FixedOffset> =
-            chrono::DateTime::parse_from_rfc3339("2023-05-29T00:00:00Z").unwrap();
+        let ts: time::DateTime = "2023-05-29T00:00:00Z".parse().unwrap();
         context.add_variable("ts", crate::Value::Timestamp(ts)).unwrap();
 
         let program = crate::Program::compile(r#"ts == Timestamp("2023-05-29T00:00:00Z")"#).unwrap();
@@ -726,12 +718,12 @@ mod tests {
 
     #[cfg(feature = "time")]
     #[test]
-    fn test_chrono_string() {
+    fn test_time_string() {
         [
             ("duration", r#"String(Duration("1h30m")) == "1h30m0s""#),
             (
                 "timestamp",
-                r#"String(Timestamp("2023-05-29T00:00:00Z")) == "2023-05-29T00:00:00+00:00""#,
+                r#"String(Timestamp("2023-05-29T00:00:00Z")) == "2023-05-29T00:00:00Z""#,
             ),
         ]
         .iter()

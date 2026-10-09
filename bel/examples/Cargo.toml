@@ -6,7 +6,7 @@ edition = "2024"
 [features]
 axum = ["dep:axum", "dep:tokio", "dep:thiserror"]
 json = ["dep:serde_json", "bel/json"]
-time = ["dep:chrono", "bel/time"]
+time = ["dep:time", "bel/time"]
 anyhow = ["dep:anyerr"]
 regex = ["bel/regex"]
 ip = ["bel/ip"]
@@ -14,7 +14,7 @@ ip = ["bel/ip"]
 [dependencies]
 bel = { path = "..", default-features = false }
 
-chrono = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
 
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, optional = true }

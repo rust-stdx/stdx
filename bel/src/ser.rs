@@ -6,14 +6,14 @@
 use std::{collections::HashMap, fmt::Display, iter::FromIterator, sync::Arc};
 
 #[cfg(feature = "time")]
-use chrono::FixedOffset;
-#[cfg(feature = "time")]
 use serde::ser::SerializeStruct;
 use serde::{
     Serialize,
     ser::{self, Impossible},
 };
 use thiserror::Error;
+#[cfg(feature = "time")]
+use time::DateTime;
 
 use crate::{Value, objects::Key};
 
@@ -41,7 +41,7 @@ pub struct KeySerializer;
 ///     .add_variable(
 ///         "foo",
 ///         MyStruct {
-///             dur: chrono::Duration::hours(2).into(),
+///             dur: bel::duration::Duration::hours(2).into(),
 ///         },
 ///     )
 ///     .unwrap();
@@ -52,7 +52,7 @@ pub struct KeySerializer;
 /// ```
 #[cfg(feature = "time")]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Duration(pub chrono::Duration);
+pub struct Duration(pub crate::duration::Duration);
 
 #[cfg(feature = "time")]
 impl Duration {
@@ -66,15 +66,15 @@ impl Duration {
 }
 
 #[cfg(feature = "time")]
-impl From<Duration> for chrono::Duration {
+impl From<Duration> for crate::duration::Duration {
     fn from(value: Duration) -> Self {
         value.0
     }
 }
 
 #[cfg(feature = "time")]
-impl From<chrono::Duration> for Duration {
-    fn from(value: chrono::Duration) -> Self {
+impl From<crate::duration::Duration> for Duration {
+    fn from(value: crate::duration::Duration) -> Self {
         Self(value)
     }
 }
@@ -85,15 +85,14 @@ impl ser::Serialize for Duration {
     where
         S: ser::Serializer,
     {
-        // chrono::Duration's Serialize impl isn't stable yet and relies on
-        // private fields, so attempt to mimic serde's default impl for std
-        // Duration.
-        struct DurationProxy(chrono::Duration);
+        // A signed duration isn't natively representable by serde, so we
+        // serialize a `{ secs, nanos }` struct under a private marker newtype.
+        struct DurationProxy(crate::duration::Duration);
         impl Serialize for DurationProxy {
             fn serialize<S: ser::Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
                 let mut s = serializer.serialize_struct(Duration::STRUCT_NAME, 2)?;
-                s.serialize_field(Duration::SECS_FIELD, &self.0.num_seconds())?;
-                s.serialize_field(Duration::NANOS_FIELD, &(self.0.num_nanoseconds().unwrap_or(0) % 1_000_000_000))?;
+                s.serialize_field(Duration::SECS_FIELD, &self.0.serialized_secs())?;
+                s.serialize_field(Duration::NANOS_FIELD, &self.0.serialized_nanos())?;
                 s.end()
             }
         }
@@ -122,7 +121,7 @@ impl ser::Serialize for Duration {
 ///     .add_variable(
 ///         "foo",
 ///         MyStruct {
-///             ts: chrono::DateTime::parse_from_rfc3339("2025-01-01T00:00:00Z")
+///             ts: "2025-01-01T00:00:00Z".parse::<time::DateTime>()
 ///                 .unwrap()
 ///                 .into(),
 ///         },
@@ -135,7 +134,7 @@ impl ser::Serialize for Duration {
 /// ```
 #[cfg(feature = "time")]
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Timestamp(pub chrono::DateTime<FixedOffset>);
+pub struct Timestamp(pub DateTime);
 
 #[cfg(feature = "time")]
 impl Timestamp {
@@ -146,15 +145,15 @@ impl Timestamp {
 }
 
 #[cfg(feature = "time")]
-impl From<Timestamp> for chrono::DateTime<FixedOffset> {
+impl From<Timestamp> for DateTime {
     fn from(value: Timestamp) -> Self {
         value.0
     }
 }
 
 #[cfg(feature = "time")]
-impl From<chrono::DateTime<FixedOffset>> for Timestamp {
-    fn from(value: chrono::DateTime<FixedOffset>) -> Self {
+impl From<DateTime> for Timestamp {
+    fn from(value: DateTime) -> Self {
         Self(value)
     }
 }
@@ -620,10 +619,7 @@ impl ser::SerializeStruct for SerializeTimestamp {
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        Ok(chrono::Duration::seconds(self.secs)
-            .checked_add(&chrono::Duration::nanoseconds(self.nanos.into()))
-            .unwrap()
-            .into())
+        Ok(crate::duration::Duration::from_secs_nanos(self.secs, self.nanos).into())
     }
 }
 
@@ -827,7 +823,7 @@ impl ser::Serializer for TimeSerializer {
                 "expected Timestamp string with Timestamp marker newtype struct".to_owned(),
             ));
         }
-        Ok(v.parse::<chrono::DateTime<FixedOffset>>()
+        Ok(v.parse::<DateTime>()
             .map_err(|e| SerializationError::SerdeError(e.to_string()))?
             .into())
     }
@@ -1131,6 +1127,8 @@ mod tests {
 
     use serde::Serialize;
     use serde_bytes::Bytes;
+    #[cfg(feature = "time")]
+    use time::DateTime;
 
     #[cfg(feature = "time")]
     use super::{Duration, Timestamp};
@@ -1368,85 +1366,58 @@ mod tests {
     #[cfg(feature = "time")]
     #[test]
     fn test_time_types() {
-        use chrono::FixedOffset;
+        fn dt(s: &str) -> DateTime {
+            s.parse::<DateTime>().unwrap()
+        }
 
         let tests = to_value([
             TestTimeTypes {
-                dur: chrono::Duration::milliseconds(1527).into(),
-                ts: chrono::DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                    .unwrap()
-                    .into(),
+                dur: crate::duration::Duration::milliseconds(1527).into(),
+                ts: dt("1996-12-19T16:39:57-08:00").into(),
             },
-            // Let's test chrono::Duration's particular handling around math
-            // and negatives and timestamps from BCE.
+            // Signed duration math and timestamps from BCE.
             TestTimeTypes {
-                dur: chrono::Duration::milliseconds(-1527).into(),
-                ts: "-0001-12-01T00:00:00-08:00"
-                    .parse::<chrono::DateTime<FixedOffset>>()
-                    .unwrap()
-                    .into(),
+                dur: crate::duration::Duration::milliseconds(-1527).into(),
+                ts: dt("-0001-12-01T00:00:00-08:00").into(),
             },
             TestTimeTypes {
-                dur: (chrono::Duration::seconds(1) - chrono::Duration::nanoseconds(1000000001)).into(),
-                ts: chrono::DateTime::parse_from_rfc3339("0001-12-01T00:00:00+08:00")
-                    .unwrap()
+                dur: (crate::duration::Duration::seconds(1) - crate::duration::Duration::nanoseconds(1000000001))
                     .into(),
+                ts: dt("0001-12-01T00:00:00+08:00").into(),
             },
             TestTimeTypes {
-                dur: (chrono::Duration::seconds(-1) + chrono::Duration::nanoseconds(1000000001)).into(),
-                ts: chrono::DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                    .unwrap()
+                dur: (crate::duration::Duration::seconds(-1) + crate::duration::Duration::nanoseconds(1000000001))
                     .into(),
+                ts: dt("1996-12-19T16:39:57-08:00").into(),
             },
         ])
         .unwrap();
         let expected: Value = vec![
             Value::Map(
                 HashMap::<_, Value>::from([
-                    ("dur", chrono::Duration::milliseconds(1527).into()),
-                    (
-                        "ts",
-                        chrono::DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                            .unwrap()
-                            .into(),
-                    ),
+                    ("dur", crate::duration::Duration::milliseconds(1527).into()),
+                    ("ts", dt("1996-12-19T16:39:57-08:00").into()),
                 ])
                 .into(),
             ),
             Value::Map(
                 HashMap::<_, Value>::from([
-                    ("dur", chrono::Duration::nanoseconds(-1527000000).into()),
-                    (
-                        "ts",
-                        "-0001-12-01T00:00:00-08:00"
-                            .parse::<chrono::DateTime<FixedOffset>>()
-                            .unwrap()
-                            .into(),
-                    ),
+                    ("dur", crate::duration::Duration::nanoseconds(-1527000000).into()),
+                    ("ts", dt("-0001-12-01T00:00:00-08:00").into()),
                 ])
                 .into(),
             ),
             Value::Map(
                 HashMap::<_, Value>::from([
-                    ("dur", chrono::Duration::nanoseconds(-1).into()),
-                    (
-                        "ts",
-                        chrono::DateTime::parse_from_rfc3339("0001-12-01T00:00:00+08:00")
-                            .unwrap()
-                            .into(),
-                    ),
+                    ("dur", crate::duration::Duration::nanoseconds(-1).into()),
+                    ("ts", dt("0001-12-01T00:00:00+08:00").into()),
                 ])
                 .into(),
             ),
             Value::Map(
                 HashMap::<_, Value>::from([
-                    ("dur", chrono::Duration::nanoseconds(1).into()),
-                    (
-                        "ts",
-                        chrono::DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                            .unwrap()
-                            .into(),
-                    ),
+                    ("dur", crate::duration::Duration::nanoseconds(1).into()),
+                    ("ts", dt("1996-12-19T16:39:57-08:00").into()),
                 ])
                 .into(),
             ),
@@ -1502,35 +1473,30 @@ mod tests {
     #[cfg(feature = "json")]
     #[test]
     fn test_time_json() {
-        use chrono::FixedOffset;
+        fn dt(s: &str) -> DateTime {
+            s.parse::<DateTime>().unwrap()
+        }
 
         // Test that Durations and Timestamps serialize correctly with
         // serde_json.
         let tests = [
             TestTimeTypes {
-                dur: chrono::Duration::milliseconds(1527).into(),
-                ts: chrono::DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                    .unwrap()
-                    .into(),
+                dur: crate::duration::Duration::milliseconds(1527).into(),
+                ts: dt("1996-12-19T16:39:57-08:00").into(),
             },
             TestTimeTypes {
-                dur: chrono::Duration::milliseconds(-1527).into(),
-                ts: "-0001-12-01T00:00:00-08:00"
-                    .parse::<chrono::DateTime<FixedOffset>>()
-                    .unwrap()
-                    .into(),
+                dur: crate::duration::Duration::milliseconds(-1527).into(),
+                ts: dt("-0001-12-01T00:00:00-08:00").into(),
             },
             TestTimeTypes {
-                dur: (chrono::Duration::seconds(1) - chrono::Duration::nanoseconds(1000000001)).into(),
-                ts: chrono::DateTime::parse_from_rfc3339("0001-12-01T00:00:00+08:00")
-                    .unwrap()
+                dur: (crate::duration::Duration::seconds(1) - crate::duration::Duration::nanoseconds(1000000001))
                     .into(),
+                ts: dt("0001-12-01T00:00:00+08:00").into(),
             },
             TestTimeTypes {
-                dur: (chrono::Duration::seconds(-1) + chrono::Duration::nanoseconds(1000000001)).into(),
-                ts: chrono::DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                    .unwrap()
+                dur: (crate::duration::Duration::seconds(-1) + crate::duration::Duration::nanoseconds(1000000001))
                     .into(),
+                ts: dt("1996-12-19T16:39:57-08:00").into(),
             },
         ];
 
