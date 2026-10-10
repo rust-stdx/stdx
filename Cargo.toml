@@ -43,6 +43,10 @@ members = [
     "num_cpus",
     "percent_encoding",
     "pin_project_lite",
+    "postgresql",
+    "postgresql/postgresql_derive",
+    "postgresql/postgresql_macros",
+    "postgresql/postgresql_protocol",
     "postmark",
     "retry",
     "ryu",
@@ -107,13 +111,13 @@ rand = "0.10"
 regex = { version = "1" }
 reqwest = { version = "0.13", default-features = false, features = ["gzip", "http2", "json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["std"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["logging"] }
 serde = { version = "1", default-features = false }
 serde_core = { version = "1", default-features = false }
 serde_json = "1"
 serde_test = "1"
 small_collections = { path = "small_collections" }
 time = { path = "time" }
-sqlx = { git = "https://github.com/transact-rs/sqlx", rev = "b54008a329541c0ce230d8b203e0c00fc8e8ea48" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 unicode-width = "0.1"

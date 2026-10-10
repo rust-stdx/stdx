@@ -1,0 +1,16 @@
+[package]
+name = "postgresql_protocol"
+version = "0.1.0"
+edition = "2024"
+description = "PostgreSQL wire protocol codec and authentication state machine"
+
+[lib]
+path = "postgresql_protocol.rs"
+
+[dependencies]
+base64 = { path = "../../base64" }
+bytes = { workspace = true }
+constant_time_eq = { path = "../../constant_time_eq" }
+crypto = { path = "../../crypto" }
+hex = { path = "../../hex" }
+thiserror = { path = "../../thiserror" }

@@ -1,0 +1,51 @@
+[package]
+name = "postgresql"
+version = "0.1.0"
+edition = "2024"
+description = "Async PostgreSQL client with a macro-only query API"
+
+[lib]
+path = "postgresql.rs"
+
+[dependencies]
+base64 = { path = "../base64" }
+bytes = { workspace = true }
+crypto_rustls = { path = "../crypto_rustls" }
+futures-util = { workspace = true }
+indexmap = { workspace = true }
+ipnetwork = { path = "../ipnetwork" }
+percent-encoding = { path = "../percent_encoding" }
+postgresql_derive = { path = "postgresql_derive" }
+postgresql_macros = { path = "postgresql_macros" }
+postgresql_protocol = { path = "postgresql_protocol" }
+rand = { workspace = true }
+rustls = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+small_collections = { path = "../small_collections" }
+thiserror = { path = "../thiserror" }
+time = { path = "../time" }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+uuid = { path = "../uuid" }
+xxhash = { path = "../xxhash" }
+
+[dev-dependencies]
+bytes = { workspace = true }
+criterion = { workspace = true }
+crypto = { path = "../crypto" }
+crypto_rustls = { path = "../crypto_rustls" }
+ipnetwork = { path = "../ipnetwork" }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+time = { path = "../time" }
+tokio = { workspace = true }
+uuid = { path = "../uuid" }
+
+[[bench]]
+name = "encode"
+harness = false

@@ -12,7 +12,6 @@
 //! |--------|-------------------------------------------------------------------|---------|
 //! | `std`  | Enables [`Uuid::new_v4`] and [`Uuid::new_v7`] via `rand`          | Yes     |
 //! | `serde`| Enables [`serde`] serialization/deserialization                  | No      |
-//! | `sqlx` | Enables [`sqlx`] integration for PostgreSQL (type, encode, decode) | No      |
 //!
 //! When `std` is not enabled, the crate is `#![no_std]` compatible.
 //! Parsing, formatting, and version detection are all available.
@@ -39,9 +38,6 @@ mod hex;
 
 #[cfg(feature = "serde")]
 mod serde;
-
-#[cfg(feature = "sqlx")]
-mod sqlx;
 
 #[cfg(feature = "std")]
 thread_local! {

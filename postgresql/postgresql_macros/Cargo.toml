@@ -1,0 +1,21 @@
+[package]
+name = "postgresql_macros"
+version = "0.1.0"
+edition = "2024"
+description = "Compile-time checked query macros for the postgresql crate"
+
+[lib]
+path = "postgresql_macros.rs"
+proc-macro = true
+
+[dependencies]
+base64 = { path = "../../base64" }
+bytes = { workspace = true }
+crypto_rustls = { path = "../../crypto_rustls" }
+postgresql_protocol = { path = "../postgresql_protocol" }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+rustls = { workspace = true }
+syn = { workspace = true }
+percent-encoding = { path = "../../percent_encoding" }
+url = { workspace = true }

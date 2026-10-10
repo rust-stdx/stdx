@@ -59,3 +59,8 @@ check_all: check
 docs:
 	RUSTDOCFLAGS='--cfg docsrs' cargo +nightly doc --no-deps --all-features
 	node tools/docs-index/docs_index.js
+
+
+.PHONY: sql
+sql:
+	psql $(shell cat .env | grep DATABASE_URL= | cut -d'"' -f2)

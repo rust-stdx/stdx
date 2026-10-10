@@ -11,12 +11,10 @@ path = "./uuid.rs"
 default = ["std"]
 std = ["dep:rand"]
 serde = ["dep:serde"]
-sqlx = ["dep:sqlx"]
 
 [dependencies]
 rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
-sqlx = { workspace = true, optional = true, features = ["postgres"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
