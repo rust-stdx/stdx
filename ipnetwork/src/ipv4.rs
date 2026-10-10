@@ -20,8 +20,7 @@ impl<'de> serde::Deserialize<'de> for Ipv4Network {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = <String>::deserialize(deserializer)?;
-        Ipv4Network::from_str(&s).map_err(serde::de::Error::custom)
+        deserializer.deserialize_str(crate::serde_helpers::FromStrVisitor(core::marker::PhantomData))
     }
 }
 
