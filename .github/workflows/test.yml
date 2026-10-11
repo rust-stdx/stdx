@@ -27,12 +27,30 @@ jobs:
       - run: rustup update stable
       - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu wasm32-wasip1 riscv32imac-unknown-none-elf thumbv7em-none-eabi
       - run: make check
+      - run: make check_tier1
       # Check that some packages compile for no_std targets.
       - run: make check_no_std
       - run: cargo test --workspace --target ${{ matrix.target }}
       # `cargo test --workspace` runs each package with its default features,
       # so feature-gated test modules (e.g. csv's serde tests) would be skipped.
       - run: cargo test -p csv --all-features --target ${{ matrix.target }}
+
+
+  test_macos:
+    # `macos-latest` is the Apple silicon (arm64) image. Only the host target is
+    # built: the Linux cross-target checks in `make check` don't apply here.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      # .gitmodules sets `update = none` so Cargo doesn't fetch the submodules
+      # when stdx is used as a git dependency. Force-fetch the test data needed
+      # to compile and run `cargo test --workspace`.
+      - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
+      - run: rustup update stable
+      - run: make check
+      - run: cargo test --workspace
 
 
   test_wasm:

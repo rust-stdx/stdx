@@ -18,11 +18,17 @@ s3_integration_test:
 	$(MAKE) -C s3 integration-test
 
 
+# Check the workspace against the host target.
 .PHONY: check
 check:
 	RUSTFLAGS="-D warnings" cargo check
 	RUSTFLAGS="-D warnings" cargo check --all-features
 	RUSTFLAGS="-D warnings" cargo check --no-default-features
+
+
+# Check Tier 1 platofrms.
+.PHONY: check_tier1
+check_tier1: check_tier1
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
