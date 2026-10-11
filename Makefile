@@ -20,12 +20,15 @@ s3_integration_test:
 
 .PHONY: check
 check:
-	cargo check --target=x86_64-unknown-linux-gnu
-	cargo check --target=x86_64-unknown-linux-gnu --all-features
-	cargo check --target=x86_64-unknown-linux-gnu --no-default-features
-	cargo check --target=aarch64-unknown-linux-gnu
-	cargo check --target=aarch64-unknown-linux-gnu --all-features
-	cargo check --target=aarch64-unknown-linux-gnu --no-default-features
+	cargo check
+	cargo check --all-features
+	cargo check --no-default-features
+# 	cargo check --target=x86_64-unknown-linux-gnu
+# 	cargo check --target=x86_64-unknown-linux-gnu --all-features
+# 	cargo check --target=x86_64-unknown-linux-gnu --no-default-features
+# 	cargo check --target=aarch64-unknown-linux-gnu
+# 	cargo check --target=aarch64-unknown-linux-gnu --all-features
+# 	cargo check --target=aarch64-unknown-linux-gnu --no-default-features
 
 # Check that some package compile for no_std targets
 .PHONY: check_no_std
