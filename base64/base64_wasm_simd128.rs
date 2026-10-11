@@ -1,3 +1,7 @@
+// The range-check helpers below are named after the ASCII ranges they test (e.g. `ge_A`,
+// `le_Z`), matching the naming used in the sibling AVX2/NEON kernels.
+#![allow(non_snake_case)]
+
 use core::arch::wasm32::*;
 
 use crate::{Alphabet, DecodeError, EncodeError, decode_into_constant_time, encode_into_constant_time};

@@ -29,3 +29,12 @@ media_type = { path = "../../media_type", optional = true }
 debug-embed = []
 guess-media-type = ["dep:media_type"]
 # include-exclude = ["globset"]
+
+# TODO: `include-exclude` is disabled because the upstream `globset` crate is an external
+# dependency (see the commented-out entry in `[dependencies]`). The `#[cfg(feature =
+# "include-exclude")]` guards are kept so it can be restored later. The value is declared here
+# via `check-cfg` (rather than as a real feature) so that `--all-features` does not try to
+# compile code whose dependency is missing. Declaration-only: nothing is enabled.
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(feature, values("include-exclude"))']

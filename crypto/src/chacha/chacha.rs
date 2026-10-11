@@ -212,6 +212,13 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
             return;
         }
 
+        #[cfg(all(feature = "std", target_arch = "x86_64"))]
+        if in_out.len() >= 128 && is_x86_feature_detected!("avx2") {
+            use super::chacha_avx2::chacha_avx2;
+            unsafe { chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
+            return;
+        }
+
         // compile-time dispatch
         #[cfg(all(not(feature = "std"), target_arch = "x86_64", target_feature = "avx512f"))]
         if in_out.len() >= 128 {

@@ -41,6 +41,13 @@ check_no_std:
 
 
 .PHONY: check_all
+# Crates with wasm `simd128` kernels. Some packages in the workspace can't be checked for
+# wasm32-wasip1: it pulls in tokio (`full` features are unsupported on wasm) and socket2
+# (which has no `sys` backend for the target). General wasm compatibility is covered by
+# `node tools/wasm_test/wasm_test.js` in CI.
+# TODO: find a better solution to check more packages
+WASM_SIMD_PKGS = -p base64 -p hex -p xxhash -p crypto
+
 check_all: check
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
@@ -48,15 +55,26 @@ check_all: check
 	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
 
 	# aarch64 assumes that NEON instructions are always present
-	RUSTFLAGS="-C target-feature=-aes,-sha,-sha3" cargo check --target=aarch64-unknown-linux-gnu --all-features
-	RUSTFLAGS="-C target-feature=-aes,-sha,-sha3" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
-	RUSTFLAGS="-C target-feature=+aes,+sha,+sha3" cargo check --target=aarch64-unknown-linux-gnu --all-features
-	RUSTFLAGS="-C target-feature=+aes,+sha,+sha3" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-C target-feature=-aes,-sha2,-sha3" cargo check --target=aarch64-unknown-linux-gnu --all-features
+	RUSTFLAGS="-C target-feature=-aes,-sha2,-sha3" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-C target-feature=+aes,+sha2,+sha3" cargo check --target=aarch64-unknown-linux-gnu --all-features
+	RUSTFLAGS="-C target-feature=+aes,+sha2,+sha3" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
 
-	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1 --all-features
-	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1 --no-default-features
-	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 --all-features
-	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 --no-default-features
+	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS)
+	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --all-features
+	RUSTFLAGS="-C target-feature=-simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --no-default-features
+	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS)
+	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --all-features
+	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --no-default-features
+
+# 	cargo check --target=riscv32imac-unknown-none-elf
+# 	cargo check --target=riscv32imac-unknown-none-elf --all-features
+# 	cargo check --target=riscv32imac-unknown-none-elf --no-default-features
+
+# 	cargo check --target=thumbv7em-none-eabi
+# 	cargo check --target=thumbv7em-none-eabi --all-features
+# 	cargo check --target=thumbv7em-none-eabi --no-default-features
+
 
 
 .PHONY: docs

@@ -44,17 +44,38 @@ extern crate alloc;
 
 #[cfg(all(feature = "serde", any(feature = "alloc", test)))]
 mod serde;
+// Re-export the `#[serde(with = "hex")]` helpers so they are reachable from outside the crate
+// (and therefore not dead code).
+#[cfg(all(feature = "serde", any(feature = "alloc", test)))]
+pub use self::serde::{deserialize, serialize};
 
-#[cfg(target_arch = "aarch64")]
+// SIMD kernels are only reachable through the compile-time dispatch in `encode_into` /
+// `decode_into` below, so they are compiled only when the matching target feature is
+// enabled. This crate is `no_std`, so runtime CPU detection is not possible.
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod hex_neon;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
 mod hex_avx2;
 
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod hex_wasm_simd128;
 
+// Character tables loaded into SIMD registers by the kernels above, and used as an oracle by
+// the tests. Compiled only where at least one consumer exists (`ALPHABET_UPPER` is not used by
+// the tests).
+#[cfg(any(
+    test,
+    all(target_arch = "aarch64", target_feature = "neon"),
+    all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"),
+    all(target_arch = "wasm32", target_feature = "simd128"),
+))]
 const ALPHABET_LOWER: [u8; 16] = *b"0123456789abcdef";
+#[cfg(any(
+    all(target_arch = "aarch64", target_feature = "neon"),
+    all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"),
+    all(target_arch = "wasm32", target_feature = "simd128"),
+))]
 const ALPHABET_UPPER: [u8; 16] = *b"0123456789ABCDEF";
 
 /// The hex character set used for encoding.

@@ -115,6 +115,8 @@ impl Job {
     }
 
     /// Run the job immediately and re-schedule it.
+    // `attempt` and `e` are only read by the `tracing` macros below.
+    #[cfg_attr(not(feature = "tracing"), allow(unused_variables))]
     pub async fn run(&self) -> Result<(), SchedulerError> {
         self.set_running(true).await?;
 

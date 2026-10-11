@@ -1,3 +1,6 @@
+// SAFETY: all intrinsics are only called from functions that have #[target_feature(enable = "avx2")]
+#![allow(unsafe_op_in_unsafe_fn)]
+
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]

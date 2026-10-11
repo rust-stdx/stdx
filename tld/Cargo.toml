@@ -2,3 +2,13 @@
 name = "tld"
 version = "0.1.0"
 edition = "2024"
+
+# TODO: `anycase` (case-insensitive matching, needs `unicase`) and `punycode` (needs `idna`)
+# are not implemented in this fork because both would require external dependencies. The
+# `#[cfg(feature = "...")]` guards are kept for a potential future implementation. The values
+# are declared here via `check-cfg` (rather than as real features) so that `--all-features`
+# does not try to compile code whose dependencies are missing. Declaration-only: nothing is
+# enabled.
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(feature, values("anycase", "punycode"))']

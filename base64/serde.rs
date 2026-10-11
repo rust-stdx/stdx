@@ -1,4 +1,4 @@
-use alloc::{vec, vec::Vec};
+use alloc::vec::Vec;
 use core::fmt;
 
 use serde::{

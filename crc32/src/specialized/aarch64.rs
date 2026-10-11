@@ -55,7 +55,7 @@ impl State {
 #[target_feature(enable = "crc")]
 pub unsafe fn calculate(crc: u32, data: &[u8]) -> u32 {
     let mut c32 = !crc;
-    let (pre_quad, quads, post_quad) = data.align_to::<u64>();
+    let (pre_quad, quads, post_quad) = unsafe { data.align_to::<u64>() };
 
     c32 = pre_quad.iter().fold(c32, |acc, &b| arch::__crc32b(acc, b));
 

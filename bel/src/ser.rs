@@ -358,6 +358,8 @@ impl ser::Serializer for Serializer {
         }
     }
 
+    // `name` is only read by the `ip` conversion below.
+    #[cfg_attr(not(feature = "ip"), allow(unused_variables))]
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,

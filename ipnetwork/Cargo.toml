@@ -25,6 +25,15 @@ serde_json = { workspace = true }
 default = []
 serde = ["dep:serde"]
 
+# TODO: `schemars` support is disabled because the upstream `schemars` crate is an external
+# dependency (see the commented-out entry in `[dependencies]`). The `#[cfg(feature =
+# "schemars")]` guards are kept so it can be restored later. The value is declared here via
+# `check-cfg` (rather than as a real feature) so that `--all-features` does not try to
+# compile code whose dependency is missing. This is declaration-only: nothing is enabled.
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(feature, values("schemars"))']
+
 # [[bench]]
 # name = "parse_bench"
 # harness = false

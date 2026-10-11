@@ -59,11 +59,18 @@ extern crate alloc;
 
 #[cfg(all(feature = "serde", any(feature = "alloc", test)))]
 mod serde;
+// Re-export the `#[serde(with = "base32")]` helpers so they are reachable from outside the
+// crate (and therefore not dead code).
+#[cfg(all(feature = "serde", any(feature = "alloc", test)))]
+pub use self::serde::{deserialize, serialize};
 
-#[cfg(target_arch = "aarch64")]
+// SIMD kernels are only reachable through the compile-time dispatch in `encode_into` /
+// `decode_into` below, so they are compiled only when the matching target feature is
+// enabled. This crate is `no_std`, so runtime CPU detection is not possible.
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod base32_neon;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
 mod base32_avx2;
 
 const PAD: u8 = b'=';

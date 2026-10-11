@@ -74,15 +74,18 @@
 
 use core::fmt;
 
-#[cfg(target_arch = "aarch64")]
+// SIMD kernels are only reachable through the compile-time dispatch in `xxh3.rs`, so they are
+// compiled only when the matching target feature is enabled. This crate is `no_std`, so
+// runtime CPU detection is not possible.
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 #[path = "xxh3_neon.rs"]
 mod xxh3_neon;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
 #[path = "xxh3_avx2.rs"]
 mod xxh3_avx2;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx512f"))]
 #[path = "xxh3_avx512.rs"]
 mod xxh3_avx512;
 

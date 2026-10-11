@@ -80,6 +80,8 @@ impl JobExecutorInternal {
     }
 
     /// Run pending jobs in the JobExecutor.
+    // `duration` and `err` are only read by the `tracing` macros below.
+    #[cfg_attr(not(feature = "tracing"), allow(unused_variables))]
     async fn run_pending_jobs(&self) {
         #[cfg(feature = "tracing")]
         trace!("Check pending jobs");

@@ -52,6 +52,9 @@ fn fail(ftx: &FunctionContext) -> ResolveResult {
 /// A function that illustrates all the different types of values that are supported
 /// as arguments to a function, as well as the fact that any of these types can also
 /// be returned from a function.
+// Not registered in `main`: `u64` arguments are not supported yet (the `u64 => Value::UInt`
+// conversion is commented out in `bel/src/magic.rs`), so the line is left commented out.
+#[allow(dead_code)]
 fn primitives(
     _a: i64,
     _b: u64,

@@ -14,6 +14,9 @@
     clippy::uninlined_format_args,
     clippy::unreadable_literal
 )]
+// c2rust transliteration: unsafe operations are called directly inside `unsafe fn` bodies.
+// Same rationale as `unsafe_libyaml/src/lib.rs`.
+#![allow(unsafe_op_in_unsafe_fn)]
 
 mod cstr;
 

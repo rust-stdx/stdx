@@ -15,8 +15,6 @@
 //! In human-readable formats (e.g. JSON) the field is serialized as a hex
 //! string. In binary formats the raw bytes are used directly.
 
-#![allow(dead_code)]
-
 use alloc::vec::Vec;
 use core::fmt;
 

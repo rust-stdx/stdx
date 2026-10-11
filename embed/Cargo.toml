@@ -25,6 +25,7 @@ debug-embed = ["embed_impl/debug-embed", "embed_utils/debug-embed"]
 #compression = ["rust-embed-impl/compression", "include-flate"]
 guess-media-type = ["embed_impl/guess-media-type", "embed_utils/guess-media-type"]
 #include-exclude = ["rust-embed-impl/include-exclude", "rust-embed-utils/include-exclude"]
+
 #actix = ["actix-web", "media_type"]
 #warp-ex = ["warp", "tokio", "media_type"]
 #axum-ex = ["axum", "tokio", "media_type"]
@@ -97,4 +98,14 @@ guess-media-type = ["embed_impl/guess-media-type", "embed_utils/guess-media-type
 #[dev-dependencies]
 #sha2 = "0.10"
 #
+
+# TODO: `compression` (needs `include-flate`), `include-exclude` (needs `globset`) and
+# `interpolate-folder-path` (needs `shellexpand`) are disabled because they require external
+# dependencies (see the commented-out entries above). The `#[cfg(feature = ...)]` guards are
+# kept so they can be restored later. The values are declared here via `check-cfg` (rather than
+# as real features) so that `--all-features` does not try to compile code whose dependencies
+# are missing. Declaration-only: nothing is enabled.
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(feature, values("compression", "include-exclude", "interpolate-folder-path"))']
 
