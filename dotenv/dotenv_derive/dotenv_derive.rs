@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Data, DeriveInput, Expr, Fields, LitStr, Token,
+    Data, DeriveInput, Expr, Fields, GenericArgument, LitStr, Path, PathArguments, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
@@ -10,189 +10,232 @@ use syn::{
 #[proc_macro_derive(FromEnv, attributes(env))]
 pub fn derive_from_env(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    match expand(&input) {
+        Ok(tokens) => tokens.into(),
+        // Emit proper `compile_error!`s instead of panicking.
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
     let name = &input.ident;
 
     let fields = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => &fields.named,
-            _ => panic!("FromEnv only supports structs with named fields"),
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    input,
+                    "FromEnv only supports structs with named fields",
+                ));
+            }
         },
-        _ => panic!("FromEnv only supports structs"),
+        _ => {
+            return Err(syn::Error::new_spanned(input, "FromEnv only supports structs"));
+        }
     };
 
-    let field_assignments: Vec<_> = fields
-        .iter()
-        .map(|f| {
-            let field_name = &f.ident;
-            let field_name_str = field_name.as_ref().unwrap().to_string();
-            let screaming = to_screaming_snake(&field_name_str);
-            let ty = &f.ty;
+    let mut field_assignments = Vec::new();
+    for f in fields {
+        let Some(field_name) = f.ident.as_ref() else {
+            continue;
+        };
+        let field_name_str = field_name.to_string();
+        let screaming = to_screaming_snake(&field_name_str);
+        let ty = &f.ty;
 
-            let attrs: Vec<EnvAttr> = f
-                .attrs
-                .iter()
-                .filter(|a| a.path().is_ident("env"))
-                .map(|a| a.parse_args::<EnvAttr>().unwrap())
-                .collect();
+        let mut attrs = Vec::new();
+        for a in f.attrs.iter().filter(|a| a.path().is_ident("env")) {
+            attrs.push(a.parse_args::<EnvAttr>()?);
+        }
+        if attrs.len() > 1 {
+            return Err(syn::Error::new(
+                field_name.span(),
+                "multiple `#[env(...)]` attributes on one field; combine them into a single attribute",
+            ));
+        }
+        let attr = attrs.first();
 
-            let attr = attrs.first();
+        let expr = field_expr(field_name, &screaming, ty, attr)?;
+        field_assignments.push(quote! { #field_name: #expr });
+    }
 
-            match attr {
-                // #[env(rename = "VAR")] — explicit name, FromEnvValue parsing
-                Some(EnvAttr {
-                    rename: Some(var_name),
-                    default: None,
-                    with: None,
-                }) => {
-                    let var = var_name.value();
-                    quote! {
-                        #field_name: {
-                            let val = ::std::env::var(#var)
-                                .map_err(|_| ::dotenv::FromEnvError::missing(#var))?;
-                            <#ty as ::dotenv::FromEnvValue>::from_env_value(val.clone())
-                                .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?
-                        }
-                    }
-                }
-                // #[env(rename = "VAR", default)] — explicit name, fallback to Default::default()
-                Some(EnvAttr {
-                    rename: Some(var_name),
-                    default: Some(DefaultKind::Standard),
-                    with: None,
-                }) => {
-                    let var = var_name.value();
-                    quote! {
-                        #field_name: {
-                            match ::std::env::var(#var) {
-                                Ok(val) => <#ty as ::dotenv::FromEnvValue>::from_env_value(val.clone())
-                                    .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?,
-                                Err(_) => ::std::default::Default::default(),
-                            }
-                        }
-                    }
-                }
-                // #[env(rename = "VAR", default = EXPR)] — explicit name, fallback to expr
-                Some(EnvAttr {
-                    rename: Some(var_name),
-                    default: Some(DefaultKind::Expr(expr)),
-                    with: None,
-                }) => {
-                    let var = var_name.value();
-                    quote! {
-                        #field_name: {
-                            match ::std::env::var(#var) {
-                                Ok(val) => <#ty as ::dotenv::FromEnvValue>::from_env_value(val.clone())
-                                    .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?,
-                                Err(_) => #expr,
-                            }
-                        }
-                    }
-                }
-                // #[env(rename = "VAR", with = "func")] — explicit name, custom parser
-                Some(EnvAttr {
-                    rename: Some(var_name),
-                    default: None,
-                    with: Some(func),
-                }) => {
-                    let var = var_name.value();
-                    let func = Ident::new(&func.value(), proc_macro2::Span::call_site());
-                    quote! {
-                        #field_name: {
-                            let val = ::std::env::var(#var)
-                                .map_err(|_| ::dotenv::FromEnvError::missing(#var))?;
-                            #func(#var, &val)?
-                        }
-                    }
-                }
-                // #[env(with = "func")] — default naming, custom parser
-                Some(EnvAttr {
-                    rename: None,
-                    default: None,
-                    with: Some(func),
-                }) => {
-                    let func = Ident::new(&func.value(), proc_macro2::Span::call_site());
-                    quote! {
-                        #field_name: {
-                            let var_name = ::std::format!("{}{}", prefix, #screaming);
-                            let val = ::std::env::var(&var_name)
-                                .map_err(|_| ::dotenv::FromEnvError::missing(var_name.clone()))?;
-                            #func(&var_name, &val)?
-                        }
-                    }
-                }
-                // #[env(default)] — unconditional Default::default()
-                // Does NOT read the env var; the default is used unconditionally.
-                // For reading + fallback, combine with rename: #[env(rename = "VAR", default)]
-                Some(EnvAttr {
-                    rename: None,
-                    default: Some(DefaultKind::Standard),
-                    with: None,
-                }) => {
-                    quote! {
-                        #field_name: ::std::default::Default::default()
-                    }
-                }
-                // #[env(default = EXPR)] — unconditional expression
-                // Does NOT read the env var; the expression is used unconditionally.
-                Some(EnvAttr {
-                    rename: None,
-                    default: Some(DefaultKind::Expr(expr)),
-                    with: None,
-                }) => {
-                    quote! {
-                        #field_name: #expr
-                    }
-                }
-                // #[env()] or #[env] with no args — same as no attribute
-                Some(EnvAttr {
-                    rename: None,
-                    default: None,
-                    with: None,
-                }) => {
-                    quote! {
-                        #field_name: <#ty as ::dotenv::FromEnvAuto>::from_env_auto(
-                            &::std::format!("{}{}_", prefix, #screaming),
-                            &::std::format!("{}{}", prefix, #screaming),
-                        )?
-                    }
-                }
-                // No attribute → auto-dispatch via FromEnvAuto
-                //   - If the type implements FromEnv (nested struct): calls from_env_with_prefix
-                //   - Otherwise (leaf type like String, u32): reads env var + FromStr
-                None => {
-                    quote! {
-                        #field_name: <#ty as ::dotenv::FromEnvAuto>::from_env_auto(
-                            &::std::format!("{}{}_", prefix, #screaming),
-                            &::std::format!("{}{}", prefix, #screaming),
-                        )?
-                    }
-                }
-                // Invalid combination of attributes
-                _ => {
-                    panic!(
-                        "invalid `#[env(...)]` attributes on field `{}`: supported are \
-                     `#[env(rename = \"...\")]`, `#[env(rename = \"...\", with = \"...\")]`, \
-                     `#[env(with = \"...\")]`, `#[env(default)]`, \
-                     `#[env(default = ...)]`, or no attribute",
-                        field_name_str
-                    );
-                }
-            }
-        })
-        .collect();
-
-    let expanded = quote! {
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    Ok(quote! {
         #[automatically_derived]
-        impl ::dotenv::FromEnv for #name {
+        impl #impl_generics ::dotenv::FromEnv for #name #ty_generics #where_clause {
             fn from_env_with_prefix(prefix: &str) -> ::std::result::Result<Self, ::dotenv::FromEnvError> {
                 Ok(Self {
                     #(#field_assignments,)*
                 })
             }
         }
+    })
+}
+
+/// Build the value expression for a single field.
+fn field_expr(
+    field_name: &syn::Ident,
+    screaming: &str,
+    ty: &Type,
+    attr: Option<&EnvAttr>,
+) -> syn::Result<TokenStream2> {
+    let inner = option_inner(ty);
+
+    let (rename, default, with) = match attr {
+        Some(EnvAttr {
+            rename,
+            default,
+            with,
+        }) => {
+            if with.is_some() && default.is_some() {
+                return Err(syn::Error::new(field_name.span(), "`with` cannot be combined with `default`"));
+            }
+            (rename.as_ref(), default.as_ref(), with.as_ref())
+        }
+        None => (None, None, None),
     };
 
-    TokenStream::from(expanded)
+    // `#[env(rename = "VAR", with = "func")]`
+    if let (Some(var), None, Some(path)) = (rename, default, with) {
+        return Ok(quote! {{
+            let val = ::std::env::var(#var)
+                .map_err(|_| ::dotenv::FromEnvError::missing(#var))?;
+            #path(#var, &val)?
+        }});
+    }
+
+    // `#[env(with = "func")]`
+    if let (None, None, Some(path)) = (rename, default, with) {
+        return Ok(quote! {{
+            let var_name = ::std::format!("{}{}", prefix, #screaming);
+            let val = ::std::env::var(&var_name)
+                .map_err(|_| ::dotenv::FromEnvError::missing(var_name.clone()))?;
+            #path(&var_name, &val)?
+        }});
+    }
+
+    if let Some(inner) = inner {
+        // `Option<T>` fields are optional.
+        return Ok(match (rename, default) {
+            (Some(var), None) => quote! {
+                match ::std::env::var(#var) {
+                    ::std::result::Result::Ok(val) if !val.is_empty() => ::std::option::Option::Some(
+                        <#inner as ::dotenv::FromEnvValue>::from_env_value(&val)
+                            .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?
+                    ),
+                    _ => ::std::option::Option::None,
+                }
+            },
+            (Some(var), Some(kind)) => {
+                let fallback = fallback_tokens(kind);
+                quote! {
+                    match ::std::env::var(#var) {
+                        ::std::result::Result::Ok(val) if !val.is_empty() => ::std::option::Option::Some(
+                            <#inner as ::dotenv::FromEnvValue>::from_env_value(&val)
+                                .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?
+                        ),
+                        _ => #fallback,
+                    }
+                }
+            }
+            (None, Some(kind)) => {
+                let fallback = fallback_tokens(kind);
+                quote! {{
+                    let var_name = ::std::format!("{}{}", prefix, #screaming);
+                    match ::std::env::var(&var_name) {
+                        ::std::result::Result::Ok(val) if !val.is_empty() => ::std::option::Option::Some(
+                            <#inner as ::dotenv::FromEnvValue>::from_env_value(&val)
+                                .map_err(|e| ::dotenv::FromEnvError::invalid(var_name.as_str(), val, e))?
+                        ),
+                        _ => #fallback,
+                    }
+                }}
+            }
+            (None, None) => quote! {{
+                let var_name = ::std::format!("{}{}", prefix, #screaming);
+                match ::std::env::var(&var_name) {
+                    ::std::result::Result::Ok(val) if !val.is_empty() => ::std::option::Option::Some(
+                        <#inner as ::dotenv::FromEnvValue>::from_env_value(&val)
+                            .map_err(|e| ::dotenv::FromEnvError::invalid(var_name.as_str(), val, e))?
+                    ),
+                    _ => ::std::option::Option::None,
+                }
+            }},
+        });
+    }
+
+    Ok(match (rename, default) {
+        // `#[env(rename = "VAR")]`
+        (Some(var), None) => quote! {{
+            let val = ::std::env::var(#var)
+                .map_err(|_| ::dotenv::FromEnvError::missing(#var))?;
+            <#ty as ::dotenv::FromEnvValue>::from_env_value(&val)
+                .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?
+        }},
+        // `#[env(rename = "VAR", default)]` / `#[env(rename = "VAR", default = expr)]`
+        (Some(var), Some(kind)) => {
+            let fallback = fallback_tokens(kind);
+            quote! {
+                match ::std::env::var(#var) {
+                    ::std::result::Result::Ok(val) => <#ty as ::dotenv::FromEnvValue>::from_env_value(&val)
+                        .map_err(|e| ::dotenv::FromEnvError::invalid(#var, val, e))?,
+                    ::std::result::Result::Err(_) => #fallback,
+                }
+            }
+        }
+        // `#[env(default)]` / `#[env(default = expr)]` (no rename):
+        // read the derived variable name first, then fall back.
+        (None, Some(kind)) => {
+            let fallback = fallback_tokens(kind);
+            quote! {
+                match <#ty as ::dotenv::FromEnvAuto>::from_env_auto(
+                    &::std::format!("{}{}_", prefix, #screaming),
+                    &::std::format!("{}{}", prefix, #screaming),
+                ) {
+                    ::std::result::Result::Ok(v) => v,
+                    ::std::result::Result::Err(::dotenv::FromEnvError::Missing(_)) => #fallback,
+                    ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
+                }
+            }
+        }
+        // No attribute (or `#[env()]`): auto-dispatch.
+        (None, None) => quote! {
+            <#ty as ::dotenv::FromEnvAuto>::from_env_auto(
+                &::std::format!("{}{}_", prefix, #screaming),
+                &::std::format!("{}{}", prefix, #screaming),
+            )?
+        },
+    })
+}
+
+fn fallback_tokens(kind: &DefaultKind) -> TokenStream2 {
+    match kind {
+        DefaultKind::Standard => quote!(::std::default::Default::default()),
+        DefaultKind::Expr(expr) => quote!(#expr),
+    }
+}
+
+/// If `ty` is `Option<T>`, return `T`.
+fn option_inner(ty: &Type) -> Option<&Type> {
+    let Type::Path(tp) = ty else { return None };
+    if tp.qself.is_some() {
+        return None;
+    }
+    let seg = tp.path.segments.last()?;
+    if seg.ident != "Option" {
+        return None;
+    }
+    let PathArguments::AngleBracketed(args) = &seg.arguments else {
+        return None;
+    };
+    if args.args.len() != 1 {
+        return None;
+    }
+    match &args.args[0] {
+        GenericArgument::Type(t) => Some(t),
+        _ => None,
+    }
 }
 
 fn to_screaming_snake(s: &str) -> String {
@@ -216,7 +259,7 @@ fn to_screaming_snake(s: &str) -> String {
 struct EnvAttr {
     rename: Option<LitStr>,
     default: Option<DefaultKind>,
-    with: Option<LitStr>,
+    with: Option<Path>,
 }
 
 enum DefaultKind {
@@ -247,7 +290,9 @@ impl Parse for EnvAttr {
                 }
                 "with" => {
                     input.parse::<Token![=]>()?;
-                    with = Some(input.parse()?);
+                    let lit: LitStr = input.parse()?;
+                    let path = syn::parse_str::<Path>(&lit.value()).map_err(|e| syn::Error::new_spanned(&lit, e))?;
+                    with = Some(path);
                 }
                 other => {
                     return Err(syn::Error::new(ident.span(), format!("unknown env attribute: `{other}`")));
