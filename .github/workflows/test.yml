@@ -25,9 +25,9 @@ jobs:
       - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld
       - run: rustup update stable
+      - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu wasm32-wasip1 riscv32imac-unknown-none-elf thumbv7em-none-eabi
       - run: make check
       # Check that some packages compile for no_std targets.
-      - run: rustup target add thumbv7em-none-eabi
       - run: make check_no_std
       - run: cargo test --workspace --target ${{ matrix.target }}
       # `cargo test --workspace` runs each package with its default features,

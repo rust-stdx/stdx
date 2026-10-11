@@ -49,8 +49,10 @@ check_no_std:
 WASM_SIMD_PKGS = -p base64 -p hex -p xxhash -p crypto
 
 check_all: check
+	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu
 	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
 
