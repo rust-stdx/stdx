@@ -6,9 +6,12 @@
 
 use std::{
     alloc::{GlobalAlloc, Layout, System},
-    env, fs,
     sync::atomic::{AtomicIsize, AtomicU64, Ordering},
 };
+// `env::temp_dir()` and `std::process::id()` are unsupported on wasm32-wasip1,
+// so the filesystem half of the test below only runs on native targets.
+#[cfg(not(target_arch = "wasm32"))]
+use std::{env, fs};
 
 struct Counting;
 
@@ -63,42 +66,48 @@ fn allocations_are_linear_and_no_leaks() {
 
     // Loading the same file repeatedly must not leak memory or file
     // descriptors.
-    let n = 200usize;
-    let content: String = (0..n).map(|i| format!("DOTENV_LEAK_{i}=v{i}\n")).collect();
-    let dir = env::temp_dir().join(format!("dotenv_alloc_test_{}", std::process::id()));
-    fs::create_dir_all(&dir).unwrap();
-    fs::write(dir.join(".env"), &content).unwrap();
+    //
+    // Native-only: `env::temp_dir()` and `std::process::id()` panic on
+    // wasm32-wasip1 ("not supported by WASI yet" / "no pids on this platform").
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let n = 200usize;
+        let content: String = (0..n).map(|i| format!("DOTENV_LEAK_{i}=v{i}\n")).collect();
+        let dir = env::temp_dir().join(format!("dotenv_alloc_test_{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(".env"), &content).unwrap();
 
-    let old = env::current_dir().unwrap();
+        let old = env::current_dir().unwrap();
 
-    // Warm up lazily-initialised statics.
-    env::set_current_dir(&dir).unwrap();
-    dotenv::load().unwrap();
-
-    let live_before = LIVE.load(Ordering::Relaxed);
-    #[cfg(target_os = "linux")]
-    let fds_before = fd_count();
-
-    for _ in 0..100 {
+        // Warm up lazily-initialised statics.
         env::set_current_dir(&dir).unwrap();
         dotenv::load().unwrap();
+
+        let live_before = LIVE.load(Ordering::Relaxed);
+        #[cfg(target_os = "linux")]
+        let fds_before = fd_count();
+
+        for _ in 0..100 {
+            env::set_current_dir(&dir).unwrap();
+            dotenv::load().unwrap();
+        }
+
+        let live_after = LIVE.load(Ordering::Relaxed);
+        #[cfg(target_os = "linux")]
+        let fds_after = fd_count();
+
+        env::set_current_dir(&old).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+
+        // Allow a small slack for runtime bookkeeping, but no per-iteration growth.
+        assert!(
+            (live_after - live_before).abs() < 64,
+            "load leaked memory: live allocations went from {live_before} to {live_after}"
+        );
+        #[cfg(target_os = "linux")]
+        assert!(
+            fds_after <= fds_before + 1,
+            "load leaked file descriptors: {fds_before} -> {fds_after}"
+        );
     }
-
-    let live_after = LIVE.load(Ordering::Relaxed);
-    #[cfg(target_os = "linux")]
-    let fds_after = fd_count();
-
-    env::set_current_dir(&old).unwrap();
-    let _ = fs::remove_dir_all(&dir);
-
-    // Allow a small slack for runtime bookkeeping, but no per-iteration growth.
-    assert!(
-        (live_after - live_before).abs() < 64,
-        "load leaked memory: live allocations went from {live_before} to {live_after}"
-    );
-    #[cfg(target_os = "linux")]
-    assert!(
-        fds_after <= fds_before + 1,
-        "load leaked file descriptors: {fds_before} -> {fds_after}"
-    );
 }

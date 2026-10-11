@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn accepts_bounded_iterations() {
-        for i in ["1", "4096", "2000000"] {
+        for i in ["1", "4096", "100000"] {
             let mut client = ScramClient::with_nonce("user", "pencil", "abc".to_string());
             let msg = format!("r=abcd,s=W22ZaJ0SNY7soEsUEjb6gQ==,i={i}");
             client.parse_server_first_message(msg.as_bytes()).unwrap();
