@@ -1,10 +1,10 @@
 use core::fmt;
 
 extern crate alloc;
-#[cfg(feature = "std")]
-use alloc::boxed::Box;
 #[cfg(feature = "serde")]
 use alloc::string::String;
+#[cfg(feature = "std")]
+use alloc::sync::Arc;
 
 /// Kinds of errors that can occur while reading CSV data.
 #[derive(Clone, Debug, PartialEq)]
@@ -17,6 +17,26 @@ pub enum ReadErrorKind {
     InvalidUtf8,
     /// The number of fields differs from previous rows (strict mode).
     InconsistentFieldCount { expected: usize, found: usize },
+    /// The configured maximum record size was exceeded.
+    ///
+    /// Only produced when [`Reader::set_max_record_bytes`](crate::Reader::set_max_record_bytes)
+    /// has been called. Reading stops at this point.
+    RecordTooLarge { limit: usize },
+    /// The configured maximum field size was exceeded.
+    ///
+    /// Only produced when [`Reader::set_max_field_bytes`](crate::Reader::set_max_field_bytes)
+    /// has been called.
+    FieldTooLarge { limit: usize },
+    /// The configured maximum column count was exceeded.
+    ///
+    /// Only produced when [`Reader::set_max_columns`](crate::Reader::set_max_columns)
+    /// has been called.
+    TooManyColumns { limit: usize },
+    /// The underlying [`Read`](crate::Read) source returned `Ok(true)` without
+    /// appending any bytes, which violates the [`Read`](crate::Read) contract.
+    ///
+    /// Reading stops at this point.
+    NoProgress,
     /// A serde deserialization error occurred. Carries the error message.
     #[cfg(feature = "serde")]
     Deserialize(String),
@@ -28,13 +48,22 @@ pub enum ReadErrorKind {
 ///
 /// Includes the line number, the kind of error, and when applicable an
 /// inner source error (e.g. the original `std::io::Error`).
+///
+/// Cloning a `ReadError` preserves its source error, so the underlying cause
+/// survives the deferred-error path used by [`Row`](crate::Row) accessors.
 #[derive(Debug)]
 pub struct ReadError {
     pub kind: ReadErrorKind,
+    /// 1-based line number on which the offending record started.
+    ///
+    /// A record that contains newlines inside quoted fields spans several
+    /// lines; this is the first of them. `0` when the position is not known
+    /// (for example an I/O error reported before any byte was parsed).
     pub line: usize,
+    /// Byte offset within the record, currently always `0`.
     pub column: usize,
     #[cfg(feature = "std")]
-    source: Option<Box<dyn core::error::Error + Send + Sync + 'static>>,
+    source: Option<Arc<dyn core::error::Error + Send + Sync + 'static>>,
 }
 
 impl ReadError {
@@ -52,9 +81,12 @@ impl ReadError {
         &self.kind
     }
 
-    /// The inner source error, if any (e.g. the original `std::io::Error` or serde error).
+    /// The inner source error, if any (e.g. the original `std::io::Error`).
+    ///
+    /// Shareable, so the error can be kept around after the [`ReadError`] that
+    /// carried it is cloned or dropped.
     #[cfg(feature = "std")]
-    pub fn into_source(self) -> Option<Box<dyn core::error::Error + Send + Sync + 'static>> {
+    pub fn into_source(self) -> Option<Arc<dyn core::error::Error + Send + Sync + 'static>> {
         self.source
     }
 }
@@ -66,7 +98,7 @@ impl Clone for ReadError {
             line: self.line,
             column: self.column,
             #[cfg(feature = "std")]
-            source: None,
+            source: self.source.clone(),
         }
     }
 }
@@ -97,12 +129,47 @@ impl fmt::Display for ReadError {
                     self.line, self.column
                 )
             }
+            ReadErrorKind::RecordTooLarge {
+                limit,
+            } => {
+                write!(
+                    f,
+                    "record larger than {limit} bytes at line {}, column {}",
+                    self.line, self.column
+                )
+            }
+            ReadErrorKind::FieldTooLarge {
+                limit,
+            } => {
+                write!(
+                    f,
+                    "field larger than {limit} bytes at line {}, column {}",
+                    self.line, self.column
+                )
+            }
+            ReadErrorKind::TooManyColumns {
+                limit,
+            } => {
+                write!(f, "more than {limit} columns at line {}, column {}", self.line, self.column)
+            }
+            ReadErrorKind::NoProgress => {
+                write!(
+                    f,
+                    "read source reported more data but appended none at line {}, column {}",
+                    self.line, self.column
+                )
+            }
             #[cfg(feature = "serde")]
             ReadErrorKind::Deserialize(msg) => {
                 write!(f, "deserialization error at line {}, column {}: {msg}", self.line, self.column)
             }
             ReadErrorKind::Io => {
-                write!(f, "I/O error at line {}, column {}", self.line, self.column)
+                write!(f, "I/O error at line {}, column {}", self.line, self.column)?;
+                #[cfg(feature = "std")]
+                if let Some(source) = &self.source {
+                    write!(f, ": {source}")?;
+                }
+                Ok(())
             }
         }
     }
@@ -130,7 +197,7 @@ impl From<std::io::Error> for ReadError {
             kind: ReadErrorKind::Io,
             line: 0,
             column: 0,
-            source: Some(Box::new(e)),
+            source: Some(Arc::new(e)),
         }
     }
 }

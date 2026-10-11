@@ -45,10 +45,23 @@ impl<W: std::io::Write> Write for W {
 ///
 /// Fields containing the delimiter, a newline, or a double-quote are
 /// automatically quoted. `""` escape sequences are used for quotes
-/// within quoted fields.
+/// within quoted fields. Empty fields are written unquoted (as nothing),
+/// which is what every mainstream CSV writer does.
 ///
 /// Internal buffering is used to avoid many small writes. Callers should
 /// not wrap the writer in a `BufWriter`.
+///
+/// # Security
+///
+/// This writer does **not** defend against CSV / formula injection
+/// ([CWE-1236]). Quoting a field does not neutralise it: spreadsheet
+/// applications still evaluate a quoted cell whose first character is
+/// `=`, `+`, `-`, `@`, tab or carriage return. If the data being written is
+/// attacker-controlled and the output is opened in a spreadsheet, sanitise
+/// those leading characters yourself (for example by prefixing an
+/// apostrophe) or disable formula evaluation in the consuming application.
+///
+/// [CWE-1236]: https://cwe.mitre.org/data/definitions/1236.html
 ///
 /// # Example
 ///
@@ -71,10 +84,12 @@ pub struct Writer<W: Write> {
     pub(crate) buf: Vec<u8>,
     pub(crate) headers: Option<Vec<String>>,
     pub(crate) headers_written: bool,
+    /// If true, emit a UTF-8 byte-order mark before any other output.
+    pub(crate) write_bom: bool,
+    /// True once the byte-order mark has been emitted (or when none is wanted).
+    pub(crate) bom_written: bool,
     #[cfg(feature = "serde")]
     pub(crate) ser_values: Vec<Option<Vec<u8>>>,
-    #[cfg(feature = "serde")]
-    pub(crate) ser_capture_buf: Vec<u8>,
 }
 
 impl<W: Write> Writer<W> {
@@ -92,14 +107,19 @@ impl<W: Write> Writer<W> {
             buf: Vec::with_capacity(8192),
             headers: None,
             headers_written: false,
+            write_bom: false,
+            bom_written: false,
             #[cfg(feature = "serde")]
             ser_values: Vec::new(),
-            #[cfg(feature = "serde")]
-            ser_capture_buf: Vec::new(),
         }
     }
 
     /// Set the field delimiter byte (default is `,`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `byte` is `"`, `\r` or `\n`; see
+    /// [`Reader::set_delimiter`](crate::Reader::set_delimiter).
     ///
     /// ```no_run
     /// use csv::Writer;
@@ -108,6 +128,10 @@ impl<W: Write> Writer<W> {
     /// # Ok::<_, csv::WriteError>(())
     /// ```
     pub fn set_delimiter(mut self, byte: u8) -> Self {
+        assert!(
+            byte != b'"' && byte != b'\r' && byte != b'\n',
+            "invalid CSV delimiter {byte:#04x}: `\"`, `\\r` and `\\n` are not allowed"
+        );
         self.delimiter = byte;
         self
     }
@@ -119,6 +143,31 @@ impl<W: Write> Writer<W> {
     pub fn set_flexible(mut self, yes: bool) -> Self {
         self.flexible = yes;
         self
+    }
+
+    /// Emits a UTF-8 byte-order mark (`U+FEFF`, the bytes `EF BB BF`) before any
+    /// other output (default is `false`).
+    ///
+    /// Enable this when the consumer expects one — Excel writes UTF-8 CSV with a
+    /// BOM, and some tools refuse to detect the encoding without it. The mark is
+    /// written once, before the first row, header or serialized record, and
+    /// [`Reader`](crate::Reader) strips a leading BOM by default, so output
+    /// round-trips.
+    pub fn set_write_bom(mut self, yes: bool) -> Self {
+        self.write_bom = yes;
+        self
+    }
+
+    /// Emits the byte-order mark into the buffer if it is wanted and has not
+    /// been written yet.
+    ///
+    /// Called at the top of every write entry point so the mark always precedes
+    /// the first piece of output.
+    pub(crate) fn write_pending_bom(&mut self) {
+        if self.write_bom && !self.bom_written {
+            self.buf.extend_from_slice(&crate::BOM);
+            self.bom_written = true;
+        }
     }
 
     /// Store column names for schema awareness.
@@ -150,8 +199,10 @@ impl<W: Write> Writer<W> {
     /// Returns [`WriteError::HeadersAlreadyWritten`] if headers have already
     /// been written. Returns [`WriteError::InconsistentFieldCount`] if the
     /// number of headers differs from a prior [`write_row`](Self::write_row)
-    /// or from headers stored via [`set_headers`](Self::set_headers).
-    /// Returns [`WriteError::Io`] if the underlying writer fails.
+    /// or from headers stored via [`set_headers`](Self::set_headers). The
+    /// count is validated before anything is written, so a rejected call
+    /// leaves the output untouched. Returns [`WriteError::Io`] if the
+    /// underlying writer fails.
     pub fn write_headers<I, T>(&mut self, headers: I) -> Result<(), WriteError>
     where
         I: IntoIterator<Item = T>,
@@ -163,6 +214,23 @@ impl<W: Write> Writer<W> {
 
         let strings: Vec<String> = headers.into_iter().map(|s| s.as_ref().to_string()).collect();
         let count = strings.len();
+
+        // Validate before writing anything so a mismatch cannot leave a
+        // partial or out-of-order row in the output.
+        if !self.flexible {
+            let expected = self.num_fields.or_else(|| self.headers.as_ref().map(|h| h.len()));
+            if let Some(expected) = expected
+                && count != expected
+            {
+                return Err(WriteError::InconsistentFieldCount {
+                    expected,
+                    found: count,
+                    row: self.row_count + 1,
+                });
+            }
+        }
+
+        self.write_pending_bom();
 
         for (i, s) in strings.iter().enumerate() {
             if i > 0 {
@@ -188,7 +256,14 @@ impl<W: Write> Writer<W> {
     ///
     /// Each element in the iterator is written as a CSV field. Fields are
     /// auto-quoted if they contain the delimiter, a newline (`\n` or `\r`),
-    /// or a double-quote (`"`).
+    /// or a double-quote (`"`). Empty fields are written unquoted.
+    ///
+    /// # Round-tripping
+    ///
+    /// A row consisting of a single empty field is written as a blank line,
+    /// which readers (this one included, like most CSV readers) treat as an
+    /// empty line and skip. Such a row therefore cannot be read back. Every
+    /// other row round-trips exactly.
     ///
     /// # Errors
     ///
@@ -200,6 +275,8 @@ impl<W: Write> Writer<W> {
         I: IntoIterator<Item = T>,
         T: AsRef<[u8]>,
     {
+        self.write_pending_bom();
+
         if self.flexible {
             let mut first = true;
             let mut field_count = 0;
@@ -287,10 +364,13 @@ impl<W: Write> Drop for Writer<W> {
 /// Write a single CSV field to `buf`, applying quoting as needed.
 ///
 /// Writes directly into `buf` to avoid intermediate buffering.
+///
+/// Empty fields are written as nothing rather than as `""`: both forms parse
+/// back to an empty field, but the unquoted form matches every mainstream CSV
+/// writer and avoids roughly tripling the output size of sparse data.
 pub(crate) fn write_csv_field(buf: &mut Vec<u8>, delimiter: u8, field: &[u8]) {
-    let needs_quoting = field.is_empty()
-        || memchr::memchr3(delimiter, b'\r', b'\n', field).is_some()
-        || memchr::memchr(b'"', field).is_some();
+    let needs_quoting =
+        memchr::memchr3(delimiter, b'\r', b'\n', field).is_some() || memchr::memchr(b'"', field).is_some();
 
     if !needs_quoting {
         buf.extend_from_slice(field);

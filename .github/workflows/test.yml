@@ -30,6 +30,9 @@ jobs:
       - run: rustup target add thumbv7em-none-eabi
       - run: make check_no_std
       - run: cargo test --workspace --target ${{ matrix.target }}
+      # `cargo test --workspace` runs each package with its default features,
+      # so feature-gated test modules (e.g. csv's serde tests) would be skipped.
+      - run: cargo test -p csv --all-features --target ${{ matrix.target }}
 
 
   test_wasm:

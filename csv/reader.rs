@@ -17,8 +17,13 @@ use crate::error::{ReadError, ReadErrorKind};
 pub trait Read {
     /// Read data into `buf`, appending to its contents.
     ///
-    /// Returns `Ok(true)` if more data *may* be available (caller should try
-    /// again), or `Ok(false)` to signal end-of-input.
+    /// Returns `Ok(true)` when at least one byte was appended to `buf`, or
+    /// `Ok(false)` to signal end-of-input.
+    ///
+    /// Implementations **must not** return `Ok(true)` without appending at
+    /// least one byte. Doing so is a contract violation; rather than spinning
+    /// or panicking, the [`Reader`] reports [`ReadErrorKind::NoProgress`] and
+    /// stops reading.
     fn read(&mut self, buf: &mut Vec<u8>) -> Result<bool, ReadError>;
 }
 
@@ -88,6 +93,9 @@ pub struct FieldRange {
 /// - [`set_delimiter`](Self::set_delimiter) — change the field separator (default `,`)
 /// - [`set_flexible`](Self::set_flexible) — allow variable-length rows (default `false`)
 /// - [`set_headers`](Self::set_headers) — supply column names without parsing
+/// - [`set_max_record_bytes`](Self::set_max_record_bytes),
+///   [`set_max_field_bytes`](Self::set_max_field_bytes) and
+///   [`set_max_columns`](Self::set_max_columns) — opt-in resource limits
 ///
 /// # Headers
 ///
@@ -100,7 +108,20 @@ pub struct FieldRange {
 /// Parsing errors (unterminated quotes, trailing content after a quoted field,
 /// inconsistent field counts) are stored on the returned row and surfaced when
 /// the row's fields are accessed. I/O errors are also stored on the row. This
-/// allows iteration to continue past malformed rows.
+/// allows iteration to continue past malformed rows: when a record is
+/// malformed, the reader skips to the next record boundary before parsing the
+/// following record.
+///
+/// Errors are reported against the line on which the offending record started.
+///
+/// # Resource limits
+///
+/// By default the reader imposes no size limits, so a single enormous record
+/// can consume an unbounded amount of memory. Applications that parse
+/// untrusted input should set [`set_max_record_bytes`](Self::set_max_record_bytes)
+/// (and optionally [`set_max_field_bytes`](Self::set_max_field_bytes) /
+/// [`set_max_columns`](Self::set_max_columns)); exceeding a limit produces an
+/// error on the row instead of exhausting memory.
 ///
 /// # Iteration
 ///
@@ -148,8 +169,16 @@ pub struct Reader<R: Read> {
     start: usize,
     /// End of valid data in `buf`.
     end: usize,
-    /// Current line number (1-based).
+    /// Number of bytes dropped from the front of `buf` by [`Reader::compact`].
+    ///
+    /// The absolute stream offset of `buf[start]` is `discarded + start`.
+    discarded: usize,
+    /// Absolute stream offset at which the current record started.
+    record_start: usize,
+    /// Physical line number (1-based) of the byte at `buf[start]`.
     line: usize,
+    /// Physical line number on which the current record started.
+    record_line: usize,
     /// Start of current unquoted field within `buf`.
     field_start: usize,
     /// Start of current quoted field within `scratch`.
@@ -162,17 +191,32 @@ pub struct Reader<R: Read> {
     flexible: bool,
     /// Expected field count per row, inferred from the first data row.
     num_fields: Option<usize>,
-    /// Running max row-byte-length, used to pre-size the next row buffer.
-    row_size_hint: usize,
     /// True once `parse_headers` or `set_headers` has been called.
     headers_parsed: bool,
     /// A bare `\r` was the last byte of the previous buffer; next `\n` should be skipped.
     pending_cr: bool,
+    /// The previous quoted-content slice ended with a bare `\r`; a leading `\n`
+    /// in the next slice continues that line break and must not be counted twice.
+    pending_lf_quoted: bool,
+    /// True once the leading byte-order mark has been considered.
+    bom_checked: bool,
+    /// If true, a UTF-8 byte-order mark at the very start of the input is skipped.
+    strip_bom: bool,
+    /// Maximum accepted size of a single record, in bytes (opt-in).
+    max_record_bytes: Option<usize>,
+    /// Maximum accepted size of a single field, in bytes (opt-in).
+    max_field_bytes: Option<usize>,
+    /// Maximum accepted number of columns per record (opt-in).
+    max_columns: Option<usize>,
     /// Column names, populated by `parse_headers` or `set_headers`.
     headers: Vec<String>,
     #[cfg(feature = "serde")]
     /// Map from header name -> column index for serde field lookup.
     header_map: Option<Arc<BTreeMap<String, usize>>>,
+    #[cfg(feature = "serde")]
+    /// True when `headers` contains duplicate names, which makes name-based
+    /// deserialization ambiguous.
+    duplicate_headers: bool,
     /// The underlying data source.
     source: R,
     /// True when the source has signalled end-of-input.
@@ -192,26 +236,47 @@ impl<R: Read> Reader<R> {
             ranges: Vec::new(),
             start: 0,
             end: 0,
+            discarded: 0,
+            record_start: 0,
             line: 1,
+            record_line: 1,
             field_start: 0,
             scratch_field_start: 0,
             state: State::StartOfField,
             delimiter: b',',
             flexible: false,
             num_fields: None,
-            row_size_hint: 0,
             headers_parsed: false,
             pending_cr: false,
+            pending_lf_quoted: false,
+            bom_checked: false,
+            strip_bom: true,
+            max_record_bytes: None,
+            max_field_bytes: None,
+            max_columns: None,
             headers: Vec::new(),
             #[cfg(feature = "serde")]
             header_map: None,
+            #[cfg(feature = "serde")]
+            duplicate_headers: false,
             source,
             eof: false,
         }
     }
 
     /// Sets the field delimiter byte (default is `,`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `byte` is `"`, `\r` or `\n`. These bytes carry structural
+    /// meaning in CSV and cannot be used as a delimiter: `"` would disable
+    /// quoting, and `\r`/`\n` would make record boundaries unrepresentable,
+    /// causing the whole input to be read as a single record.
     pub fn set_delimiter(mut self, byte: u8) -> Self {
+        assert!(
+            byte != b'"' && byte != b'\r' && byte != b'\n',
+            "invalid CSV delimiter {byte:#04x}: `\"`, `\\r` and `\\n` are not allowed"
+        );
         self.delimiter = byte;
         self
     }
@@ -222,24 +287,94 @@ impl<R: Read> Reader<R> {
         self
     }
 
-    /// Sets the column names for header-based serde deserialization.
+    /// Controls whether a UTF-8 byte-order mark (`U+FEFF`, the bytes
+    /// `EF BB BF`) at the very start of the input is skipped (default is
+    /// `true`).
     ///
-    /// Calling this marks headers as parsed so `reader.headers()` returns `Some`.
-    pub fn set_headers(mut self, headers: Vec<String>) -> Self {
-        self.headers_parsed = true;
-        self.headers = headers;
-        #[cfg(feature = "serde")]
-        {
-            let map: BTreeMap<String, usize> = self
-                .headers
-                .iter()
-                .enumerate()
-                .map(|(i, name)| (name.clone(), i))
-                .collect();
-            self.header_map = Some(Arc::new(map));
-        }
+    /// This is what makes files produced by Excel, which writes UTF-8 CSV with
+    /// a BOM by default, work with [`parse_headers`](Self::parse_headers) and
+    /// serde: without it the first header would be `"\u{feff}name"` and would
+    /// match no struct field.
+    ///
+    /// Only the first three bytes of the stream are considered, and only once.
+    /// A BOM anywhere else in the input is always treated as data.
+    ///
+    /// Pass `false` to keep the mark as part of the first field.
+    pub fn set_strip_bom(mut self, yes: bool) -> Self {
+        self.strip_bom = yes;
         self
     }
+
+    /// Rejects any record longer than `max` bytes.
+    ///
+    /// This is the main defence against a single crafted record exhausting
+    /// memory. When a record exceeds the limit the row carries a
+    /// [`ReadErrorKind::RecordTooLarge`] error and reading stops, because the
+    /// remainder of the oversized record cannot be skipped safely.
+    ///
+    /// By default no limit is applied.
+    pub fn set_max_record_bytes(mut self, max: usize) -> Self {
+        self.max_record_bytes = Some(max);
+        self
+    }
+
+    /// Rejects any field longer than `max` bytes.
+    ///
+    /// When a field exceeds the limit the row carries a
+    /// [`ReadErrorKind::FieldTooLarge`] error and **reading stops**, because the
+    /// remainder of the oversized record cannot be skipped without reading it.
+    ///
+    /// By default no limit is applied.
+    pub fn set_max_field_bytes(mut self, max: usize) -> Self {
+        self.max_field_bytes = Some(max);
+        self
+    }
+
+    /// Rejects any record with more than `max` columns.
+    ///
+    /// Each column costs at least one byte of input, so this is a cheap way to
+    /// bound the bookkeeping memory used by a record made of millions of empty
+    /// fields. When a record exceeds the limit the row carries a
+    /// [`ReadErrorKind::TooManyColumns`] error and **reading stops**, because
+    /// the remainder of the oversized record cannot be skipped without reading
+    /// it.
+    ///
+    /// By default no limit is applied.
+    pub fn set_max_columns(mut self, max: usize) -> Self {
+        self.max_columns = Some(max);
+        self
+    }
+
+    /// Sets the column names for header-based serde deserialization.
+    ///
+    /// Calling this marks headers as parsed so `reader.headers()` returns `Some`,
+    /// and pins the expected field count to the number of names supplied (unless
+    /// [`set_flexible`](Self::set_flexible) is enabled), exactly like
+    /// [`parse_headers`](Self::parse_headers).
+    pub fn set_headers(mut self, headers: Vec<String>) -> Self {
+        self.headers_parsed = true;
+        if !headers.is_empty() {
+            self.num_fields = Some(headers.len());
+        }
+        self.headers = headers;
+        self.rebuild_header_map();
+        self
+    }
+
+    #[cfg(feature = "serde")]
+    fn rebuild_header_map(&mut self) {
+        let map: BTreeMap<String, usize> = self
+            .headers
+            .iter()
+            .enumerate()
+            .map(|(i, name)| (name.clone(), i))
+            .collect();
+        self.duplicate_headers = map.len() != self.headers.len();
+        self.header_map = Some(Arc::new(map));
+    }
+
+    #[cfg(not(feature = "serde"))]
+    fn rebuild_header_map(&mut self) {}
 
     /// Returns `Some(&[String])` if headers were parsed or set, `None` otherwise.
     pub fn headers(&self) -> Option<&[String]> {
@@ -248,9 +383,12 @@ impl<R: Read> Reader<R> {
 
     /// Parses the first row as column headers and stores them internally.
     ///
-    /// Returns the header strings as a slice. Returns an empty slice if the CSV is empty.
-    /// After calling this, `reader.headers()` returns `Some(...)` and serde
-    /// deserialization matches struct fields by name.
+    /// Returns the header strings as a slice, and pins the expected field count
+    /// to the number of headers (unless [`set_flexible`](Self::set_flexible) is
+    /// enabled).
+    ///
+    /// If the input is empty this returns an empty slice and leaves
+    /// [`headers`](Self::headers) as `None`, since no header row was seen.
     pub fn parse_headers(&mut self) -> Result<&[String], ReadError> {
         let row = match self.read_row() {
             Some(row) => row,
@@ -260,16 +398,7 @@ impl<R: Read> Reader<R> {
         self.headers_parsed = true;
         self.num_fields = Some(headers.len());
         self.headers = headers;
-        #[cfg(feature = "serde")]
-        {
-            let map: BTreeMap<String, usize> = self
-                .headers
-                .iter()
-                .enumerate()
-                .map(|(i, name)| (name.clone(), i))
-                .collect();
-            self.header_map = Some(Arc::new(map));
-        }
+        self.rebuild_header_map();
         Ok(&self.headers)
     }
 
@@ -289,13 +418,23 @@ impl<R: Read> Reader<R> {
 
     /// Reads more data from the source into `buf`, updating `self.end`.
     ///
-    /// Returns `Ok(true)` if new data was loaded, `Ok(false)` at EOF, or `Err` on I/O error.
+    /// Returns `Ok(true)` if new data was loaded, `Ok(false)` at EOF, or `Err` on
+    /// I/O error or when the source violates the [`Read`] contract by reporting
+    /// progress without appending any bytes.
+    ///
     /// Once EOF is reached, subsequent calls return `Ok(false)` without re-reading.
     fn fill_buf(&mut self) -> Result<bool, ReadError> {
         if self.eof {
             return Ok(false);
         }
+        let before = self.buf.len();
         if self.source.read(&mut self.buf)? {
+            if self.buf.len() == before {
+                // Contract violation: `Ok(true)` without progress. Report it
+                // instead of looping forever or indexing out of bounds.
+                self.eof = true;
+                return Err(ReadError::new(ReadErrorKind::NoProgress, self.record_line, 0));
+            }
             self.end = self.buf.len();
             Ok(true)
         } else {
@@ -304,16 +443,49 @@ impl<R: Read> Reader<R> {
         }
     }
 
+    /// Skips a UTF-8 byte-order mark at the very start of the input.
+    ///
+    /// The decision needs up to three bytes, so this may read ahead before the
+    /// first record is parsed. That is necessary: with a byte-at-a-time source
+    /// the leading `0xEF` would otherwise be consumed as field content before
+    /// the mark could be recognised.
+    fn strip_leading_bom(&mut self) -> Result<(), ReadError> {
+        if self.bom_checked {
+            return Ok(());
+        }
+        self.bom_checked = true;
+        if !self.strip_bom {
+            return Ok(());
+        }
+        while self.end - self.start < 3 && !self.eof {
+            self.fill_buf()?;
+        }
+        if self.buf[self.start..].starts_with(&crate::BOM) {
+            self.start += 3;
+        }
+        Ok(())
+    }
+
     /// Parses one CSV row from the input, or returns `None` at EOF.
     ///
     /// The row's fields are assembled into an owned `Row`. Errors (I/O,
-    /// unterminated quotes, trailing content, inconsistent field counts)
-    /// are stored on the `Row` and deferred until access.
+    /// unterminated quotes, trailing content, inconsistent field counts,
+    /// configured size limits) are stored on the `Row` and deferred until
+    /// access.
     fn read_row(&mut self) -> Option<Row> {
         self.compact();
         self.ranges.clear();
         self.scratch.clear();
         self.state = State::StartOfField;
+        self.pending_lf_quoted = false;
+        self.record_line = self.line;
+
+        if let Err(e) = self.strip_leading_bom() {
+            self.eof = true;
+            return Some(self.build_row(Some(e)));
+        }
+
+        self.record_start = self.discarded + self.start;
 
         loop {
             if self.start >= self.end {
@@ -335,7 +507,7 @@ impl<R: Read> Reader<R> {
                         return match self.state {
                             State::InQuoted => Some(self.build_row(Some(ReadError::new(
                                 ReadErrorKind::UnterminatedQuote,
-                                self.line,
+                                self.record_line,
                                 0,
                             )))),
                             _ => {
@@ -346,6 +518,12 @@ impl<R: Read> Reader<R> {
                     }
                     Ok(true) => {}
                 }
+            }
+
+            // Enforce the opt-in resource limits before touching the byte, so a
+            // malicious record cannot grow the buffers any further.
+            if let Some(kind) = self.limit_exceeded() {
+                return Some(self.abandon_record(kind));
             }
 
             if self.pending_cr {
@@ -399,6 +577,9 @@ impl<R: Read> Reader<R> {
                     match memchr::memchr3(self.delimiter, b'\r', b'\n', haystack) {
                         Some(offset) => {
                             let pos = self.start + offset;
+                            if let Some(kind) = self.field_limit_exceeded(pos - self.field_start) {
+                                return Some(self.abandon_record(kind));
+                            }
                             self.ranges.push(RawField {
                                 start: self.field_start,
                                 end: pos,
@@ -416,6 +597,9 @@ impl<R: Read> Reader<R> {
                         }
                         None => {
                             self.start = self.end;
+                            if let Some(kind) = self.field_limit_exceeded(self.end - self.field_start) {
+                                return Some(self.abandon_record(kind));
+                            }
                         }
                     }
                 }
@@ -425,7 +609,19 @@ impl<R: Read> Reader<R> {
                     match memchr::memchr(b'"', haystack) {
                         Some(offset) => {
                             let quote_pos = self.start + offset;
-                            self.scratch.extend_from_slice(&self.buf[self.start..quote_pos]);
+                            let segment = &self.buf[self.start..quote_pos];
+                            // Check before copying into `scratch`, so the limit
+                            // bounds the scratch buffer too.
+                            if let Some(kind) =
+                                self.field_limit_exceeded(self.scratch.len() - self.scratch_field_start + segment.len())
+                            {
+                                return Some(self.abandon_record(kind));
+                            }
+                            self.line += count_line_breaks(segment, &mut self.pending_lf_quoted);
+                            // A `"` follows, so a trailing `\r` cannot pair with
+                            // anything and has already been counted.
+                            self.pending_lf_quoted = false;
+                            self.scratch.extend_from_slice(segment);
                             let after_quote = quote_pos + 1;
                             if after_quote < self.end && self.buf[after_quote] == b'"' {
                                 self.scratch.push(b'"');
@@ -440,7 +636,7 @@ impl<R: Read> Reader<R> {
                                 self.state = State::AfterQuote;
                             } else {
                                 match self.fill_buf() {
-                                    Ok(true) if self.buf[after_quote] == b'"' => {
+                                    Ok(true) if self.buf.get(after_quote) == Some(&b'"') => {
                                         self.scratch.push(b'"');
                                         self.start = after_quote + 1;
                                     }
@@ -467,8 +663,14 @@ impl<R: Read> Reader<R> {
                             }
                         }
                         None => {
+                            self.line +=
+                                count_line_breaks(&self.buf[self.start..self.end], &mut self.pending_lf_quoted);
                             self.scratch.extend_from_slice(&self.buf[self.start..self.end]);
                             self.start = self.end;
+                            if let Some(kind) = self.field_limit_exceeded(self.scratch.len() - self.scratch_field_start)
+                            {
+                                return Some(self.abandon_record(kind));
+                            }
                         }
                     }
                 }
@@ -481,11 +683,113 @@ impl<R: Read> Reader<R> {
                         self.consume_newline();
                         return Some(self.build_row(None));
                     } else {
-                        return Some(self.build_row(Some(ReadError::new(
-                            ReadErrorKind::TrailingContent,
-                            self.line,
-                            0,
-                        ))));
+                        return Some(self.abandon_record(ReadErrorKind::TrailingContent));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Returns the first configured limit the current record has exceeded.
+    ///
+    /// Field sizes are checked where a field is resolved (see
+    /// [`field_limit_exceeded`](Self::field_limit_exceeded)); this covers the
+    /// record and column limits, which grow monotonically as parsing advances.
+    fn limit_exceeded(&self) -> Option<ReadErrorKind> {
+        if let Some(limit) = self.max_record_bytes {
+            let consumed = self.discarded + self.start - self.record_start;
+            if consumed > limit {
+                return Some(ReadErrorKind::RecordTooLarge {
+                    limit,
+                });
+            }
+        }
+        if let Some(limit) = self.max_columns
+            && self.ranges.len() > limit
+        {
+            return Some(ReadErrorKind::TooManyColumns {
+                limit,
+            });
+        }
+        None
+    }
+
+    /// Returns [`ReadErrorKind::FieldTooLarge`] if a field of `len` bytes
+    /// exceeds the configured field limit.
+    fn field_limit_exceeded(&self, len: usize) -> Option<ReadErrorKind> {
+        match self.max_field_bytes {
+            Some(limit) if len > limit => Some(ReadErrorKind::FieldTooLarge {
+                limit,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Records the fields parsed so far and abandons the current record,
+    /// positioning the reader at the start of the next record where possible.
+    fn abandon_record(&mut self, kind: ReadErrorKind) -> Row {
+        let error = ReadError::new(kind, self.record_line, 0);
+        match error.kind {
+            // A configured limit was exceeded. Reading further would defeat it
+            // (the remainder of the record could be arbitrarily long), so drop
+            // the rest of the buffer and stop.
+            ReadErrorKind::RecordTooLarge {
+                ..
+            }
+            | ReadErrorKind::FieldTooLarge {
+                ..
+            }
+            | ReadErrorKind::TooManyColumns {
+                ..
+            } => {
+                self.start = self.end;
+                self.eof = true;
+            }
+            _ => {
+                // Keep the fields parsed before the offending byte, then skip
+                // the junk so the next record starts at a record boundary.
+                self.finalize_current_field();
+                if !self.skip_record_tail() {
+                    self.eof = true;
+                }
+            }
+        }
+        self.build_row(Some(error))
+    }
+
+    /// Consumes input up to and including the next record terminator.
+    ///
+    /// Returns `false` if the skip could not complete (end of input, I/O error,
+    /// or the configured record-size limit was reached), in which case the
+    /// reader is left at end-of-input.
+    fn skip_record_tail(&mut self) -> bool {
+        loop {
+            if self.start >= self.end {
+                match self.fill_buf() {
+                    Ok(true) => {}
+                    _ => return false,
+                }
+            }
+            if self.pending_cr {
+                if self.buf[self.start] == b'\n' {
+                    self.start += 1;
+                }
+                self.pending_cr = false;
+                return true;
+            }
+            let haystack = &self.buf[self.start..self.end];
+            match memchr::memchr2(b'\r', b'\n', haystack) {
+                Some(offset) => {
+                    self.start += offset;
+                    self.consume_newline();
+                    return true;
+                }
+                None => {
+                    self.start = self.end;
+                    if let Some(limit) = self.max_record_bytes
+                        && self.discarded + self.start - self.record_start > limit
+                    {
+                        return false;
                     }
                 }
             }
@@ -493,15 +797,37 @@ impl<R: Read> Reader<R> {
     }
 
     /// Moves unconsumed data to the front of `buf` and truncates.
+    ///
+    /// Compaction is a full copy of the unconsumed tail, so it is only done
+    /// once a meaningful amount of data has been consumed. Compacting on every
+    /// record would memmove the whole remaining buffer per record, which
+    /// dominates runtime for inputs made of small records.
+    ///
+    /// Only ever called at a record boundary, where no parsed field ranges are
+    /// live.
     fn compact(&mut self) {
-        if self.start > 0 {
-            let remaining = self.end - self.start;
-            if remaining > 0 {
-                self.buf.copy_within(self.start..self.end, 0);
-            }
-            self.buf.truncate(remaining);
-            self.end = remaining;
-            self.start = 0;
+        if self.start == 0 {
+            return;
+        }
+        if self.start < 4096 && self.start * 2 < self.buf.len() {
+            return;
+        }
+        let shift = self.start;
+        let remaining = self.end - shift;
+        if remaining > 0 {
+            self.buf.copy_within(shift..self.end, 0);
+        }
+        self.buf.truncate(remaining);
+        self.end = remaining;
+        self.start = 0;
+        self.discarded += shift;
+
+        // Give back memory retained from an unusually large record. This only
+        // triggers once the buffer has grown far beyond its initial capacity,
+        // so it never affects steady-state throughput.
+        const RETAINED_CAPACITY: usize = 1 << 20;
+        if self.buf.capacity() > RETAINED_CAPACITY && self.end <= RETAINED_CAPACITY {
+            self.buf.shrink_to_fit();
         }
     }
 
@@ -524,8 +850,7 @@ impl<R: Read> Reader<R> {
 
     /// Pushes a `RawField` entry for the current unquoted or empty field.
     ///
-    /// Does nothing in the `AfterQuote` state (field already recorded).
-    /// Panics (unreachable) if called in the `InQuoted` state.
+    /// Does nothing in the `AfterQuote` state (the field is already recorded).
     fn finalize_current_field(&mut self) {
         match self.state {
             State::InUnquoted => {
@@ -533,6 +858,13 @@ impl<R: Read> Reader<R> {
                     start: self.field_start,
                     end: self.start,
                     src: Src::Buf,
+                });
+            }
+            State::InQuoted => {
+                self.ranges.push(RawField {
+                    start: self.scratch_field_start,
+                    end: self.scratch.len(),
+                    src: Src::Scratch,
                 });
             }
             State::AfterQuote => {}
@@ -545,7 +877,6 @@ impl<R: Read> Reader<R> {
                     });
                 }
             }
-            State::InQuoted => unreachable!(),
         }
     }
 
@@ -556,6 +887,8 @@ impl<R: Read> Reader<R> {
             inner: bytes_row,
             #[cfg(feature = "serde")]
             header_map: self.header_map.clone(),
+            #[cfg(feature = "serde")]
+            duplicate_headers: self.duplicate_headers,
         }
     }
 
@@ -566,9 +899,8 @@ impl<R: Read> Reader<R> {
             total += r.end - r.start;
         }
 
-        let row_buf_capacity = if total > 0 { total } else { self.row_size_hint.max(64) };
-        let mut row_buf = Vec::with_capacity(row_buf_capacity);
-        let mut row_ranges = Vec::with_capacity(self.num_fields.unwrap_or(self.ranges.len()));
+        let mut row_buf = Vec::with_capacity(total);
+        let mut row_ranges = Vec::with_capacity(self.ranges.len());
 
         for r in &self.ranges {
             let slice = match r.src {
@@ -593,7 +925,7 @@ impl<R: Read> Reader<R> {
                         expected,
                         found: field_count,
                     },
-                    self.line,
+                    self.record_line,
                     0,
                 )),
                 _ => None,
@@ -602,21 +934,69 @@ impl<R: Read> Reader<R> {
             error
         };
 
-        if self.num_fields.is_none() && field_count > 0 {
+        // Only a well-formed record may establish the expected field count.
+        // Otherwise one malformed record would cascade errors over the rest of
+        // the input.
+        if self.num_fields.is_none() && field_count > 0 && error.is_none() {
             self.num_fields = Some(field_count);
-        }
-
-        if row_buf.len() > self.row_size_hint {
-            self.row_size_hint = row_buf.len();
         }
 
         BytesRow {
             buf: row_buf,
             ranges: row_ranges,
             error,
-            line: self.line,
+            line: self.record_line,
         }
     }
+}
+
+/// Counts line breaks in a slice of quoted-field content.
+///
+/// A `\r` immediately followed by `\n` counts as a single break, even when the
+/// pair is split across two slices: `pending_cr` is set when a slice ends on a
+/// bare `\r` and consulted by the following call.
+///
+/// Quoted content usually contains no line breaks at all, so a `memchr2`
+/// pre-scan (which is vectorised) keeps this off the hot path.
+fn count_line_breaks(bytes: &[u8], pending_cr: &mut bool) -> usize {
+    if memchr::memchr2(b'\r', b'\n', bytes).is_none() {
+        // No break in this slice, so a pending `\r` cannot pair with a leading
+        // `\n` here; any consumed byte clears it.
+        if !bytes.is_empty() {
+            *pending_cr = false;
+        }
+        return 0;
+    }
+
+    let mut breaks = 0;
+    let mut i = 0;
+    if *pending_cr {
+        if bytes.first() == Some(&b'\n') {
+            i = 1;
+        }
+        *pending_cr = false;
+    }
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\n' => {
+                breaks += 1;
+                i += 1;
+            }
+            b'\r' => {
+                breaks += 1;
+                i += 1;
+                if i < bytes.len() {
+                    if bytes[i] == b'\n' {
+                        i += 1;
+                    }
+                } else {
+                    *pending_cr = true;
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    breaks
 }
 
 fn is_newline(b: u8) -> bool {
@@ -629,10 +1009,16 @@ pub struct BytesRow {
     pub(crate) buf: Vec<u8>,
     pub(crate) ranges: Vec<FieldRange>,
     pub(crate) error: Option<ReadError>,
-    line: usize,
+    pub(crate) line: usize,
 }
 
 impl BytesRow {
+    /// The parse error for this row, if any.
+    ///
+    /// Unlike [`Row`], a `BytesRow` never fails: the error is stored here and
+    /// the raw field bytes remain accessible through [`get`](Self::get) and
+    /// [`iter`](Self::iter). [`to_vec`](Self::to_vec) is the accessor that
+    /// surfaces the error.
     pub fn error(&self) -> Option<&ReadError> {
         self.error.as_ref()
     }
@@ -700,25 +1086,42 @@ pub struct Row {
     pub(crate) inner: BytesRow,
     #[cfg(feature = "serde")]
     pub(crate) header_map: Option<Arc<BTreeMap<String, usize>>>,
+    #[cfg(feature = "serde")]
+    pub(crate) duplicate_headers: bool,
 }
 
 impl Row {
+    /// The parse error for this row, if any.
     pub fn error(&self) -> Option<&ReadError> {
         self.inner.error()
     }
+
+    /// Number of fields parsed for this row.
+    ///
+    /// Fields are still counted when the row carries an error.
     pub fn len(&self) -> usize {
         self.inner.len()
     }
+
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
+    /// Returns the field at `index`, or `None` if there is no such field.
+    ///
+    /// Consistent with [`to_vec`](Self::to_vec) and [`iter`](Self::iter): if
+    /// the row carries a parse error, every in-range index yields `Err`. Only
+    /// an out-of-range index yields `None`.
     pub fn get(&self, index: usize) -> Option<Result<&str, ReadError>> {
         self.inner.get(index).map(|bytes| {
+            if let Some(ref e) = self.inner.error {
+                return Err(e.clone());
+            }
             core::str::from_utf8(bytes).map_err(|_| ReadError::new(ReadErrorKind::InvalidUtf8, self.inner.line, 0))
         })
     }
 
+    /// Returns all fields as `&str`, or the row's parse error.
     pub fn to_vec(&self) -> Result<Vec<&str>, ReadError> {
         if let Some(ref e) = self.inner.error {
             return Err(e.clone());
@@ -733,6 +1136,8 @@ impl Row {
             .collect()
     }
 
+    /// Iterates over the fields, yielding the row's parse error for each field
+    /// when the row is malformed.
     pub fn iter(&self) -> Fields<'_> {
         Fields {
             buf: &self.inner.buf,

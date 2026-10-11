@@ -624,11 +624,25 @@ fn test_unicode_fields() {
 
 #[test]
 fn test_bom_at_start_of_csv() {
-    // BOM is treated as part of the first field
+    // A leading BOM is stripped by default, so the first field is `a`.
     let rows = collect_rows(b"\xef\xbb\xbfa,b\n");
     assert_eq!(rows[0].len(), 2);
-    assert_eq!(rows[0][0].as_bytes(), b"\xef\xbb\xbfa");
+    assert_eq!(rows[0][0], "a");
     assert_eq!(rows[0][1], "b");
+}
+
+#[test]
+fn test_bom_kept_when_stripping_disabled() {
+    let mut reader = Reader::new(Cursor::new(b"\xef\xbb\xbfa,b\n".as_slice())).set_strip_bom(false);
+    let row = reader.rows().next().unwrap();
+    assert_eq!(row.get(0).unwrap().unwrap().as_bytes(), b"\xef\xbb\xbfa");
+    assert_eq!(row.get(1).unwrap().unwrap(), "b");
+}
+
+#[test]
+fn test_bom_in_the_middle_is_data() {
+    let rows = collect_rows(b"a,b\n\xef\xbb\xbfc,d\n");
+    assert_eq!(rows[1][0].as_bytes(), b"\xef\xbb\xbfc");
 }
 
 #[test]
@@ -701,10 +715,11 @@ fn test_writer_basic() {
 
 #[test]
 fn test_writer_empty_fields() {
+    // Empty fields are written unquoted (as nothing), matching mainstream writers.
     let mut w = Writer::new(Vec::new());
     w.write_row(["", "b", ""]).unwrap();
     let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-    assert_eq!(result, "\"\",b,\"\"\r\n");
+    assert_eq!(result, ",b,\r\n");
 }
 
 #[test]
@@ -1279,7 +1294,7 @@ mod serde_tests {
         };
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "Alice,\"\"\r\n");
+        assert_eq!(result, "Alice,\r\n");
     }
 
     #[test]
@@ -1830,7 +1845,7 @@ mod serde_edge_tests {
         };
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "Alice,\"\"\r\n");
+        assert_eq!(result, "Alice,\r\n");
     }
 
     #[derive(Debug, Deserialize, PartialEq)]
@@ -1859,7 +1874,7 @@ mod serde_edge_tests {
         let rec = Empty {};
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "\"\",\"\"\r\n");
+        assert_eq!(result, ",\r\n");
     }
 
     #[test]
@@ -1867,7 +1882,7 @@ mod serde_edge_tests {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["val".into()]);
         w.serialize(&()).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "\"\"\r\n");
+        assert_eq!(result, "\r\n");
     }
 
     #[test]
@@ -1984,7 +1999,7 @@ mod serde_edge_tests {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "age".into()]);
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "Alice,\"\"\r\n");
+        assert_eq!(result, "Alice,\r\n");
     }
 
     #[test]
@@ -2053,7 +2068,7 @@ mod serde_edge_tests {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into(), "c".into(), "d".into()]);
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "x,\"\",z,\"\"\r\n");
+        assert_eq!(result, "x,,z,\r\n");
     }
 
     #[derive(Debug, Deserialize, PartialEq)]
@@ -2089,7 +2104,7 @@ mod serde_edge_tests {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "age".into()]);
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "Alice,\"\"\r\n");
+        assert_eq!(result, "Alice,\r\n");
     }
 }
 
@@ -2703,7 +2718,7 @@ mod serde_edge_tests2 {
         };
         w.serialize(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
-        assert_eq!(result, "Alice,\"\"\r\n");
+        assert_eq!(result, "Alice,\r\n");
     }
 
     #[test]

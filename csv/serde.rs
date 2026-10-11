@@ -29,11 +29,17 @@ impl Row {
     /// [`set_headers`](crate::Reader::set_headers) before calling this method.
     /// Struct fields are matched by column name.
     ///
+    /// A struct field with no matching column deserializes from an empty
+    /// string. A field whose column exists but is absent from this row (short
+    /// or ragged row), or whose bytes are not valid UTF-8, is reported as an
+    /// error rather than being silently turned into an empty string.
+    ///
     /// # Errors
     ///
     /// Returns [`ReadError`] with kind [`Deserialize`](crate::ReadErrorKind::Deserialize)
-    /// if headers have not been set, or if deserialization fails (type mismatch,
-    /// unknown field, etc.).
+    /// if headers have not been set, if the headers contain duplicate names
+    /// (which makes name-based lookup ambiguous), or if deserialization fails
+    /// (type mismatch, unknown field, missing column data, invalid UTF-8, etc.).
     ///
     /// # Example
     ///
@@ -64,6 +70,13 @@ impl Row {
             .header_map
             .as_ref()
             .ok_or_else(|| ReadError::new(ReadErrorKind::Deserialize("headers not set".into()), 0, 0))?;
+        if self.duplicate_headers {
+            return Err(ReadError::new(
+                ReadErrorKind::Deserialize("headers contain duplicate names".into()),
+                self.inner.line,
+                0,
+            ));
+        }
         let mut deser = HeaderRow {
             buf: &self.inner.buf,
             ranges: &self.inner.ranges,
@@ -71,7 +84,7 @@ impl Row {
             struct_fields: &[],
             index: 0,
         };
-        T::deserialize(&mut deser).map_err(|e| ReadError::new(ReadErrorKind::Deserialize(e.msg), 0, 0))
+        T::deserialize(&mut deser).map_err(|e| ReadError::new(ReadErrorKind::Deserialize(e.msg), self.inner.line, 0))
     }
 }
 
@@ -88,7 +101,7 @@ impl<'de> HeaderRow<'de> {
         let range = self
             .ranges
             .get(idx)
-            .ok_or_else(|| CsvError::custom("field index out of bounds"))?;
+            .ok_or_else(|| CsvError::custom("row has fewer fields than the headers require"))?;
         core::str::from_utf8(&self.buf[range.start..range.end]).map_err(|_| CsvError::custom("invalid UTF-8 in field"))
     }
 }
@@ -137,7 +150,9 @@ impl<'de> SeqAccess<'de> for HeaderRow<'de> {
         let field_name = self.struct_fields[self.index];
         self.index += 1;
         let val = match self.header_map.get(field_name) {
-            Some(&idx) => self.field(idx).unwrap_or(""),
+            // The column exists but this row does not provide it, or the bytes
+            // are not valid UTF-8: surface that instead of silently using "".
+            Some(&idx) => self.field(idx)?,
             None => "",
         };
         seed.deserialize(FieldDeserializer(val)).map(Some)
@@ -374,9 +389,11 @@ impl<W: Write> Writer<W> {
     /// a serde serialization error occurs (e.g. an unknown field name, or an
     /// unsupported type like a map or enum).
     ///
-    /// Returns [`WriteError::InconsistentFieldCount`] if the number of fields
-    /// serialized differs from the expected count (unless flexible mode is
-    /// enabled).
+    /// Returns [`WriteError::InconsistentFieldCount`] if the stored header
+    /// count differs from a field count established by an earlier
+    /// [`write_row`](Self::write_row) or [`write_headers`](Self::write_headers)
+    /// call (unless flexible mode is enabled). Struct fields that have no
+    /// matching header are written as empty columns rather than erroring.
     ///
     /// Returns [`WriteError::Io`] if the underlying writer fails on flush.
     ///
@@ -405,13 +422,22 @@ impl<W: Write> Writer<W> {
         if self.headers.is_none() {
             return Err(WriteError::Serialize("headers not set".into()));
         }
+        self.write_pending_bom();
         let headers = self.headers.as_ref().unwrap();
         let header_count = headers.len();
         let delimiter = self.delimiter;
 
-        self.ser_values.clear();
-        self.ser_values.resize_with(header_count, || None);
-        self.ser_capture_buf.clear();
+        if self.ser_values.len() > header_count {
+            self.ser_values.truncate(header_count);
+        }
+        while self.ser_values.len() < header_count {
+            self.ser_values.push(None);
+        }
+        // Reuse the per-column buffers across rows instead of dropping them, so
+        // serializing a record does not allocate once per field.
+        for bytes in self.ser_values.iter_mut().flatten() {
+            bytes.clear();
+        }
         let mut field_count = 0;
 
         {
@@ -419,7 +445,6 @@ impl<W: Write> Writer<W> {
                 headers,
                 values: &mut self.ser_values,
                 field_count: &mut field_count,
-                capture_buf: &mut self.ser_capture_buf,
             };
             record.serialize(&mut ser).map_err(|e| WriteError::Serialize(e.msg))?;
         }
@@ -463,7 +488,6 @@ struct StructSer<'a, 'b> {
     headers: &'a [String],
     values: &'b mut Vec<Option<Vec<u8>>>,
     field_count: &'b mut usize,
-    capture_buf: &'b mut Vec<u8>,
 }
 
 impl<'a, 'b> serde::Serializer for &'b mut StructSer<'a, 'b> {
@@ -483,7 +507,6 @@ impl<'a, 'b> serde::Serializer for &'b mut StructSer<'a, 'b> {
             headers: self.headers,
             values: self.values,
             field_count: self.field_count,
-            capture_buf: self.capture_buf,
         })
     }
 
@@ -492,7 +515,6 @@ impl<'a, 'b> serde::Serializer for &'b mut StructSer<'a, 'b> {
             values: self.values,
             field_count: self.field_count,
             idx: 0,
-            capture_buf: self.capture_buf,
         })
     }
 
@@ -642,8 +664,9 @@ impl<'a, 'b> serde::Serializer for &'b mut StructSer<'a, 'b> {
 
 impl StructSer<'_, '_> {
     fn write_field_bytes(&mut self, bytes: &[u8]) {
-        if let Some(slot) = self.values.first_mut() {
-            *slot = Some(bytes.to_vec());
+        if let Some(slot) = self.values.first_mut().map(|s| s.get_or_insert_with(Vec::new)) {
+            slot.clear();
+            slot.extend_from_slice(bytes);
         }
         *self.field_count = 1;
     }
@@ -654,7 +677,6 @@ struct StructCollector<'a, 'b> {
     headers: &'a [String],
     values: &'b mut Vec<Option<Vec<u8>>>,
     field_count: &'b mut usize,
-    capture_buf: &'b mut Vec<u8>,
 }
 
 impl ser::SerializeStruct for StructCollector<'_, '_> {
@@ -668,14 +690,14 @@ impl ser::SerializeStruct for StructCollector<'_, '_> {
             .position(|h| h == key)
             .ok_or_else(|| CsvError::custom(alloc::format!("unknown field '{key}'")))?;
 
-        self.capture_buf.clear();
+        self.values[pos].get_or_insert_with(Vec::new).clear();
         {
+            let slot = self.values[pos].as_mut().unwrap();
             let mut capture = FieldCapture {
-                buf: self.capture_buf,
+                buf: slot,
             };
             value.serialize(&mut capture)?;
         }
-        self.values[pos] = Some(core::mem::take(self.capture_buf));
         *self.field_count += 1;
         Ok(())
     }
@@ -690,7 +712,6 @@ struct SeqWriter<'b> {
     values: &'b mut Vec<Option<Vec<u8>>>,
     field_count: &'b mut usize,
     idx: usize,
-    capture_buf: &'b mut Vec<u8>,
 }
 
 impl ser::SerializeSeq for SeqWriter<'_> {
@@ -701,14 +722,14 @@ impl ser::SerializeSeq for SeqWriter<'_> {
         if self.idx >= self.values.len() {
             return Err(CsvError::custom("sequence longer than header count"));
         }
-        self.capture_buf.clear();
+        self.values[self.idx].get_or_insert_with(Vec::new).clear();
         {
+            let slot = self.values[self.idx].as_mut().unwrap();
             let mut capture = FieldCapture {
-                buf: self.capture_buf,
+                buf: slot,
             };
             value.serialize(&mut capture)?;
         }
-        self.values[self.idx] = Some(core::mem::take(self.capture_buf));
         self.idx += 1;
         *self.field_count += 1;
         Ok(())
