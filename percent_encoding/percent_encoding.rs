@@ -334,10 +334,7 @@ impl<'a> PercentDecode<'a> {
     }
 }
 
-// std::ptr::addr_eq was stabilized in rust 1.76. Once we upgrade
-// the MSRV we can remove this lint override.
 #[cfg(feature = "alloc")]
-#[allow(ambiguous_wide_pointer_comparisons)]
 fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
     // Note: This function is duplicated in `form_urlencoded/src/query_encoding.rs`.
     match input {
@@ -353,7 +350,7 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
 
                     // First we do a debug_assert to confirm our description above.
                     let raw_utf8: *const [u8] = utf8.as_bytes();
-                    debug_assert!(core::ptr::eq(raw_utf8, &*bytes));
+                    debug_assert!(core::ptr::addr_eq(raw_utf8, &*bytes));
 
                     // Given we know the original input bytes are valid UTF-8,
                     // and we have ownership of those bytes, we re-use them and

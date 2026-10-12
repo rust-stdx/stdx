@@ -12,6 +12,7 @@ getopts-like option parsing.
 """
 categories = ["command-line-interface"]
 edition = "2024"
+rust-version.workspace = true
 
 [dependencies]
 unicode-width = { workspace = true }

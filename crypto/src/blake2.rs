@@ -48,8 +48,8 @@ pub struct Blake2b {
 #[inline(always)]
 fn load_block(block: &[u8; 128]) -> [u64; 16] {
     let mut m = [0u64; 16];
-    for (word, chunk) in m.iter_mut().zip(block.chunks_exact(8)) {
-        *word = u64::from_le_bytes(chunk.try_into().unwrap());
+    for (word, chunk) in m.iter_mut().zip(block.as_chunks::<8>().0) {
+        *word = u64::from_le_bytes(*chunk);
     }
     m
 }

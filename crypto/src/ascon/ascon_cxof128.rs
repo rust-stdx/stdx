@@ -61,12 +61,11 @@ impl AsconCxof128 {
 
         // Absorb Z itself
         if !z.is_empty() {
-            let mut chunks = z.chunks_exact(8);
-            for chunk in &mut chunks {
+            let (chunks, remainder) = z.as_chunks::<8>();
+            for chunk in chunks {
                 state.absorb_block(chunk);
                 p12(&mut state);
             }
-            let remainder = chunks.remainder();
             if !remainder.is_empty() {
                 let mut padded = [0u8; 8];
                 padded[..remainder.len()].copy_from_slice(remainder);
@@ -116,13 +115,12 @@ impl Xof for AsconCxof128 {
             }
         }
 
-        let mut chunks = data.chunks_exact(8);
-        for chunk in &mut chunks {
+        let (chunks, remainder) = data.as_chunks::<8>();
+        for chunk in chunks {
             self.state.absorb_block(chunk);
             p12(&mut self.state);
         }
 
-        let remainder = chunks.remainder();
         if !remainder.is_empty() {
             self.buf[..remainder.len()].copy_from_slice(remainder);
             self.buf_len = remainder.len();

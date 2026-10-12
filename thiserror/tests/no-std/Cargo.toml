@@ -3,6 +3,7 @@ name = "thiserror_no_std_test"
 version = "0.0.0"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 edition = "2024"
+rust-version.workspace = true
 publish = false
 
 [lib]

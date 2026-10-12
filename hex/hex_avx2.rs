@@ -78,7 +78,7 @@ pub unsafe fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) ->
 /// CPU without AVX2 support will cause an illegal instruction fault.
 #[target_feature(enable = "avx2")]
 pub unsafe fn decode_into(output: &mut [u8], input: &[u8]) -> Result<(), DecodeError> {
-    debug_assert!(input.len() % 2 == 0);
+    debug_assert!(input.len().is_multiple_of(2));
     debug_assert!(output.len() == input.len() / 2);
 
     let zero = _mm256_setzero_si256();

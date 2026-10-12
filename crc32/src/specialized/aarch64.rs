@@ -60,8 +60,8 @@ pub unsafe fn calculate(crc: u32, data: &[u8]) -> u32 {
     c32 = pre_quad.iter().fold(c32, |acc, &b| arch::__crc32b(acc, b));
 
     // unrolling increases performance by a lot
-    let mut quad_iter = quads.chunks_exact(8);
-    for chunk in &mut quad_iter {
+    let (quads, rem_quads) = quads.as_chunks::<8>();
+    for chunk in quads {
         c32 = arch::__crc32d(c32, chunk[0]);
         c32 = arch::__crc32d(c32, chunk[1]);
         c32 = arch::__crc32d(c32, chunk[2]);
@@ -71,7 +71,7 @@ pub unsafe fn calculate(crc: u32, data: &[u8]) -> u32 {
         c32 = arch::__crc32d(c32, chunk[6]);
         c32 = arch::__crc32d(c32, chunk[7]);
     }
-    c32 = quad_iter.remainder().iter().fold(c32, |acc, &q| arch::__crc32d(acc, q));
+    c32 = rem_quads.iter().fold(c32, |acc, &q| arch::__crc32d(acc, q));
 
     c32 = post_quad.iter().fold(c32, |acc, &b| arch::__crc32b(acc, b));
 

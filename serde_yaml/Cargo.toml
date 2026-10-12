@@ -6,9 +6,9 @@ categories = ["encoding", "parser-implementations"]
 description = "YAML data format for Serde"
 documentation = "https://docs.rs/serde_yaml/"
 edition = "2024"
+rust-version.workspace = true
 keywords = ["yaml", "serde", "serialization"]
 license = "Apache-2.0"
-rust-version = "1.85"
 
 [dependencies]
 indexmap = { workspace = true }

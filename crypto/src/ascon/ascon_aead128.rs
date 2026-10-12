@@ -72,12 +72,11 @@ impl AsconAead128 {
         if aad.is_empty() {
             return;
         }
-        let mut chunks = aad.chunks_exact(16);
-        for chunk in &mut chunks {
-            state.xor_rate128_bytes(chunk.try_into().unwrap());
+        let (chunks, remainder) = aad.as_chunks::<16>();
+        for chunk in chunks {
+            state.xor_rate128_bytes(chunk);
             p8(state);
         }
-        let remainder = chunks.remainder();
         if !remainder.is_empty() {
             state.xor_partial_rate(remainder);
         }
@@ -110,12 +109,11 @@ impl Aead for AsconAead128 {
 
         let rem_len = in_out.len() % 16;
 
-        let mut chunks = in_out.chunks_exact_mut(16);
-        for chunk in &mut chunks {
-            state.encrypt_in_place_block(chunk.try_into().unwrap());
+        let (chunks, remainder) = in_out.as_chunks_mut::<16>();
+        for chunk in chunks {
+            state.encrypt_in_place_block(chunk);
             p8(&mut state);
         }
-        let remainder = chunks.into_remainder();
 
         if rem_len > 0 {
             state.xor_partial_rate(remainder);
@@ -145,12 +143,11 @@ impl Aead for AsconAead128 {
 
         let rem_len = in_out.len() % 16;
 
-        let mut chunks = in_out.chunks_exact_mut(16);
-        for chunk in &mut chunks {
-            state.decrypt_in_place_block(chunk.try_into().unwrap());
+        let (chunks, remainder) = in_out.as_chunks_mut::<16>();
+        for chunk in chunks {
+            state.decrypt_in_place_block(chunk);
             p8(&mut state);
         }
-        let remainder = chunks.into_remainder();
 
         if rem_len > 0 {
             let mut ct = [0u8; 16];

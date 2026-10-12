@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "JSON-RPC 2.0 types and serialization"
 license = "MIT"
 edition = "2024"
+rust-version.workspace = true
 readme = "README.md"
 
 [lib]

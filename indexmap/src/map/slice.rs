@@ -349,8 +349,7 @@ impl<K, V> Slice<K, V> {
         &mut self,
         indices: [usize; N],
     ) -> Result<[(&K, &mut V); N], GetDisjointMutError> {
-        // TODO(MSRV 1.86): use the standard library's `slice::get_disjoint_mut`
-        let entries = super::disjoint::get_disjoint_mut(&mut self.entries, indices)?;
+        let entries = self.entries.get_disjoint_mut(indices)?;
         Ok(entries.map(Bucket::ref_mut))
     }
 }

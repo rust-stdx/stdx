@@ -2,6 +2,7 @@
 name = "crypto_rustls"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "A rustls CryptoProvider backed by the stdx `crypto` crate"
 
 [lib]

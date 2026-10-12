@@ -5,7 +5,7 @@ description = "Media types (formerly known as MIME types): parsing, constants, a
 keywords = ["mime", "media-type", "filesystem", "extension"]
 license = "MIT"
 edition = "2024"
-rust-version = "1.85"
+rust-version.workspace = true
 
 [lib]
 path = "./media_type.rs"

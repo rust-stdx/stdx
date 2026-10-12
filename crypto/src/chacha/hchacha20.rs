@@ -17,8 +17,8 @@ pub fn hchacha20(key: &[u8; 32], input: &[u8; 16]) -> [u8; 32] {
 
     state[..4].copy_from_slice(&CONSTANT);
 
-    for (state_word, key_chunk) in state[4..12].iter_mut().zip(key.chunks_exact(4)) {
-        *state_word = u32::from_le_bytes(key_chunk.try_into().unwrap());
+    for (state_word, key_chunk) in state[4..12].iter_mut().zip(key.as_chunks::<4>().0) {
+        *state_word = u32::from_le_bytes(*key_chunk);
     }
 
     state[12] = u32::from_le_bytes(input[0..4].try_into().unwrap());

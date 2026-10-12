@@ -3,6 +3,7 @@ name = "bel"
 description = "A parser and interpreter for the Better Expression Language (BEL)"
 version = "0.11.0"
 edition = "2024"
+rust-version.workspace = true
 license = "MIT"
 categories = ["compilers", "language"]
 

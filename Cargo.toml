@@ -78,6 +78,9 @@ members = [
     "zeroize/zeroize_derive",
 ]
 
+[workspace.package]
+rust-version = "1.99"
+
 # The following packages may stack overflow in WASM debug builds so we need to force them to compile to
 # release builds even in test mode.
 [profile.test.package.crypto]

@@ -48,7 +48,7 @@ pub fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) -> Result
 }
 
 pub fn decode_into(output: &mut [u8], input: &[u8]) -> Result<(), DecodeError> {
-    debug_assert!(input.len() % 2 == 0);
+    debug_assert!(input.len().is_multiple_of(2));
     debug_assert!(output.len() >= input.len() / 2);
 
     let ge_0 = i8x16_splat(47);

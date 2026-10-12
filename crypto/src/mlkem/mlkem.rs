@@ -420,7 +420,7 @@ pub(crate) fn polyvec_compress<const K: usize>(params: &MlKemParams<K>, out: &mu
         960 => {
             let mut offset = 0usize;
             for poly in &a.vec {
-                for chunk in poly.coeffs.chunks_exact(4) {
+                for chunk in poly.coeffs.as_chunks::<4>().0 {
                     let mut t = [0u16; 4];
                     for (dst, coeff) in t.iter_mut().zip(chunk.iter()) {
                         let mut u = *coeff as i32;
@@ -444,7 +444,7 @@ pub(crate) fn polyvec_compress<const K: usize>(params: &MlKemParams<K>, out: &mu
         1408 => {
             let mut offset = 0usize;
             for poly in &a.vec {
-                for chunk in poly.coeffs.chunks_exact(8) {
+                for chunk in poly.coeffs.as_chunks::<8>().0 {
                     let mut t = [0u16; 8];
                     for (dst, coeff) in t.iter_mut().zip(chunk.iter()) {
                         let mut u = *coeff as i32;
@@ -606,7 +606,7 @@ fn poly_compress<const K: usize>(params: &MlKemParams<K>, out: &mut [u8], poly: 
     match params.polycompressedbytes {
         128 => {
             let mut offset = 0usize;
-            for chunk in poly.coeffs.chunks_exact(8) {
+            for chunk in poly.coeffs.as_chunks::<8>().0 {
                 let mut t = [0u8; 8];
                 for (dst, coeff) in t.iter_mut().zip(chunk.iter()) {
                     let mut u = *coeff as i32;
@@ -626,7 +626,7 @@ fn poly_compress<const K: usize>(params: &MlKemParams<K>, out: &mut [u8], poly: 
         }
         160 => {
             let mut offset = 0usize;
-            for chunk in poly.coeffs.chunks_exact(8) {
+            for chunk in poly.coeffs.as_chunks::<8>().0 {
                 let mut t = [0u8; 8];
                 for (dst, coeff) in t.iter_mut().zip(chunk.iter()) {
                     let mut u = *coeff as i32;

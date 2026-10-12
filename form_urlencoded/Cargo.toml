@@ -6,7 +6,7 @@ description = "Parser and serializer for the application/x-www-form-urlencoded s
 categories = ["no-std"]
 license = "Apache-2.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version.workspace = true
 
 [lib]
 path = "./form_urlencoded.rs"

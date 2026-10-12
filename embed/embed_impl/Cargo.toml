@@ -9,6 +9,7 @@ keywords = ["http", "rocket", "static", "web", "server"]
 categories = ["web-programming::http-server"]
 authors = ["pyros2097 <pyros2097@gmail.com>"]
 edition = "2024"
+rust-version.workspace = true
 
 [lib]
 path = "./embed_impl.rs"

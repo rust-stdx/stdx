@@ -297,14 +297,19 @@ pub(crate) trait Curve: Copy + Clone + core::fmt::Debug + PartialEq + Eq {
 
 /// Raises a field element to `exponent` using the curve's modular
 /// multiplication.
+///
+/// The exponent is assumed to be **public** (callers pass curve constants such
+/// as `p - 2`), so the per-bit multiply is branched on rather than selected:
+/// this halves the number of multiplications versus a constant-time ladder.
 pub(crate) fn field_pow<C: Curve>(base: C::U, exponent: &C::U) -> C::U {
     let mut result = C::U::ONE;
     let mut i = C::FIELD_BITS;
     while i > 0 {
         i -= 1;
         result = C::field_mul(&result, &result);
-        let product = C::field_mul(&result, &base);
-        result = C::U::ct_select(&product, &result, exponent.bit(i));
+        if exponent.bit(i) {
+            result = C::field_mul(&result, &base);
+        }
     }
     result
 }
@@ -545,6 +550,8 @@ impl<C: Curve> Scalar<C> {
         Some(Self(self.scalar_pow(&C::N_MINUS_TWO)))
     }
 
+    /// Raises a scalar to `exponent`. The exponent must be public (only curve
+    /// constants such as `n - 2` are used); the per-bit multiply is branched.
     #[inline]
     pub(crate) fn scalar_pow(self, exponent: &C::U) -> C::U {
         let mut result = C::U::ONE;
@@ -552,8 +559,9 @@ impl<C: Curve> Scalar<C> {
         while i > 0 {
             i -= 1;
             result = C::scalar_mul(&result, &result);
-            let product = C::scalar_mul(&result, &self.0);
-            result = C::U::ct_select(&product, &result, exponent.bit(i));
+            if exponent.bit(i) {
+                result = C::scalar_mul(&result, &self.0);
+            }
         }
         result
     }

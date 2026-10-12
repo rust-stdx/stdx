@@ -62,7 +62,7 @@
 //!
 //! ### Rust Version
 //!
-//! This version of indexmap requires Rust 1.85 or later.
+//! This version of indexmap requires Rust 1.99 or later.
 //!
 //! The indexmap 2.x release series will use a carefully considered version
 //! upgrade policy, where in a later 2.x version, we will raise the minimum
@@ -228,30 +228,13 @@ impl core::fmt::Display for TryReserveError {
 
 impl core::error::Error for TryReserveError {}
 
-// NOTE: This is copied from the slice module in the std lib.
-/// The error type returned by [`get_disjoint_indices_mut`][`IndexMap::get_disjoint_indices_mut`].
+/// The error type returned by [`IndexMap::get_disjoint_indices_mut`].
+///
+/// This is the standard library's [`core::slice::GetDisjointMutError`], re-exported so that
+/// `indexmap` exposes the same error type as [`slice::get_disjoint_mut`](slice::get_disjoint_mut).
 ///
 /// It indicates one of two possible errors:
 /// - An index is out-of-bounds.
 /// - The same index appeared multiple times in the array.
 //    (or different but overlapping indices when ranges are provided)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GetDisjointMutError {
-    /// An index provided was out-of-bounds for the slice.
-    IndexOutOfBounds,
-    /// Two indices provided were overlapping.
-    OverlappingIndices,
-}
-
-impl core::fmt::Display for GetDisjointMutError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let msg = match self {
-            GetDisjointMutError::IndexOutOfBounds => "an index is out of bounds",
-            GetDisjointMutError::OverlappingIndices => "there were overlapping indices",
-        };
-
-        core::fmt::Display::fmt(msg, f)
-    }
-}
-
-impl core::error::Error for GetDisjointMutError {}
+pub use core::slice::GetDisjointMutError;

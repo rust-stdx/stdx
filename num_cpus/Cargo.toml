@@ -3,6 +3,7 @@
 name = "num_cpus"
 version = "1.16.0"
 edition = "2024"
+rust-version.workspace = true
 description = "Get the number of CPUs on a machine."
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 license = "Apache-2.0"

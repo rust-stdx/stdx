@@ -2,6 +2,7 @@
 name = "dotenv_derive"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 
 [lib]
 path = "./dotenv_derive.rs"

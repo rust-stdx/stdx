@@ -5,9 +5,9 @@ authors = ["David Tolnay <dtolnay@gmail.com>"]
 categories = ["rust-patterns", "no-std"]
 description = "derive(Error)"
 edition = "2024"
+rust-version.workspace = true
 keywords = ["error", "error-handling", "derive"]
 license = "MIT"
-rust-version = "1.85"
 
 [features]
 default = ["std"]

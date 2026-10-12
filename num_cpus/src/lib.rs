@@ -30,16 +30,10 @@
 #![deny(missing_docs)]
 #![allow(non_snake_case)]
 
-#[cfg(not(windows))]
-extern crate libc;
-
-#[cfg(target_os = "hermit")]
-extern crate hermit_abi;
-
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
-use linux::{get_num_cpus, get_num_physical_cpus};
+use linux::get_num_physical_cpus;
 
 /// Returns the number of available CPUs of the current system.
 ///
@@ -61,17 +55,25 @@ use linux::{get_num_cpus, get_num_physical_cpus};
 ///
 /// # Note
 ///
-/// This will check [sched affinity] on Linux, showing a lower number of CPUs if the current
-/// thread does not have access to all the computer's CPUs.
-///
-/// This will also check [cgroups], frequently used in containers to constrain CPU usage.
+/// This delegates to [`std::thread::available_parallelism`]. On Linux and other supported
+/// platforms that accounts for the current thread's CPU affinity mask as well as CPU quotas
+/// enforced by cgroups, so it may report fewer CPUs than are physically present.
 ///
 /// [smt]: https://en.wikipedia.org/wiki/Simultaneous_multithreading
-/// [sched affinity]: http://www.gnu.org/software/libc/manual/html_node/CPU-Affinity.html
-/// [cgroups]: https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt
 #[inline]
 pub fn get() -> usize {
     get_num_cpus()
+}
+
+/// Returns the number of logical CPUs available to the current thread.
+///
+/// This is the standard library's [`available_parallelism`], falling back to `1` when the
+/// platform does not report a value.
+///
+/// [`available_parallelism`]: std::thread::available_parallelism
+#[inline]
+fn get_num_cpus() -> usize {
+    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1)
 }
 
 /// Returns the number of physical cores of the current system.
@@ -202,88 +204,6 @@ fn get_num_physical_cpus_windows() -> Option<usize> {
     }
 }
 
-#[cfg(windows)]
-fn get_num_cpus() -> usize {
-    #[repr(C)]
-    struct SYSTEM_INFO {
-        wProcessorArchitecture: u16,
-        wReserved: u16,
-        dwPageSize: u32,
-        lpMinimumApplicationAddress: *mut u8,
-        lpMaximumApplicationAddress: *mut u8,
-        dwActiveProcessorMask: *mut u8,
-        dwNumberOfProcessors: u32,
-        dwProcessorType: u32,
-        dwAllocationGranularity: u32,
-        wProcessorLevel: u16,
-        wProcessorRevision: u16,
-    }
-
-    extern "system" {
-        fn GetSystemInfo(lpSystemInfo: *mut SYSTEM_INFO);
-    }
-
-    unsafe {
-        let mut sysinfo: SYSTEM_INFO = std::mem::zeroed();
-        GetSystemInfo(&mut sysinfo);
-        sysinfo.dwNumberOfProcessors as usize
-    }
-}
-
-#[cfg(any(target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd"))]
-fn get_num_cpus() -> usize {
-    use std::ptr;
-
-    let mut cpus: libc::c_uint = 0;
-    let mut cpus_size = std::mem::size_of_val(&cpus);
-
-    unsafe {
-        cpus = libc::sysconf(libc::_SC_NPROCESSORS_ONLN) as libc::c_uint;
-    }
-    if cpus < 1 {
-        let mut mib = [libc::CTL_HW, libc::HW_NCPU, 0, 0];
-        unsafe {
-            libc::sysctl(
-                mib.as_mut_ptr(),
-                2,
-                &mut cpus as *mut _ as *mut _,
-                &mut cpus_size as *mut _ as *mut _,
-                ptr::null_mut(),
-                0,
-            );
-        }
-        if cpus < 1 {
-            cpus = 1;
-        }
-    }
-    cpus as usize
-}
-
-#[cfg(target_os = "openbsd")]
-fn get_num_cpus() -> usize {
-    use std::ptr;
-
-    let mut cpus: libc::c_uint = 0;
-    let mut cpus_size = std::mem::size_of_val(&cpus);
-    let mut mib = [libc::CTL_HW, libc::HW_NCPUONLINE, 0, 0];
-    let rc: libc::c_int;
-
-    unsafe {
-        rc = libc::sysctl(
-            mib.as_mut_ptr(),
-            2,
-            &mut cpus as *mut _ as *mut _,
-            &mut cpus_size as *mut _ as *mut _,
-            ptr::null_mut(),
-            0,
-        );
-    }
-    if rc < 0 {
-        cpus = 1;
-    }
-    cpus as usize
-}
-
 #[cfg(target_os = "openbsd")]
 fn get_num_physical_cpus() -> usize {
     use std::ptr;
@@ -347,100 +267,6 @@ fn get_smt_threads_aix() -> Option<usize> {
         return None;
     }
     Some(smt as usize)
-}
-
-#[cfg(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android",
-    target_os = "aix",
-    target_os = "solaris",
-    target_os = "illumos",
-    target_os = "fuchsia"
-))]
-fn get_num_cpus() -> usize {
-    // On ARM targets, processors could be turned off to save power.
-    // Use `_SC_NPROCESSORS_CONF` to get the real number.
-    #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-    const CONF_NAME: libc::c_int = libc::_SC_NPROCESSORS_CONF;
-    #[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
-    const CONF_NAME: libc::c_int = libc::_SC_NPROCESSORS_ONLN;
-
-    let cpus = unsafe { libc::sysconf(CONF_NAME) };
-    if cpus < 1 { 1 } else { cpus as usize }
-}
-
-#[cfg(target_os = "haiku")]
-fn get_num_cpus() -> usize {
-    use std::mem;
-
-    #[allow(non_camel_case_types)]
-    type bigtime_t = i64;
-    #[allow(non_camel_case_types)]
-    type status_t = i32;
-
-    #[repr(C)]
-    pub struct system_info {
-        pub boot_time: bigtime_t,
-        pub cpu_count: u32,
-        pub max_pages: u64,
-        pub used_pages: u64,
-        pub cached_pages: u64,
-        pub block_cache_pages: u64,
-        pub ignored_pages: u64,
-        pub needed_memory: u64,
-        pub free_memory: u64,
-        pub max_swap_pages: u64,
-        pub free_swap_pages: u64,
-        pub page_faults: u32,
-        pub max_sems: u32,
-        pub used_sems: u32,
-        pub max_ports: u32,
-        pub used_ports: u32,
-        pub max_threads: u32,
-        pub used_threads: u32,
-        pub max_teams: u32,
-        pub used_teams: u32,
-        pub kernel_name: [::std::os::raw::c_char; 256usize],
-        pub kernel_build_date: [::std::os::raw::c_char; 32usize],
-        pub kernel_build_time: [::std::os::raw::c_char; 32usize],
-        pub kernel_version: i64,
-        pub abi: u32,
-    }
-
-    extern "C" {
-        fn get_system_info(info: *mut system_info) -> status_t;
-    }
-
-    let mut info: system_info = unsafe { mem::zeroed() };
-    let status = unsafe { get_system_info(&mut info as *mut _) };
-    if status == 0 { info.cpu_count as usize } else { 1 }
-}
-
-#[cfg(target_os = "hermit")]
-fn get_num_cpus() -> usize {
-    unsafe { hermit_abi::get_processor_count() }
-}
-
-#[cfg(not(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android",
-    target_os = "aix",
-    target_os = "solaris",
-    target_os = "illumos",
-    target_os = "fuchsia",
-    target_os = "linux",
-    target_os = "openbsd",
-    target_os = "freebsd",
-    target_os = "dragonfly",
-    target_os = "netbsd",
-    target_os = "haiku",
-    target_os = "hermit",
-    windows,
-)))]
-fn get_num_cpus() -> usize {
-    1
 }
 
 #[cfg(test)]

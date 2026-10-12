@@ -5,7 +5,7 @@ description = "Date and time handling with an embedded IANA time zone database."
 keywords = ["date", "time", "timezone", "tzdb", "no_std"]
 license = "MIT"
 edition = "2024"
-rust-version = "1.85"
+rust-version.workspace = true
 
 [lib]
 path = "./time.rs"

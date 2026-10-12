@@ -48,12 +48,10 @@ pub(crate) fn compute_tag(h: &[u8; 16], aad: &[u8], ciphertext: &[u8], ej0: &[u8
 /// Feed an arbitrarily-sized byte slice into GHASH, zero-padding the last
 /// block if necessary.
 fn ghash_update(state: &mut [u8; 16], h: &[u8; 16], data: &[u8]) {
-    let mut chunks = data.chunks_exact(16);
-    for chunk in chunks.by_ref() {
-        let block: [u8; 16] = chunk.try_into().unwrap();
-        ghash_block(state, h, &block);
+    let (chunks, rem) = data.as_chunks::<16>();
+    for block in chunks {
+        ghash_block(state, h, block);
     }
-    let rem = chunks.remainder();
     if !rem.is_empty() {
         let mut padded = [0u8; 16];
         padded[..rem.len()].copy_from_slice(rem);

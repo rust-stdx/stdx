@@ -152,9 +152,9 @@ fn compress_blocks(state: &mut [u32; 8], data: &[u8], has_sha_ext: bool) {
     }
 
     // for i in 0..n {
-    for block in data.chunks_exact(64) {
+    for block in data.as_chunks::<64>().0 {
         // let block = unsafe { &*data.as_ptr().add(i * 64).cast::<[u8; 64]>() };
-        compress_block_software(state, block.try_into().unwrap());
+        compress_block_software(state, block);
     }
 }
 

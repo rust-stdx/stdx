@@ -233,9 +233,9 @@ pub(crate) fn compress_blocks(state: &mut [u64; 8], data: &[u8], has_sha_ext: bo
     }
 
     // for i in 0..n {
-    for block in data.chunks_exact(128) {
+    for block in data.as_chunks::<128>().0 {
         // let block = unsafe { &*data.as_ptr().add(i * 128).cast::<[u8; 128]>() };
-        compress_block_software(state, block.try_into().unwrap());
+        compress_block_software(state, block);
     }
 }
 

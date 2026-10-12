@@ -2,6 +2,7 @@
 name = "postgresql"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "Async PostgreSQL client with a macro-only query API"
 
 [lib]

@@ -13,6 +13,13 @@ use crate::{Hasher, RsaError};
 const RSA_MIN_BITS: usize = 2048;
 /// Maximum RSA modulus size supported (8192 bits).
 const RSA_MAX_BITS: usize = 8192;
+/// Maximum accepted public exponent size (64 bits).
+///
+/// Real-world RSA exponents are `3` or `65537`. Verification cost grows with
+/// the number of exponent bits (one modular multiplication per bit), so an
+/// unbounded exponent taken from an untrusted key is a CPU denial-of-service
+/// vector. This matches OpenSSL's `OPENSSL_RSA_MAX_PUBEXP_BITS`.
+const RSA_MAX_PUBEXP_BITS: usize = 64;
 const RSA_MAX_LIMBS: usize = RSA_MAX_BITS / 64;
 const RSA_MAX_BYTES: usize = RSA_MAX_BITS / 8;
 
@@ -54,14 +61,17 @@ impl PublicKey {
     /// wrapper.
     ///
     /// The parameters are validated before the key is accepted: `n` must be
-    /// odd and between 2048 and 8192 bits, and `e` must be odd, at least 3,
-    /// and strictly smaller than `n`.
+    /// odd and between 2048 and 8192 bits, and `e` must be odd, at least 3, at
+    /// most 64 bits, and strictly smaller than `n`. The 64-bit exponent bound
+    /// keeps verification cost independent of attacker-controlled key
+    /// parameters (each extra exponent bit costs one modular multiplication).
     ///
     /// # Errors
     ///
     /// Returns [`RsaError::InvalidKey`] if `n` or `e` fail the checks above
-    /// (including empty or even `n`, `e < 3`, even `e`, or `e >= n`), and
-    /// [`RsaError::NotSupported`] if either value exceeds 8192 bits.
+    /// (including empty or even `n`, `e < 3`, even `e`, `e >= n`, or `e` wider
+    /// than 64 bits), and [`RsaError::NotSupported`] if the modulus exceeds
+    /// 8192 bits.
     #[inline]
     pub fn from_n_e(n_bytes: &[u8], e: &[u8]) -> Result<Self, RsaError> {
         let n = uint_from_variable_be(n_bytes)?;
@@ -69,7 +79,8 @@ impl PublicKey {
         if n.is_zero() || !n.is_odd() || n.bit_len() < RSA_MIN_BITS {
             return Err(RsaError::InvalidKey);
         }
-        if e_uint.bit_len() < 2 || !e_uint.is_odd() || e_uint.ct_ge(&n) {
+        if e_uint.bit_len() < 2 || e_uint.bit_len() > RSA_MAX_PUBEXP_BITS || !e_uint.is_odd() || e_uint.ct_ge(&n)
+        {
             return Err(RsaError::InvalidKey);
         }
         let e_len = {
@@ -80,7 +91,9 @@ impl PublicKey {
             e.len() - start
         };
         Ok(PublicKey {
-            n_len: n_bytes.len(),
+            // `k` for PKCS#1 is the octet length of the modulus, independent of
+            // any leading zero bytes in the caller-provided encoding.
+            n_len: n.bit_len().div_ceil(8),
             mu: n.compute_mu_for_barrett(),
             e: e_uint,
             e_len,
@@ -754,6 +767,21 @@ mod tests {
         let mut small = n[..128].to_vec();
         small[127] |= 1;
         assert!(PublicKey::from_n_e(&small, &e).is_err());
+
+        // Exponents wider than 64 bits are rejected; verification cost grows
+        // linearly with the exponent, so an attacker-chosen exponent must not
+        // be able to turn verification into a CPU denial of service.
+        let huge_e = vec![1u8, 0, 0, 0, 0, 0, 0, 0, 0]; // 2^64, 65 bits
+        assert!(PublicKey::from_n_e(&n, &huge_e).is_err());
+        // 2^64 - 1 (odd, exactly 64 bits) is the largest accepted exponent.
+        let max_e = hex::decode("ffffffffffffffff").unwrap();
+        assert!(PublicKey::from_n_e(&n, &max_e).is_ok());
+
+        // Leading zero bytes in `n` must not inflate the reported length.
+        let mut padded_n = vec![0u8];
+        padded_n.extend_from_slice(&n);
+        let padded_key = PublicKey::from_n_e(&padded_n, &e).unwrap();
+        assert_eq!(padded_key.modulus_len_bytes(), n.len());
 
         // The exponent must be strictly smaller than the modulus.
         assert!(PublicKey::from_n_e(&n, &n).is_err());

@@ -196,9 +196,10 @@ let header = date.format(Format::HttpDate).to_string();
 
 ```rust
 // Template rendering
-use template::Template;
-let tmpl = Template::parse("Hello, {{name}}!")?;
-let result = tmpl.render(&[("name", "World")])?;
+use template::{Engine, EscapeMode, context};
+let mut engine = Engine::new(EscapeMode::Html);
+engine.add_template("hello", "Hello, {{ name }}!")?;
+let result = engine.render("hello", context! { name: "World" })?; // "Hello, World!"
 
 // Substring search (memmem)
 use memmem::{Searcher, TwoWaySearcher};

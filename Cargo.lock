@@ -237,6 +237,7 @@ checksum = "4372b9543397a4b86050cc5e7ee36953edf4bac9518e8a774c2da694977fb6e4"
 name = "big_number"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "zeroize 1.9.1",
 ]
 
@@ -1317,8 +1318,9 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "mail_builder"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
+ "base64 0.1.0",
  "rand",
 ]
 
@@ -1336,7 +1338,6 @@ dependencies = [
  "memchr",
  "serde",
  "serde_json",
- "tracing",
 ]
 
 [[package]]
@@ -2121,8 +2122,6 @@ checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 name = "single_instance"
 version = "0.1.0"
 dependencies = [
- "libc",
- "nix",
  "thiserror 2.0.21",
 ]
 

@@ -8,6 +8,7 @@ description = "A cron expression parser and schedule explorer."
 keywords = [ "cron", "schedule", "repeat", "periodic", "time" ]
 license = "Apache-2.0"
 edition = "2024"
+rust-version.workspace = true
 
 [lib]
 name = "cron"

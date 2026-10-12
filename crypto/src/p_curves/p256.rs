@@ -200,6 +200,16 @@ const MODULUS_N: CurveUint = CurveUint::from_limbs([
     0xffff_ffff_0000_0000,
 ]);
 
+/// Barrett reciprocal `mu = floor(2^(2 * 4 * 64) / n)` for the group order,
+/// computed by `big_number`'s `compute_mu_for_barrett`.
+const N_MU: [u64; 5] = [
+    0x012ffd85eedf9bfe,
+    0x43190552df1a6c21,
+    0xfffffffeffffffff,
+    0x00000000ffffffff,
+    0x0000000000000001,
+];
+
 // floor(n / 2). A signature scalar `s` is "high" when `s > N_HALF`, in which
 // case it is normalized to `n - s` so that signatures are non-malleable.
 const N_HALF: CurveUint = CurveUint::from_limbs([
@@ -402,7 +412,7 @@ impl Curve for P256 {
 
     #[inline]
     fn scalar_mul(a: &Self::U, b: &Self::U) -> Self::U {
-        a.mul_mod(b, &MODULUS_N)
+        a.mul_mod_barrett(b, &MODULUS_N, &N_MU)
     }
 
     #[inline]

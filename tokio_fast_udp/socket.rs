@@ -19,9 +19,10 @@ mod unix_socket {
     #[cfg(all(unix, not(target_os = "linux")))]
     use unix_inner as plat;
 
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    use crate::ecn::Ecn;
     use crate::{
         capability::Capabilities,
-        ecn::Ecn,
         item::{ReceiveItem, SendItem},
     };
 
@@ -59,11 +60,10 @@ mod unix_socket {
             let caps = &self.caps;
             let limit = items.len().min(caps.max_batch);
             let items = &items[..limit];
-            let mut gso_einval = false;
-            let mut chunk_offset = 0usize;
+            let mut state = plat::SendState::default();
             self.fd
                 .async_io(Interest::WRITABLE, |inner| {
-                    plat::send_batch(inner.as_raw_fd(), items, caps, &mut gso_einval, &mut chunk_offset)
+                    plat::send_batch(inner.as_raw_fd(), items, caps, &mut state)
                 })
                 .await
         }
@@ -170,7 +170,9 @@ mod unix_socket {
 
     // -- shared nix helpers (used by the platform inner modules via super::) --
 
-    use nix::sys::socket::{ControlMessageOwned, SockaddrStorage};
+    #[cfg(target_os = "linux")]
+    use nix::sys::socket::ControlMessageOwned;
+    use nix::sys::socket::SockaddrStorage;
 
     fn nix_err(e: nix::errno::Errno) -> io::Error {
         e.into()
@@ -186,13 +188,12 @@ mod unix_socket {
             AddressFamily::Inet
         };
 
-        let fd = socket(
-            domain,
-            SockType::Datagram,
-            SockFlag::SOCK_NONBLOCK | SockFlag::SOCK_CLOEXEC,
-            None,
-        )
-        .map_err(nix_err)?;
+        // `SOCK_NONBLOCK` / `SOCK_CLOEXEC` are not accepted by `socket()` on
+        // every Unix (notably macOS), so create a plain socket and apply the
+        // flags portably via `fcntl`.
+        let fd = socket(domain, SockType::Datagram, SockFlag::empty(), None).map_err(nix_err)?;
+        set_cloexec(&fd)?;
+        set_nonblocking(&fd)?;
 
         setsockopt(&fd, ReusePort, &true).map_err(nix_err)?;
 
@@ -202,10 +203,36 @@ mod unix_socket {
         Ok(fd)
     }
 
+    /// Set `FD_CLOEXEC` on `fd` using the portable `fcntl` interface.
+    fn set_cloexec(fd: &OwnedFd) -> io::Result<()> {
+        let ret = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    /// Put `fd` into non-blocking mode using the portable `fcntl` interface.
+    fn set_nonblocking(fd: &OwnedFd) -> io::Result<()> {
+        let flags = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
+        if flags < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let ret = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     fn ecn_to_tos(ecn: Ecn) -> u8 {
         ecn.to_tos_bits()
     }
 
+    /// Decode ECN from the `Ipv4Tos` / `Ipv6TClass` ancillary messages that
+    /// nix decodes natively on Linux.
+    #[cfg(target_os = "linux")]
     fn parse_ecn(cmsgs: &[ControlMessageOwned]) -> Option<Ecn> {
         for cmsg in cmsgs {
             match cmsg {
@@ -227,6 +254,9 @@ mod unix_socket {
         SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0)
     }
 
+    // Fields for Linux-only offload features are still populated by the
+    // builder on every platform, but only the Linux path reads them.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) struct BuildConfig {
         pub disable_gso: bool,
         pub disable_gro: bool,
@@ -252,6 +282,15 @@ mod unix_socket {
             ecn::Ecn,
             item::{ReceiveItem, SendItem},
         };
+
+        /// Per-call state threaded through [`send_batch`] so it survives the
+        /// retries performed by `AsyncFd::async_io` (GSO `EINVAL` back-off and
+        /// manual-chunking progress).
+        #[derive(Default)]
+        pub struct SendState {
+            pub gso_einval: bool,
+            pub chunk_offset: usize,
+        }
 
         fn send_one(fd: std::os::fd::RawFd, item: &SendItem, ecn_enabled: bool, gso_enabled: bool) -> io::Result<()> {
             let iov = [std::io::IoSlice::new(item.data)];
@@ -417,22 +456,21 @@ mod unix_socket {
             fd: std::os::fd::RawFd,
             items: &[SendItem<'_>],
             caps: &Capabilities,
-            gso_einval: &mut bool,
-            chunk_offset: &mut usize,
+            state: &mut SendState,
         ) -> io::Result<usize> {
             if items.is_empty() {
                 return Ok(0);
             }
 
             // Single-item GSO fast path — only attempted once
-            if items.len() == 1 && items[0].segment_size.is_some() && caps.gso && !*gso_einval {
+            if items.len() == 1 && items[0].segment_size.is_some() && caps.gso && !state.gso_einval {
                 match send_one(fd, &items[0], caps.ecn, true) {
                     Ok(()) => {
-                        *chunk_offset = 0;
+                        state.chunk_offset = 0;
                         return Ok(1);
                     }
                     Err(e) if e.raw_os_error() == Some(libc::EINVAL) => {
-                        *gso_einval = true;
+                        state.gso_einval = true;
                         // Fall through — GSO rejected by this interface,
                         // manually chunk below
                     }
@@ -451,16 +489,16 @@ mod unix_socket {
                 if let Some(seg) = item.segment_size {
                     // Manual chunking — GSO unavailable or rejected
                     let seg = seg as usize;
-                    let data_slice = &item.data[*chunk_offset..];
+                    let data_slice = &item.data[state.chunk_offset..];
                     for chunk in data_slice.chunks(seg) {
                         let mut chunk_item = SendItem::new(item.destination, chunk);
                         if let Some(ecn) = item.ecn {
                             chunk_item = chunk_item.ecn(ecn);
                         }
                         match send_one(fd, &chunk_item, caps.ecn, false) {
-                            Ok(()) => *chunk_offset += chunk.len(),
+                            Ok(()) => state.chunk_offset += chunk.len(),
                             Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                if count == 0 && *chunk_offset == 0 {
+                                if count == 0 && state.chunk_offset == 0 {
                                     return Err(e);
                                 }
                                 return Ok(count);
@@ -468,7 +506,7 @@ mod unix_socket {
                             Err(e) => return Err(e),
                         }
                     }
-                    *chunk_offset = 0;
+                    state.chunk_offset = 0;
                     count += 1;
                 } else {
                     match send_one(fd, item, caps.ecn, false) {
@@ -667,37 +705,151 @@ mod unix_socket {
             os::fd::{AsRawFd, OwnedFd},
         };
 
-        use nix::sys::socket::{ControlMessage, MsgFlags, SockaddrStorage, recvmsg, sendmsg};
+        #[cfg(target_vendor = "apple")]
+        use nix::sys::socket::SockaddrLike;
+        use nix::sys::socket::{ControlMessageOwned, MsgFlags, SockaddrStorage, recvmsg, sendmsg};
 
-        use super::{BuildConfig, ecn_to_tos, nix_err, parse_ecn, storage_to_addr};
+        #[cfg(target_vendor = "apple")]
+        use super::ecn_to_tos;
+        use super::{BuildConfig, nix_err, storage_to_addr};
         use crate::{
             capability::Capabilities,
+            ecn::Ecn,
             item::{ReceiveItem, SendItem},
         };
 
+        /// The generic-Unix send path carries no per-call state; this exists
+        /// only to match the contract used by `send_many`.
+        #[derive(Default)]
+        pub struct SendState;
+
+        /// Control-message buffer, aligned for `cmsghdr`.
+        #[cfg(target_vendor = "apple")]
+        #[repr(align(8))]
+        struct CmsgBuf([u8; 32]);
+
         fn send_one(fd: std::os::fd::RawFd, item: &SendItem, ecn_enabled: bool) -> io::Result<()> {
+            // ECN on Apple targets has to be sent as hand-built ancillary data,
+            // because nix does not expose the relevant control messages there.
+            #[cfg(target_vendor = "apple")]
+            if ecn_enabled && item.ecn.is_some() {
+                return send_one_ecn(fd, item);
+            }
+            #[cfg(not(target_vendor = "apple"))]
+            let _ = ecn_enabled;
+
             let iov = [std::io::IoSlice::new(item.data)];
             let addr = SockaddrStorage::from(item.destination);
-
-            let has_ecn = ecn_enabled && item.ecn.is_some();
-            let is_v4 = item.destination.is_ipv4();
-
-            match (has_ecn, is_v4) {
-                (true, true) => {
-                    let tos = &ecn_to_tos(item.ecn.unwrap());
-                    sendmsg(fd, &iov, &[ControlMessage::Ipv4Tos(tos)], MsgFlags::empty(), Some(&addr))
-                }
-                (true, false) => {
-                    let tc = &(ecn_to_tos(item.ecn.unwrap()) as i32);
-                    sendmsg(fd, &iov, &[ControlMessage::Ipv6TClass(tc)], MsgFlags::empty(), Some(&addr))
-                }
-                (false, _) => sendmsg::<SockaddrStorage>(fd, &iov, &[], MsgFlags::empty(), Some(&addr)),
-            }
-            .map_err(nix_err)?;
+            sendmsg::<SockaddrStorage>(fd, &iov, &[], MsgFlags::empty(), Some(&addr)).map_err(nix_err)?;
             Ok(())
         }
 
-        pub fn send_batch(fd: std::os::fd::RawFd, items: &[SendItem<'_>], caps: &Capabilities) -> io::Result<usize> {
+        /// Send a single datagram carrying an ECN codepoint.
+        #[cfg(target_vendor = "apple")]
+        fn send_one_ecn(fd: std::os::fd::RawFd, item: &SendItem) -> io::Result<()> {
+            let Some(ecn) = item.ecn else {
+                return Ok(());
+            };
+            let addr = SockaddrStorage::from(item.destination);
+
+            let mut iov = libc::iovec {
+                iov_base: item.data.as_ptr() as *mut libc::c_void,
+                iov_len: item.data.len(),
+            };
+
+            let mut cmsg = CmsgBuf([0u8; 32]);
+            let cmsg_len = encode_ecn_cmsg(&mut cmsg.0, ecn, item.destination.is_ipv6());
+
+            let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
+            mhdr.msg_name = addr.as_ptr() as *mut libc::c_void;
+            mhdr.msg_namelen = addr.len();
+            mhdr.msg_iov = &mut iov as *mut libc::iovec;
+            mhdr.msg_iovlen = 1;
+            mhdr.msg_control = cmsg.0.as_mut_ptr() as *mut libc::c_void;
+            mhdr.msg_controllen = cmsg_len as _;
+
+            let ret = unsafe { libc::sendmsg(fd, &mhdr, 0) };
+            if ret < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        }
+
+        /// Build the per-packet ECN control message.
+        ///
+        /// On Apple targets, outgoing ECN is expressed as an `int` with level
+        /// `IPPROTO_IP`/type `IP_TOS` for IPv4 and level `IPPROTO_IPV6`/type
+        /// `IPV6_TCLASS` for IPv6. nix does not expose these control messages
+        /// on Apple targets, so they are built directly with `libc`.
+        #[cfg(target_vendor = "apple")]
+        fn encode_ecn_cmsg(buf: &mut [u8], ecn: Ecn, is_v6: bool) -> usize {
+            let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
+            mhdr.msg_control = buf.as_mut_ptr() as *mut _;
+            mhdr.msg_controllen = buf.len() as _;
+
+            let cmsg = unsafe { libc::CMSG_FIRSTHDR(&mhdr) };
+            if cmsg.is_null() {
+                return 0;
+            }
+
+            let (level, ty) = if is_v6 {
+                (libc::IPPROTO_IPV6, libc::IPV6_TCLASS)
+            } else {
+                (libc::IPPROTO_IP, libc::IP_TOS)
+            };
+            let value = ecn_to_tos(ecn) as libc::c_int;
+            unsafe {
+                (*cmsg).cmsg_level = level;
+                (*cmsg).cmsg_type = ty;
+                (*cmsg).cmsg_len = libc::CMSG_LEN(std::mem::size_of::<libc::c_int>() as u32) as _;
+                *(libc::CMSG_DATA(cmsg) as *mut libc::c_int) = value;
+            }
+            unsafe { libc::CMSG_SPACE(std::mem::size_of::<libc::c_int>() as u32) as usize }
+        }
+
+        /// Decode an ECN codepoint from a received control message.
+        ///
+        /// nix only decodes `Ipv4Tos` / `Ipv6TClass` on Linux and FreeBSD, so
+        /// on Apple targets these arrive as [`ControlMessageOwned::Unknown`]
+        /// and are decoded here from their raw level/type.
+        #[cfg(target_vendor = "apple")]
+        fn parse_ecn_msg(cmsg: &ControlMessageOwned) -> Option<Ecn> {
+            let ControlMessageOwned::Unknown(u) = cmsg else {
+                return None;
+            };
+            let level = u.cmsg_header.cmsg_level;
+            let ty = u.cmsg_header.cmsg_type;
+
+            // IPv4: `IP_TOS` on Linux/FreeBSD, `IP_RECVTOS` on Apple/BSD.
+            if level == libc::IPPROTO_IP && (ty == libc::IP_TOS || ty == libc::IP_RECVTOS) {
+                return u.data_bytes.first().map(|b| Ecn::from_tos_bits(*b));
+            }
+            // IPv6: macOS may report the traffic class as either a byte or an
+            // `int` depending on OS version (see Apple bug 48761855).
+            if level == libc::IPPROTO_IPV6 && ty == libc::IPV6_TCLASS {
+                let int_size = std::mem::size_of::<libc::c_int>();
+                if u.data_bytes.len() >= int_size {
+                    let mut raw = [0u8; std::mem::size_of::<libc::c_int>()];
+                    raw.copy_from_slice(&u.data_bytes[..int_size]);
+                    return Some(Ecn::from_tos_bits(i32::from_ne_bytes(raw) as u8));
+                }
+                return u.data_bytes.first().map(|b| Ecn::from_tos_bits(*b));
+            }
+            None
+        }
+
+        /// ECN receive decoding is only implemented on Apple targets.
+        #[cfg(not(target_vendor = "apple"))]
+        fn parse_ecn_msg(_cmsg: &ControlMessageOwned) -> Option<Ecn> {
+            None
+        }
+
+        pub fn send_batch(
+            fd: std::os::fd::RawFd,
+            items: &[SendItem<'_>],
+            caps: &Capabilities,
+            _state: &mut SendState,
+        ) -> io::Result<usize> {
             if items.is_empty() {
                 return Ok(0);
             }
@@ -734,11 +886,8 @@ mod unix_socket {
                 .map(storage_to_addr)
                 .unwrap_or_else(|| SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0));
 
-            if ecn_enabled {
-                if let Ok(cmsgs) = result.cmsgs() {
-                    let collected: Vec<_> = cmsgs.collect();
-                    item.ecn = parse_ecn(&collected);
-                }
+            if ecn_enabled && let Ok(mut cmsgs) = result.cmsgs() {
+                item.ecn = cmsgs.find_map(|cmsg| parse_ecn_msg(&cmsg));
             }
 
             Ok(())
@@ -769,21 +918,46 @@ mod unix_socket {
             Ok(count)
         }
 
+        /// Enable reception of ECN codepoints.
+        ///
+        /// Uses `libc` directly because nix does not expose `IP_RECVTOS` /
+        /// `IPV6_RECVTCLASS` on Apple targets. An IPv4 socket reports TOS via
+        /// `IP_RECVTOS`; an IPv6 socket reports the traffic class via
+        /// `IPV6_RECVTCLASS`, which also covers IPv4-mapped traffic. Setting
+        /// `IP_RECVTOS` on a dual-stack IPv6 socket fails on macOS, so only the
+        /// option matching the socket family is set.
+        #[cfg(target_vendor = "apple")]
+        fn enable_ecn_recv(fd: &OwnedFd, is_ipv6: bool) -> bool {
+            let (level, name) = if is_ipv6 {
+                (libc::IPPROTO_IPV6, libc::IPV6_RECVTCLASS)
+            } else {
+                (libc::IPPROTO_IP, libc::IP_RECVTOS)
+            };
+            let enable: libc::c_int = 1;
+            let ret = unsafe {
+                libc::setsockopt(
+                    fd.as_raw_fd(),
+                    level,
+                    name,
+                    &enable as *const libc::c_int as *const libc::c_void,
+                    std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+                )
+            };
+            ret == 0
+        }
+
+        /// ECN is only implemented on Apple targets among non-Linux Unixes.
+        #[cfg(not(target_vendor = "apple"))]
+        fn enable_ecn_recv(_fd: &OwnedFd, _is_ipv6: bool) -> bool {
+            false
+        }
+
         pub fn setup_and_probe(fd: &OwnedFd, config: &BuildConfig, is_ipv6: bool) -> io::Result<Capabilities> {
             use nix::sys::socket::{setsockopt, sockopt::ReuseAddr};
 
             setsockopt(fd, ReuseAddr, &true).map_err(nix_err)?;
 
-            let ecn = if config.disable_ecn {
-                false
-            } else {
-                use nix::sys::socket::sockopt::{IpRecvTos, Ipv6RecvTClass};
-                if is_ipv6 {
-                    setsockopt(fd, Ipv6RecvTClass, &true).is_ok()
-                } else {
-                    setsockopt(fd, IpRecvTos, &true).is_ok()
-                }
-            };
+            let ecn = !config.disable_ecn && enable_ecn_recv(fd, is_ipv6);
 
             Ok(Capabilities {
                 gso: false,

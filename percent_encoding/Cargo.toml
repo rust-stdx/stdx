@@ -6,7 +6,7 @@ description = "Percent encoding and decoding"
 categories = ["no-std"]
 license = "Apache-2.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version.workspace = true
 
 [lib]
 path = "./percent_encoding.rs"

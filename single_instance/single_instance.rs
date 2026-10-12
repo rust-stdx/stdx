@@ -3,8 +3,9 @@
 //! single-instance provides a single API to check if there are any other running instance.
 //!
 //! ## Detail
-//! On linux init will bind abstract unix domain socket with given name . On macos, init will create or open a file which path is given `&str`,
-//! then call `flock` to apply an advisory lock on the open file.
+//! On Linux and Android, [`SingleInstance::new`] binds an abstract unix domain socket
+//! with the given name. On macOS, it creates or opens the file at the given path and
+//! takes an exclusive advisory lock on it.
 //!
 //! ### Examples
 //! ```rust
@@ -19,91 +20,80 @@
 //! }
 //! ```
 
+/// The error returned when a [`SingleInstance`] cannot be created.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    #[error("new abstract addr error")]
-    Nix(#[from] nix::Error),
-
-    #[cfg(target_os = "macos")]
-    #[error("file open or create error")]
+    /// The underlying operating system operation failed.
+    ///
+    /// Binding the abstract socket (Linux/Android) or creating and locking the
+    /// file (macOS) returned an error.
+    #[error("single instance error")]
     Io(#[from] std::io::Error),
 }
-
-// #[cfg(target_os = "macos")]
-// extern crate libc;
-// #[cfg(any(target_os = "linux", target_os ="android"))]
-// extern crate nix;
-// extern crate thiserror;
-// #[cfg(target_os = "windows")]
-// extern crate widestring;
-// #[cfg(target_os = "windows")]
-// extern crate winapi;
 
 pub use self::inner::*;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod inner {
-    use std::os::unix::io::{AsRawFd, OwnedFd};
-
-    use nix::sys::socket::{self, UnixAddr};
+    use std::{
+        io,
+        os::{
+            linux::net::SocketAddrExt,
+            unix::net::{SocketAddr, UnixListener},
+        },
+    };
 
     use super::Error;
 
     /// A struct representing one running instance.
+    ///
+    /// The abstract socket is owned by the instance and released on drop, at
+    /// which point another process may claim the same name.
     pub struct SingleInstance {
-        maybe_sock: Option<OwnedFd>,
+        maybe_listener: Option<UnixListener>,
     }
 
     impl SingleInstance {
         /// Returns a new SingleInstance object.
+        ///
+        /// Returns an error if the abstract socket address cannot be built or if
+        /// binding it fails for a reason other than another instance already
+        /// holding the name.
         pub fn new(name: &str) -> Result<Self, Error> {
-            let addr = UnixAddr::new_abstract(name.as_bytes())?;
-            let sock = socket::socket(
-                socket::AddressFamily::Unix,
-                socket::SockType::Stream,
-                // If we fork and exec, then make sure the child process doesn't
-                // hang on to this file descriptor.
-                socket::SockFlag::SOCK_CLOEXEC,
-                None,
-            )?;
+            let addr = SocketAddr::from_abstract_name(name.as_bytes())?;
 
-            let maybe_sock = match socket::bind(sock.as_raw_fd(), &addr) {
-                Ok(()) => Some(sock),
-                Err(nix::errno::Errno::EADDRINUSE) => None,
+            let maybe_listener = match UnixListener::bind_addr(&addr) {
+                Ok(listener) => Some(listener),
+                // Another instance already bound this abstract address.
+                Err(e) if e.kind() == io::ErrorKind::AddrInUse => None,
                 Err(e) => return Err(e.into()),
             };
 
             Ok(Self {
-                maybe_sock,
+                maybe_listener,
             })
         }
 
         /// Returns whether this instance is single.
         pub fn is_single(&self) -> bool {
-            self.maybe_sock.is_some()
-        }
-    }
-
-    impl Drop for SingleInstance {
-        fn drop(&mut self) {
-            // OwnedFd closes the file descriptor automatically on drop.
-            if let Some(sock) = self.maybe_sock.take() {
-                drop(sock);
-            }
+            self.maybe_listener.is_some()
         }
     }
 }
 
 #[cfg(target_os = "macos")]
 mod inner {
-    use std::{fs::File, os::unix::io::AsRawFd, path::Path};
-
-    use libc::{__error, EWOULDBLOCK, LOCK_EX, LOCK_NB, flock};
+    use std::{
+        fs::{File, TryLockError},
+        path::Path,
+    };
 
     use super::Error;
 
     /// A struct representing one running instance.
+    ///
+    /// The file is kept open for the lifetime of the instance; the advisory lock
+    /// is released on drop.
     pub struct SingleInstance {
         _file: File,
         is_single: bool,
@@ -111,6 +101,10 @@ mod inner {
 
     impl SingleInstance {
         /// Returns a new SingleInstance object.
+        ///
+        /// Returns an error if the file cannot be created or opened, or if locking
+        /// it fails for a reason other than the lock already being held by another
+        /// instance.
         pub fn new(name: &str) -> Result<Self, Error> {
             let path = Path::new(name);
             let file = if path.exists() {
@@ -118,14 +112,17 @@ mod inner {
             } else {
                 File::create(path)?
             };
-            unsafe {
-                let rc = flock(file.as_raw_fd(), LOCK_EX | LOCK_NB);
-                let is_single = rc == 0 || EWOULDBLOCK != *__error();
-                Ok(Self {
-                    _file: file,
-                    is_single,
-                })
-            }
+
+            let is_single = match file.try_lock() {
+                Ok(()) => true,
+                Err(TryLockError::WouldBlock) => false,
+                Err(TryLockError::Error(e)) => return Err(e.into()),
+            };
+
+            Ok(Self {
+                _file: file,
+                is_single,
+            })
         }
 
         /// Returns whether this instance is single.

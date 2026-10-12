@@ -2,6 +2,7 @@
 name = "tokio_fast_udp"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 license = "MIT"
 description = "Fast cross-platform UDP I/O for tokio with batch sends/recvs, GSO/GRO segmentation offload, and ECN"
 

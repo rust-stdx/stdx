@@ -2,6 +2,7 @@
 name = "base64"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "Fast base64 encoding and decoding with SIMD acceleration when available"
 
 [lib]

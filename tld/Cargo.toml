@@ -2,6 +2,7 @@
 name = "tld"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 
 # TODO: `anycase` (case-insensitive matching, needs `unicase`) and `punycode` (needs `idna`)
 # are not implemented in this fork because both would require external dependencies. The

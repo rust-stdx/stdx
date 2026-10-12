@@ -32,7 +32,7 @@ with a portable `core::hint::black_box` fallback on every other target.
 
 ## Minimum Supported Rust Version
 
-Requires Rust **1.85** or newer.
+Requires Rust **1.99** or newer.
 
 In the future, we reserve the right to change MSRV (i.e. MSRV is out-of-scope for this crate's
 semantic versioning guarantees).

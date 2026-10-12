@@ -384,15 +384,14 @@ fn wycheproof_sign_noseed<const PK: usize, const SIG: usize>(
                     flags.iter().any(|f| f == "InvalidContext"),
                     "sign_noseed tcId={tc_id}: expected invalid flag, got {flags:?}"
                 );
-                if let Some(sig_hex) = test.get("sig").and_then(|s| s.as_str()) {
-                    if let Ok(sig_bytes) = hex::decode(sig_hex) {
-                        if let Ok(sig) = <[u8; SIG]>::try_from(sig_bytes.as_slice()) {
-                            assert!(
-                                verify(&pk, &msg, &sig, &ctx).is_err(),
-                                "sign_noseed tcId={tc_id}: expected verify error"
-                            );
-                        }
-                    }
+                if let Some(sig_hex) = test.get("sig").and_then(|s| s.as_str())
+                    && let Ok(sig_bytes) = hex::decode(sig_hex)
+                    && let Ok(sig) = <[u8; SIG]>::try_from(sig_bytes.as_slice())
+                {
+                    assert!(
+                        verify(&pk, &msg, &sig, &ctx).is_err(),
+                        "sign_noseed tcId={tc_id}: expected verify error"
+                    );
                 }
                 invalid_tested += 1;
             }

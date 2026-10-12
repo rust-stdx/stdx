@@ -11,6 +11,7 @@ readme = "README.md"
 keywords = ["hash", "crc", "crc32", "simd", "fast"]
 categories = ["algorithms", "no-std"]
 edition = "2024"
+rust-version.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }

@@ -2,6 +2,7 @@
 name = "uuid"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "Generate, encode and decode UUIDs (RFC 9562) — supports v4 and v7"
 
 [lib]
