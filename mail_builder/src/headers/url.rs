@@ -1,17 +1,10 @@
-/*
- * Copyright Stalwart Labs Ltd. See the COPYING
- * file at the top-level directory of this distribution.
- *
- * Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
- * https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
- * <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
- * option. This file may not be copied, modified, or distributed
- * except according to those terms.
- */
-
 use std::borrow::Cow;
 
-use super::Header;
+use super::{
+    Header,
+    fold::{FoldWriter, write_control_free},
+};
+use crate::writer::Writer;
 
 /// URL header, used mostly on List-* headers
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -45,7 +38,7 @@ impl<'x> From<&'x str> for URL<'x> {
     }
 }
 
-impl<'x> From<String> for URL<'x> {
+impl From<String> for URL<'_> {
     fn from(value: String) -> Self {
         Self::new(value)
     }
@@ -78,33 +71,25 @@ where
     }
 }
 
-impl<'x> Header for URL<'x> {
-    fn write_header(&self, mut output: impl std::io::Write, mut bytes_written: usize) -> std::io::Result<usize> {
-        for (pos, url) in self.url.iter().enumerate() {
-            if pos > 0 {
-                if bytes_written + url.len() + 2 >= 76 {
-                    output.write_all(b"\r\n\t")?;
-                    bytes_written = 1;
-                } else {
-                    output.write_all(b" ")?;
-                    bytes_written += 1;
-                }
+impl Header for URL<'_> {
+    fn write_header(&self, output: &mut impl Writer, column: usize) {
+        let mut folder = FoldWriter::new(output, column);
+
+        if let Some((last, head)) = self.url.split_last() {
+            for url in head {
+                folder.begin_atom(url.len() + 3);
+                folder.write_byte(b'<');
+                write_control_free(&mut folder, url.as_bytes());
+                folder.write(b">,");
+                folder.space();
             }
-            output.write_all(b"<")?;
-            output.write_all(url.as_bytes())?;
-            if pos < self.url.len() - 1 {
-                output.write_all(b">,")?;
-                bytes_written += url.len() + 3;
-            } else {
-                output.write_all(b">")?;
-                bytes_written += url.len() + 2;
-            }
+            folder.begin_atom(last.len() + 2);
+            folder.write_byte(b'<');
+            write_control_free(&mut folder, last.as_bytes());
+            folder.write(b">\r\n");
+            return;
         }
 
-        if bytes_written > 0 {
-            output.write_all(b"\r\n")?;
-        }
-
-        Ok(0)
+        folder.finish();
     }
 }

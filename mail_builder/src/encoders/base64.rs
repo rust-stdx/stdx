@@ -1,223 +1,126 @@
-/*
- * Copyright Stalwart Labs Ltd. See the COPYING
- * file at the top-level directory of this distribution.
- *
- * Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
- * https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
- * <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
- * option. This file may not be copied, modified, or distributed
- * except according to those terms.
- */
+//! Base64 engines used by the message builder.
+//!
+//! The actual encoding is delegated to the [`base64`] crate; this module only
+//! adds the MIME line wrapping (76 columns, CRLF separators) that RFC 2045
+//! section 6.8 requires and exposes the small API the serializers use.
 
-use std::io::{self, Write};
+use base64::{Alphabet, encode_into, encoded_length};
 
-const CHARPAD: u8 = b'=';
+/// Number of input bytes that map to one 76 column Base64 line.
+const MIME_LINE_INPUT: usize = 57;
+/// Length of a full MIME line including its CRLF.
+const MIME_LINE_OUTPUT: usize = 76 + 2;
 
-#[inline(always)]
-pub fn base64_encode(input: &[u8]) -> io::Result<Vec<u8>> {
-    let mut buf = Vec::with_capacity(4 * (input.len() / 3));
-    base64_encode_mime(input, &mut buf, true)?;
-    Ok(buf)
+/// A Base64 configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Base64 {
+    wrap: bool,
 }
 
-pub fn base64_encode_mime(input: &[u8], mut output: impl Write, is_inline: bool) -> io::Result<usize> {
-    let mut i = 0;
-    let mut t1;
-    let mut t2;
-    let mut t3;
-    let mut bytes_written = 0;
+/// Standard Base64 without line wrapping.
+pub const STANDARD: Base64 = Base64 {
+    wrap: false,
+};
 
-    if input.len() > 2 {
-        while i < input.len() - 2 {
-            #[cfg(not(feature = "ludicrous_mode"))]
-            {
-                t1 = input[i];
-                t2 = input[i + 1];
-                t3 = input[i + 2];
+/// Base64 wrapped at 76 columns with CRLF, as required for MIME bodies.
+pub const MIME: Base64 = Base64 {
+    wrap: true,
+};
 
-                output.write_all(&[
-                    E0[t1 as usize],
-                    E1[(((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)) as usize],
-                    E1[(((t2 & 0x0F) << 2) | ((t3 >> 6) & 0x03)) as usize],
-                    E2[t3 as usize],
-                ])?;
-            }
-
-            #[cfg(feature = "ludicrous_mode")]
-            unsafe {
-                t1 = *input.get_unchecked(i);
-                t2 = *input.get_unchecked(i + 1);
-                t3 = *input.get_unchecked(i + 2);
-
-                output.write_all(&[
-                    *E0.get_unchecked(t1 as usize),
-                    *E1.get_unchecked((((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)) as usize),
-                    *E1.get_unchecked((((t2 & 0x0F) << 2) | ((t3 >> 6) & 0x03)) as usize),
-                    *E2.get_unchecked(t3 as usize),
-                ])?;
-            }
-
-            bytes_written += 4;
-
-            if !is_inline && bytes_written % 19 == 0 {
-                output.write_all(b"\r\n")?;
-            }
-
-            i += 3;
+impl Base64 {
+    /// The exact number of bytes [`Base64::encode_append`] will produce for an
+    /// input of `input_len` bytes, including any line breaks.
+    pub const fn encoded_len(&self, input_len: usize) -> usize {
+        let raw = match encoded_length(input_len, true) {
+            Some(len) => len,
+            None => return 0,
+        };
+        if !self.wrap || input_len == 0 {
+            return raw;
         }
+        let full_lines = input_len / MIME_LINE_INPUT;
+        let remainder = input_len % MIME_LINE_INPUT;
+        let tail = if remainder == 0 {
+            0
+        } else {
+            let tail_len = match encoded_length(remainder, true) {
+                Some(len) => len,
+                None => return 0,
+            };
+            tail_len + 2
+        };
+        full_lines * MIME_LINE_OUTPUT + tail
     }
 
-    let remaining = input.len() - i;
-    if remaining > 0 {
-        #[cfg(not(feature = "ludicrous_mode"))]
-        {
-            t1 = input[i];
-            if remaining == 1 {
-                output.write_all(&[E0[t1 as usize], E1[((t1 & 0x03) << 4) as usize], CHARPAD, CHARPAD])?;
-            } else {
-                t2 = input[i + 1];
-                output.write_all(&[
-                    E0[t1 as usize],
-                    E1[(((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)) as usize],
-                    E2[((t2 & 0x0F) << 2) as usize],
-                    CHARPAD,
-                ])?;
+    /// Appends the Base64 encoding of `input` to `output` and returns the
+    /// number of bytes appended.
+    pub fn encode_append<T: AsRef<[u8]>>(&self, input: T, output: &mut Vec<u8>) -> usize {
+        let input = input.as_ref();
+        let before = output.len();
+
+        if self.wrap {
+            for chunk in input.chunks(MIME_LINE_INPUT) {
+                let encoded = match encoded_length(chunk.len(), true) {
+                    Some(len) => len,
+                    None => break,
+                };
+                let start = output.len();
+                output.resize(start + encoded, 0);
+                if encode_into(&mut output[start..], chunk, Alphabet::Standard).is_err() {
+                    output.truncate(start);
+                    break;
+                }
+                output.extend_from_slice(b"\r\n");
+            }
+        } else {
+            let encoded = match encoded_length(input.len(), true) {
+                Some(len) => len,
+                None => return 0,
+            };
+            let start = output.len();
+            output.resize(start + encoded, 0);
+            if encode_into(&mut output[start..], input, Alphabet::Standard).is_err() {
+                output.truncate(start);
+                return 0;
             }
         }
 
-        #[cfg(feature = "ludicrous_mode")]
-        unsafe {
-            t1 = *input.get_unchecked(i);
-            if remaining == 1 {
-                output.write_all(&[
-                    *E0.get_unchecked(t1 as usize),
-                    *E1.get_unchecked(((t1 & 0x03) << 4) as usize),
-                    CHARPAD,
-                    CHARPAD,
-                ])?;
-            } else {
-                t2 = *input.get_unchecked(i + 1);
-                output.write_all(&[
-                    *E0.get_unchecked(t1 as usize),
-                    *E1.get_unchecked((((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)) as usize),
-                    *E2.get_unchecked(((t2 & 0x0F) << 2) as usize),
-                    CHARPAD,
-                ])?;
-            }
-        }
-
-        bytes_written += 4;
-
-        if !is_inline && bytes_written % 19 == 0 {
-            output.write_all(b"\r\n")?;
-        }
+        output.len() - before
     }
-
-    if !is_inline && bytes_written % 19 != 0 {
-        output.write_all(b"\r\n")?;
-    }
-
-    Ok(bytes_written)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
-    fn encode_base64() {
-        for (input, expected_result, is_inline) in [
-            ("Test".to_string(), "VGVzdA==\r\n", false),
-            ("Ye".to_string(), "WWU=\r\n", false),
-            ("A".to_string(), "QQ==\r\n", false),
-            ("ro".to_string(), "cm8=\r\n", false),
-            (
-                "Are you a Shimano or Campagnolo person?".to_string(),
-                "QXJlIHlvdSBhIFNoaW1hbm8gb3IgQ2FtcGFnbm9sbyBwZXJzb24/\r\n",
-                false,
-            ),
-            (
-                "<!DOCTYPE html>\n<html>\n<body>\n</body>\n</html>\n".to_string(),
-                "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8Ym9keT4KPC9ib2R5Pgo8L2h0bWw+Cg==\r\n",
-                false,
-            ),
-            ("áéíóú".to_string(), "w6HDqcOtw7PDug==\r\n", false),
-            (
-                " ".repeat(100),
-                concat!(
-                    "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg",
-                    "ICAgICAgICAgICAgICAgICAgICAgICAgICAg\r\n",
-                    "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg",
-                    "ICAgICAgICAgICAgIA==\r\n",
-                ),
-                false,
-            ),
-        ] {
-            let mut output = Vec::new();
-            super::base64_encode_mime(input.as_bytes(), &mut output, is_inline).unwrap();
-            assert_eq!(std::str::from_utf8(&output).unwrap(), expected_result);
+    fn encoded_len_matches_encode_append() {
+        for len in 0..200 {
+            let input = vec![0xABu8; len];
+            for engine in [STANDARD, MIME] {
+                let mut output = Vec::new();
+                let written = engine.encode_append(&input, &mut output);
+                assert_eq!(written, output.len(), "return value");
+                assert_eq!(output.len(), engine.encoded_len(len), "len {len}");
+            }
         }
     }
+
+    #[test]
+    fn mime_lines_are_at_most_76_columns() {
+        let input = vec![0x5Au8; 1_000];
+        let mut output = Vec::new();
+        MIME.encode_append(&input, &mut output);
+        for line in output.split(|&b| b == b'\n') {
+            let line = line.strip_suffix(b"\r").unwrap_or(line);
+            assert!(line.len() <= 76, "line of {} columns", line.len());
+        }
+    }
+
+    #[test]
+    fn empty_input_produces_nothing() {
+        let mut output = Vec::new();
+        assert_eq!(MIME.encode_append([], &mut output), 0);
+        assert!(output.is_empty());
+    }
 }
-
-/*
- * Table adapted from Nick Galbreath's "High performance base64 encoder / decoder"
- *
- * Copyright 2005, 2006, 2007 Nick Galbreath -- nickg [at] modp [dot] com
- * All rights reserved.
- *
- * http://code.google.com/p/stringencoders/
- *
- * Released under bsd license.
- *
- */
-
-pub static E0: &[u8] = &[
-    b'A', b'A', b'A', b'A', b'B', b'B', b'B', b'B', b'C', b'C', b'C', b'C', b'D', b'D', b'D', b'D', b'E', b'E', b'E',
-    b'E', b'F', b'F', b'F', b'F', b'G', b'G', b'G', b'G', b'H', b'H', b'H', b'H', b'I', b'I', b'I', b'I', b'J', b'J',
-    b'J', b'J', b'K', b'K', b'K', b'K', b'L', b'L', b'L', b'L', b'M', b'M', b'M', b'M', b'N', b'N', b'N', b'N', b'O',
-    b'O', b'O', b'O', b'P', b'P', b'P', b'P', b'Q', b'Q', b'Q', b'Q', b'R', b'R', b'R', b'R', b'S', b'S', b'S', b'S',
-    b'T', b'T', b'T', b'T', b'U', b'U', b'U', b'U', b'V', b'V', b'V', b'V', b'W', b'W', b'W', b'W', b'X', b'X', b'X',
-    b'X', b'Y', b'Y', b'Y', b'Y', b'Z', b'Z', b'Z', b'Z', b'a', b'a', b'a', b'a', b'b', b'b', b'b', b'b', b'c', b'c',
-    b'c', b'c', b'd', b'd', b'd', b'd', b'e', b'e', b'e', b'e', b'f', b'f', b'f', b'f', b'g', b'g', b'g', b'g', b'h',
-    b'h', b'h', b'h', b'i', b'i', b'i', b'i', b'j', b'j', b'j', b'j', b'k', b'k', b'k', b'k', b'l', b'l', b'l', b'l',
-    b'm', b'm', b'm', b'm', b'n', b'n', b'n', b'n', b'o', b'o', b'o', b'o', b'p', b'p', b'p', b'p', b'q', b'q', b'q',
-    b'q', b'r', b'r', b'r', b'r', b's', b's', b's', b's', b't', b't', b't', b't', b'u', b'u', b'u', b'u', b'v', b'v',
-    b'v', b'v', b'w', b'w', b'w', b'w', b'x', b'x', b'x', b'x', b'y', b'y', b'y', b'y', b'z', b'z', b'z', b'z', b'0',
-    b'0', b'0', b'0', b'1', b'1', b'1', b'1', b'2', b'2', b'2', b'2', b'3', b'3', b'3', b'3', b'4', b'4', b'4', b'4',
-    b'5', b'5', b'5', b'5', b'6', b'6', b'6', b'6', b'7', b'7', b'7', b'7', b'8', b'8', b'8', b'8', b'9', b'9', b'9',
-    b'9', b'+', b'+', b'+', b'+', b'/', b'/', b'/', b'/',
-];
-
-pub static E1: &[u8] = &[
-    b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S',
-    b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l',
-    b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'0', b'1', b'2', b'3', b'4',
-    b'5', b'6', b'7', b'8', b'9', b'+', b'/', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L',
-    b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'a', b'b', b'c', b'd', b'e',
-    b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x',
-    b'y', b'z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'+', b'/', b'A', b'B', b'C', b'D', b'E',
-    b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X',
-    b'Y', b'Z', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q',
-    b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9',
-    b'+', b'/', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q',
-    b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j',
-    b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'0', b'1', b'2',
-    b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'+', b'/',
-];
-
-pub static E2: &[u8] = &[
-    b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S',
-    b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l',
-    b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'0', b'1', b'2', b'3', b'4',
-    b'5', b'6', b'7', b'8', b'9', b'+', b'/', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L',
-    b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'a', b'b', b'c', b'd', b'e',
-    b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x',
-    b'y', b'z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'+', b'/', b'A', b'B', b'C', b'D', b'E',
-    b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X',
-    b'Y', b'Z', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q',
-    b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9',
-    b'+', b'/', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q',
-    b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j',
-    b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'0', b'1', b'2',
-    b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'+', b'/',
-];

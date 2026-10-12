@@ -1,14 +1,12 @@
-/*
- * Copyright Stalwart Labs Ltd. See the COPYING
- * file at the top-level directory of this distribution.
- *
- * Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
- * https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
- * <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
- * option. This file may not be copied, modified, or distributed
- * except according to those terms.
- */
+//! Encoding primitives used by the message builder.
+//!
+//! Base64 comes from the [`base64`] crate; quoted-printable, RFC 2047 word
+//! payloads and RFC 2231 percent-encoding are implemented here in safe Rust.
+//! No module in this crate uses `unsafe`.
 
-pub mod base64;
-pub mod encode;
-pub mod quoted_printable;
+pub(crate) mod base64;
+pub(crate) mod encode;
+pub(crate) mod hex;
+pub(crate) mod qp;
+pub(crate) mod rfc2047;
+pub(crate) mod swar;

@@ -1,18 +1,11 @@
-/*
- * Copyright Stalwart Labs Ltd. See the COPYING
- * file at the top-level directory of this distribution.
- *
- * Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
- * https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
- * <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
- * option. This file may not be copied, modified, or distributed
- * except according to those terms.
- */
-
 use std::borrow::Cow;
 
-use super::Header;
-use crate::encoders::encode::rfc2047_encode;
+use super::{
+    Header,
+    fold::{FOLD_TARGET, FoldWriter, has_control},
+    rfc2047::write_phrase,
+};
+use crate::writer::Writer;
 
 /// RFC5322 e-mail address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -75,7 +68,7 @@ impl<'x> From<(&'x str, &'x str)> for Address<'x> {
     }
 }
 
-impl<'x> From<(String, String)> for Address<'x> {
+impl From<(String, String)> for Address<'_> {
     fn from(value: (String, String)) -> Self {
         Address::Address(EmailAddress {
             name: Some(value.0.into()),
@@ -93,7 +86,7 @@ impl<'x> From<&'x str> for Address<'x> {
     }
 }
 
-impl<'x> From<String> for Address<'x> {
+impl From<String> for Address<'_> {
     fn from(value: String) -> Self {
         Address::Address(EmailAddress {
             name: None,
@@ -124,99 +117,150 @@ where
     }
 }
 
-impl<'x> Header for Address<'x> {
-    fn write_header(&self, mut output: impl std::io::Write, mut bytes_written: usize) -> std::io::Result<usize> {
+const TAIL_NONE: &[u8] = b"";
+const TAIL_COMMA: &[u8] = b",";
+
+impl Header for Address<'_> {
+    fn write_header(&self, output: &mut impl Writer, column: usize) {
+        if let Address::Address(address) = self
+            && address.name.is_none()
+            && column + address.email.len() + 2 <= FOLD_TARGET
+        {
+            output.write_byte(b'<');
+            output.write(&address.addr_spec());
+            output.write(b">\r\n");
+            return;
+        }
+
+        let mut folder = FoldWriter::new(output, column);
+        self.write_value(&mut folder, TAIL_NONE);
+        folder.finish();
+    }
+}
+
+impl Address<'_> {
+    #[inline(always)]
+    fn writes_nothing(&self, in_group: bool) -> bool {
         match self {
-            Address::Address(address) => {
-                address.write_header(&mut output, bytes_written)?;
-            }
+            Address::Address(_) => false,
             Address::Group(group) => {
-                group.write_header(&mut output, bytes_written)?;
+                let named = group.name.is_some();
+                (in_group || !named)
+                    && group
+                        .addresses
+                        .iter()
+                        .all(|address| address.writes_nothing(in_group || named))
             }
-            Address::List(list) => {
-                for (pos, address) in list.iter().enumerate() {
-                    if bytes_written
-                        + (match address {
-                            Address::Address(address) => {
-                                address.email.len() + address.name.as_ref().map_or(0, |n| n.len() + 3) + 2
-                            }
-                            Address::Group(group) => group.name.as_ref().map_or(0, |name| name.len() + 2),
-                            Address::List(_) => 0,
-                        })
-                        >= 76
-                    {
-                        output.write_all(b"\r\n\t")?;
-                        bytes_written = 1;
-                    }
-
-                    match address {
-                        Address::Address(address) => {
-                            bytes_written += address.write_header(&mut output, bytes_written)?;
-                            if pos < list.len() - 1 {
-                                output.write_all(b", ")?;
-                                bytes_written += 1;
-                            }
-                        }
-                        Address::Group(group) => {
-                            bytes_written += group.write_header(&mut output, bytes_written)?;
-                            if pos < list.len() - 1 {
-                                output.write_all(b"; ")?;
-                                bytes_written += 1;
-                            }
-                        }
-                        Address::List(_) => unreachable!(),
-                    }
-                }
-            }
+            Address::List(list) => list.iter().all(|address| address.writes_nothing(in_group)),
         }
-        output.write_all(b"\r\n")?;
-        Ok(0)
+    }
+
+    fn write_value<W: Writer>(&self, folder: &mut FoldWriter<'_, W>, tail: &[u8]) {
+        match self {
+            Address::Address(address) => address.write_mailbox(folder, tail),
+            Address::Group(group) => group.write_group(folder, tail),
+            Address::List(list) => write_list(folder, list, tail, false),
+        }
     }
 }
 
-impl<'x> Header for EmailAddress<'x> {
-    fn write_header(&self, mut output: impl std::io::Write, mut bytes_written: usize) -> std::io::Result<usize> {
-        if let Some(name) = &self.name {
-            bytes_written += rfc2047_encode(name, &mut output)?;
-            if bytes_written + self.email.len() + 2 >= 76 {
-                output.write_all(b"\r\n\t")?;
-                bytes_written = 1;
-            } else {
-                output.write_all(b" ")?;
-                bytes_written += 1;
-            }
+fn write_list<W: Writer>(folder: &mut FoldWriter<'_, W>, list: &[Address<'_>], tail: &[u8], in_group: bool) {
+    let Some(last) = list.iter().rposition(|address| !address.writes_nothing(in_group)) else {
+        return;
+    };
+
+    for (pos, address) in list.iter().enumerate() {
+        if pos > last {
+            return;
+        }
+        if address.writes_nothing(in_group) {
+            continue;
         }
 
-        output.write_all(b"<")?;
-        output.write_all(self.email.as_bytes())?;
-        output.write_all(b">")?;
+        let item_tail = if pos == last { tail } else { TAIL_COMMA };
 
-        Ok(bytes_written + self.email.len() + 2)
+        match address {
+            Address::Address(address) => address.write_mailbox(folder, item_tail),
+            Address::Group(group) if in_group => write_list(folder, &group.addresses, item_tail, true),
+            Address::Group(group) => group.write_group(folder, item_tail),
+            Address::List(nested) => write_list(folder, nested, item_tail, in_group),
+        }
+
+        if pos == last {
+            return;
+        }
+        folder.space();
     }
 }
 
-impl<'x> Header for GroupedAddresses<'x> {
-    fn write_header(&self, mut output: impl std::io::Write, mut bytes_written: usize) -> std::io::Result<usize> {
+impl EmailAddress<'_> {
+    #[inline]
+    fn addr_spec(&self) -> Cow<'_, [u8]> {
+        let email = self.email.as_bytes();
+        if has_control(email) {
+            Cow::Owned(email.iter().copied().filter(|byte| !byte.is_ascii_control()).collect())
+        } else {
+            Cow::Borrowed(email)
+        }
+    }
+
+    #[inline]
+    pub(crate) fn write_mailbox<W: Writer>(&self, folder: &mut FoldWriter<'_, W>, tail: &[u8]) {
         if let Some(name) = &self.name {
-            bytes_written += rfc2047_encode(name, &mut output)? + 2;
-            output.write_all(b": ")?;
+            write_phrase(folder, name, TAIL_NONE);
+            folder.space();
         }
 
-        for (pos, address) in self.addresses.iter().enumerate() {
-            let address = address.unwrap_address();
-
-            if bytes_written + address.email.len() + address.name.as_ref().map_or(0, |n| n.len() + 3) + 2 >= 76 {
-                output.write_all(b"\r\n\t")?;
-                bytes_written = 1;
-            }
-
-            bytes_written += address.write_header(&mut output, bytes_written)?;
-            if pos < self.addresses.len() - 1 {
-                output.write_all(b", ")?;
-                bytes_written += 2;
+        folder.begin_atom(self.email.len() + 2 + tail.len());
+        folder.write_byte(b'<');
+        folder.write(&self.addr_spec());
+        match tail {
+            [] => folder.write_byte(b'>'),
+            [b','] => folder.write(b">,"),
+            [b';'] => folder.write(b">;"),
+            _ => {
+                folder.write_byte(b'>');
+                folder.write_tail(tail);
             }
         }
+    }
+}
 
-        Ok(bytes_written)
+impl Header for EmailAddress<'_> {
+    fn write_header(&self, output: &mut impl Writer, column: usize) {
+        let mut folder = FoldWriter::new(output, column);
+        self.write_mailbox(&mut folder, TAIL_NONE);
+        folder.finish();
+    }
+}
+
+impl GroupedAddresses<'_> {
+    pub(crate) fn write_group<W: Writer>(&self, folder: &mut FoldWriter<'_, W>, tail: &[u8]) {
+        let Some(name) = &self.name else {
+            return write_list(folder, &self.addresses, tail, false);
+        };
+
+        let is_empty = self.addresses.iter().all(|address| address.writes_nothing(true));
+        let (name_tail, list_tail): (&[u8], &[u8]) = if tail.is_empty() {
+            (b":;", b";")
+        } else {
+            (b":;,", b";,")
+        };
+        let name_tail = if is_empty { name_tail } else { b":" };
+
+        write_phrase(folder, name, name_tail);
+
+        if !is_empty {
+            folder.space();
+            write_list(folder, &self.addresses, list_tail, true);
+        }
+    }
+}
+
+impl Header for GroupedAddresses<'_> {
+    fn write_header(&self, output: &mut impl Writer, column: usize) {
+        let mut folder = FoldWriter::new(output, column);
+        self.write_group(&mut folder, TAIL_NONE);
+        folder.finish();
     }
 }

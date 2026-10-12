@@ -1,18 +1,11 @@
-/*
- * Copyright Stalwart Labs Ltd. See the COPYING
- * file at the top-level directory of this distribution.
- *
- * Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
- * https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
- * <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
- * option. This file may not be copied, modified, or distributed
- * except according to those terms.
- */
-
 use std::borrow::Cow;
 
-use super::Header;
-use crate::encoders::encode::rfc2047_encode;
+use super::{
+    Header,
+    fold::{FoldWriter, write_control_free},
+    rfc2047::write_parameter,
+};
+use crate::writer::Writer;
 
 /// MIME Content-Type or Content-Disposition header
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,38 +31,31 @@ impl<'x> ContentType<'x> {
 
     /// Returns true when the part is text/*
     pub fn is_text(&self) -> bool {
-        self.c_type.starts_with("text/")
+        self.c_type
+            .get(..5)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("text/"))
     }
 
     /// Returns true when the part is an attachment
     pub fn is_attachment(&self) -> bool {
-        self.c_type == "attachment"
+        self.c_type.eq_ignore_ascii_case("attachment")
     }
 }
 
-impl<'x> Header for ContentType<'x> {
-    fn write_header(&self, mut output: impl std::io::Write, mut bytes_written: usize) -> std::io::Result<usize> {
-        output.write_all(self.c_type.as_bytes())?;
-        bytes_written += self.c_type.len();
-        if !self.attributes.is_empty() {
-            output.write_all(b"; ")?;
-            bytes_written += 2;
-            for (pos, (key, value)) in self.attributes.iter().enumerate() {
-                if bytes_written + key.len() + value.len() + 3 >= 76 {
-                    output.write_all(b"\r\n\t")?;
-                    bytes_written = 1;
-                }
+impl Header for ContentType<'_> {
+    fn write_header(&self, output: &mut impl Writer, column: usize) {
+        let mut folder = FoldWriter::new(output, column);
+        write_control_free(&mut folder, self.c_type.as_bytes());
 
-                output.write_all(key.as_bytes())?;
-                output.write_all(b"=")?;
-                bytes_written += rfc2047_encode(value, &mut output)? + key.len() + 1;
-                if pos < self.attributes.len() - 1 {
-                    output.write_all(b"; ")?;
-                    bytes_written += 2;
-                }
+        if let Some((last, head)) = self.attributes.split_last() {
+            for (key, value) in head {
+                folder.semicolon();
+                write_parameter(&mut folder, key, value, 1);
             }
+            folder.semicolon();
+            write_parameter(&mut folder, &last.0, &last.1, 0);
         }
-        output.write_all(b"\r\n")?;
-        Ok(0)
+
+        folder.finish();
     }
 }
