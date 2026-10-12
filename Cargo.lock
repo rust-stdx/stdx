@@ -561,6 +561,7 @@ dependencies = [
 name = "crypto"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "base64 0.1.0",
  "big_number",
  "blake3",

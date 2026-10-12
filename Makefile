@@ -32,9 +32,11 @@ check_tier1: check_tier1
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
+
 	RUSTFLAGS="-D warnings" cargo check --target=aarch64-unknown-linux-gnu
 	RUSTFLAGS="-D warnings" cargo check --target=aarch64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-D warnings" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
+
 
 # Check that some package compile for no_std targets
 .PHONY: check_no_std

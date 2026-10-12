@@ -63,7 +63,15 @@ async function runWithNode(wasmPath: string) {
   try {
     await wasi.start(instance);
   } catch (err: any) {
-    exit(err.code === 'ERR_WASI_EXIT' ? err.info?.exitCode ?? 0 : 1);
+    if (err?.code === 'ERR_WASI_EXIT') {
+      exit(err.info?.exitCode ?? 0);
+    }
+    // Anything else is an unexpected runtime error, for example a wasm trap
+    // caused by a panic or a stack overflow. Surface it instead of exiting
+    // silently, otherwise a failing suite only shows up as a bare non-zero
+    // exit status with no explanation.
+    console.error(err);
+    exit(1);
   }
 }
 
