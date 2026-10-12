@@ -356,7 +356,7 @@ fn ct_select_usize(a: usize, b: usize, choice: bool) -> usize {
 
 #[inline]
 fn curve_field_mul(a: &CurveUint, b: &CurveUint) -> CurveUint {
-    a.mul_mod_barrett(b, &MODULUS_P, &P_MU)
+    a.mul_mod_barrett_w::<10>(b, &MODULUS_P, &P_MU)
 }
 
 impl Curve for P224 {
@@ -384,12 +384,12 @@ impl Curve for P224 {
 
     #[inline]
     fn field_mul(a: &Self::U, b: &Self::U) -> Self::U {
-        a.mul_mod_barrett(b, &MODULUS_P, &P_MU)
+        a.mul_mod_barrett_w::<10>(b, &MODULUS_P, &P_MU)
     }
 
     #[inline]
     fn scalar_mul(a: &Self::U, b: &Self::U) -> Self::U {
-        a.mul_mod_barrett(b, &MODULUS_N, &N_MU)
+        a.mul_mod_barrett_w::<10>(b, &MODULUS_N, &N_MU)
     }
 
     #[inline]

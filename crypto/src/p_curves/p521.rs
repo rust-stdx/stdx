@@ -391,7 +391,7 @@ impl Curve for P521 {
 
     #[inline]
     fn scalar_mul(a: &Self::U, b: &Self::U) -> Self::U {
-        a.mul_mod_barrett(b, &MODULUS_N, &N_MU)
+        a.mul_mod_barrett_w::<20>(b, &MODULUS_N, &N_MU)
     }
 
     #[inline]

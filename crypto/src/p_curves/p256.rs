@@ -412,7 +412,7 @@ impl Curve for P256 {
 
     #[inline]
     fn scalar_mul(a: &Self::U, b: &Self::U) -> Self::U {
-        a.mul_mod_barrett(b, &MODULUS_N, &N_MU)
+        a.mul_mod_barrett_w::<10>(b, &MODULUS_N, &N_MU)
     }
 
     #[inline]
@@ -521,6 +521,52 @@ mod tests {
 
     fn scalar_mul_affine(base: &AffinePoint, scalar: &Scalar) -> ProjectivePoint {
         p_curves::scalar_mul_affine::<P256>(base, scalar)
+    }
+
+    /// The interleaved verify ladder must agree with two independent scalar
+    /// multiplications for arbitrary (including degenerate) scalars.
+    #[test]
+    fn mul_double_matches_separate_scalar_multiplications() {
+        let g = AffinePoint::GENERATOR;
+        let mut state = 0x1234_5678_9abc_def0u64;
+        for _ in 0..200 {
+            let mut bytes = [0u8; SECRET_KEY_SIZE];
+            for b in bytes.iter_mut() {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                *b = state as u8;
+            }
+            let u1 = Scalar::from_reduced_bytes(&bytes);
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            let mut bytes2 = [0u8; SECRET_KEY_SIZE];
+            for b in bytes2.iter_mut() {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                *b = state as u8;
+            }
+            let u2 = Scalar::from_reduced_bytes(&bytes2);
+
+            let expected = scalar_mul_generator(&u1).add(&p_curves::scalar_mul_affine::<P256>(&g, &u2));
+            let got = p_curves::mul_double::<P256>(&u1, &g, &u2, &g);
+            assert_eq!(got.to_affine(), expected.to_affine(), "mul_double mismatch");
+        }
+
+        // Degenerate scalars: zero on either side.
+        let zero = Scalar::ZERO;
+        let one = Scalar::ONE;
+        assert_eq!(
+            p_curves::mul_double::<P256>(&zero, &g, &one, &g).to_affine(),
+            scalar_mul_generator(&one).to_affine()
+        );
+        assert_eq!(
+            p_curves::mul_double::<P256>(&one, &g, &zero, &g).to_affine(),
+            scalar_mul_generator(&one).to_affine()
+        );
+        assert!(p_curves::mul_double::<P256>(&zero, &g, &zero, &g).is_identity());
     }
 
     // Raw-byte ECDH built from the public method, for the vector tests.

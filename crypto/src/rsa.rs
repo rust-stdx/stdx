@@ -79,8 +79,7 @@ impl PublicKey {
         if n.is_zero() || !n.is_odd() || n.bit_len() < RSA_MIN_BITS {
             return Err(RsaError::InvalidKey);
         }
-        if e_uint.bit_len() < 2 || e_uint.bit_len() > RSA_MAX_PUBEXP_BITS || !e_uint.is_odd() || e_uint.ct_ge(&n)
-        {
+        if e_uint.bit_len() < 2 || e_uint.bit_len() > RSA_MAX_PUBEXP_BITS || !e_uint.is_odd() || e_uint.ct_ge(&n) {
             return Err(RsaError::InvalidKey);
         }
         let e_len = {
@@ -143,6 +142,25 @@ impl PublicKey {
         Self::from_n_e(&n_buf[..n_len], &e_buf[..e_len])
     }
 
+    /// Raises the (public) signature to the public exponent modulo `n`.
+    ///
+    /// Dispatches to a Barrett working width (`W`) sized from the modulus so
+    /// that only the effective limbs are used. `W = MAX_LIMBS` would work but
+    /// spends most of its time multiplying zero limbs for a 2048-bit key.
+    fn modpow_public(&self, base: &Uint<RSA_MAX_BITS, RSA_MAX_LIMBS>) -> Uint<RSA_MAX_BITS, RSA_MAX_LIMBS> {
+        let bits = self.n.bit_len();
+        // W = 2 * (ceil(bits / 64) + 1), rounded up to a size class.
+        if bits <= 2048 {
+            base.modpow_barrett_w::<66>(&self.e, &self.n, &self.mu)
+        } else if bits <= 4096 {
+            base.modpow_barrett_w::<130>(&self.e, &self.n, &self.mu)
+        } else if bits <= 6144 {
+            base.modpow_barrett_w::<194>(&self.e, &self.n, &self.mu)
+        } else {
+            base.modpow_barrett_w::<258>(&self.e, &self.n, &self.mu)
+        }
+    }
+
     /// Verify a PKCS#1 v1.5 signature.
     ///
     /// `signature` is the raw signature bytes (eg., 256 bytes for RSA-2048).
@@ -178,7 +196,7 @@ impl PublicKey {
             return Err(RsaError::Unspecified);
         }
 
-        let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
+        let m = self.modpow_public(&s);
 
         let mod_bytes = self.n_len;
         let mut m_bytes = [0u8; RSA_MAX_BYTES];
@@ -210,7 +228,7 @@ impl PublicKey {
             return Err(RsaError::Unspecified);
         }
 
-        let m = s.modpow_barrett(&self.e, &self.n, &self.mu);
+        let m = self.modpow_public(&s);
         let hash_len = H::OUTPUT_SIZE;
 
         // RFC 8017 §9.1.2: emBits = modBits - 1 and emLen = ceil(emBits / 8),

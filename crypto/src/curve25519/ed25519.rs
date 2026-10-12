@@ -314,7 +314,7 @@ impl Scalar {
                 let chunk_len = chunk_end - chunk_start;
 
                 if !acc.is_zero() {
-                    acc = acc.mul_mod_barrett(&R, &MODULUS_L, &BAR_MU);
+                    acc = acc.mul_mod_barrett_w::<10>(&R, &MODULUS_L, &BAR_MU);
                 }
 
                 let mut padded = [0u8; 32];
@@ -345,7 +345,7 @@ impl Scalar {
 
     #[inline]
     fn mul(self, rhs: Self) -> Self {
-        Self(self.0.mul_mod_barrett(&rhs.0, &MODULUS_L, &BAR_MU))
+        Self(self.0.mul_mod_barrett_w::<10>(&rhs.0, &MODULUS_L, &BAR_MU))
     }
 }
 

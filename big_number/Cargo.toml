@@ -17,4 +17,5 @@ zeroize = ["dep:zeroize", "zeroize/derive"]
 zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }

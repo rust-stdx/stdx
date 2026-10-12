@@ -726,6 +726,11 @@ impl<C: Curve> ProjectivePoint<C> {
         AffinePoint::new(self.x.mul(z_inv), self.y.mul(z_inv))
     }
 
+    /// Complete projective addition.
+    ///
+    /// Currently exercised by tests and the point-consistency helpers;
+    /// verification uses the faster [`mul_double`] interleaved ladder.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn add(&self, rhs: &Self) -> Self {
         let xx = self.x.mul(rhs.x);
         let yy = self.y.mul(rhs.y);
@@ -823,6 +828,35 @@ pub(crate) fn scalar_mul_affine<C: Curve>(base: &AffinePoint<C>, scalar: &Scalar
         acc = acc.double();
         let candidate = acc.add_mixed(base);
         acc = ProjectivePoint::select(&candidate, &acc, scalar.bit(bit));
+    }
+    acc
+}
+
+/// Computes `u1 * g + u2 * q` with a single interleaved (Shamir) ladder.
+///
+/// Intended for signature **verification**, where `u1`, `u2`, `g` and `q` are
+/// all public: the ladder branches on the scalar bits instead of computing both
+/// candidate additions every iteration, roughly halving the work compared with
+/// two independent constant-time scalar multiplications. Because every input is
+/// public this reveals nothing; the constant-time [`scalar_mul_affine`] must
+/// still be used when the scalar is secret (for example signing).
+pub(crate) fn mul_double<C: Curve>(
+    u1: &Scalar<C>,
+    g: &AffinePoint<C>,
+    u2: &Scalar<C>,
+    q: &AffinePoint<C>,
+) -> ProjectivePoint<C> {
+    let mut acc = ProjectivePoint::<C>::IDENTITY;
+    let mut bit = C::FIELD_BITS;
+    while bit > 0 {
+        bit -= 1;
+        acc = acc.double();
+        if u1.bit(bit) {
+            acc = acc.add_mixed(g);
+        }
+        if u2.bit(bit) {
+            acc = acc.add_mixed(q);
+        }
     }
     acc
 }
@@ -1133,7 +1167,7 @@ pub(crate) fn ecdsa_verify_inner_with<C: Curve>(
     let u1 = z.mul(w);
     let u2 = r.mul(w);
 
-    let point = scalar_mul_generator(&u1).add(&scalar_mul_affine(public_point, &u2));
+    let point = mul_double::<C>(&u1, &AffinePoint::<C>::GENERATOR, &u2, public_point);
     let affine = point.to_affine().ok_or(EllipticCurveError::Unspecified)?;
     let x_mod_n = Scalar::<C>::from_reduced_bytes(&affine.x.to_bytes());
 

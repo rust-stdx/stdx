@@ -190,6 +190,16 @@ fn i128_abs_to_word(value: i128) -> (u64, bool) {
     (u128_to_word(value.unsigned_abs()), value.is_negative())
 }
 
+/// Clears a limb buffer. With the `zeroize` feature this uses volatile writes
+/// that cannot be optimised away; otherwise it is a no-op.
+#[inline]
+fn zeroize_limbs(limbs: &mut [u64]) {
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(limbs);
+    #[cfg(not(feature = "zeroize"))]
+    let _ = limbs;
+}
+
 impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     const _LIMBS_CHECK: () = assert!(LIMBS == (BITS + 63) / 64, "LIMBS must equal ceil(BITS/64)");
 
@@ -520,7 +530,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
                 j += 1;
             }
             let mut k = i + LIMBS;
-            while k < MAX_LIMBS {
+            while carry != 0 && k < MAX_LIMBS {
                 let (word, next_carry) = adc(out[k], 0, carry);
                 out[k] = word;
                 carry = next_carry;
@@ -568,8 +578,24 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// implementation; prefer [`Self::mul_mod_barrett`] in hot loops.
     #[inline]
     pub fn mul_mod(&self, rhs: &Self, modulus: &Self) -> Self {
-        let product = self.mul_wide_internal(rhs);
-        Self::reduce_wide_internal(&product, modulus)
+        let mut product = self.mul_wide_internal(rhs);
+        let result = Self::reduce_wide_internal(&product, modulus);
+        zeroize_limbs(&mut product[..]);
+        result
+    }
+
+    /// Schoolbook product of the low `eff_limbs` limbs of each operand into a
+    /// `W`-limb buffer.
+    ///
+    /// Exact when both operands are below `2^(eff_limbs * 64)`; `W` must be at
+    /// least `2 * eff_limbs`. Using the effective width instead of the full
+    /// `LIMBS` is what makes modular operations on small values in a wide type
+    /// (for example RSA moduli in `Uint<8192, 128>`) fast.
+    fn mul_wide_eff<const W: usize>(&self, rhs: &Self, eff_limbs: usize) -> [u64; W] {
+        assert!(2 * eff_limbs <= W, "working width W is too small");
+        let mut out = [0u64; W];
+        mul_limbs(&mut out, &self.limbs, eff_limbs, &rhs.limbs, eff_limbs);
+        out
     }
 
     /// Computes `mu = floor(2^(2 * eff_limbs * 64) / self)` for Barrett
@@ -644,8 +670,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// Panics when `modulus` is zero or its effective limb count exceeds
     /// [`MAX_BARRETT_LIMBS`].
     pub fn modpow_barrett(&self, exp: &Self, modulus: &Self, mu: &[u64]) -> Self {
-        let eff_limbs = (modulus.bit_len() + 63) / 64;
-        self.modpow_barrett_eff(exp, modulus, mu, eff_limbs)
+        self.modpow_barrett_w::<MAX_LIMBS>(exp, modulus, mu)
     }
 
     /// Barrett modular exponentiation with an explicit effective limb count.
@@ -654,20 +679,39 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// the matching reciprocal. See [`Self::modpow_barrett`] for the other
     /// requirements.
     pub fn modpow_barrett_eff(&self, exp: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
-        let mut base = self.mul_mod_barrett_eff(&Self::ONE, modulus, mu, eff_limbs);
+        self.modpow_barrett_impl::<MAX_LIMBS>(exp, modulus, mu, eff_limbs)
+    }
+
+    /// Barrett modular exponentiation with a caller-chosen working width `W`.
+    ///
+    /// `W` must be at least `2 * (eff_limbs + 1)`, where `eff_limbs` is the
+    /// modulus's effective limb count. A `W` near that lower bound keeps the
+    /// scratch buffers small and is significantly faster than the default
+    /// [`Self::modpow_barrett`] (which uses `W = MAX_LIMBS`). Callers should
+    /// pick `W` from the modulus size; see the RSA public-key code.
+    pub fn modpow_barrett_w<const W: usize>(&self, exp: &Self, modulus: &Self, mu: &[u64]) -> Self {
+        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        self.modpow_barrett_impl::<W>(exp, modulus, mu, eff_limbs)
+    }
+
+    fn modpow_barrett_impl<const W: usize>(&self, exp: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        assert!(eff_limbs >= 1 && eff_limbs <= MAX_BARRETT_LIMBS, "eff_limbs out of range");
+        assert!(2 * (eff_limbs + 1) <= W, "working width W is too small for the modulus");
+        let mut base = self.mul_mod_barrett_impl::<W>(&Self::ONE, modulus, mu, eff_limbs);
         let mut result = Self::ONE;
         let bits = exp.bit_len();
         let mut i = 0;
         while i < bits {
             if exp.bit(i) {
-                result = result.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
+                result = result.mul_mod_barrett_impl::<W>(&base, modulus, mu, eff_limbs);
             }
             i += 1;
             // The square after the most significant bit is never consumed.
             if i < bits {
-                base = base.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
+                base = base.mul_mod_barrett_impl::<W>(&base, modulus, mu, eff_limbs);
             }
         }
+        zeroize_limbs(&mut base.limbs);
         result
     }
 
@@ -682,15 +726,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     ///
     /// Panics under the same conditions as [`Self::reduce_wide_barrett_eff`].
     pub fn mul_mod_barrett(&self, rhs: &Self, modulus: &Self, mu: &[u64]) -> Self {
-        debug_assert!(
-            {
-                let eff = (modulus.bit_len() + 63) / 64;
-                modulus.bit_len() > 0 && self.bit_len() <= eff * 64 && rhs.bit_len() <= eff * 64
-            },
-            "Barrett operands must be reduced below the modulus"
-        );
-        let product = self.mul_wide_internal(rhs);
-        Self::reduce_wide_barrett(&product, modulus, mu)
+        self.mul_mod_barrett_w::<MAX_LIMBS>(rhs, modulus, mu)
     }
 
     /// Barrett multiplication with an explicit effective limb count.
@@ -698,12 +734,33 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// `eff_limbs` must equal `ceil(modulus.bit_len() / 64)` and both operands
     /// must already be reduced. See [`Self::mul_mod_barrett`].
     pub fn mul_mod_barrett_eff(&self, rhs: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        self.mul_mod_barrett_impl::<MAX_LIMBS>(rhs, modulus, mu, eff_limbs)
+    }
+
+    /// Barrett multiplication with a caller-chosen working width `W`.
+    ///
+    /// `W` must be at least `2 * (eff_limbs + 1)` where `eff_limbs` is the
+    /// modulus's effective limb count. Picking `W` near that bound (instead of
+    /// the default `MAX_LIMBS`) makes this much faster; see
+    /// [`Self::modpow_barrett_w`].
+    ///
+    /// The operands must already be reduced below the modulus.
+    pub fn mul_mod_barrett_w<const W: usize>(&self, rhs: &Self, modulus: &Self, mu: &[u64]) -> Self {
+        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        self.mul_mod_barrett_impl::<W>(rhs, modulus, mu, eff_limbs)
+    }
+
+    fn mul_mod_barrett_impl<const W: usize>(&self, rhs: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        assert!(eff_limbs >= 1 && eff_limbs <= MAX_BARRETT_LIMBS, "eff_limbs out of range");
+        assert!(2 * (eff_limbs + 1) <= W, "working width W is too small for the modulus");
         debug_assert!(
             self.bit_len() <= eff_limbs * 64 && rhs.bit_len() <= eff_limbs * 64,
             "Barrett operands must be reduced below 2^(eff_limbs * 64)"
         );
-        let product = self.mul_wide_internal(rhs);
-        Self::reduce_wide_barrett_eff(&product, modulus, mu, eff_limbs)
+        let mut product = self.mul_wide_eff::<W>(rhs, eff_limbs);
+        let result = Self::reduce_wide_barrett_eff_impl::<W>(&product, modulus, mu, eff_limbs);
+        zeroize_limbs(&mut product[..]);
+        result
     }
 
     /// Barrett reduction of a `2 * LIMBS`-wide product with an explicit
@@ -720,35 +777,46 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// Panics when `eff_limbs` is out of range, when the effective width does
     /// not fit in `MAX_LIMBS`, or when `mu` is too short.
     pub fn reduce_wide_barrett_eff(product: &[u64; MAX_LIMBS], modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        Self::reduce_wide_barrett_eff_impl::<MAX_LIMBS>(&product[..], modulus, mu, eff_limbs)
+    }
+
+    fn reduce_wide_barrett_eff_impl<const W: usize>(
+        product: &[u64],
+        modulus: &Self,
+        mu: &[u64],
+        eff_limbs: usize,
+    ) -> Self {
         assert!(eff_limbs >= 1 && eff_limbs <= LIMBS, "eff_limbs out of range");
         assert!(
             eff_limbs <= MAX_BARRETT_LIMBS,
             "Barrett reduction supports at most MAX_BARRETT_LIMBS effective limbs"
         );
+        assert!(2 * (eff_limbs + 1) <= W, "working width W is too small for the modulus");
+        assert!(product.len() >= 2 * eff_limbs, "product slice is too short");
         assert!(mu.len() >= eff_limbs + 1, "mu is too short for the effective limb count");
 
         let k = eff_limbs;
         let k1 = k + 1;
         let k_minus_1 = k.saturating_sub(1);
 
-        let mut q1 = [0u64; MAX_LIMBS];
+        let mut q1 = [0u64; W];
         q1[..k1].copy_from_slice(&product[k_minus_1..k_minus_1 + k1]);
 
-        let mut q2 = [0u64; MAX_LIMBS];
+        let mut q2 = [0u64; W];
         mul_limbs(&mut q2, &q1, k1, mu, k1);
 
-        let mut q3 = [0u64; MAX_LIMBS];
+        let mut q3 = [0u64; W];
         q3[..k1].copy_from_slice(&q2[k1..k1 + k1]);
 
-        let mut r1 = [0u64; MAX_LIMBS];
+        let mut r1 = [0u64; W];
         r1[..k1].copy_from_slice(&product[..k1]);
 
-        let mut q3m = [0u64; MAX_LIMBS];
+        let mut q3m = [0u64; W];
         mul_limbs(&mut q3m, &q3[..k1], k1, &modulus.limbs, k);
-        let mut r2 = [0u64; MAX_LIMBS];
+        let mut r2 = [0u64; W];
         r2[..k1].copy_from_slice(&q3m[..k1]);
 
-        let mut r = [0u64; MAX_LIMBS];
+        let mut r = [0u64; W];
         let mut borrow = 0u64;
         let mut i = 0;
         while i < k1 {
@@ -783,9 +851,17 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
 
         let mut limbs = [0u64; LIMBS];
         limbs[..k].copy_from_slice(&r[..k]);
-        Self {
+        let result = Self {
             limbs,
-        }
+        };
+        zeroize_limbs(&mut q1);
+        zeroize_limbs(&mut q2);
+        zeroize_limbs(&mut q3);
+        zeroize_limbs(&mut r1);
+        zeroize_limbs(&mut q3m);
+        zeroize_limbs(&mut r2);
+        zeroize_limbs(&mut r);
+        result
     }
 
     /// `self^exp mod modulus` using square-and-multiply, scanning only up to
@@ -816,6 +892,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
                 base = base.mul_mod(&base, modulus);
             }
         }
+        zeroize_limbs(&mut base.limbs);
         result
     }
 
@@ -1285,13 +1362,14 @@ impl<const BITS: usize, const LIMBS: usize> Mul for Uint<BITS, LIMBS> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let product = self.mul_wide_internal(&rhs);
+        let mut product = self.mul_wide_internal(&rhs);
         let mut limbs = [0u64; LIMBS];
         let mut i = 0;
         while i < LIMBS {
             limbs[i] = product[i];
             i += 1;
         }
+        zeroize_limbs(&mut product[..]);
         Self {
             limbs,
         }
@@ -1849,6 +1927,18 @@ mod tests {
         assert_eq!(signed * -2i32, I128::from_i128(20));
         assert_eq!(signed / -4i32, I128::from_i128(2));
         assert_eq!(signed % 4u32, I128::from_i128(-2));
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn zeroize_clears_limb_buffers() {
+        let mut buffer = [0xA5u64; 8];
+        zeroize_limbs(&mut buffer);
+        assert_eq!(buffer, [0u64; 8]);
+
+        let mut value = U256::MAX;
+        zeroize::Zeroize::zeroize(&mut value);
+        assert!(value.is_zero());
     }
 
     #[test]

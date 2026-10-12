@@ -104,8 +104,10 @@ impl FieldElement {
     ///   4. Subtract p up to two times if the result is ≥ p
     #[inline]
     pub fn mul(self, rhs: Self) -> Self {
-        let prod = mul_4x4(&self.0.limbs, &rhs.0.limbs);
-        Self(reduce_38_full(&prod))
+        let mut prod = mul_4x4(&self.0.limbs, &rhs.0.limbs);
+        let result = Self(reduce_38_full(&prod));
+        zeroize_limbs(&mut prod);
+        result
     }
 
     /// Constant-time multiplication modulo p (relaxed reduction).
@@ -115,8 +117,10 @@ impl FieldElement {
     /// consumed by further field operations, deferring full reduction.
     #[inline]
     pub fn mul_relaxed(self, rhs: Self) -> Self {
-        let prod = mul_4x4(&self.0.limbs, &rhs.0.limbs);
-        Self(reduce_38_relaxed(&prod))
+        let mut prod = mul_4x4(&self.0.limbs, &rhs.0.limbs);
+        let result = Self(reduce_38_relaxed(&prod));
+        zeroize_limbs(&mut prod);
+        result
     }
 
     /// Constant-time square modulo p (fully reduced).
@@ -126,8 +130,10 @@ impl FieldElement {
     /// the full 16-product schoolbook used by `mul`.
     #[inline]
     pub fn square(self) -> Self {
-        let sq = square_4(&self.0.limbs);
-        Self(reduce_38_full(&sq))
+        let mut sq = square_4(&self.0.limbs);
+        let result = Self(reduce_38_full(&sq));
+        zeroize_limbs(&mut sq);
+        result
     }
 
     /// Constant-time square modulo p (relaxed reduction).
@@ -135,8 +141,10 @@ impl FieldElement {
     /// Same as `square` but omits the final two conditional subtractions.
     #[inline]
     pub fn square_relaxed(self) -> Self {
-        let sq = square_4(&self.0.limbs);
-        Self(reduce_38_relaxed(&sq))
+        let mut sq = square_4(&self.0.limbs);
+        let result = Self(reduce_38_relaxed(&sq));
+        zeroize_limbs(&mut sq);
+        result
     }
 
     /// Constant-time negation modulo p.
@@ -207,6 +215,16 @@ impl FieldElement {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/// Clears a limb buffer. With the `zeroize` feature this uses volatile writes
+/// that cannot be optimised away; otherwise it is a no-op.
+#[inline]
+fn zeroize_limbs(limbs: &mut [u64]) {
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(limbs);
+    #[cfg(not(feature = "zeroize"))]
+    let _ = limbs;
+}
 
 /// 4×4 -> 8-limb schoolbook product (16 multiplications).
 #[inline]

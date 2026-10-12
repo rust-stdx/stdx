@@ -73,11 +73,7 @@ fn barrett_auto_detects_effective_limbs_for_small_moduli() {
         for _ in 0..500 {
             let a = random_below(&mut state, bits - 1);
             let b = random_below(&mut state, bits - 1);
-            assert_eq!(
-                a.mul_mod_barrett(&b, &m, &mu),
-                a.mul_mod(&b, &m),
-                "bits={bits} m={m:x}"
-            );
+            assert_eq!(a.mul_mod_barrett(&b, &m, &mu), a.mul_mod(&b, &m), "bits={bits} m={m:x}");
         }
     }
 }
@@ -205,4 +201,72 @@ fn large_modulus_barrett_does_not_panic() {
     let barrett = a.mul_mod_barrett(&b, &m, &mu);
     let reference = a.mul_mod(&b, &m);
     assert_eq!(barrett, reference);
+}
+
+#[test]
+fn width_specialised_barrett_matches_default() {
+    // A 130-bit modulus in `Uint<256, 4>` uses 3 effective limbs, so `2 * (3 + 1) = 8`
+    // is the minimal working width. The specialised path must agree with the
+    // generic (W = MAX_LIMBS) path and with the bit-serial reference.
+    let m = modulus_of_bits(130);
+    let mu = m.compute_mu_for_barrett();
+    let mut state = 0x0F1E_2D3C_4B5A_6978u64;
+    for _ in 0..2_000 {
+        let a = random_below(&mut state, 129);
+        let b = random_below(&mut state, 129);
+        assert_eq!(a.mul_mod_barrett_w::<8>(&b, &m, &mu), a.mul_mod(&b, &m));
+        assert_eq!(a.mul_mod_barrett_w::<8>(&b, &m, &mu), a.mul_mod_barrett(&b, &m, &mu));
+    }
+    for _ in 0..200 {
+        let base = random_below(&mut state, 129);
+        let exp = U256::from_limbs([rng(&mut state) >> 40, rng(&mut state) % 16, 0, 0]);
+        assert_eq!(base.modpow_barrett_w::<8>(&exp, &m, &mu), base.modpow_barrett(&exp, &m, &mu));
+    }
+
+    // Full-width 256-bit modulus (eff = 4, minimal W = 10).
+    let m = modulus_of_bits(256);
+    let mu = m.compute_mu_for_barrett();
+    for _ in 0..2_000 {
+        let a = U256::from_limbs([rng(&mut state), rng(&mut state), rng(&mut state), rng(&mut state)]);
+        let b = U256::from_limbs([rng(&mut state), rng(&mut state), rng(&mut state), rng(&mut state)]);
+        assert_eq!(a.mul_mod_barrett_w::<10>(&b, &m, &mu), a.mul_mod(&b, &m));
+    }
+
+    // 512-bit type with a 300-bit modulus (eff = 5, minimal W = 12).
+    let mut limbs = [0u64; 8];
+    limbs[4] = 1 << 44; // ~2^300
+    let m512 = U512::from_limbs(limbs).add_word(1).0;
+    let mu = m512.compute_mu_for_barrett();
+    for _ in 0..500 {
+        let a = U512::from_limbs([
+            rng(&mut state),
+            rng(&mut state),
+            rng(&mut state),
+            rng(&mut state),
+            rng(&mut state) % 16,
+            0,
+            0,
+            0,
+        ]);
+        let b = U512::from_limbs([
+            rng(&mut state),
+            rng(&mut state),
+            rng(&mut state),
+            rng(&mut state),
+            0,
+            0,
+            0,
+            0,
+        ]);
+        assert_eq!(a.mul_mod_barrett_w::<12>(&b, &m512, &mu), a.mul_mod(&b, &m512));
+    }
+}
+
+#[test]
+#[should_panic(expected = "working width W is too small")]
+fn width_too_small_panics() {
+    let m = modulus_of_bits(256); // eff = 4 -> needs W >= 10
+    let mu = m.compute_mu_for_barrett();
+    let a = U256::from_u64(3);
+    let _ = a.mul_mod_barrett_w::<8>(&a, &m, &mu);
 }
