@@ -10,6 +10,7 @@ fn engine_is_send_and_sync() {
     assert_send_sync::<Engine>();
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn concurrent_renders_are_independent() {
     let mut engine = Engine::new(EscapeMode::Text);

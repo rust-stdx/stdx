@@ -1,49 +1,19 @@
 //! Allocation and resource-leak regression tests.
 //!
-//! These live in their own integration-test binary because they install a
-//! counting global allocator, which is process-wide. They therefore run as a
-//! single test.
-
-use std::{
-    alloc::{GlobalAlloc, Layout, System},
-    sync::atomic::{AtomicIsize, AtomicU64, Ordering},
-};
-// `env::temp_dir()` and `std::process::id()` are unsupported on wasm32-wasip1,
-// so the filesystem half of the test below only runs on native targets.
+//! Counting comes from `alloc_counter`, which attributes allocations to the
+//! current thread. These tests still live in their own integration-test binary
+//! and run as a single test, since they change the process working directory.
+//!
+//! `env::temp_dir()` and `std::process::id()` are unsupported on wasm32-wasip1,
+//! so the filesystem half of the test below only runs on native targets.
 #[cfg(not(target_arch = "wasm32"))]
 use std::{env, fs};
 
-struct Counting;
-
-static ALLOCS: AtomicU64 = AtomicU64::new(0);
-static LIVE: AtomicIsize = AtomicIsize::new(0);
-
-unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        ALLOCS.fetch_add(1, Ordering::Relaxed);
-        LIVE.fetch_add(1, Ordering::Relaxed);
-        unsafe { System.alloc(layout) }
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        LIVE.fetch_sub(1, Ordering::Relaxed);
-        unsafe { System.dealloc(ptr, layout) }
-    }
-
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        ALLOCS.fetch_add(1, Ordering::Relaxed);
-        unsafe { System.realloc(ptr, layout, new_size) }
-    }
-}
-
-#[global_allocator]
-static ALLOCATOR: Counting = Counting;
+use alloc_counter::{counters, measure};
 
 fn count_allocs<T>(f: impl FnOnce() -> T) -> (T, u64) {
-    let before = ALLOCS.load(Ordering::Relaxed);
-    let out = f();
-    let after = ALLOCS.load(Ordering::Relaxed);
-    (out, after - before)
+    let (out, counts) = measure(f);
+    (out, counts.calls)
 }
 
 #[cfg(target_os = "linux")]
@@ -83,7 +53,7 @@ fn allocations_are_linear_and_no_leaks() {
         env::set_current_dir(&dir).unwrap();
         dotenv::load().unwrap();
 
-        let live_before = LIVE.load(Ordering::Relaxed);
+        let live_before = counters().live_allocations;
         #[cfg(target_os = "linux")]
         let fds_before = fd_count();
 
@@ -92,7 +62,7 @@ fn allocations_are_linear_and_no_leaks() {
             dotenv::load().unwrap();
         }
 
-        let live_after = LIVE.load(Ordering::Relaxed);
+        let live_after = counters().live_allocations;
         #[cfg(target_os = "linux")]
         let fds_after = fd_count();
 

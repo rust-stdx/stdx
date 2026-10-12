@@ -207,6 +207,18 @@ let searcher = TwoWaySearcher::new("needle");
 let pos = searcher.search_in(b"haystack with needle");
 ```
 
+### Testing & Measurement
+
+```rust
+// Per-thread allocation counting (dev-dependency only).
+// Linking it installs a counting global allocator for the test binary, so
+// `measure` reports exactly what the calling thread allocated.
+use alloc_counter::measure;
+
+let (value, counters) = measure(|| compute());
+assert_eq!(counters.calls, 0); // hot path must not allocate
+```
+
 ### Miscellaneous
 
 ```rust

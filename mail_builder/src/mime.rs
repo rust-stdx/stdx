@@ -559,6 +559,7 @@ mod tests {
         assert_eq!(make_boundary(".").split('.').count(), 2);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn boundaries_are_unique_across_threads() {
         let per_thread = 5_000;

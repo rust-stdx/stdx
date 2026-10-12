@@ -17,3 +17,6 @@ serde = ["dep:ryu", "dep:serde"]
 memchr = { workspace = true }
 ryu = { path = "../ryu", optional = true }
 serde = { workspace = true, default-features = false, features = ["derive", "alloc"], optional = true }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }

@@ -1,65 +1,21 @@
 //! Allocation and retained-memory regression tests.
 //!
-//! Everything lives in a single `#[test]` on purpose: the tests observe a
-//! process-wide counting allocator, so they must not run concurrently with any
-//! other test in this binary.
+//! Counting comes from `alloc_counter`, which attributes allocations to the
+//! current thread, so these assertions are not perturbed by parallel tests.
 
-use std::{
-    alloc::{GlobalAlloc, Layout, System},
-    io::Cursor,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::io::Cursor;
 
+use alloc_counter::counters;
 use csv::*;
-
-struct Counting;
-
-static ALLOCS: AtomicUsize = AtomicUsize::new(0);
-static BYTES: AtomicUsize = AtomicUsize::new(0);
-static LIVE: AtomicUsize = AtomicUsize::new(0);
-
-unsafe impl GlobalAlloc for Counting {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        ALLOCS.fetch_add(1, Ordering::Relaxed);
-        BYTES.fetch_add(layout.size(), Ordering::Relaxed);
-        LIVE.fetch_add(layout.size(), Ordering::Relaxed);
-        unsafe { System.alloc(layout) }
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
-        unsafe { System.dealloc(ptr, layout) }
-    }
-
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        ALLOCS.fetch_add(1, Ordering::Relaxed);
-        BYTES.fetch_add(new_size, Ordering::Relaxed);
-        if new_size >= layout.size() {
-            LIVE.fetch_add(new_size - layout.size(), Ordering::Relaxed);
-        } else {
-            LIVE.fetch_sub(layout.size() - new_size, Ordering::Relaxed);
-        }
-        unsafe { System.realloc(ptr, layout, new_size) }
-    }
-}
-
-#[global_allocator]
-static ALLOCATOR: Counting = Counting;
 
 /// Runs `f`, returning `(allocations, bytes)` made during the call.
 fn measure<R>(f: impl FnOnce() -> R) -> (usize, usize, R) {
-    let allocs = ALLOCS.load(Ordering::Relaxed);
-    let bytes = BYTES.load(Ordering::Relaxed);
-    let value = f();
-    (
-        ALLOCS.load(Ordering::Relaxed) - allocs,
-        BYTES.load(Ordering::Relaxed) - bytes,
-        value,
-    )
+    let (value, counts) = alloc_counter::measure(f);
+    (counts.calls as usize, counts.bytes as usize, value)
 }
 
 fn live() -> usize {
-    LIVE.load(Ordering::Relaxed)
+    counters().live_bytes as usize
 }
 
 #[test]

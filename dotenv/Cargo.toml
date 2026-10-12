@@ -11,3 +11,6 @@ path = "./dotenv.rs"
 [dependencies]
 dotenv_derive = { path = "./dotenv_derive" }
 memchr = { workspace = true, features = ["std"] }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }

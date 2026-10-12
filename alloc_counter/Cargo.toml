@@ -1,0 +1,9 @@
+[package]
+name = "alloc_counter"
+version = "0.1.0"
+description = "Per-thread allocation counting for tests."
+edition = "2024"
+rust-version.workspace = true
+
+[lib]
+path = "./alloc_counter.rs"

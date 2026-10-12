@@ -98,10 +98,12 @@ fn test_missing_database() {
     let r = Reader::open_readfile("file-does-not-exist.mmdb");
     match r {
         Ok(_) => panic!("Received Reader when opening non-existent file"),
-        Err(e) => assert!(
-            e == MaxMindDBError::IoError("The system cannot find the file specified. (os error 2)".to_string())
-                || e == MaxMindDBError::IoError("No such file or directory (os error 2)".to_string())
-        ),
+        // The io error text (and its errno) is platform specific, so compare
+        // against the error `std` reports for the same missing file.
+        Err(e) => {
+            let expected = MaxMindDBError::from(std::fs::read("file-does-not-exist.mmdb").unwrap_err());
+            assert_eq!(e, expected);
+        }
     }
 }
 

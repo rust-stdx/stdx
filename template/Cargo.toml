@@ -14,3 +14,6 @@ std = ["serde/std", "memchr/std"]
 [dependencies]
 memchr = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive", "alloc"] }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }

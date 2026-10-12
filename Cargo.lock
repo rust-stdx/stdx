@@ -32,6 +32,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloc_counter"
+version = "0.1.0"
+
+[[package]]
 name = "alloca"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -237,6 +241,7 @@ checksum = "4372b9543397a4b86050cc5e7ee36953edf4bac9518e8a774c2da694977fb6e4"
 name = "big_number"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "crypto",
  "zeroize 1.9.1",
 ]
@@ -584,6 +589,7 @@ dependencies = [
 name = "csv"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "memchr",
  "ryu",
  "serde",
@@ -630,6 +636,7 @@ dependencies = [
 name = "dotenv"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "dotenv_derive",
  "memchr",
 ]
@@ -1334,6 +1341,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 name = "maxminddb"
 version = "0.24.0"
 dependencies = [
+ "alloc_counter",
  "ipnetwork",
  "memchr",
  "serde",
@@ -2229,6 +2237,7 @@ dependencies = [
 name = "template"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "memchr",
  "serde",
 ]

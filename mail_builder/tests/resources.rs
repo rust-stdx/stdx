@@ -93,6 +93,7 @@ fn the_writer_is_dropped_after_serialization() {
     assert_eq!(DROPS.load(Ordering::Relaxed), 1);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn concurrent_builds_do_not_race() {
     let handles: Vec<_> = (0..8)

@@ -22,5 +22,6 @@ serde = { workspace = true, features = ["derive", "alloc"] }
 memchr = { workspace = true }
 
 [dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
 serde_json = { workspace = true }
 

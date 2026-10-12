@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "acme",
+    "alloc_counter",
     "anyerr",
     "base32",
     "base64",
