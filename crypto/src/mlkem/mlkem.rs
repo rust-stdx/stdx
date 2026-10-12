@@ -139,6 +139,11 @@ pub(crate) fn crypto_kem_enc_derand<const K: usize, const PUBLIC_KEY_SIZE: usize
 
     let mut shared_secret = [0u8; SHARED_SECRET_SIZE];
     shared_secret.copy_from_slice(&kr[..32]);
+
+    // FIPS 203 Section 3.3: destroy the message and the derived key material.
+    wipe(&mut buf);
+    wipe(&mut kr);
+
     (shared_secret, ciphertext)
 }
 
@@ -155,6 +160,15 @@ pub(crate) fn crypto_kem_dec<const K: usize, const SECRET_KEY_SIZE: usize, const
     }
 
     let public_key = &secret_key[public_key_offset..public_key_offset + public_key_size];
+
+    // FIPS 203 Section 7.3 decapsulation-key check: the hash `H(ek)` stored in
+    // the key must match the hash of the encapsulation key embedded in it.
+    // Without this check a corrupted or mismatched key would silently produce a
+    // wrong shared secret instead of being rejected.
+    if !constant_time_eq(&hash_h(public_key), &secret_key[SECRET_KEY_SIZE - 64..SECRET_KEY_SIZE - 32]) {
+        return Err(MlKemError::InvalidKey);
+    }
+
     let mut message_and_hash = [0u8; 64];
     let mut kr = [0u8; 64];
     let mut cmp = [0u8; CIPHERTEXT_SIZE];
@@ -172,6 +186,12 @@ pub(crate) fn crypto_kem_dec<const K: usize, const SECRET_KEY_SIZE: usize, const
 
     let mut shared_secret = rkprf(array_ref_32(&secret_key[SECRET_KEY_SIZE - 32..]), ciphertext);
     cmov(&mut shared_secret, array_ref_32(&kr[..32]), constant_time_eq(ciphertext, &cmp));
+
+    // FIPS 203 Section 3.3: only the designated output may be retained.
+    wipe(&mut message_and_hash);
+    wipe(&mut kr);
+    wipe(&mut cmp);
+
     Ok(shared_secret)
 }
 
@@ -189,7 +209,7 @@ pub(crate) fn indcpa_keypair_derand<const K: usize>(
     let mut g_input = [0u8; 33];
     g_input[..32].copy_from_slice(coins);
     g_input[32] = K as u8;
-    let seed_output = hash_g(&g_input);
+    let mut seed_output = hash_g(&g_input);
     let public_seed = array_ref_32(&seed_output[..32]);
     let noise_seed = array_ref_32(&seed_output[32..64]);
     let matrix = gen_matrix::<K>(public_seed, false);
@@ -217,6 +237,10 @@ pub(crate) fn indcpa_keypair_derand<const K: usize>(
 
     pack_sk(secret_key, &skpv);
     pack_pk(public_key, &pkpv, public_seed);
+
+    // FIPS 203 Section 3.3: the key-generation seed and noise seed are secret.
+    wipe(&mut g_input);
+    wipe(&mut seed_output);
 }
 
 #[inline]
@@ -988,6 +1012,24 @@ fn ciphertext_bytes<const K: usize>(params: &MlKemParams<K>) -> usize {
 #[inline]
 fn array_ref_32(input: &[u8]) -> &[u8; 32] {
     input.try_into().expect("slice length should be 32")
+}
+
+/// Best-effort zeroization of an intermediate secret buffer.
+///
+/// When the `zeroize` feature is enabled the bytes are overwritten with zeros;
+/// otherwise this is a no-op. Secret heap/stack buffers that hold intermediate
+/// values (FIPS 203 Section 3.3) are wiped through this helper before returning.
+#[inline]
+fn wipe(bytes: &mut [u8]) {
+    #[cfg(feature = "zeroize")]
+    {
+        use zeroize::Zeroize;
+        bytes.zeroize();
+    }
+    #[cfg(not(feature = "zeroize"))]
+    {
+        let _ = bytes;
+    }
 }
 
 #[cfg(test)]

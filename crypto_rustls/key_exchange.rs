@@ -9,7 +9,7 @@ use core::marker::PhantomData;
 
 use crypto::{
     curve25519::x25519,
-    mlkem::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SecretKey768, generate_keypair_768},
+    mlkem::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SecretKey768},
 };
 use rustls::{
     Error, NamedGroup, PeerMisbehaved, ProtocolVersion,
@@ -229,7 +229,7 @@ struct MlKem768;
 
 impl SupportedKxGroup for MlKem768 {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
-        let (secret, public) = generate_keypair_768().map_err(|_| RANDOM_FAILURE)?;
+        let (secret, public) = SecretKey768::generate().map_err(|_| RANDOM_FAILURE)?;
         let pub_key = public.to_bytes();
         Ok(Box::new(ActiveMlKem768 {
             secret,

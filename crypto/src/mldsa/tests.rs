@@ -518,7 +518,7 @@ fn sign44(
 
 fn sign44_mu(seed: &[u8; 32], mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_44_SIGNATURE_SIZE] {
     let sk = MlDsa44SecretKey::new(seed);
-    sk.sign_external_mu_derand(mu, rnd)
+    sk.sign_external_mu_derand(mu, rnd).unwrap()
 }
 
 fn verify44(
@@ -646,7 +646,7 @@ fn sign65(
 
 fn sign65_mu(seed: &[u8; 32], mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_65_SIGNATURE_SIZE] {
     let sk = MlDsa65SecretKey::new(seed);
-    sk.sign_external_mu_derand(mu, rnd)
+    sk.sign_external_mu_derand(mu, rnd).unwrap()
 }
 
 fn verify65(
@@ -873,7 +873,7 @@ fn sign87(
 
 fn sign87_mu(seed: &[u8; 32], mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_87_SIGNATURE_SIZE] {
     let sk = MlDsa87SecretKey::new(seed);
-    sk.sign_external_mu_derand(mu, rnd)
+    sk.sign_external_mu_derand(mu, rnd).unwrap()
 }
 
 fn verify87(
@@ -972,4 +972,97 @@ fn mldsa87_generate_uniqueness() {
 
     let c = MlDsa87SecretKey::new(a.seed());
     assert_eq!(a.public_key(), c.public_key());
+}
+
+/// Malformed hint encodings must be rejected at parse time and must never
+/// panic. These are the checks that protect strong unforgeability (FIPS 204
+/// Algorithm 21); duplicate indices in particular are CVE-2026-24850.
+#[test]
+fn mldsa65_malformed_hint_encodings_are_rejected() {
+    const OMEGA: usize = 55;
+    const K: usize = 6;
+    const HINT: usize = ML_DSA_65_SIGNATURE_SIZE - (OMEGA + K);
+
+    let seed = [9u8; 32];
+    let msg = b"attack at dawn";
+    let pk = pk65(&seed);
+    let good = sign65(&seed, msg, b"", &[1u8; 32]).unwrap();
+    assert!(verify65(&pk, msg, &good, b"").is_ok());
+
+    let check = |name: &str, sig: &[u8; ML_DSA_65_SIGNATURE_SIZE]| {
+        assert!(
+            verify65(&pk, msg, sig, b"").is_err(),
+            "malformed hint encoding accepted: {name}"
+        );
+    };
+
+    let zero_hints = |s: &mut [u8; ML_DSA_65_SIGNATURE_SIZE]| {
+        for b in s[HINT..].iter_mut() {
+            *b = 0;
+        }
+    };
+
+    // Duplicate index within a polynomial.
+    let mut sig = good;
+    zero_hints(&mut sig);
+    sig[HINT] = 5;
+    sig[HINT + 1] = 5;
+    for i in 0..K {
+        sig[HINT + OMEGA + i] = 2;
+    }
+    check("duplicate index", &sig);
+
+    // Decreasing index.
+    let mut sig = good;
+    zero_hints(&mut sig);
+    sig[HINT] = 9;
+    sig[HINT + 1] = 3;
+    for i in 0..K {
+        sig[HINT + OMEGA + i] = 2;
+    }
+    check("decreasing index", &sig);
+
+    // Count exceeds omega.
+    let mut sig = good;
+    zero_hints(&mut sig);
+    sig[HINT + OMEGA] = (OMEGA + 1) as u8;
+    check("count > omega", &sig);
+
+    // Non-zero padding after the last hint.
+    let mut sig = good;
+    zero_hints(&mut sig);
+    sig[HINT] = 5;
+    sig[HINT + 1] = 0xff;
+    for i in 0..K {
+        sig[HINT + OMEGA + i] = 1;
+    }
+    check("non-zero padding", &sig);
+
+    // Non-monotone cumulative counts.
+    let mut sig = good;
+    zero_hints(&mut sig);
+    sig[HINT] = 5;
+    sig[HINT + OMEGA] = 1;
+    sig[HINT + OMEGA + 1] = 0;
+    check("non-monotone counts", &sig);
+}
+
+/// Random and boundary signatures must be rejected without panicking; this
+/// exercises the decoder and the norm checks on arbitrary bytes.
+#[test]
+fn mldsa65_arbitrary_signatures_do_not_panic() {
+    let pk = pk65(&[3u8; 32]);
+
+    for pattern in [0x00u8, 0xff, 0x55, 0xaa] {
+        let sig = [pattern; ML_DSA_65_SIGNATURE_SIZE];
+        assert!(verify65(&pk, b"m", &sig, b"").is_err());
+    }
+
+    let mut shake = Shake128::new();
+    shake.absorb(b"arbitrary-signatures");
+    for _ in 0..2_000 {
+        let mut sig = [0u8; ML_DSA_65_SIGNATURE_SIZE];
+        shake.squeeze(&mut sig);
+        let _ = verify65(&pk, b"m", &sig, b"");
+    }
 }

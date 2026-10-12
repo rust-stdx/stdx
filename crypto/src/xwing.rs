@@ -216,7 +216,7 @@ fn expand_decapsulation_key(
     let mut expanded_secret_key = [0u8; 96];
     Shake256::hash(secret_key, &mut expanded_secret_key);
 
-    let (sk_m, pk_m) = mlkem::generate_keypair_768_derand(&expanded_secret_key[..64].try_into().unwrap());
+    let (sk_m, pk_m) = mlkem::SecretKey768::generate_derand(&expanded_secret_key[..64].try_into().unwrap());
 
     let sk_x = x25519::SecretKey::from_bytes(&expanded_secret_key[64..96].try_into().unwrap());
     let pk_x = sk_x.public_key();

@@ -196,14 +196,22 @@ impl MlDsa87SecretKey {
     #[cfg(feature = "random")]
     pub fn sign_external_mu(&self, mu: &[u8; 64]) -> Result<[u8; ML_DSA_87_SIGNATURE_SIZE], MlDsaError> {
         let rnd: [u8; 32] = crate::random::bytes()?;
-        Ok(self.sign_external_mu_derand(mu, &rnd))
+        self.sign_external_mu_derand(mu, &rnd)
     }
 
     /// Signs a precomputed 64-byte message representative `mu` (FIPS 204
     /// "external mu" signing) deterministically for a fixed `rnd`.
-    pub fn sign_external_mu_derand(&self, mu: &[u8; 64], rnd: &[u8; 32]) -> [u8; ML_DSA_87_SIGNATURE_SIZE] {
+    ///
+    /// Returns [`MlDsaError::RetryLimitExceeded`] in the (statistically
+    /// impossible) event that the signing rejection loop exceeds the FIPS 204
+    /// limit of 814 iterations.
+    pub fn sign_external_mu_derand(
+        &self,
+        mu: &[u8; 64],
+        rnd: &[u8; 32],
+    ) -> Result<[u8; ML_DSA_87_SIGNATURE_SIZE], MlDsaError> {
         let mut sig = [0u8; ML_DSA_87_SIGNATURE_SIZE];
-        self.inner.sign_external_mu_derand_into(&PARAMS_87, mu, rnd, &mut sig);
-        sig
+        self.inner.sign_external_mu_derand_into(&PARAMS_87, mu, rnd, &mut sig)?;
+        Ok(sig)
     }
 }

@@ -27,6 +27,7 @@ zeroize = { workspace = true, optional = true }
 
 
 [dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
 hex = { path = "../hex" }
 rand = { workspace = true }
 serde_json = { workspace = true }
@@ -37,6 +38,10 @@ criterion = { workspace = true }
 
 [[bench]]
 name = "aead"
+harness = false
+
+[[bench]]
+name = "kem"
 harness = false
 
 [[bench]]

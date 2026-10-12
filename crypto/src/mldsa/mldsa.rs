@@ -31,6 +31,13 @@ const N_INV: u32 = 16382;
 const MAX_LAMBDA_OVER_4: usize = 64;
 const MAX_W1_BYTES: usize = 8 * N * 6 / 8;
 const MAX_POLYZ_BYTES: usize = 20 * N / 8;
+/// Maximum number of ML-DSA.Sign_internal rejection-loop iterations.
+///
+/// FIPS 204 Table 3 permits implementations to bound the loop at 814
+/// iterations (and forbids lower bounds). The loop is expected to terminate
+/// after 3.85-5.1 iterations, so reaching this bound has probability below
+/// 2^-256 and signals a fault or broken randomness.
+const MAX_SIGN_ITERATIONS: usize = 814;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MlDsaError {
@@ -38,6 +45,10 @@ pub enum MlDsaError {
     InvalidSignature,
     InvalidPublicKey,
     InvalidSignatureLength,
+    /// The signing rejection loop exceeded the FIPS 204 Table 3 limit of 814
+    /// iterations. This is statistically impossible in practice and indicates a
+    /// fault or a broken random number generator rather than a valid signature.
+    RetryLimitExceeded,
     Random(RandomError),
 }
 
@@ -49,6 +60,7 @@ impl core::fmt::Display for MlDsaError {
             MlDsaError::InvalidSignature => write!(f, "signature is not valid"),
             MlDsaError::InvalidPublicKey => write!(f, "public key is not valid"),
             MlDsaError::InvalidSignatureLength => write!(f, "signature length is not valid"),
+            MlDsaError::RetryLimitExceeded => write!(f, "signing retry limit exceeded"),
             MlDsaError::Random(err) => write!(f, "{err}"),
         }
     }
@@ -139,6 +151,24 @@ pub(crate) const PARAMS_87: MlDsaParams = MlDsaParams {
 };
 
 type FieldElement = u32;
+
+/// Best-effort zeroization of an intermediate secret buffer.
+///
+/// When the `zeroize` feature is enabled the bytes are overwritten with zeros;
+/// otherwise this is a no-op. FIPS 204 requires intermediate values to be
+/// destroyed when signing fails or when the retry limit is exceeded.
+#[inline]
+fn wipe(bytes: &mut [u8]) {
+    #[cfg(feature = "zeroize")]
+    {
+        use zeroize::Zeroize;
+        bytes.zeroize();
+    }
+    #[cfg(not(feature = "zeroize"))]
+    {
+        let _ = bytes;
+    }
+}
 
 fn field_to_montgomery(a: u32) -> FieldElement {
     debug_assert!(a < Q);
@@ -376,6 +406,30 @@ fn ntt_sub(a: &NttPoly, b: &NttPoly) -> NttPoly {
 }
 
 fn ntt_mul(a: &NttPoly, b: &NttPoly) -> NttPoly {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        neon::ntt_mul(a, b)
+    }
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 availability was just checked.
+            unsafe { avx2::ntt_mul(a, b) }
+        } else {
+            ntt_mul_scalar(a, b)
+        }
+    }
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(target_arch = "x86_64", feature = "std"),
+    )))]
+    {
+        ntt_mul_scalar(a, b)
+    }
+}
+
+#[cfg(any(test, not(all(target_arch = "aarch64", target_feature = "neon"))))]
+fn ntt_mul_scalar(a: &NttPoly, b: &NttPoly) -> NttPoly {
     let mut r = NttPoly::default();
     for i in 0..N {
         r.coeffs[i] = field_montgomery_mul(a.coeffs[i], b.coeffs[i]);
@@ -408,6 +462,30 @@ const ZETAS: [FieldElement; 256] = [
 ];
 
 fn ntt(f: &Poly) -> NttPoly {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        neon::ntt(f)
+    }
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 availability was just checked.
+            unsafe { avx2::ntt(f) }
+        } else {
+            ntt_scalar(f)
+        }
+    }
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(target_arch = "x86_64", feature = "std"),
+    )))]
+    {
+        ntt_scalar(f)
+    }
+}
+
+#[cfg(any(test, not(all(target_arch = "aarch64", target_feature = "neon"))))]
+fn ntt_scalar(f: &Poly) -> NttPoly {
     let mut f = NttPoly {
         coeffs: f.coeffs,
     };
@@ -479,6 +557,30 @@ fn ntt(f: &Poly) -> NttPoly {
 }
 
 fn invntt(f: &NttPoly) -> Poly {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        neon::invntt(f)
+    }
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 availability was just checked.
+            unsafe { avx2::invntt(f) }
+        } else {
+            invntt_scalar(f)
+        }
+    }
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(target_arch = "x86_64", feature = "std"),
+    )))]
+    {
+        invntt_scalar(f)
+    }
+}
+
+#[cfg(any(test, not(all(target_arch = "aarch64", target_feature = "neon"))))]
+fn invntt_scalar(f: &NttPoly) -> Poly {
     let mut f = NttPoly {
         coeffs: f.coeffs,
     };
@@ -1056,8 +1158,11 @@ fn compute_t1_hat<const K: usize>(t1: &[[u16; N]; K]) -> [NttPoly; K] {
 /// initialized and the resulting matrix `A` and secret vectors in the NTT
 /// domain are cached, so signing does not repeat the expensive key generation.
 ///
-/// The value is a plain fixed-size type that never allocates, so it can live in
-/// a `static` on `no_std` and embedded targets.
+/// The value is a plain fixed-size type that never allocates. It is large
+/// (tens of kilobytes, up to about 80 KiB for ML-DSA-87), so constructing it
+/// uses a correspondingly large amount of stack; callers on memory-constrained
+/// targets should keep it in long-lived storage rather than creating it in a
+/// deeply nested call.
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub(crate) struct MlDsaKeyMaterial<const K: usize, const L: usize, const PK_SIZE: usize> {
     seed: [u8; SEED_SIZE],
@@ -1161,9 +1266,11 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
         rnd: &[u8; 32],
         sig_out: &mut [u8],
     ) -> Result<(), MlDsaError> {
-        let mu = compute_message_hash(&self.tr, message, ctx)?;
-        self.sign_internal(params, &mu, rnd, sig_out);
-        Ok(())
+        let mut mu = compute_message_hash(&self.tr, message, ctx)?;
+        let result = self.sign_internal(params, &mu, rnd, sig_out);
+        // FIPS 204 Section 3.6.2: destroy the message representative.
+        wipe(&mut mu);
+        result
     }
 
     pub(crate) fn sign_external_mu_derand_into(
@@ -1172,11 +1279,17 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
         mu: &[u8; 64],
         rnd: &[u8; 32],
         sig_out: &mut [u8],
-    ) {
-        self.sign_internal(params, mu, rnd, sig_out);
+    ) -> Result<(), MlDsaError> {
+        self.sign_internal(params, mu, rnd, sig_out)
     }
 
-    fn sign_internal(&self, params: &MlDsaParams, mu: &[u8; 64], rnd: &[u8; 32], sig_out: &mut [u8]) {
+    fn sign_internal(
+        &self,
+        params: &MlDsaParams,
+        mu: &[u8; 64],
+        rnd: &[u8; 32],
+        sig_out: &mut [u8],
+    ) -> Result<(), MlDsaError> {
         debug_assert_eq!(sig_out.len(), params.signature_size);
         let a = &self.a;
         let s1_hat = &self.s1_hat;
@@ -1196,8 +1309,16 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
         h_shake.squeeze(&mut nonce);
 
         let mut kappa: usize = 0;
+        let mut iterations: usize = 0;
 
         loop {
+            if iterations >= MAX_SIGN_ITERATIONS {
+                // FIPS 204 Table 3: destroy intermediate results and fail.
+                wipe(&mut nonce);
+                return Err(MlDsaError::RetryLimitExceeded);
+            }
+            iterations += 1;
+
             let mut y: [Poly; L] = core::array::from_fn(|_| Poly::default());
             for item in y.iter_mut() {
                 *item = expand_mask(&nonce, kappa, params);
@@ -1283,7 +1404,9 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
             }
 
             sig_encode::<K, L>(params, &ct[..lo4], &z, &h, sig_out);
-            return;
+            // FIPS 204 Section 3.6.2: destroy the secret nonce seed.
+            wipe(&mut nonce);
+            return Ok(());
         }
     }
 }
@@ -1369,6 +1492,464 @@ pub(crate) fn verify_external_mu<const K: usize, const L: usize, const PK_SIZE: 
     sig: &[u8; SIG_SIZE],
 ) -> Result<(), MlDsaError> {
     verify_internal::<K, L, PK_SIZE, SIG_SIZE>(params, pk, mu, sig)
+}
+
+/// AArch64 NEON implementations of the ML-DSA NTT kernels.
+///
+/// Unlike ML-KEM, LLVM does not auto-vectorize the 32-bit field arithmetic
+/// here, so the vector kernels provide a real speed-up. NEON is part of the
+/// aarch64 baseline, so selection is at compile time. Correctness is checked
+/// against the scalar kernels by the `*_matches_scalar` tests and end-to-end by
+/// the FIPS 204 known-answer tests.
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+mod neon {
+    use core::arch::aarch64::*;
+
+    use super::*;
+
+    /// `field_reduce_once` on four lanes.
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn reduce_once4(x: uint32x4_t) -> uint32x4_t {
+        let q = vdupq_n_u32(Q);
+        let sub = vsubq_u32(x, q);
+        let mask = vshrq_n_s32(vreinterpretq_s32_u32(sub), 31);
+        let masked = vandq_u32(vreinterpretq_u32_s32(mask), q);
+        vaddq_u32(sub, masked)
+    }
+
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn add4(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
+        reduce_once4(vaddq_u32(a, b))
+    }
+
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn sub4(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
+        reduce_once4(vaddq_u32(vsubq_u32(a, b), vdupq_n_u32(Q)))
+    }
+
+    /// `field_reduce_once` on two lanes.
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn reduce_once2(x: uint32x2_t) -> uint32x2_t {
+        let q = vdup_n_u32(Q);
+        let sub = vsub_u32(x, q);
+        let mask = vshr_n_s32(vreinterpret_s32_u32(sub), 31);
+        let masked = vand_u32(vreinterpret_u32_s32(mask), q);
+        vadd_u32(sub, masked)
+    }
+
+    /// `field_montgomery_reduce` on two 64-bit products, narrowed to 32 bits.
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn montgomery_reduce2(x: uint64x2_t) -> uint32x2_t {
+        let q = vdup_n_u32(Q);
+        let t = vmul_u32(vmovn_u64(x), vdup_n_u32(QINV));
+        let tq = vmull_u32(t, q);
+        let u = vshrq_n_u64(vaddq_u64(x, tq), 32);
+        reduce_once2(vmovn_u64(u))
+    }
+
+    /// `field_montgomery_mul` on four lanes.
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn montgomery_mul4(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
+        let lo = montgomery_reduce2(vmull_u32(vget_low_u32(a), vget_low_u32(b)));
+        let hi = montgomery_reduce2(vmull_high_u32(a, b));
+        vcombine_u32(lo, hi)
+    }
+
+    #[inline]
+    #[target_feature(enable = "neon")]
+    fn montgomery_mul4_scalar(zeta: u32, y: uint32x4_t) -> uint32x4_t {
+        montgomery_mul4(vdupq_n_u32(zeta), y)
+    }
+
+    pub(super) fn ntt(f: &Poly) -> NttPoly {
+        let mut f = NttPoly {
+            coeffs: f.coeffs,
+        };
+        // SAFETY: NEON is enabled on aarch64. Each vector load/store accesses
+        // `j` or `j + len` for `j < start + len` with `start + 2*len <= N` and
+        // `len >= 8` a multiple of 4, so `j + len + 4 <= N`.
+        let mut m: usize = 0;
+        unsafe {
+            let ptr = f.coeffs.as_mut_ptr();
+
+            let mut len: usize = 128;
+            while len >= 8 {
+                let mut start: usize = 0;
+                while start < N {
+                    m += 1;
+                    let zeta = ZETAS[m];
+                    let mut j = start;
+                    while j < start + len {
+                        let x = vld1q_u32(ptr.add(j));
+                        let y = vld1q_u32(ptr.add(j + len));
+                        let t = montgomery_mul4_scalar(zeta, y);
+                        vst1q_u32(ptr.add(j), add4(x, t));
+                        vst1q_u32(ptr.add(j + len), sub4(x, t));
+                        j += 4;
+                    }
+                    start += 2 * len;
+                }
+                len /= 2;
+            }
+        }
+
+        // Remaining distance 4, 2 and 1 stages, identical to the scalar kernel.
+        let c = &mut f.coeffs;
+        let mut start: usize = 0;
+        while start < N {
+            m += 1;
+            let zeta = ZETAS[m];
+            for k in 0..4 {
+                let t = field_montgomery_mul(zeta, c[start + 4 + k]);
+                c[start + 4 + k] = field_sub(c[start + k], t);
+                c[start + k] = field_add(c[start + k], t);
+            }
+            start += 8;
+        }
+        start = 0;
+        while start < N {
+            m += 1;
+            let zeta = ZETAS[m];
+            for k in 0..2 {
+                let t = field_montgomery_mul(zeta, c[start + 2 + k]);
+                c[start + 2 + k] = field_sub(c[start + k], t);
+                c[start + k] = field_add(c[start + k], t);
+            }
+            start += 4;
+        }
+        start = 0;
+        while start < N {
+            m += 1;
+            let zeta = ZETAS[m];
+            let t = field_montgomery_mul(zeta, c[start + 1]);
+            c[start + 1] = field_sub(c[start], t);
+            c[start] = field_add(c[start], t);
+            start += 2;
+        }
+
+        f
+    }
+
+    pub(super) fn invntt(f: &NttPoly) -> Poly {
+        let mut f = NttPoly {
+            coeffs: f.coeffs,
+        };
+        let c = &mut f.coeffs;
+        let mut m: usize = 255;
+
+        // Distance 1, 2 and 4 stages, identical to the scalar kernel.
+        let mut start: usize = 0;
+        while start < N {
+            let zeta = ZETAS[m];
+            m -= 1;
+            let t = c[start];
+            c[start] = field_add(t, c[start + 1]);
+            c[start + 1] = field_montgomery_mul(zeta, field_sub(c[start + 1], t));
+            start += 2;
+        }
+        start = 0;
+        while start < N {
+            let zeta = ZETAS[m];
+            m -= 1;
+            for k in 0..2 {
+                let t = c[start + k];
+                c[start + k] = field_add(t, c[start + 2 + k]);
+                c[start + 2 + k] = field_montgomery_mul(zeta, field_sub(c[start + 2 + k], t));
+            }
+            start += 4;
+        }
+        start = 0;
+        while start < N {
+            let zeta = ZETAS[m];
+            m -= 1;
+            for k in 0..4 {
+                let t = c[start + k];
+                c[start + k] = field_add(t, c[start + 4 + k]);
+                c[start + 4 + k] = field_montgomery_mul(zeta, field_sub(c[start + 4 + k], t));
+            }
+            start += 8;
+        }
+
+        // SAFETY: as in `ntt`; here `len` runs 8, 16, ..., 128.
+        unsafe {
+            let ptr = f.coeffs.as_mut_ptr();
+            let mut len: usize = 8;
+            while len < N {
+                let mut start: usize = 0;
+                while start < N {
+                    let zeta = ZETAS[m];
+                    m -= 1;
+                    let mut j = start;
+                    while j < start + len {
+                        let x = vld1q_u32(ptr.add(j));
+                        let y = vld1q_u32(ptr.add(j + len));
+                        vst1q_u32(ptr.add(j), add4(x, y));
+                        vst1q_u32(ptr.add(j + len), montgomery_mul4_scalar(zeta, sub4(y, x)));
+                        j += 4;
+                    }
+                    start += 2 * len;
+                }
+                len *= 2;
+            }
+
+            // Final scaling by N^-1.
+            let ninv = vdupq_n_u32(N_INV);
+            let mut i = 0;
+            while i < N {
+                vst1q_u32(ptr.add(i), montgomery_mul4(vld1q_u32(ptr.add(i)), ninv));
+                i += 4;
+            }
+        }
+
+        Poly {
+            coeffs: f.coeffs,
+        }
+    }
+
+    pub(super) fn ntt_mul(a: &NttPoly, b: &NttPoly) -> NttPoly {
+        let mut r = NttPoly::default();
+        let (ap, bp, rp) = (a.coeffs.as_ptr(), b.coeffs.as_ptr(), r.coeffs.as_mut_ptr());
+        // SAFETY: all four lanes stay within the 256-element arrays.
+        unsafe {
+            let mut i = 0;
+            while i < N {
+                vst1q_u32(rp.add(i), montgomery_mul4(vld1q_u32(ap.add(i)), vld1q_u32(bp.add(i))));
+                i += 4;
+            }
+        }
+        r
+    }
+}
+
+/// AVX2 implementations of the ML-DSA NTT kernels (x86-64, `std`).
+///
+/// Selected at runtime with `is_x86_feature_detected!("avx2")`. Correctness is
+/// checked against the scalar kernels by the `*_matches_scalar` tests (run
+/// under emulation if no AVX2 host is available) and end-to-end by the FIPS 204
+/// known-answer tests.
+#[cfg(all(target_arch = "x86_64", feature = "std"))]
+mod avx2 {
+    use core::arch::x86_64::*;
+
+    use super::*;
+
+    /// `field_reduce_once` on eight lanes.
+    #[inline]
+    #[target_feature(enable = "avx2")]
+    fn reduce_once8(x: __m256i) -> __m256i {
+        let q = _mm256_set1_epi32(Q as i32);
+        let sub = _mm256_sub_epi32(x, q);
+        let mask = _mm256_cmpgt_epi32(q, x); // all-ones where x < q
+        _mm256_blendv_epi8(sub, x, mask)
+    }
+
+    #[inline]
+    #[target_feature(enable = "avx2")]
+    fn add8(a: __m256i, b: __m256i) -> __m256i {
+        reduce_once8(_mm256_add_epi32(a, b))
+    }
+
+    #[inline]
+    #[target_feature(enable = "avx2")]
+    fn sub8(a: __m256i, b: __m256i) -> __m256i {
+        reduce_once8(_mm256_add_epi32(_mm256_sub_epi32(a, b), _mm256_set1_epi32(Q as i32)))
+    }
+
+    /// Montgomery reduction of four 64-bit products (one per 64-bit lane),
+    /// yielding the reduced 32-bit value in the low half of each lane.
+    #[inline]
+    #[target_feature(enable = "avx2")]
+    fn montgomery_reduce_4x64(x: __m256i) -> __m256i {
+        let t = _mm256_mul_epu32(x, _mm256_set1_epi32(QINV as i32));
+        let tq = _mm256_mul_epu32(t, _mm256_set1_epi32(Q as i32));
+        let u = _mm256_srli_epi64(_mm256_add_epi64(x, tq), 32);
+        reduce_once8(u)
+    }
+
+    /// `field_montgomery_mul` on eight lanes.
+    #[inline]
+    #[target_feature(enable = "avx2")]
+    fn montgomery_mul8(a: __m256i, b: __m256i) -> __m256i {
+        let even = montgomery_reduce_4x64(_mm256_mul_epu32(a, b));
+        let odd = montgomery_reduce_4x64(_mm256_mul_epu32(_mm256_srli_epi64(a, 32), _mm256_srli_epi64(b, 32)));
+        _mm256_or_si256(even, _mm256_slli_epi64(odd, 32))
+    }
+
+    #[inline]
+    #[target_feature(enable = "avx2")]
+    fn montgomery_mul8_scalar(zeta: u32, y: __m256i) -> __m256i {
+        montgomery_mul8(_mm256_set1_epi32(zeta as i32), y)
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub(super) unsafe fn ntt(f: &Poly) -> NttPoly {
+        let mut f = NttPoly {
+            coeffs: f.coeffs,
+        };
+        // SAFETY: AVX2 is enabled by the caller's runtime check. Every vector
+        // load/store stays within `N` because `len >= 8` is a multiple of 4 and
+        // `start + 2*len <= N`.
+        unsafe {
+            let ptr = f.coeffs.as_mut_ptr();
+            let mut m: usize = 0;
+
+            let mut len: usize = 128;
+            while len >= 8 {
+                let mut start: usize = 0;
+                while start < N {
+                    m += 1;
+                    let zeta = ZETAS[m];
+                    let mut j = start;
+                    while j < start + len {
+                        let x = _mm256_loadu_si256(ptr.add(j).cast());
+                        let y = _mm256_loadu_si256(ptr.add(j + len).cast());
+                        let t = montgomery_mul8_scalar(zeta, y);
+                        _mm256_storeu_si256(ptr.add(j).cast(), add8(x, t));
+                        _mm256_storeu_si256(ptr.add(j + len).cast(), sub8(x, t));
+                        j += 8;
+                    }
+                    start += 2 * len;
+                }
+                len /= 2;
+            }
+
+            // Remaining distance 4, 2 and 1 stages.
+            let c = &mut f.coeffs;
+            let mut start: usize = 0;
+            while start < N {
+                m += 1;
+                let zeta = ZETAS[m];
+                for k in 0..4 {
+                    let t = field_montgomery_mul(zeta, c[start + 4 + k]);
+                    c[start + 4 + k] = field_sub(c[start + k], t);
+                    c[start + k] = field_add(c[start + k], t);
+                }
+                start += 8;
+            }
+            start = 0;
+            while start < N {
+                m += 1;
+                let zeta = ZETAS[m];
+                for k in 0..2 {
+                    let t = field_montgomery_mul(zeta, c[start + 2 + k]);
+                    c[start + 2 + k] = field_sub(c[start + k], t);
+                    c[start + k] = field_add(c[start + k], t);
+                }
+                start += 4;
+            }
+            start = 0;
+            while start < N {
+                m += 1;
+                let zeta = ZETAS[m];
+                let t = field_montgomery_mul(zeta, c[start + 1]);
+                c[start + 1] = field_sub(c[start], t);
+                c[start] = field_add(c[start], t);
+                start += 2;
+            }
+        }
+
+        f
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub(super) unsafe fn invntt(f: &NttPoly) -> Poly {
+        let mut f = NttPoly {
+            coeffs: f.coeffs,
+        };
+        let c = &mut f.coeffs;
+        let mut m: usize = 255;
+
+        // Distance 1, 2 and 4 stages.
+        let mut start: usize = 0;
+        while start < N {
+            let zeta = ZETAS[m];
+            m -= 1;
+            let t = c[start];
+            c[start] = field_add(t, c[start + 1]);
+            c[start + 1] = field_montgomery_mul(zeta, field_sub(c[start + 1], t));
+            start += 2;
+        }
+        start = 0;
+        while start < N {
+            let zeta = ZETAS[m];
+            m -= 1;
+            for k in 0..2 {
+                let t = c[start + k];
+                c[start + k] = field_add(t, c[start + 2 + k]);
+                c[start + 2 + k] = field_montgomery_mul(zeta, field_sub(c[start + 2 + k], t));
+            }
+            start += 4;
+        }
+        start = 0;
+        while start < N {
+            let zeta = ZETAS[m];
+            m -= 1;
+            for k in 0..4 {
+                let t = c[start + k];
+                c[start + k] = field_add(t, c[start + 4 + k]);
+                c[start + 4 + k] = field_montgomery_mul(zeta, field_sub(c[start + 4 + k], t));
+            }
+            start += 8;
+        }
+
+        // SAFETY: as in `ntt`; `len` runs 8, 16, ..., 128.
+        unsafe {
+            let ptr = f.coeffs.as_mut_ptr();
+            let mut len: usize = 8;
+            while len < N {
+                let mut start: usize = 0;
+                while start < N {
+                    let zeta = ZETAS[m];
+                    m -= 1;
+                    let mut j = start;
+                    while j < start + len {
+                        let x = _mm256_loadu_si256(ptr.add(j).cast());
+                        let y = _mm256_loadu_si256(ptr.add(j + len).cast());
+                        _mm256_storeu_si256(ptr.add(j).cast(), add8(x, y));
+                        _mm256_storeu_si256(ptr.add(j + len).cast(), montgomery_mul8_scalar(zeta, sub8(y, x)));
+                        j += 8;
+                    }
+                    start += 2 * len;
+                }
+                len *= 2;
+            }
+
+            let ninv = _mm256_set1_epi32(N_INV as i32);
+            let mut i = 0;
+            while i < N {
+                _mm256_storeu_si256(ptr.add(i).cast(), montgomery_mul8(_mm256_loadu_si256(ptr.add(i).cast()), ninv));
+                i += 8;
+            }
+        }
+
+        Poly {
+            coeffs: f.coeffs,
+        }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub(super) unsafe fn ntt_mul(a: &NttPoly, b: &NttPoly) -> NttPoly {
+        let mut r = NttPoly::default();
+        // SAFETY: all eight lanes stay within the 256-element arrays.
+        unsafe {
+            let (ap, bp, rp) = (a.coeffs.as_ptr(), b.coeffs.as_ptr(), r.coeffs.as_mut_ptr());
+            let mut i = 0;
+            while i < N {
+                _mm256_storeu_si256(
+                    rp.add(i).cast(),
+                    montgomery_mul8(_mm256_loadu_si256(ap.add(i).cast()), _mm256_loadu_si256(bp.add(i).cast())),
+                );
+                i += 8;
+            }
+        }
+        r
+    }
 }
 
 #[cfg(test)]
@@ -1535,5 +2116,228 @@ mod tests {
         bitpack_20(&z, &mut out);
         let back = bitunpack_20(&out);
         assert_eq!(z, back);
+    }
+
+    /// Naive FIPS 204 Algorithm 37/38/40 reference used to validate the
+    /// fixed-point implementations. `x` is a canonical value in `[0, q)`.
+    fn spec_decompose(x: i64, gamma2_den: i64) -> (i64, i64) {
+        let q = Q as i64;
+        let gamma2 = (q - 1) / gamma2_den;
+        let two_gamma2 = 2 * gamma2;
+        let mut r0 = x % two_gamma2;
+        if r0 > gamma2 {
+            r0 -= two_gamma2;
+        }
+        if r0 <= -gamma2 {
+            r0 += two_gamma2;
+        }
+        if x - r0 == q - 1 {
+            (0, r0 - 1)
+        } else {
+            ((x - r0) / two_gamma2, r0)
+        }
+    }
+
+    fn spec_highbits(x: i64, gamma2_den: i64) -> i64 {
+        spec_decompose(x, gamma2_den).0
+    }
+
+    fn spec_use_hint(h: i64, x: i64, gamma2_den: i64) -> i64 {
+        let (r1, r0) = spec_decompose(x, gamma2_den);
+        let m = gamma2_den / 2;
+        if h == 1 {
+            if r0 > 0 { (r1 + 1) % m } else { (r1 - 1 + m) % m }
+        } else {
+            r1
+        }
+    }
+
+    fn check_field_ops(x: i64) {
+        for den in [32i64, 88] {
+            let (sr1, sr0) = spec_decompose(x, den);
+            let (gr1, gr0) = if den == 32 {
+                let (a, b) = decompose32(field_to_montgomery(x as u32));
+                (a as i64, b as i64)
+            } else {
+                let (a, b) = decompose88(field_to_montgomery(x as u32));
+                (a as i64, b as i64)
+            };
+            assert_eq!((gr1, gr0), (sr1, sr0), "decompose mismatch for x={x}, gamma2_den={den}");
+
+            let gh = if den == 32 {
+                highbits32(x as u32) as i64
+            } else {
+                highbits88(x as u32) as i64
+            };
+            assert_eq!(gh, spec_highbits(x, den), "highbits mismatch for x={x}, den={den}");
+
+            for h in 0..2u8 {
+                let gu = if den == 32 {
+                    use_hint32(field_to_montgomery(x as u32), h) as i64
+                } else {
+                    use_hint88(field_to_montgomery(x as u32), h) as i64
+                };
+                assert_eq!(
+                    gu,
+                    spec_use_hint(h as i64, x, den),
+                    "use_hint mismatch for x={x}, h={h}, den={den}"
+                );
+            }
+        }
+    }
+
+    /// Exhaustively compares `decompose`, `highbits` and `use_hint` against a
+    /// naive transcription of FIPS 204 over every field element. Slow
+    /// (8.4M values x 2 gamma2 cases); run with `--ignored`.
+    #[test]
+    #[ignore = "exhaustive over all q field elements; run with --ignored"]
+    fn decompose_highbits_use_hint_match_specification_exhaustive() {
+        for x in 0..Q as i64 {
+            check_field_ops(x);
+        }
+    }
+
+    /// Fast randomized smoke test of the same equalities.
+    #[test]
+    fn decompose_highbits_use_hint_match_specification_sampled() {
+        let mut shake = Shake128::new();
+        shake.absorb(b"field-ops");
+        for _ in 0..50_000 {
+            let mut buf = [0u8; 4];
+            shake.squeeze(&mut buf);
+            let x = (u32::from_le_bytes(buf) % Q) as i64;
+            check_field_ops(x);
+        }
+        // Exercise the interesting boundaries explicitly.
+        for x in [
+            0,
+            1,
+            Q as i64 - 1,
+            Q as i64 / 2,
+            (Q as i64 - 1) / 32,
+            (Q as i64 - 1) / 88,
+        ] {
+            check_field_ops(x);
+        }
+    }
+
+    /// Direct unit tests for the three FIPS 204 Algorithm 21 hint checks. The
+    /// Wycheproof `verify` vectors cover these through the public API; these
+    /// tests pin the decoder behaviour and its error paths.
+    #[test]
+    fn hint_decode_enforces_encoding_rules() {
+        let params = &PARAMS_65; // omega = 55, k = 6
+        let omega = params.omega;
+        const K: usize = 6;
+
+        let empty = [0u8; 61];
+        assert!(hint_decode::<K>(params, &empty).is_ok());
+
+        // Strictly increasing indices within a polynomial are accepted.
+        // Counts must be non-decreasing, so every polynomial records the
+        // running total.
+        let mut ok = [0u8; 61];
+        ok[0] = 3;
+        ok[1] = 10;
+        ok[2] = 200;
+        for i in 0..K {
+            ok[omega + i] = 3;
+        }
+        assert!(hint_decode::<K>(params, &ok).is_ok());
+
+        // Duplicate index (CVE-2026-24850 class).
+        let mut dup = [0u8; 61];
+        dup[0] = 7;
+        dup[1] = 7;
+        for i in 0..K {
+            dup[omega + i] = 2;
+        }
+        assert_eq!(hint_decode::<K>(params, &dup), Err(MlDsaError::InvalidSignature));
+
+        // Decreasing index.
+        let mut dec = [0u8; 61];
+        dec[0] = 9;
+        dec[1] = 4;
+        for i in 0..K {
+            dec[omega + i] = 2;
+        }
+        assert_eq!(hint_decode::<K>(params, &dec), Err(MlDsaError::InvalidSignature));
+
+        // Count exceeds omega.
+        let mut over = [0u8; 61];
+        over[omega] = (omega + 1) as u8;
+        assert_eq!(hint_decode::<K>(params, &over), Err(MlDsaError::InvalidSignature));
+
+        // Non-monotone cumulative counts.
+        let mut nonmono = [0u8; 61];
+        nonmono[0] = 5;
+        nonmono[omega] = 1;
+        nonmono[omega + 1] = 0;
+        assert_eq!(hint_decode::<K>(params, &nonmono), Err(MlDsaError::InvalidSignature));
+
+        // Non-zero padding after the last hint.
+        let mut pad = [0u8; 61];
+        pad[0] = 5;
+        pad[1] = 0xff;
+        for i in 0..K {
+            pad[omega + i] = 1;
+        }
+        assert_eq!(hint_decode::<K>(params, &pad), Err(MlDsaError::InvalidSignature));
+    }
+
+    fn random_poly(shake: &mut Shake128) -> Poly {
+        let mut p = Poly::default();
+        let mut buf = [0u8; 4];
+        for c in p.coeffs.iter_mut() {
+            shake.squeeze(&mut buf);
+            *c = u32::from_le_bytes(buf) % Q;
+        }
+        p
+    }
+
+    /// The NEON NTT must be bit-identical to the scalar NTT for arbitrary
+    /// inputs. On non-aarch64 targets both are the scalar implementation.
+    #[test]
+    fn ntt_matches_scalar() {
+        let mut shake = Shake128::new();
+        shake.absorb(b"mldsa-ntt-equivalence");
+        for _ in 0..500 {
+            let p = random_poly(&mut shake);
+            let simd = ntt(&p);
+            let scalar = ntt_scalar(&p);
+            assert_eq!(simd.coeffs, scalar.coeffs, "NEON NTT differs from scalar");
+        }
+    }
+
+    #[test]
+    fn invntt_matches_scalar() {
+        let mut shake = Shake128::new();
+        shake.absorb(b"mldsa-invntt-equivalence");
+        for _ in 0..500 {
+            let p = random_poly(&mut shake);
+            let n = NttPoly {
+                coeffs: p.coeffs,
+            };
+            let simd = invntt(&n);
+            let scalar = invntt_scalar(&n);
+            assert_eq!(simd.coeffs, scalar.coeffs, "NEON inverse NTT differs from scalar");
+        }
+    }
+
+    #[test]
+    fn ntt_mul_matches_scalar() {
+        let mut shake = Shake128::new();
+        shake.absorb(b"mldsa-nttmul-equivalence");
+        for _ in 0..500 {
+            let a = NttPoly {
+                coeffs: random_poly(&mut shake).coeffs,
+            };
+            let b = NttPoly {
+                coeffs: random_poly(&mut shake).coeffs,
+            };
+            let simd = ntt_mul(&a, &b);
+            let scalar = ntt_mul_scalar(&a, &b);
+            assert_eq!(simd.coeffs, scalar.coeffs, "NEON ntt_mul differs from scalar");
+        }
     }
 }

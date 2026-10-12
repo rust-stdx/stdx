@@ -9,13 +9,16 @@ pub const CIPHERTEXT_SIZE_1024: usize = 1568;
 
 /// ML-KEM-1024 decapsulation key (secret key) as defined in FIPS 203.
 ///
+/// A key is created with [`SecretKey1024::generate`] (fresh random key) or
+/// [`SecretKey1024::generate_derand`] (deterministic, for test vectors).
+///
 /// # Example
 ///
-/// ```ignore
-/// use crypto::mlkem::{SecretKey1024, generate_keypair_1024};
+/// ```
+/// use crypto::mlkem::SecretKey1024;
 ///
-/// let (secret_key, public_key) = generate_keypair_1024().unwrap();
-/// let (shared_secret, ciphertext) = public_key.encapsulate().unwrap();
+/// let (secret_key, public_key) = SecretKey1024::generate_derand(&[0u8; 64]);
+/// let (shared_secret, ciphertext) = public_key.encapsulate_derand(&[0u8; 32]);
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
@@ -33,26 +36,18 @@ pub struct PublicKey1024 {
     bytes: [u8; PUBLIC_KEY_SIZE_1024],
 }
 
-/// Generate an ML-KEM-1024 keypair.
-///
-/// This is a convenience wrapper around [`SecretKey1024::generate`].
-///
-/// See [`SecretKey1024`] for a usage example. Returns [`MlKemError::Random`]
-/// when the operating system's random number generator is unavailable or
-/// fails.
-#[inline]
-#[cfg(feature = "random")]
-pub fn generate_keypair_1024() -> Result<(SecretKey1024, PublicKey1024), MlKemError> {
-    SecretKey1024::generate()
-}
-
 impl SecretKey1024 {
+    /// Creates a decapsulation key from its FIPS 203 encoding.
+    ///
+    /// The key is not validated here; use [`SecretKey1024::decapsulate`], which
+    /// performs the FIPS 203 decapsulation-key check.
     pub fn from_bytes(bytes: &[u8; SECRET_KEY_SIZE_1024]) -> Self {
         Self {
             bytes: *bytes,
         }
     }
 
+    /// Returns the FIPS 203 encoding of this decapsulation key.
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_SIZE_1024] {
         self.bytes
     }
@@ -67,7 +62,12 @@ impl SecretKey1024 {
         Ok(Self::generate_derand(&coins))
     }
 
-    fn generate_derand(coins: &[u8; 64]) -> (Self, PublicKey1024) {
+    /// Generates a keypair deterministically from 64 bytes of `coins`.
+    ///
+    /// The first 32 bytes seed the key generation matrix and the last 32 bytes
+    /// become the implicit-rejection secret. Useful for reproducing FIPS 203 /
+    /// ACVP test vectors; the same `coins` must not be reused for a real key.
+    pub fn generate_derand(coins: &[u8; 64]) -> (Self, PublicKey1024) {
         let (sk_bytes, pk_bytes) =
             crypto_kem_keypair_derand::<4, SECRET_KEY_SIZE_1024, PUBLIC_KEY_SIZE_1024>(&ML_KEM_1024, coins);
         (
@@ -80,10 +80,20 @@ impl SecretKey1024 {
         )
     }
 
+    /// Decapsulates `ciphertext`, recovering the shared secret encapsulated in it.
+    ///
+    /// Implements the FIPS 203 implicit-rejection transform: a ciphertext that
+    /// does not re-encrypt to itself does not produce an error, but instead
+    /// yields a pseudorandom shared secret derived from the key and ciphertext.
+    ///
+    /// Returns [`MlKemError::InvalidKey`] if this key fails the FIPS 203
+    /// decapsulation-key check, i.e. the hash of its embedded encapsulation key
+    /// does not match the hash stored in the key.
     pub fn decapsulate(&self, ciphertext: &[u8; CIPHERTEXT_SIZE_1024]) -> Result<[u8; SHARED_SECRET_SIZE], MlKemError> {
         crypto_kem_dec::<4, SECRET_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &self.bytes, ciphertext)
     }
 
+    /// Returns the encapsulation key embedded in this decapsulation key.
     pub fn public_key(&self) -> PublicKey1024 {
         let offset = indcpa_secret_key_bytes::<4>();
         let mut pk_bytes = [0u8; PUBLIC_KEY_SIZE_1024];
@@ -123,6 +133,7 @@ impl PublicKey1024 {
         })
     }
 
+    /// Returns the FIPS 203 encoding of this encapsulation key.
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_SIZE_1024] {
         self.bytes
     }
@@ -137,7 +148,13 @@ impl PublicKey1024 {
         Ok(self.encapsulate_derand(&coins))
     }
 
-    fn encapsulate_derand(&self, coins: &[u8; 32]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]) {
+    /// Encapsulates a shared secret against this public key using the provided
+    /// 32-byte `coins` as the encapsulation randomness.
+    ///
+    /// This is the deterministic counterpart of [`PublicKey1024::encapsulate`],
+    /// useful for reproducing FIPS 203 / ACVP test vectors. It must not be used
+    /// with repeated `coins`.
+    pub fn encapsulate_derand(&self, coins: &[u8; 32]) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE_1024]) {
         crypto_kem_enc_derand::<4, PUBLIC_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &self.bytes, coins)
     }
 }
@@ -162,7 +179,7 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_round_trip() {
-        let (private_key, public_key) = generate_keypair_1024().unwrap();
+        let (private_key, public_key) = SecretKey1024::generate().unwrap();
         let (encapsulated_secret, ciphertext) = public_key.encapsulate().unwrap();
         let decapsulated_secret = private_key.decapsulate(&ciphertext).unwrap();
 
@@ -284,7 +301,7 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_decapsulation_rejects_tampered_ciphertext() {
-        let (private_key, public_key) = generate_keypair_1024().unwrap();
+        let (private_key, public_key) = SecretKey1024::generate().unwrap();
         let (encapsulated_secret, mut ciphertext) = public_key.encapsulate().unwrap();
 
         ciphertext[0] ^= 0x80;
@@ -296,8 +313,8 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_decapsulation_with_wrong_key_rejects() {
-        let (_, alice_pk) = generate_keypair_1024().unwrap();
-        let (bob_sk, _bob_pk) = generate_keypair_1024().unwrap();
+        let (_, alice_pk) = SecretKey1024::generate().unwrap();
+        let (bob_sk, _bob_pk) = SecretKey1024::generate().unwrap();
         let (_alice_ss, ct) = alice_pk.encapsulate().unwrap();
 
         let wrong_ss = bob_sk.decapsulate(&ct).unwrap();
@@ -307,7 +324,7 @@ mod tests {
     #[test]
     fn ml_kem_1024_round_trip_many() {
         for _ in 0..100 {
-            let (sk, pk) = generate_keypair_1024().unwrap();
+            let (sk, pk) = SecretKey1024::generate().unwrap();
             let (ss_enc, ct) = pk.encapsulate().unwrap();
             let ss_dec = sk.decapsulate(&ct).unwrap();
             assert_eq!(ss_enc, ss_dec);
@@ -316,14 +333,14 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_all_zero_ciphertext_does_not_panic() {
-        let (sk, _pk) = generate_keypair_1024().unwrap();
+        let (sk, _pk) = SecretKey1024::generate().unwrap();
         let ct = [0u8; CIPHERTEXT_SIZE_1024];
         let _result = sk.decapsulate(&ct);
     }
 
     #[test]
     fn ml_kem_1024_all_ones_ciphertext_does_not_panic() {
-        let (sk, _pk) = generate_keypair_1024().unwrap();
+        let (sk, _pk) = SecretKey1024::generate().unwrap();
         let ct = [0xffu8; CIPHERTEXT_SIZE_1024];
         let _result = sk.decapsulate(&ct);
     }
@@ -341,7 +358,7 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_key_sizes_are_correct() {
-        let (sk, pk) = generate_keypair_1024().unwrap();
+        let (sk, pk) = SecretKey1024::generate().unwrap();
         let sk_bytes = sk.to_bytes();
         let pk_bytes = pk.to_bytes();
         assert_eq!(sk_bytes.len(), SECRET_KEY_SIZE_1024);
@@ -352,7 +369,7 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_rejects_non_canonical_encapsulation_key() {
-        let (_sk, pk) = generate_keypair_1024().unwrap();
+        let (_sk, pk) = SecretKey1024::generate().unwrap();
         let base = pk.to_bytes();
 
         assert!(PublicKey1024::from_bytes(&base).is_ok());
@@ -385,8 +402,8 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_decapsulation_with_wrong_key_is_deterministic() {
-        let (_, pk_a) = generate_keypair_1024().unwrap();
-        let (sk_b, _pk_b) = generate_keypair_1024().unwrap();
+        let (_, pk_a) = SecretKey1024::generate().unwrap();
+        let (sk_b, _pk_b) = SecretKey1024::generate().unwrap();
         let (_, ct) = pk_a.encapsulate().unwrap();
 
         let ss1 = sk_b.decapsulate(&ct).unwrap();
@@ -573,7 +590,8 @@ mod tests {
             "../../testdata/wycheproof/testvectors_v1/mlkem_1024_semi_expanded_decaps_test.json"
         ))
         .unwrap();
-        let mut tested = 0u64;
+        let mut valid = 0u64;
+        let mut invalid = 0u64;
         let mut skipped = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
             if group["parameterSet"].as_str() != Some("ML-KEM-1024") {
@@ -584,6 +602,7 @@ mod tests {
                     .as_array()
                     .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
                     .unwrap_or_default();
+                let tc_id = test["tcId"].clone();
                 let dk_hex = test["dk"].as_str().unwrap();
                 let c_hex = test["c"].as_str().unwrap();
 
@@ -591,8 +610,7 @@ mod tests {
                     let dk_bytes = hex::decode(dk_hex).unwrap();
                     assert!(
                         SecretKey1024::try_from(dk_bytes.as_slice()).is_err(),
-                        "wycheproof decaps tcId={} flagged wrong-length dk but it parsed",
-                        test["tcId"]
+                        "wycheproof decaps tcId={tc_id} flagged wrong-length dk but it parsed",
                     );
                     skipped += 1;
                     continue;
@@ -603,8 +621,7 @@ mod tests {
                     // decoder, so a wrong-length ciphertext cannot reach the API.
                     assert!(
                         hex::decode(c_hex).unwrap().len() != CIPHERTEXT_SIZE_1024,
-                        "wycheproof decaps tcId={} flagged wrong-length ct but length is correct",
-                        test["tcId"]
+                        "wycheproof decaps tcId={tc_id} flagged wrong-length ct but length is correct",
                     );
                     skipped += 1;
                     continue;
@@ -615,12 +632,74 @@ mod tests {
 
                 let result = crypto_kem_dec::<4, SECRET_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &dk, &c);
 
-                assert!(result.is_ok(), "wycheproof decaps tcId={} panicked", test["tcId"]);
-                tested += 1;
+                match test["result"].as_str().unwrap() {
+                    "valid" => {
+                        let k = result
+                            .unwrap_or_else(|_| panic!("wycheproof decaps tcId={tc_id} ({flags:?}): expected success"));
+                        let expected = test["K"].as_str().expect("valid vector without K");
+                        assert_eq!(
+                            hex::encode(k),
+                            expected,
+                            "wycheproof decaps tcId={tc_id} ({flags:?}) shared secret mismatch"
+                        );
+                        valid += 1;
+                    }
+                    "invalid" => {
+                        assert!(
+                            result.is_err(),
+                            "wycheproof decaps tcId={tc_id} ({flags:?}): expected rejection but decapsulation succeeded",
+                        );
+                        invalid += 1;
+                    }
+                    other => panic!("wycheproof decaps tcId={tc_id}: unknown result {other}"),
+                }
             }
         }
-        assert!(tested > 0, "no ML-KEM-1024 decaps validation tests were run");
-        eprintln!("wycheproof ML-KEM-1024 decaps: {tested} tested, {skipped} skipped (wrong lengths)");
+        assert!(valid > 0, "no valid ML-KEM-1024 decaps tests were run");
+        assert!(invalid > 0, "no invalid ML-KEM-1024 decaps tests were run");
+        eprintln!("wycheproof ML-KEM-1024 decaps: {valid} valid, {invalid} invalid, {skipped} skipped (wrong lengths)");
+    }
+
+    /// See [`mlkem768`] equivalent: implicit rejection must be `SHAKE256(z||c)`
+    /// for every ciphertext byte, including the `c2` tail.
+    #[test]
+    fn ml_kem_1024_implicit_rejection_matches_spec() {
+        use crate::{Xof, sha3::Shake256};
+
+        let (sk, pk) = SecretKey1024::generate().unwrap();
+        let sk_bytes = sk.to_bytes();
+        let z = &sk_bytes[SECRET_KEY_SIZE_1024 - 32..];
+        let (k_ok, ct) = pk.encapsulate().unwrap();
+
+        for offset in [0, CIPHERTEXT_SIZE_1024 / 2, 1407, CIPHERTEXT_SIZE_1024 - 1] {
+            let mut bad = ct;
+            bad[offset] ^= 0x01;
+            let k_bad = sk.decapsulate(&bad).unwrap();
+            assert_ne!(k_bad, k_ok, "tampered ciphertext byte {offset} returned the valid secret");
+
+            let mut hasher = Shake256::new();
+            hasher.absorb(z);
+            hasher.absorb(&bad);
+            let mut expected = [0u8; SHARED_SECRET_SIZE];
+            hasher.squeeze(&mut expected);
+            assert_eq!(k_bad, expected, "implicit rejection at byte {offset} is not SHAKE256(z||c)");
+        }
+    }
+
+    #[test]
+    fn ml_kem_1024_rejects_key_with_wrong_hash() {
+        let (sk, _pk) = SecretKey1024::generate().unwrap();
+        let (_, ct) = sk.public_key().encapsulate().unwrap();
+
+        let mut bytes = sk.to_bytes();
+        assert!(SecretKey1024::from_bytes(&bytes).decapsulate(&ct).is_ok());
+
+        bytes[SECRET_KEY_SIZE_1024 - 64] ^= 0x01;
+        assert_eq!(SecretKey1024::from_bytes(&bytes).decapsulate(&ct), Err(MlKemError::InvalidKey));
+
+        let mut bytes = sk.to_bytes();
+        bytes[SECRET_KEY_SIZE_1024 - PUBLIC_KEY_SIZE_1024 - 64] ^= 0x01;
+        assert_eq!(SecretKey1024::from_bytes(&bytes).decapsulate(&ct), Err(MlKemError::InvalidKey));
     }
 
     #[test]
