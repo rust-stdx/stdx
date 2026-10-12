@@ -2,9 +2,11 @@ use alloc::{
     collections::BTreeMap,
     format,
     string::{String, ToString},
+    sync::Arc,
     vec,
     vec::Vec,
 };
+use core::fmt;
 
 use crate::{
     ast::{Node, NodeList},
@@ -16,6 +18,12 @@ use crate::{
 };
 
 const MAX_EXTEND_DEPTH: usize = 128;
+
+/// Default maximum number of items a `range()` call may produce.
+///
+/// This bounds the memory a template can allocate through `range()`. It can be
+/// changed per engine with [`Engine::set_range_limit`].
+pub const DEFAULT_RANGE_LIMIT: usize = 32_000;
 
 /// Controls auto-escaping behavior.
 ///
@@ -35,9 +43,18 @@ pub(crate) struct ParsedTemplate {
 ///
 /// Templates are added by name and can reference each other via `{% include %}`
 /// and `{% extends %}` / `{% block %}`.
+///
+/// # Trust model
+///
+/// Templates are **trusted code**, exactly like Jinja2 or MiniJinja: a template
+/// can read any variable in the rendering context and can consume CPU/memory
+/// within the configured limits. Never feed untrusted template *source* to
+/// [`add_template`](Engine::add_template). User data belongs in the *context*,
+/// which is escaped automatically in [`EscapeMode::Html`].
 pub struct Engine {
     pub(crate) mode: EscapeMode,
     pub(crate) templates: BTreeMap<String, ParsedTemplate>,
+    pub(crate) range_limit: usize,
 }
 
 impl Engine {
@@ -46,14 +63,29 @@ impl Engine {
         Self {
             mode,
             templates: BTreeMap::new(),
+            range_limit: DEFAULT_RANGE_LIMIT,
         }
+    }
+
+    /// Set the maximum number of items a `range()` call may produce.
+    ///
+    /// Defaults to [`DEFAULT_RANGE_LIMIT`]. Calls that would exceed the limit
+    /// return a render error instead of allocating an unbounded amount of memory.
+    pub fn set_range_limit(&mut self, limit: usize) {
+        self.range_limit = limit;
+    }
+
+    /// Return the current `range()` item limit.
+    pub fn range_limit(&self) -> usize {
+        self.range_limit
     }
 
     /// Compile and register a template by name.
     ///
     /// Returns an error if the template source contains invalid syntax
-    /// (e.g. unclosed `{{ }}`, mismatched `{% if %}` / `{% endif %}`)
-    /// or if a template with the same name already exists.
+    /// (e.g. unclosed `{{ }}`, mismatched `{% if %}` / `{% endif %}`),
+    /// exceeded nesting limits, statically-detectable type errors, or if a
+    /// template with the same name already exists.
     pub fn add_template(&mut self, name: &str, source: &str) -> Result<(), Error> {
         if self.templates.contains_key(name) {
             return Err(Error::parse(format!("template `{name}` already exists")));
@@ -89,6 +121,17 @@ impl Engine {
     /// Returns an error if the template name is not registered or if an
     /// expression fails during rendering.
     pub fn render(&self, name: &str, context: impl IntoContext) -> Result<String, Error> {
+        let mut output = String::new();
+        self.render_to(name, context, &mut output)?;
+        Ok(output)
+    }
+
+    /// Render a named template directly into any [`fmt::Write`] sink.
+    ///
+    /// This is the allocation-friendly counterpart of [`Engine::render`]: output
+    /// can be streamed into an existing `String`, a `Vec<u8>` wrapper, or any
+    /// other `fmt::Write` implementation without building an intermediate buffer.
+    pub fn render_to(&self, name: &str, context: impl IntoContext, out: &mut impl fmt::Write) -> Result<(), Error> {
         let template = self
             .templates
             .get(name)
@@ -96,19 +139,15 @@ impl Engine {
 
         let context: Context = context.into_context().map_err(|e| Error::parse(e.0))?;
 
-        let mut output = String::new();
-
-        self.render_with_extends(&template.nodes, &context.0, &mut output, None, 0)?;
-
-        Ok(output)
+        self.render_with_extends(&template.nodes, &context.0, out, None, 0)
     }
 
     fn render_with_extends(
         &self,
         nodes: &NodeList,
         variables: &Value,
-        output: &mut String,
-        parent_blocks: Option<&BTreeMap<String, Vec<NodeList>>>,
+        output: &mut dyn fmt::Write,
+        parent_blocks: Option<&BTreeMap<String, Vec<Arc<NodeList>>>>,
         extend_depth: usize,
     ) -> Result<(), Error> {
         if extend_depth >= MAX_EXTEND_DEPTH {
@@ -124,11 +163,11 @@ impl Engine {
         });
 
         if let Some(parent_name) = extends_name {
-            // Collect blocks from this template
-            let mut blocks: BTreeMap<String, NodeList> = BTreeMap::new();
+            // Collect blocks from this template (cheap `Arc` clones, no deep copy).
+            let mut blocks: BTreeMap<String, Arc<NodeList>> = BTreeMap::new();
             for node in nodes {
                 if let Node::Block(block) = node {
-                    blocks.insert(block.name.clone(), block.body.clone());
+                    blocks.insert(block.name.clone(), Arc::clone(&block.body));
                 }
             }
 
@@ -141,16 +180,12 @@ impl Engine {
             // Merge current blocks into the parent block chain.
             // Current blocks that shadow existing chain entries push onto the chain;
             // new blocks start a fresh chain.
-            let mut merged_chain: BTreeMap<String, Vec<NodeList>> = if let Some(pb) = parent_blocks {
-                pb.clone()
-            } else {
-                BTreeMap::new()
-            };
+            let mut merged_chain: BTreeMap<String, Vec<Arc<NodeList>>> = parent_blocks.cloned().unwrap_or_default();
             for (name, body) in &blocks {
                 match merged_chain.get_mut(name) {
-                    Some(chain) => chain.push(body.clone()),
+                    Some(chain) => chain.push(Arc::clone(body)),
                     None => {
-                        merged_chain.insert(name.clone(), vec![body.clone()]);
+                        merged_chain.insert(name.clone(), vec![Arc::clone(body)]);
                     }
                 }
             }
@@ -166,7 +201,11 @@ impl Engine {
                     let mut full_chain = chain.clone();
                     if let Some(current_block) = nodes.iter().find_map(|n| {
                         if let Node::Block(b) = n {
-                            if b.name == *name { Some(b.body.clone()) } else { None }
+                            if b.name == *name {
+                                Some(Arc::clone(&b.body))
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
@@ -414,6 +453,7 @@ mod tests {
         assert_eq!(result, "");
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_struct_variables() {
         #[derive(Serialize)]
@@ -918,5 +958,401 @@ mod tests {
         let mut engine = Engine::new(EscapeMode::Text);
         let result = engine.add_template("t", "{% if %}a{% endif %}");
         assert!(result.is_err());
+    }
+
+    // ---- strict boolean semantics ----
+
+    #[test]
+    fn test_static_non_bool_or_is_parse_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        assert!(engine.add_template("t", "{{ 0 or \"x\" }}").is_err());
+        assert!(engine.add_template("t", "{{ \"x\" or true }}").is_err());
+        assert!(engine.add_template("t", "{{ 1 and true }}").is_err());
+        assert!(engine.add_template("t", "{{ not 0 }}").is_err());
+        assert!(engine.add_template("t", "{% if 1 %}a{% endif %}").is_err());
+        assert!(engine.add_template("t", "{% if \"a\" %}a{% endif %}").is_err());
+    }
+
+    #[test]
+    fn test_or_and_return_values() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine
+            .add_template(
+                "t",
+                "{{ false or \"x\" }}|{{ true or \"x\" }}|{{ true and \"y\" }}|{{ false and \"y\" }}",
+            )
+            .unwrap();
+        // decision operand must be boolean; the fallback value is returned verbatim
+        assert_eq!(engine.render("t", context! {}).unwrap(), "x|true|y|false");
+    }
+
+    #[test]
+    fn test_or_chain_flattens() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ false or false or \"last\" }}").unwrap();
+        assert_eq!(engine.render("t", context! {}).unwrap(), "last");
+    }
+
+    #[test]
+    fn test_dynamic_non_bool_or_is_render_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ x or \"fallback\" }}").unwrap();
+        assert!(engine.render("t", context! { x: 5 }).is_err());
+        assert_eq!(engine.render("t", context! { x: false }).unwrap(), "fallback");
+        assert_eq!(engine.render("t", context! { x: true }).unwrap(), "true");
+    }
+
+    #[test]
+    fn test_strict_if_condition_rejects_non_bool() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{% if x %}y{% endif %}").unwrap();
+        assert!(engine.render("t", context! { x: 0 }).is_err());
+        assert!(engine.render("t", context! { x: 1 }).is_err());
+        assert!(engine.render("t", context! { x: "s" }).is_err());
+        assert!(engine.render("t", context! { x: vec![1] }).is_err());
+        // missing => null, also not a boolean
+        assert!(engine.render("t", context! {}).is_err());
+        assert_eq!(engine.render("t", context! { x: true }).unwrap(), "y");
+        assert_eq!(engine.render("t", context! { x: false }).unwrap(), "");
+    }
+
+    #[test]
+    fn test_is_set() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ is_set(a.b.c) }}|{{ is_set(x) }}").unwrap();
+        // Missing nested field must be false, never an error.
+        assert_eq!(engine.render("t", context! {}).unwrap(), "false|false");
+        assert_eq!(
+            engine
+                .render("t", context! { a: context! { b: context! { c: 1 } }, x: 0 })
+                .unwrap(),
+            "true|true"
+        );
+        // b exists but is not a map, so a.b.c is missing.
+        assert_eq!(engine.render("t", context! { a: context! { b: 1 } }).unwrap(), "false|false");
+    }
+
+    #[test]
+    fn test_is_set_wrong_arity() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ is_set() }}").unwrap();
+        assert!(engine.render("t", context! {}).is_err());
+    }
+
+    // ---- arithmetic overflow ----
+
+    #[test]
+    fn test_integer_overflow_is_error_not_panic() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ x + y }}").unwrap();
+        assert!(engine.render("t", context! { x: i64::MAX, y: 1i64 }).is_err());
+        engine.add_template("u", "{{ x * y }}").unwrap();
+        assert!(engine.render("u", context! { x: i64::MAX, y: 2i64 }).is_err());
+        engine.add_template("v", "{{ x - y }}").unwrap();
+        assert!(engine.render("v", context! { x: i64::MIN, y: 1i64 }).is_err());
+        engine.add_template("w", "{{ -x }}").unwrap();
+        assert!(engine.render("w", context! { x: i64::MIN }).is_err());
+    }
+
+    #[test]
+    fn test_min_div_minus_one_is_error() {
+        // These panic in plain Rust even in release mode; the engine must not.
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("d", "{{ x / -1 }}").unwrap();
+        engine.add_template("m", "{{ x % -1 }}").unwrap();
+        assert!(engine.render("d", context! { x: i64::MIN }).is_err());
+        assert!(engine.render("m", context! { x: i64::MIN }).is_err());
+    }
+
+    // ---- range limit ----
+
+    #[test]
+    fn test_range_limit_default() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ range(n) | length }}").unwrap();
+        assert_eq!(engine.render("t", context! { n: 32_000i64 }).unwrap(), "32000");
+        assert!(engine.render("t", context! { n: 32_001i64 }).is_err());
+        // A range that would overflow i64 must not panic.
+        assert!(engine.render("t", context! { n: i64::MAX }).is_err());
+    }
+
+    #[test]
+    fn test_range_limit_configurable() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.set_range_limit(3);
+        assert_eq!(engine.range_limit(), 3);
+        engine.add_template("t", "{{ range(n) | join(\",\") }}").unwrap();
+        assert_eq!(engine.render("t", context! { n: 3i64 }).unwrap(), "0,1,2");
+        assert!(engine.render("t", context! { n: 4i64 }).is_err());
+    }
+
+    #[test]
+    fn test_range_empty_and_reversed() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ range(a, b) | join(\",\") }}").unwrap();
+        assert_eq!(engine.render("t", context! { a: 5i64, b: 3i64 }).unwrap(), "");
+        assert_eq!(engine.render("t", context! { a: -2i64, b: 2i64 }).unwrap(), "-2,-1,0,1");
+    }
+
+    // ---- recursion limits ----
+
+    #[test]
+    fn test_template_nesting_limit_returns_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        let ok = "{% if true %}".repeat(100) + &"{% endif %}".repeat(100);
+        engine.add_template("ok", &ok).unwrap();
+        let too_deep = "{% if true %}".repeat(200) + &"{% endif %}".repeat(200);
+        assert!(engine.add_template("deep", &too_deep).is_err());
+    }
+
+    #[test]
+    fn test_expression_nesting_limit_returns_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        let ok = "{{ ".to_string() + &"(".repeat(50) + "1" + &")".repeat(50) + " }}";
+        engine.add_template("ok", &ok).unwrap();
+        let too_deep = "{{ ".to_string() + &"(".repeat(200) + "1" + &")".repeat(200) + " }}";
+        assert!(engine.add_template("deep", &too_deep).is_err());
+    }
+
+    #[test]
+    fn test_huge_expression_rejected() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        // A long filter chain must be rejected instead of overflowing the stack.
+        let t = format!("{{{{ x{} }}}}", "|upper".repeat(5000));
+        assert!(engine.add_template("t", &t).is_err());
+    }
+
+    // ---- include / extends ----
+
+    #[test]
+    fn test_extends_must_be_top_level() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("base", "{% block b %}d{% endblock %}").unwrap();
+        assert!(
+            engine
+                .add_template("c", "{% if true %}{% extends \"base\" %}{% endif %}")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn test_include_with_extends_is_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("base", "BASE{% block b %}d{% endblock %}").unwrap();
+        engine
+            .add_template("sub", "{% extends \"base\" %}{% block b %}S{% endblock %}")
+            .unwrap();
+        engine.add_template("page", "{% include \"sub\" %}").unwrap();
+        assert!(engine.render("page", context! {}).is_err());
+    }
+
+    // ---- parser correctness ----
+
+    #[test]
+    fn test_delimiters_inside_string_literals() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{{ \"a}}b\" }}").unwrap();
+        assert_eq!(engine.render("t", context! {}).unwrap(), "a}}b");
+        engine
+            .add_template("u", "{% if x == \"%}\" %}Y{% else %}N{% endif %}")
+            .unwrap();
+        assert_eq!(engine.render("u", context! { x: "%}" }).unwrap(), "Y");
+        assert_eq!(engine.render("u", context! { x: "nope" }).unwrap(), "N");
+    }
+
+    #[test]
+    fn test_unterminated_string_is_parse_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        assert!(engine.add_template("t", "{{ \"abc }}").is_err());
+        assert!(engine.add_template("u", "{% if x == \"abc %}y{% endif %}").is_err());
+    }
+
+    #[test]
+    fn test_unknown_filter_is_parse_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        assert!(engine.add_template("t", "{{ x | nope }}").is_err());
+    }
+
+    #[test]
+    fn test_wrong_filter_arity_is_parse_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        assert!(engine.add_template("t", "{{ x | upper(\"junk\") }}").is_err());
+        assert!(engine.add_template("u", "{{ x | join(\",\", \"extra\") }}").is_err());
+        // Valid arities still work.
+        assert!(engine.add_template("v", "{{ x | default(1) }}").is_ok());
+        assert!(engine.add_template("w", "{{ x | upper }}").is_ok());
+    }
+
+    #[test]
+    fn test_default_is_null_only() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine
+            .add_template(
+                "t",
+                "{{ z | default(9) }}|{{ f | default(9) }}|{{ s | default(9) }}|{{ m | default(9) }}",
+            )
+            .unwrap();
+        let out = engine.render("t", context! { z: 0, f: false, s: "" }).unwrap();
+        assert_eq!(out, "0|false||9");
+    }
+
+    // ---- Safe propagation ----
+
+    #[test]
+    fn test_safe_survives_pure_filters() {
+        let mut engine = Engine::new(EscapeMode::Html);
+        engine.add_template("t", "{{ x | safe | reverse }}").unwrap();
+        // Safe status is preserved, so the result is not escaped again.
+        assert_eq!(engine.render("t", context! { x: "<b>" }).unwrap(), ">b<");
+    }
+
+    #[test]
+    fn test_safe_compares_equal_to_str() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine
+            .add_template("t", "{{ (x | safe) == x }}|{{ (x | safe) < \"z\" }}")
+            .unwrap();
+        assert_eq!(engine.render("t", context! { x: "a" }).unwrap(), "true|true");
+    }
+
+    #[test]
+    fn test_join_leaves_unsafe_element_escaped() {
+        let mut engine = Engine::new(EscapeMode::Html);
+        engine.add_template("t", "{{ items | join(\",\") }}").unwrap();
+        let out = engine.render("t", context! { items: vec!["<a>", "<b>"] }).unwrap();
+        assert_eq!(out, "&lt;a&gt;,&lt;b&gt;");
+    }
+
+    // ---- injection ----
+
+    #[test]
+    fn test_xss_payloads_are_escaped() {
+        let mut engine = Engine::new(EscapeMode::Html);
+        engine.add_template("t", "{{ x }}").unwrap();
+        for payload in [
+            "<script>alert(1)</script>",
+            "\" onmouseover=alert(1)",
+            "' onclick='alert(1)",
+            "`backtick`",
+            "&amp;",
+            "javascript:alert(1)",
+        ] {
+            let out = engine.render("t", context! { x: payload }).unwrap();
+            assert!(!out.contains('<'), "raw `<` leaked for {payload:?}");
+            assert!(!out.contains('>'), "raw `>` leaked for {payload:?}");
+            assert!(!out.contains('"'), "raw `\"` leaked for {payload:?}");
+            assert!(!out.contains('\''), "raw `'` leaked for {payload:?}");
+        }
+    }
+
+    #[test]
+    fn test_escape_filter_does_not_double_escape() {
+        let mut engine = Engine::new(EscapeMode::Html);
+        engine.add_template("t", "{{ x | escape }}").unwrap();
+        assert_eq!(engine.render("t", context! { x: "<br>" }).unwrap(), "&lt;br&gt;");
+    }
+
+    // ---- render_to ----
+
+    #[test]
+    fn test_render_to_writer() {
+        use core::fmt;
+
+        struct Sink(String);
+        impl fmt::Write for Sink {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                self.0.push_str(s);
+                Ok(())
+            }
+        }
+
+        let mut engine = Engine::new(EscapeMode::Html);
+        engine.add_template("t", "Hi {{ name }}").unwrap();
+        let mut sink = Sink(String::new());
+        engine.render_to("t", context! { name: "<b>" }, &mut sink).unwrap();
+        assert_eq!(sink.0, "Hi &lt;b&gt;");
+    }
+
+    // ---- error positions ----
+
+    #[test]
+    fn test_error_position_is_template_absolute() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        // `-1` sits at column 30 of the template, not column 8 of the expression.
+        let err = engine
+            .add_template("t", "aaaaaaaaaaaaaaaaaaaa{{ items[-1] }}")
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("1:30"),
+            "expected template-absolute position 1:30, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_error_position_on_later_line() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        let src = "a\n{{ items[-1] }}";
+        let err = engine.add_template("t", src).unwrap_err();
+        assert!(err.to_string().contains("2:10"), "expected position 2:10, got: {err}");
+    }
+
+    #[test]
+    fn test_unknown_filter_position() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        let err = engine.add_template("t", "prefix {{ x | nope }}").unwrap_err();
+        // `nope` starts at column 15 (`prefix {{ x | ` is 14 chars).
+        assert!(err.to_string().contains("1:15"), "expected position 1:15, got: {err}");
+    }
+
+    #[test]
+    fn test_multiline_tag_error_position() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        // The tag content spans two lines; the negative index is on line 2.
+        let err = engine
+            .add_template("t", "{% if items[\n-1] %}x{% endif %}")
+            .unwrap_err();
+        assert!(err.to_string().contains("2:1"), "expected position 2:1, got: {err}");
+    }
+
+    // ---- endblock labels ----
+
+    #[test]
+    fn test_endblock_with_matching_label() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine
+            .add_template("t", "{% block content %}hi{% endblock content %}")
+            .unwrap();
+        assert_eq!(engine.render("t", context! {}).unwrap(), "hi");
+    }
+
+    #[test]
+    fn test_endblock_without_label() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        engine.add_template("t", "{% block content %}hi{% endblock %}").unwrap();
+        assert_eq!(engine.render("t", context! {}).unwrap(), "hi");
+    }
+
+    #[test]
+    fn test_endblock_with_mismatched_label_is_error() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        let err = engine
+            .add_template("t", "{% block content %}hi{% endblock footer %}")
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("endblock content"),
+            "expected mismatch message, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_endfor_label_still_rejected() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        assert!(engine.add_template("t", "{% for i in x %}{% endfor i %}").is_err());
+    }
+
+    #[test]
+    fn test_non_ascii_identifier_rejected() {
+        let mut engine = Engine::new(EscapeMode::Text);
+        assert!(engine.add_template("t", "{{ café }}").is_err());
     }
 }

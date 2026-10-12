@@ -3,6 +3,7 @@
 use alloc::{
     format,
     string::{String, ToString},
+    sync::Arc,
     vec::Vec,
 };
 
@@ -11,14 +12,19 @@ use memchr::memchr;
 use crate::{
     ast::{BlockNode, ElifNode, ForNode, IfNode, Node, NodeList},
     error::Error,
-    expr::{ExprParser, lex_expr},
+    expr::{ExprParser, check_static_bool, lex_expr},
 };
+
+/// Maximum nesting depth of block tags (`if` / `for` / `block`). Exceeding it
+/// returns an error instead of overflowing the stack on adversarial input.
+const MAX_TEMPLATE_DEPTH: usize = 128;
 
 pub struct TemplateParser {
     source: String,
     pos: usize,
     line: usize,
     col: usize,
+    depth: usize,
 }
 
 impl TemplateParser {
@@ -28,12 +34,26 @@ impl TemplateParser {
             pos: 0,
             line: 1,
             col: 1,
+            depth: 0,
         }
     }
 
     pub fn parse(&mut self) -> Result<NodeList, Error> {
         let nodes = self.parse_nodes(&[])?;
         Ok(nodes)
+    }
+
+    /// Advance `line`/`col` over `s`, counting Unicode scalar values rather than
+    /// bytes so that reported columns are correct for non-ASCII input.
+    fn count_position(s: &str, line: &mut usize, col: &mut usize) {
+        for ch in s.chars() {
+            if ch == '\n' {
+                *line += 1;
+                *col = 1;
+            } else {
+                *col += 1;
+            }
+        }
     }
 
     fn eof(&self) -> bool {
@@ -87,6 +107,22 @@ impl TemplateParser {
     /// Parse nodes until EOF or until a `{% terminator %}` is encountered.
     /// The terminator is NOT consumed.
     fn parse_nodes(&mut self, terminators: &[&str]) -> Result<NodeList, Error> {
+        self.depth += 1;
+        if self.depth > MAX_TEMPLATE_DEPTH {
+            self.depth -= 1;
+            let (l, c) = self.current_position();
+            return Err(Error::syntax(
+                format!("template nesting exceeds the limit of {MAX_TEMPLATE_DEPTH}"),
+                l,
+                c,
+            ));
+        }
+        let nodes = self.parse_nodes_inner(terminators);
+        self.depth -= 1;
+        nodes
+    }
+
+    fn parse_nodes_inner(&mut self, terminators: &[&str]) -> Result<NodeList, Error> {
         let mut nodes = Vec::new();
         let mut raw_buf = String::new();
 
@@ -97,15 +133,9 @@ impl TemplateParser {
                 Some(offset) => {
                     // Bulk-copy raw text before the '{'
                     if offset > 0 {
-                        raw_buf.push_str(&self.source[self.pos..self.pos + offset]);
-                        for &b in &haystack[..offset] {
-                            if b == b'\n' {
-                                self.line += 1;
-                                self.col = 1;
-                            } else {
-                                self.col += 1;
-                            }
-                        }
+                        let skipped = &self.source[self.pos..self.pos + offset];
+                        raw_buf.push_str(skipped);
+                        Self::count_position(skipped, &mut self.line, &mut self.col);
                         self.pos += offset;
                     }
 
@@ -140,14 +170,7 @@ impl TemplateParser {
                     // No more '{' — bulk-copy remaining text as raw
                     let rest = &self.source[self.pos..];
                     raw_buf.push_str(rest);
-                    for &b in haystack {
-                        if b == b'\n' {
-                            self.line += 1;
-                            self.col = 1;
-                        } else {
-                            self.col += 1;
-                        }
-                    }
+                    Self::count_position(rest, &mut self.line, &mut self.col);
                     self.pos = self.source.len();
                     break;
                 }
@@ -198,14 +221,14 @@ impl TemplateParser {
         self.advance();
         self.advance();
         let (l, c) = self.current_position();
-        let content = self.read_until("}}")?;
+        let content = self.read_until_expr("}}")?;
         self.advance();
         self.advance();
         if content.trim().is_empty() {
             return Err(Error::syntax("empty expression", l, c));
         }
 
-        let tokens = lex_expr(&content).map_err(|e| Error::parse(e))?;
+        let tokens = lex_expr(&content, l, c).map_err(Error::parse)?;
         let parser = ExprParser::new(tokens);
         let expr = parser.parse_all()?;
         nodes.push(Node::Expr(expr));
@@ -245,6 +268,14 @@ impl TemplateParser {
                 nodes.push(Node::Include(name));
             }
             "extends" => {
+                if self.depth > 1 {
+                    let (l, c) = self.current_position();
+                    return Err(Error::syntax(
+                        "`{% extends %}` is only allowed at the top level of a template",
+                        l,
+                        c,
+                    ));
+                }
                 if nodes.iter().any(|n| matches!(n, Node::Extends(_))) {
                     let (l, c) = self.current_position();
                     return Err(Error::syntax("multiple `{% extends %}` tags in one template", l, c));
@@ -259,10 +290,10 @@ impl TemplateParser {
                 self.skip_whitespace();
                 self.expect_tag_close('%')?;
                 let body = self.parse_nodes(&["endblock"])?;
-                self.consume_terminator_tag("endblock")?;
+                self.consume_endblock(&name)?;
                 nodes.push(Node::Block(BlockNode {
                     name,
-                    body,
+                    body: Arc::new(body),
                 }));
             }
             "set" => {
@@ -275,12 +306,12 @@ impl TemplateParser {
                 self.advance();
                 self.skip_whitespace();
                 let (l, c) = self.current_position();
-                let content = self.read_until("%}")?;
+                let content = self.read_until_expr("%}")?;
                 self.expect_tag_close('%')?;
                 if content.trim().is_empty() {
                     return Err(Error::syntax("empty expression", l, c));
                 }
-                let tokens = lex_expr(content.trim()).map_err(|e| Error::parse(e))?;
+                let tokens = lex_expr(&content, l, c).map_err(Error::parse)?;
                 let parser = ExprParser::new(tokens);
                 let expr = parser.parse_all()?;
                 nodes.push(Node::Set(var_name, expr));
@@ -300,15 +331,9 @@ impl TemplateParser {
                         Some(offset) => {
                             // Bulk-copy everything before the potential endraw
                             if offset > 0 {
-                                content.push_str(&self.source[self.pos..self.pos + offset]);
-                                for &b in &haystack[..offset] {
-                                    if b == b'\n' {
-                                        self.line += 1;
-                                        self.col = 1;
-                                    } else {
-                                        self.col += 1;
-                                    }
-                                }
+                                let skipped = &self.source[self.pos..self.pos + offset];
+                                content.push_str(skipped);
+                                Self::count_position(skipped, &mut self.line, &mut self.col);
                                 self.pos += offset;
                             }
 
@@ -343,14 +368,7 @@ impl TemplateParser {
                             // No more '{' — all remaining is raw content
                             let rest = &self.source[self.pos..];
                             content.push_str(rest);
-                            for &b in haystack {
-                                if b == b'\n' {
-                                    self.line += 1;
-                                    self.col = 1;
-                                } else {
-                                    self.col += 1;
-                                }
-                            }
+                            Self::count_position(rest, &mut self.line, &mut self.col);
                             self.pos = self.source.len();
                             let (l, c) = self.current_position();
                             return Err(Error::syntax("unclosed `{% raw %}` block", l, c));
@@ -378,16 +396,17 @@ impl TemplateParser {
 
     fn parse_if(&mut self) -> Result<Node, Error> {
         let (l, c) = self.current_position();
-        let content = self.read_until("%}")?;
+        let content = self.read_until_expr("%}")?;
         self.expect_tag_close('%')?;
         if content.trim().is_empty() {
             return Err(Error::syntax("empty condition", l, c));
         }
         let condition = {
-            let tokens = lex_expr(content.trim()).map_err(|e| Error::parse(e))?;
+            let tokens = lex_expr(&content, l, c).map_err(Error::parse)?;
             let parser = ExprParser::new(tokens);
             parser.parse_all()?
         };
+        check_static_bool(&condition, "`if` condition")?;
 
         let body = self.parse_nodes(&["elif", "else", "endif"])?;
         let mut elifs = Vec::new();
@@ -423,14 +442,15 @@ impl TemplateParser {
                         return Err(Error::syntax("`elif` after `else`", l, c));
                     }
                     let (l, c) = self.current_position();
-                    let cond_content = self.read_until("%}")?;
+                    let cond_content = self.read_until_expr("%}")?;
                     self.expect_tag_close('%')?;
                     if cond_content.trim().is_empty() {
                         return Err(Error::syntax("empty condition", l, c));
                     }
-                    let tokens = lex_expr(cond_content.trim()).map_err(|e| Error::parse(e))?;
+                    let tokens = lex_expr(&cond_content, l, c).map_err(Error::parse)?;
                     let parser = ExprParser::new(tokens);
                     let condition = parser.parse_all()?;
+                    check_static_bool(&condition, "`elif` condition")?;
                     let body = self.parse_nodes(&["elif", "else", "endif"])?;
                     elifs.push(ElifNode {
                         condition,
@@ -475,13 +495,13 @@ impl TemplateParser {
         self.skip_whitespace();
 
         let (l, c) = self.current_position();
-        let iter_content = self.read_until("%}")?;
+        let iter_content = self.read_until_expr("%}")?;
         self.expect_tag_close('%')?;
         if iter_content.trim().is_empty() {
             return Err(Error::syntax("empty iterable", l, c));
         }
 
-        let tokens = lex_expr(iter_content.trim()).map_err(|e| Error::parse(e))?;
+        let tokens = lex_expr(&iter_content, l, c).map_err(Error::parse)?;
         let parser = ExprParser::new(tokens);
         let iterable = parser.parse_all()?;
 
@@ -510,6 +530,39 @@ impl TemplateParser {
         Ok(())
     }
 
+    /// Consume `{% endblock %}` or the labeled `{% endblock name %}` form.
+    ///
+    /// When a label is present it must match the block name, mirroring Jinja's
+    /// behavior; a mismatch is a syntax error.
+    fn consume_endblock(&mut self, block_name: &str) -> Result<(), Error> {
+        self.advance(); // {
+        self.advance(); // %
+        self.skip_whitespace();
+        let kw = self.read_ident()?;
+        if kw.as_str() != "endblock" {
+            let (l, c) = self.current_position();
+            return Err(Error::syntax(format!("expected `endblock`, got `{kw}`"), l, c));
+        }
+        self.skip_whitespace();
+        // Optional label: `{% endblock content %}`.
+        if matches!(self.peek(), Some(ch) if ch.is_ascii_alphabetic() || ch == '_') {
+            let label = self.read_ident()?;
+            if label != block_name {
+                let (l, c) = self.current_position();
+                return Err(Error::syntax(
+                    format!("expected `endblock {block_name}`, got `endblock {label}`"),
+                    l,
+                    c,
+                ));
+            }
+            self.skip_whitespace();
+        }
+        self.expect_tag_close('%')?;
+        Ok(())
+    }
+
+    /// Read until `delimiter` appears verbatim. Used for comments, whose content
+    /// is opaque (quotes inside a comment must not be treated as string starts).
     fn read_until(&mut self, delimiter: &str) -> Result<String, Error> {
         let start_line = self.line;
         let start_col = self.col;
@@ -518,28 +571,75 @@ impl TemplateParser {
         if let Some(idx) = self.source[self.pos..].find(delimiter) {
             let end_pos = self.pos + idx;
             let content = self.source[start_pos..end_pos].to_string();
-            // Count newlines in the skipped region using bytes (avoids UTF-8 decoding)
-            for &b in self.source.as_bytes()[start_pos..end_pos].iter() {
-                if b == b'\n' {
-                    self.line += 1;
-                    self.col = 1;
-                } else {
-                    self.col += 1;
-                }
-            }
+            Self::count_position(&content, &mut self.line, &mut self.col);
             self.pos = end_pos;
             return Ok(content);
         }
 
         // Not found, advance to end
-        for &b in self.source.as_bytes()[self.pos..].iter() {
-            if b == b'\n' {
-                self.line += 1;
-                self.col = 1;
-            } else {
-                self.col += 1;
+        let rest = &self.source[self.pos..];
+        Self::count_position(rest, &mut self.line, &mut self.col);
+        self.pos = self.source.len();
+
+        Err(Error::syntax(
+            format!("unclosed tag, expected `{delimiter}`"),
+            start_line,
+            start_col,
+        ))
+    }
+
+    /// Read until `delimiter` appears outside of a string literal.
+    ///
+    /// Used for expression-bearing tags so that delimiters such as `}}` and `%}`
+    /// can appear inside string literals (e.g. `{{ "a}}b" }}` or
+    /// `{% if x == "%}" %}`). Backslash escapes inside strings are respected.
+    fn read_until_expr(&mut self, delimiter: &str) -> Result<String, Error> {
+        let start_line = self.line;
+        let start_col = self.col;
+        let start_pos = self.pos;
+        let bytes = self.source.as_bytes();
+        let delim = delimiter.as_bytes();
+
+        let mut i = self.pos;
+        let mut quote: Option<u8> = None;
+        let mut end_pos = None;
+        while i < bytes.len() {
+            let b = bytes[i];
+            match quote {
+                Some(q) => {
+                    if b == b'\\' && i + 1 < bytes.len() {
+                        i += 2;
+                    } else {
+                        if b == q {
+                            quote = None;
+                        }
+                        i += 1;
+                    }
+                }
+                None => {
+                    if b == b'"' || b == b'\'' {
+                        quote = Some(b);
+                        i += 1;
+                    } else if bytes[i..].starts_with(delim) {
+                        end_pos = Some(i);
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
             }
         }
+
+        if let Some(end_pos) = end_pos {
+            let content = self.source[start_pos..end_pos].to_string();
+            Self::count_position(&content, &mut self.line, &mut self.col);
+            self.pos = end_pos;
+            return Ok(content);
+        }
+
+        // Not found, advance to end
+        let rest = &self.source[self.pos..];
+        Self::count_position(rest, &mut self.line, &mut self.col);
         self.pos = self.source.len();
 
         Err(Error::syntax(

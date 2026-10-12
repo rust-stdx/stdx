@@ -26,32 +26,13 @@ impl SourcePosition {
 
 #[derive(Debug)]
 enum ErrorKind {
-    Parse {
-        message: String,
-    },
-    Syntax {
-        message: String,
-        position: SourcePosition,
-    },
-    UndefinedVariable {
-        name: String,
-        position: SourcePosition,
-    },
-    UndefinedFilter {
-        name: String,
-        position: SourcePosition,
-    },
-    UndefinedTemplate {
-        name: String,
-    },
-    Render {
-        message: String,
-    },
-    Type {
-        message: String,
-    },
-    #[cfg(feature = "std")]
-    Io(std::io::Error),
+    Parse { message: String },
+    Syntax { message: String, position: SourcePosition },
+    UndefinedVariable { name: String, position: SourcePosition },
+    UndefinedFilter { name: String, position: SourcePosition },
+    UndefinedTemplate { name: String },
+    Render { message: String },
+    Type { message: String },
 }
 
 /// An error returned by the template engine.
@@ -138,7 +119,9 @@ impl Error {
 #[cfg(feature = "std")]
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        Self::new(ErrorKind::Io(err))
+        Self::new(ErrorKind::Render {
+            message: err.to_string(),
+        })
     }
 }
 
@@ -183,21 +166,13 @@ impl fmt::Display for Error {
             } => {
                 write!(f, "type error: {message}")
             }
-            #[cfg(feature = "std")]
-            ErrorKind::Io(err) => {
-                write!(f, "I/O error: {err}")
-            }
         }
     }
 }
 
 impl core::error::Error for Error {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
-        match &self.inner.kind {
-            #[cfg(feature = "std")]
-            ErrorKind::Io(err) => Some(err),
-            _ => None,
-        }
+        None
     }
 }
 

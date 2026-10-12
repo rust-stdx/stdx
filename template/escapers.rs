@@ -1,16 +1,22 @@
 //! HTML escaping functions for auto-escaping mode and the `escape` filter.
 
 use alloc::string::String;
+use core::fmt;
 
 use memchr::{memchr2, memchr3};
 
-use crate::error::Error;
+/// Signature of an output escaper.
+///
+/// The escaper appends `input` to `output`, escaping it as appropriate for the
+/// active [`EscapeMode`](crate::EscapeMode). It returns a [`fmt::Error`] only if
+/// the underlying writer fails.
+pub type EscaperFn = fn(&str, &mut dyn fmt::Write) -> fmt::Result;
 
-pub type EscaperFn = fn(&str, &mut String) -> Result<(), Error>;
-
-/// HTML escaper (HTML mode)
-pub fn html_escape(input: &str, output: &mut String) -> Result<(), Error> {
-    output.reserve(input.len());
+/// HTML escaper (HTML mode).
+///
+/// Escapes `&`, `<`, `>`, `"` and `'` so the result is safe to embed in both
+/// text and quoted-attribute contexts. Writes directly into `output`.
+pub fn html_escape(input: &str, output: &mut dyn fmt::Write) -> fmt::Result {
     let bytes = input.as_bytes();
     let mut start = 0;
 
@@ -28,7 +34,7 @@ pub fn html_escape(input: &str, output: &mut String) -> Result<(), Error> {
                 Some(q) => start + q,
                 None => {
                     // No more special bytes, flush remaining
-                    output.push_str(&input[start..]);
+                    output.write_str(&input[start..])?;
                     return Ok(());
                 }
             },
@@ -36,18 +42,18 @@ pub fn html_escape(input: &str, output: &mut String) -> Result<(), Error> {
 
         // Copy safe prefix
         if pos > start {
-            output.push_str(&input[start..pos]);
+            output.write_str(&input[start..pos])?;
         }
 
         // Process the special byte
-        match bytes[pos] {
-            b'<' => output.push_str("&lt;"),
-            b'>' => output.push_str("&gt;"),
-            b'&' => output.push_str("&amp;"),
-            b'"' => output.push_str("&quot;"),
-            b'\'' => output.push_str("&#39;"),
+        output.write_str(match bytes[pos] {
+            b'<' => "&lt;",
+            b'>' => "&gt;",
+            b'&' => "&amp;",
+            b'"' => "&quot;",
+            b'\'' => "&#39;",
             _ => unreachable!(),
-        }
+        })?;
         start = pos + 1;
     }
 }
@@ -55,6 +61,6 @@ pub fn html_escape(input: &str, output: &mut String) -> Result<(), Error> {
 /// Convenience wrapper that returns a new `String`.
 pub fn html_escape_to_string(input: &str) -> String {
     let mut output = String::with_capacity(input.len());
-    html_escape(input, &mut output).unwrap();
+    html_escape(input, &mut output).expect("writing to a String never fails");
     output
 }

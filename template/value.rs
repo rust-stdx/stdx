@@ -19,13 +19,13 @@ use crate::SerdeError;
 /// This type is not meant to be used directly. Use the [`context!`] macro
 /// or the [`IntoContext`](crate::context::IntoContext) trait instead.
 #[doc(hidden)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Null,
     Bool(bool),
     I64(i64),
     F64(f64),
-    /// A string value. Will be auto-escaped in `Mode::Html`.
+    /// A string value. Will be auto-escaped in [`EscapeMode::Html`](crate::EscapeMode).
     Str(Rc<str>),
     /// A string that is already safe for output. Bypasses auto-escaping.
     /// Returned by `{{ value | safe }}`, the `escape` filter, and `{{ super() }}`.
@@ -34,26 +34,30 @@ pub enum Value {
     Map(Rc<BTreeMap<String, Value>>),
 }
 
+impl PartialEq for Value {
+    /// Compares values structurally.
+    ///
+    /// [`Value::Safe`] and [`Value::Str`] compare equal when their contents are
+    /// equal, so `{{ value | safe }} == value` holds for the same string.
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Null, Value::Null) => true,
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            (Value::I64(a), Value::I64(b)) => a == b,
+            (Value::F64(a), Value::F64(b)) => a == b,
+            (Value::Str(a) | Value::Safe(a), Value::Str(b) | Value::Safe(b)) => a == b,
+            (Value::Array(a), Value::Array(b)) => a == b,
+            (Value::Map(a), Value::Map(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 impl Value {
     #[cfg(feature = "std")]
     fn from_serialize_impl<S: Serialize>(value: &S) -> Result<Self, SerdeError> {
         let serializer = ValueSerializer;
         value.serialize(serializer)
-    }
-
-    /// Returns `true` if the value is considered truthy.
-    ///
-    /// Falsy values are: `Null`, `false`, `0`, `0.0`, empty string, empty array, empty map.
-    pub fn is_truthy(&self) -> bool {
-        match self {
-            Value::Null => false,
-            Value::Bool(b) => *b,
-            Value::I64(n) => *n != 0,
-            Value::F64(n) => *n != 0.0 && !n.is_nan(),
-            Value::Str(s) | Value::Safe(s) => !s.is_empty(),
-            Value::Array(a) => !a.is_empty(),
-            Value::Map(m) => !m.is_empty(),
-        }
     }
 
     /// Look up a key in a map value. Returns `None` if not a map or key missing.
@@ -635,6 +639,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_basic_types() {
         assert_eq!(to_value(42i64).unwrap(), Value::I64(42));
@@ -643,6 +648,7 @@ mod tests {
         assert_eq!(to_value(false).unwrap(), Value::Bool(false));
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_option() {
         let some_val: Option<i64> = Some(42);
@@ -651,6 +657,7 @@ mod tests {
         assert_eq!(to_value(none_val).unwrap(), Value::Null);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_vec() {
         let v = vec![1, 2, 3];
@@ -664,6 +671,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_map() {
         let mut map = BTreeMap::new();
@@ -694,20 +702,6 @@ mod tests {
     }
 
     #[test]
-    fn test_truthy() {
-        assert!(!Value::Null.is_truthy());
-        assert!(!Value::Bool(false).is_truthy());
-        assert!(!Value::I64(0).is_truthy());
-        assert!(!Value::F64(0.0).is_truthy());
-        assert!(!Value::Str("".into()).is_truthy());
-        assert!(!Value::Array(Rc::new(vec![])).is_truthy());
-        assert!(!Value::Map(Rc::new(BTreeMap::new())).is_truthy());
-        assert!(Value::Bool(true).is_truthy());
-        assert!(Value::I64(1).is_truthy());
-        assert!(Value::Str("x".into()).is_truthy());
-    }
-
-    #[test]
     fn test_get() {
         let mut map = BTreeMap::new();
         map.insert("key".to_string(), Value::I64(42));
@@ -716,6 +710,7 @@ mod tests {
         assert_eq!(val.get("nonexistent"), None);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_u64_overflow() {
         // u64::MAX overflows i64, should serialize to f64
@@ -723,17 +718,12 @@ mod tests {
         assert!(matches!(val, Value::F64(_)));
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_large_u64_as_i64() {
         // i64::MAX as u64 should still be I64
         let val = to_value(i64::MAX as u64).unwrap();
         assert_eq!(val, Value::I64(i64::MAX));
-    }
-
-    #[test]
-    fn test_safe_variant_truthy() {
-        assert!(Value::Safe("x".into()).is_truthy());
-        assert!(!Value::Safe("".into()).is_truthy());
     }
 
     #[test]
@@ -751,27 +741,19 @@ mod tests {
     }
 
     #[test]
-    fn test_nan_truthy() {
-        let val = Value::F64(f64::NAN);
-        assert!(!val.is_truthy());
+    fn test_safe_equals_str() {
+        // `Safe` and `Str` with identical contents must compare equal.
+        assert_eq!(Value::Safe("x".into()), Value::Str("x".into()));
+        assert_eq!(Value::Str("x".into()), Value::Safe("x".into()));
+        assert_ne!(Value::Safe("x".into()), Value::Str("y".into()));
+        assert_ne!(Value::Safe("x".into()), Value::Safe("y".into()));
     }
 
     #[test]
-    fn test_infinity_truthy() {
-        let val = Value::F64(f64::INFINITY);
-        assert!(val.is_truthy());
-    }
-
-    #[test]
-    fn test_neg_infinity_truthy() {
-        let val = Value::F64(f64::NEG_INFINITY);
-        assert!(val.is_truthy());
-    }
-
-    #[test]
-    fn test_f64_neg_zero_truthy() {
-        let val = Value::F64(-0.0);
-        assert!(!val.is_truthy());
+    fn test_safe_nested_equality() {
+        let a = Value::Array(Rc::new(vec![Value::Safe("x".into())]));
+        let b = Value::Array(Rc::new(vec![Value::Str("x".into())]));
+        assert_eq!(a, b);
     }
 
     #[test]

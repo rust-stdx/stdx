@@ -1,6 +1,6 @@
 //! AST types for the template engine — nodes, expressions, and operators.
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 pub type NodeList = Vec<Node>;
 
@@ -41,7 +41,9 @@ pub struct ForNode {
 #[derive(Clone, Debug)]
 pub struct BlockNode {
     pub name: String,
-    pub body: NodeList,
+    /// Shared so that block overrides can be chained without deep-cloning the
+    /// body on every render.
+    pub body: Arc<NodeList>,
 }
 
 #[derive(Clone, Debug)]
