@@ -8,8 +8,15 @@ license = "MIT"
 [lib]
 path = "./xxhash.rs"
 
+[features]
+default = ["std"]
+# Enables runtime CPU feature detection (AVX2 / AVX-512) in addition to the
+# compile-time dispatch. Requires the standard library.
+std = []
+
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
+alloc_counter = { path = "../alloc_counter" }
 
 [[bench]]
 name = "hash"

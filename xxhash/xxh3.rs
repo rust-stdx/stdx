@@ -11,8 +11,8 @@ const PRIME64_1: u64 = 0x9E3779B185EBCA87;
 const PRIME64_2: u64 = 0xC2B2AE3D27D4EB4F;
 const PRIME64_5: u64 = 0x27D4EB2F165667C5;
 
-const STRIPE_LEN: usize = 64;
-const SECRET_CONSUME_RATE: usize = 8;
+pub(crate) const STRIPE_LEN: usize = 64;
+pub(crate) const SECRET_CONSUME_RATE: usize = 8;
 pub(crate) const ACC_NB: usize = 8;
 const SECRET_MERGEACCS_START: usize = 11;
 const SECRET_LASTACC_START: usize = 7;
@@ -20,6 +20,12 @@ const MID_SIZE_MAX: usize = 240;
 const SECRET_SIZE_MIN: usize = 136;
 const DEFAULT_SECRET_SIZE: usize = 192;
 const STRIPES_PER_BLOCK: usize = (DEFAULT_SECRET_SIZE - STRIPE_LEN) / SECRET_CONSUME_RATE;
+/// Size of the streaming internal buffer (an exact multiple of [`STRIPE_LEN`]).
+const INTERNAL_BUFFER_SIZE: usize = 256;
+/// Number of stripes the internal buffer is flushed in.
+const INTERNAL_BUFFER_STRIPES: usize = INTERNAL_BUFFER_SIZE / STRIPE_LEN;
+/// Secret offset used for the final (overlapping) stripe of a long input.
+const LAST_STRIPE_SECRET_OFFSET: usize = DEFAULT_SECRET_SIZE - STRIPE_LEN - SECRET_LASTACC_START;
 
 /// The default 192-byte secret used by XXH3.
 const DEFAULT_SECRET: [u8; 192] = [
@@ -219,6 +225,67 @@ const fn hash_long_internal_loop(acc: &mut [u64; ACC_NB], input: &[u8], secret: 
     accumulate_512_scalar(acc, input, last_stripe_start, secret, last_secret_off);
 }
 
+/// Same as [`hash_long_internal_loop`], but selects the SIMD kernels at runtime
+/// (or at compile time in `no_std` builds).
+#[inline]
+fn hash_long_internal_loop_dispatch(acc: &mut [u64; ACC_NB], input: &[u8], secret: &[u8]) {
+    let nb_stripes = STRIPES_PER_BLOCK;
+    let block_len = STRIPE_LEN * nb_stripes;
+    let nb_blocks = (input.len() - 1) / block_len;
+
+    let mut i = 0;
+    while i < nb_blocks {
+        accumulate_loop(acc, input, i * block_len, secret, 0, nb_stripes);
+        scramble_acc(acc, secret, secret.len() - STRIPE_LEN);
+        i += 1;
+    }
+
+    // Last partial block
+    let nb_stripes = ((input.len() - 1) - (block_len * nb_blocks)) / STRIPE_LEN;
+    accumulate_loop(acc, input, nb_blocks * block_len, secret, 0, nb_stripes);
+
+    // Last stripe
+    let last_stripe_start = input.len() - STRIPE_LEN;
+    accumulate_512(acc, input, last_stripe_start, secret, LAST_STRIPE_SECRET_OFFSET);
+}
+
+/// Feeds `nb_stripes` stripes ending at a block boundary, scrambling in between.
+/// Mirrors the reference `XXH3_consumeStripes()`.
+#[inline]
+fn consume_stripes(
+    acc: &mut [u64; ACC_NB],
+    nb_stripes_so_far: &mut usize,
+    input: &[u8],
+    mut nb_stripes: usize,
+    secret: &[u8],
+) {
+    let mut pos = 0;
+    let mut secret_off = *nb_stripes_so_far * SECRET_CONSUME_RATE;
+
+    // Consume stripes up to the end of a block, then scramble and repeat.
+    if nb_stripes >= STRIPES_PER_BLOCK - *nb_stripes_so_far {
+        let mut nb_this = STRIPES_PER_BLOCK - *nb_stripes_so_far;
+        loop {
+            accumulate_loop(acc, input, pos, secret, secret_off, nb_this);
+            scramble_acc(acc, secret, secret.len() - STRIPE_LEN);
+            pos += nb_this * STRIPE_LEN;
+            nb_stripes -= nb_this;
+            nb_this = STRIPES_PER_BLOCK;
+            secret_off = 0;
+            if nb_stripes < STRIPES_PER_BLOCK {
+                break;
+            }
+        }
+        *nb_stripes_so_far = 0;
+    }
+
+    // Consume the remaining partial block.
+    if nb_stripes > 0 {
+        accumulate_loop(acc, input, pos, secret, secret_off, nb_stripes);
+        *nb_stripes_so_far += nb_stripes;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Custom default secret generation for seeded hashing
 // ---------------------------------------------------------------------------
@@ -245,12 +312,14 @@ const fn custom_default_secret_scalar(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
 
 // ---------------------------------------------------------------------------
 // Dispatch wrappers — select SIMD or scalar at compile / run time.
-// On aarch64  NEON is always available (compile-time dispatch).
-// On x86_64   Uses AVX512 when available, otherwise AVX2 (compile-time dispatch).
+// On aarch64 and wasm32 the selection is always compile-time (NEON is
+// mandatory on aarch64, and wasm has no runtime detection).
+// On x86 the selection is compile-time in `no_std` builds, and runtime
+// (cached) when the `std` feature is enabled.
 // ---------------------------------------------------------------------------
 
 #[inline]
-#[allow(unreachable_code)]
+#[allow(unreachable_code, unused_variables)]
 fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     {
@@ -264,13 +333,28 @@ fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secre
         return;
     }
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx512f"))]
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        match crate::x86_dispatch::level() {
+            crate::x86_dispatch::Level::Avx512 => {
+                unsafe { crate::xxh3_avx512::accumulate_512(acc, input, input_off, secret, secret_off) };
+                return;
+            }
+            crate::x86_dispatch::Level::Avx2 => {
+                unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
+                return;
+            }
+            crate::x86_dispatch::Level::Scalar => {}
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
     {
         unsafe { crate::xxh3_avx512::accumulate_512(acc, input, input_off, secret, secret_off) };
         return;
     }
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
     {
         unsafe { crate::xxh3_avx2::accumulate_512(acc, input, input_off, secret, secret_off) };
         return;
@@ -280,7 +364,7 @@ fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secre
 }
 
 #[inline]
-#[allow(unreachable_code)]
+#[allow(unreachable_code, unused_variables)]
 fn accumulate_loop(
     acc: &mut [u64; ACC_NB],
     input: &[u8],
@@ -289,21 +373,60 @@ fn accumulate_loop(
     secret_off: usize,
     nb_stripes: usize,
 ) {
-    let mut idx = 0;
-    while idx < nb_stripes {
-        accumulate_512(
-            acc,
-            input,
-            input_off + idx * STRIPE_LEN,
-            secret,
-            secret_off + idx * SECRET_CONSUME_RATE,
-        );
-        idx += 1;
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    {
+        crate::xxh3_wasm_simd128::accumulate_loop(acc, input, input_off, secret, secret_off, nb_stripes);
+        return;
     }
+
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        unsafe {
+            crate::xxh3_neon::accumulate_loop(acc, input, input_off, secret, secret_off, nb_stripes);
+        }
+        return;
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        match crate::x86_dispatch::level() {
+            crate::x86_dispatch::Level::Avx512 => {
+                unsafe {
+                    crate::xxh3_avx512::accumulate_loop(acc, input, input_off, secret, secret_off, nb_stripes);
+                }
+                return;
+            }
+            crate::x86_dispatch::Level::Avx2 => {
+                unsafe {
+                    crate::xxh3_avx2::accumulate_loop(acc, input, input_off, secret, secret_off, nb_stripes);
+                }
+                return;
+            }
+            crate::x86_dispatch::Level::Scalar => {}
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+    {
+        unsafe {
+            crate::xxh3_avx512::accumulate_loop(acc, input, input_off, secret, secret_off, nb_stripes);
+        }
+        return;
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
+    {
+        unsafe {
+            crate::xxh3_avx2::accumulate_loop(acc, input, input_off, secret, secret_off, nb_stripes);
+        }
+        return;
+    }
+
+    accumulate_loop_scalar(acc, input, input_off, secret, secret_off, nb_stripes);
 }
 
 #[inline]
-#[allow(unreachable_code)]
+#[allow(unreachable_code, unused_variables)]
 fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     {
@@ -317,24 +440,34 @@ fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
         return;
     }
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx512f"))]
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        match crate::x86_dispatch::level() {
+            crate::x86_dispatch::Level::Avx512 => {
+                unsafe { crate::xxh3_avx512::scramble_acc(acc, secret, secret_off) };
+                return;
+            }
+            crate::x86_dispatch::Level::Avx2 => {
+                unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
+                return;
+            }
+            crate::x86_dispatch::Level::Scalar => {}
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
     {
         unsafe { crate::xxh3_avx512::scramble_acc(acc, secret, secret_off) };
         return;
     }
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
     {
         unsafe { crate::xxh3_avx2::scramble_acc(acc, secret, secret_off) };
         return;
     }
 
     scramble_acc_scalar(acc, secret, secret_off);
-}
-
-#[inline]
-fn custom_default_secret(seed: u64) -> [u8; DEFAULT_SECRET_SIZE] {
-    custom_default_secret_scalar(seed)
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +577,8 @@ const fn xxh3_64_129to240(input: &[u8], seed: u64, secret: &[u8]) -> u64 {
 // Long path: >240 bytes (one-shot)
 // ---------------------------------------------------------------------------
 
-const fn xxh3_64_long_impl(input: &[u8], secret: &[u8]) -> u64 {
+/// Long-path hash using the scalar kernels only. Usable in `const` contexts.
+const fn xxh3_64_long_scalar(input: &[u8], secret: &[u8]) -> u64 {
     let mut acc = INITIAL_ACC;
     hash_long_internal_loop(&mut acc, input, secret);
     merge_accs(
@@ -455,23 +589,27 @@ const fn xxh3_64_long_impl(input: &[u8], secret: &[u8]) -> u64 {
     )
 }
 
-const fn xxh3_64_long_with_seed(input: &[u8], seed: u64, secret: &[u8]) -> u64 {
-    if seed == 0 {
-        xxh3_64_long_impl(input, secret)
-    } else {
-        xxh3_64_long_impl(input, &custom_default_secret_scalar(seed))
-    }
+/// Long-path hash using the runtime-dispatched (SIMD when available) kernels.
+fn xxh3_64_long(input: &[u8], secret: &[u8]) -> u64 {
+    let mut acc = INITIAL_ACC;
+    hash_long_internal_loop_dispatch(&mut acc, input, secret);
+    merge_accs(
+        &acc,
+        secret,
+        SECRET_MERGEACCS_START,
+        (input.len() as u64).wrapping_mul(PRIME64_1),
+    )
 }
 
-const fn xxh3_64_one_shot(input: &[u8], seed: u64, secret: &[u8]) -> u64 {
+/// Short-path hash for inputs of at most [`MID_SIZE_MAX`] bytes.
+#[inline]
+const fn xxh3_64_short(input: &[u8], seed: u64, secret: &[u8]) -> u64 {
     if input.len() <= 16 {
         xxh3_64_0to16(input, seed, secret)
     } else if input.len() <= 128 {
         xxh3_64_7to128(input, seed, secret)
-    } else if input.len() <= MID_SIZE_MAX {
-        xxh3_64_129to240(input, seed, secret)
     } else {
-        xxh3_64_long_with_seed(input, seed, secret)
+        xxh3_64_129to240(input, seed, secret)
     }
 }
 
@@ -651,7 +789,7 @@ const fn xxh3_128_129to240(input: &[u8], seed: u64, secret: &[u8]) -> u128 {
 // Long path: 128-bit (>240 bytes)
 // ---------------------------------------------------------------------------
 
-const fn xxh3_128_long_impl(input: &[u8], secret: &[u8]) -> u128 {
+const fn xxh3_128_long_scalar(input: &[u8], secret: &[u8]) -> u128 {
     let mut acc = INITIAL_ACC;
     hash_long_internal_loop(&mut acc, input, secret);
 
@@ -671,153 +809,218 @@ const fn xxh3_128_long_impl(input: &[u8], secret: &[u8]) -> u128 {
     (lo as u128) | ((hi as u128) << 64)
 }
 
-const fn xxh3_128_long_with_seed(input: &[u8], seed: u64, secret: &[u8]) -> u128 {
-    if seed == 0 {
-        xxh3_128_long_impl(input, secret)
-    } else {
-        xxh3_128_long_impl(input, &custom_default_secret_scalar(seed))
-    }
+/// Long-path hash using the runtime-dispatched (SIMD when available) kernels.
+fn xxh3_128_long(input: &[u8], secret: &[u8]) -> u128 {
+    let mut acc = INITIAL_ACC;
+    hash_long_internal_loop_dispatch(&mut acc, input, secret);
+
+    let lo = merge_accs(
+        &acc,
+        secret,
+        SECRET_MERGEACCS_START,
+        (input.len() as u64).wrapping_mul(PRIME64_1),
+    );
+    let hi = merge_accs(
+        &acc,
+        secret,
+        secret.len() - ACC_NB * 8 - SECRET_MERGEACCS_START,
+        !(input.len() as u64).wrapping_mul(PRIME64_2),
+    );
+
+    (lo as u128) | ((hi as u128) << 64)
 }
 
-const fn xxh3_128_one_shot(input: &[u8], seed: u64, secret: &[u8]) -> u128 {
+/// Short-path hash for inputs of at most [`MID_SIZE_MAX`] bytes.
+#[inline]
+const fn xxh3_128_short(input: &[u8], seed: u64, secret: &[u8]) -> u128 {
     if input.len() <= 16 {
         xxh3_128_0to16(input, seed, secret)
     } else if input.len() <= 128 {
         xxh3_128_7to128(input, seed, secret)
-    } else if input.len() <= MID_SIZE_MAX {
-        xxh3_128_129to240(input, seed, secret)
     } else {
-        xxh3_128_long_with_seed(input, seed, secret)
+        xxh3_128_129to240(input, seed, secret)
     }
 }
 
 // ---------------------------------------------------------------------------
-// Streaming state for long inputs (>240 bytes)
+// Streaming state
+//
+// Mirrors the reference `XXH3_state_t`: a 256-byte internal buffer, the eight
+// accumulators, the (possibly seed-derived) secret, and the number of stripes
+// already consumed within the current block.
+//
+// A single internal buffer serves both the short (<= 240 bytes) and long
+// paths; the digest decides which applies from the total length. This mirrors
+// the reference and guarantees that incremental hashing always agrees with the
+// one-shot functions, regardless of how the input is split across `update()`
+// calls.
 // ---------------------------------------------------------------------------
 
 #[derive(Clone)]
-struct LongState {
+struct Xxh3State {
     acc: [u64; ACC_NB],
     secret: [u8; DEFAULT_SECRET_SIZE],
-    buf: [u8; STRIPE_LEN],
-    buf_len: u8,
-    nb_stripes_acc: usize,
+    buffer: [u8; INTERNAL_BUFFER_SIZE],
+    buffered_size: usize,
+    nb_stripes_so_far: usize,
     total_len: u64,
+    seed: u64,
+    /// When set, short inputs are hashed with the *default* secret and `seed`
+    /// (the reference `_withSeed` behavior); otherwise the stored `secret` is
+    /// used with `seed == 0` (the reference `_withSecret` behavior).
+    use_seed: bool,
 }
 
-impl LongState {
-    fn new(secret: &[u8; DEFAULT_SECRET_SIZE]) -> Self {
-        LongState {
+impl Xxh3State {
+    #[inline]
+    const fn new(secret: [u8; DEFAULT_SECRET_SIZE], seed: u64, use_seed: bool) -> Self {
+        Xxh3State {
             acc: INITIAL_ACC,
-            secret: *secret,
-            buf: [0u8; STRIPE_LEN],
-            buf_len: 0,
-            nb_stripes_acc: 0,
+            secret,
+            buffer: [0u8; INTERNAL_BUFFER_SIZE],
+            buffered_size: 0,
+            nb_stripes_so_far: 0,
             total_len: 0,
+            seed,
+            use_seed,
         }
     }
 
-    fn update(&mut self, mut data: &[u8]) {
-        self.total_len += data.len() as u64;
+    /// Feeds `data` into the state.
+    ///
+    /// Never panics, whatever the length of `data` or how the input is split
+    /// across calls.
+    fn update(&mut self, input: &[u8]) {
+        self.total_len += input.len() as u64;
 
-        if self.buf_len > 0 {
-            let take = (STRIPE_LEN - self.buf_len as usize).min(data.len());
-            self.buf[self.buf_len as usize..self.buf_len as usize + take].copy_from_slice(&data[..take]);
-            self.buf_len += take as u8;
-            data = &data[take..];
-            if self.buf_len as usize == STRIPE_LEN {
-                accumulate_512(
-                    &mut self.acc,
-                    &self.buf,
-                    0,
-                    &self.secret,
-                    self.nb_stripes_acc * SECRET_CONSUME_RATE,
-                );
-                self.nb_stripes_acc += 1;
-                self.buf_len = 0;
-            }
+        // Small input: just fill the internal buffer.
+        if input.len() <= INTERNAL_BUFFER_SIZE - self.buffered_size {
+            let end = self.buffered_size + input.len();
+            self.buffer[self.buffered_size..end].copy_from_slice(input);
+            self.buffered_size = end;
+            return;
         }
 
-        // Process full stripes, leaving enough room for the last stripe
-        // in the buffer (matches C reference's (len - 1) / STRIPE_LEN logic)
-        while data.len() > STRIPE_LEN {
-            let nb_stripes = (data.len() - 1) / STRIPE_LEN;
-            let nb = nb_stripes.min(STRIPES_PER_BLOCK - self.nb_stripes_acc);
-            if nb == 0 {
-                break;
-            }
-            accumulate_loop(
+        let mut data = input;
+
+        // The internal buffer is partially filled: complete it, then consume it.
+        if self.buffered_size > 0 {
+            let load_size = INTERNAL_BUFFER_SIZE - self.buffered_size;
+            self.buffer[self.buffered_size..INTERNAL_BUFFER_SIZE].copy_from_slice(&data[..load_size]);
+            data = &data[load_size..];
+            consume_stripes(
                 &mut self.acc,
-                data,
-                0,
+                &mut self.nb_stripes_so_far,
+                &self.buffer,
+                INTERNAL_BUFFER_STRIPES,
                 &self.secret,
-                self.nb_stripes_acc * SECRET_CONSUME_RATE,
-                nb,
             );
-            self.nb_stripes_acc += nb;
-            if self.nb_stripes_acc >= STRIPES_PER_BLOCK {
-                scramble_acc(&mut self.acc, &self.secret, DEFAULT_SECRET_SIZE - STRIPE_LEN);
-                self.nb_stripes_acc = 0;
-            }
-            data = &data[nb * STRIPE_LEN..];
+            self.buffered_size = 0;
         }
 
-        if !data.is_empty() {
-            self.buf[..data.len()].copy_from_slice(data);
-            self.buf_len = data.len() as u8;
+        // Large input: consume full stripes, keeping the tail buffered.
+        if data.len() > INTERNAL_BUFFER_SIZE {
+            let nb_stripes = (data.len() - 1) / STRIPE_LEN;
+            consume_stripes(&mut self.acc, &mut self.nb_stripes_so_far, data, nb_stripes, &self.secret);
+            let consumed = nb_stripes * STRIPE_LEN;
+            // Keep a copy of the last consumed stripe: it is needed to rebuild
+            // the final (overlapping) stripe when fewer than 64 bytes remain.
+            self.buffer[INTERNAL_BUFFER_SIZE - STRIPE_LEN..].copy_from_slice(&data[consumed - STRIPE_LEN..consumed]);
+            data = &data[consumed..];
+        }
+
+        // Any remaining input is always buffered.
+        self.buffer[..data.len()].copy_from_slice(data);
+        self.buffered_size = data.len();
+    }
+
+    /// Hashes the buffered data through the short path (`total_len <= 240`).
+    fn digest_short_64(&self) -> u64 {
+        let data = &self.buffer[..self.buffered_size];
+        if self.use_seed {
+            xxh3_64_short(data, self.seed, &DEFAULT_SECRET)
+        } else {
+            xxh3_64_short(data, 0, &self.secret)
         }
     }
 
-    fn sum_64b(self) -> u64 {
-        let mut acc = self.acc;
-
-        if self.buf_len > 0 {
-            let mut last_stripe = [0u8; STRIPE_LEN];
-            last_stripe[..self.buf_len as usize].copy_from_slice(&self.buf[..self.buf_len as usize]);
-            let copy_len = (SECRET_LASTACC_START).min(STRIPE_LEN - self.buf_len as usize);
-            let secret_tail_start = DEFAULT_SECRET_SIZE - SECRET_LASTACC_START;
-            last_stripe[STRIPE_LEN - SECRET_LASTACC_START..STRIPE_LEN - SECRET_LASTACC_START + copy_len]
-                .copy_from_slice(&self.secret[secret_tail_start..secret_tail_start + copy_len]);
-            let sec_off = DEFAULT_SECRET_SIZE - STRIPE_LEN - SECRET_LASTACC_START;
-            accumulate_512(&mut acc, &last_stripe, 0, &self.secret, sec_off);
+    /// Hashes the buffered data through the short path (`total_len <= 240`).
+    fn digest_short_128(&self) -> u128 {
+        let data = &self.buffer[..self.buffered_size];
+        if self.use_seed {
+            xxh3_128_short(data, self.seed, &DEFAULT_SECRET)
+        } else {
+            xxh3_128_short(data, 0, &self.secret)
         }
+    }
 
+    /// Consumes the remaining stripes and accumulates the final stripe.
+    ///
+    /// Mirrors the reference `XXH3_digest_long()`.
+    fn digest_long_acc(&mut self) {
+        if self.buffered_size >= STRIPE_LEN {
+            let nb_stripes = (self.buffered_size - 1) / STRIPE_LEN;
+            consume_stripes(
+                &mut self.acc,
+                &mut self.nb_stripes_so_far,
+                &self.buffer,
+                nb_stripes,
+                &self.secret,
+            );
+            let last_off = self.buffered_size - STRIPE_LEN;
+            accumulate_512(&mut self.acc, &self.buffer, last_off, &self.secret, LAST_STRIPE_SECRET_OFFSET);
+        } else {
+            // Rebuild the final overlapping stripe from the buffered bytes and
+            // the copy of the last consumed stripe.
+            let catchup = STRIPE_LEN - self.buffered_size;
+            let mut last_stripe = [0u8; STRIPE_LEN];
+            last_stripe[..catchup].copy_from_slice(&self.buffer[INTERNAL_BUFFER_SIZE - catchup..]);
+            last_stripe[catchup..].copy_from_slice(&self.buffer[..self.buffered_size]);
+            accumulate_512(&mut self.acc, &last_stripe, 0, &self.secret, LAST_STRIPE_SECRET_OFFSET);
+        }
+    }
+
+    fn digest_long_64(mut self) -> u64 {
+        self.digest_long_acc();
         merge_accs(
-            &acc,
+            &self.acc,
             &self.secret,
             SECRET_MERGEACCS_START,
-            (self.total_len).wrapping_mul(PRIME64_1),
+            self.total_len.wrapping_mul(PRIME64_1),
         )
     }
 
-    fn sum_128b(self) -> u128 {
-        let mut acc = self.acc;
-
-        if self.buf_len > 0 {
-            let mut last_stripe = [0u8; STRIPE_LEN];
-            last_stripe[..self.buf_len as usize].copy_from_slice(&self.buf[..self.buf_len as usize]);
-            let copy_len = (SECRET_LASTACC_START).min(STRIPE_LEN - self.buf_len as usize);
-            let secret_tail_start = DEFAULT_SECRET_SIZE - SECRET_LASTACC_START;
-            last_stripe[STRIPE_LEN - SECRET_LASTACC_START..STRIPE_LEN - SECRET_LASTACC_START + copy_len]
-                .copy_from_slice(&self.secret[secret_tail_start..secret_tail_start + copy_len]);
-            let sec_off = DEFAULT_SECRET_SIZE - STRIPE_LEN - SECRET_LASTACC_START;
-            accumulate_512(&mut acc, &last_stripe, 0, &self.secret, sec_off);
-        }
-
+    fn digest_long_128(mut self) -> u128 {
+        self.digest_long_acc();
         let lo = merge_accs(
-            &acc,
+            &self.acc,
             &self.secret,
             SECRET_MERGEACCS_START,
-            (self.total_len).wrapping_mul(PRIME64_1),
+            self.total_len.wrapping_mul(PRIME64_1),
         );
         let hi = merge_accs(
-            &acc,
+            &self.acc,
             &self.secret,
             DEFAULT_SECRET_SIZE - ACC_NB * 8 - SECRET_MERGEACCS_START,
-            !(self.total_len).wrapping_mul(PRIME64_2),
+            !self.total_len.wrapping_mul(PRIME64_2),
         );
-
         (lo as u128) | ((hi as u128) << 64)
+    }
+
+    fn digest_64(self) -> u64 {
+        if self.total_len <= MID_SIZE_MAX as u64 {
+            self.digest_short_64()
+        } else {
+            self.digest_long_64()
+        }
+    }
+
+    fn digest_128(self) -> u128 {
+        if self.total_len <= MID_SIZE_MAX as u64 {
+            self.digest_short_128()
+        } else {
+            self.digest_long_128()
+        }
     }
 }
 
@@ -830,6 +1033,24 @@ impl LongState {
 /// A fast non-cryptographic hash using the XXH3 algorithm. Supports an
 /// optional `u64` seed and an optional custom 192-byte secret.
 ///
+/// Incremental hashing ([`update`](Checksum::update)) produces exactly the same
+/// value as one-shot hashing ([`checksum`](Checksum::checksum), or the
+/// [`xxh3_64`] free function), for any input length and any split of the input
+/// across `update` calls. No input can make it panic.
+///
+/// When the `std` feature is enabled (the default), the long-input path uses
+/// AVX2 / AVX-512 (x86) or NEON (aarch64) kernels selected at runtime; with
+/// `no_std`, the kernels are selected at compile time from the enabled target
+/// features.
+///
+/// # Security
+///
+/// XXH3 is **not** a cryptographic hash: it must not be used to authenticate
+/// messages, derive keys, or store passwords, and a seed or a custom secret is
+/// not a security boundary. It is also not collision-resistant against
+/// deliberate attacks; do not use it to defend a hash table against
+/// attacker-chosen keys (hash flooding).
+///
 /// # Example
 ///
 /// ```rust
@@ -839,23 +1060,23 @@ impl LongState {
 /// ```
 #[derive(Clone)]
 pub struct Xxh3_64 {
-    seed: u64,
-    secret: [u8; DEFAULT_SECRET_SIZE],
-    buf: [u8; MID_SIZE_MAX],
-    buf_len: usize,
-    long: Option<LongState>,
+    state: Xxh3State,
 }
 
 impl Xxh3_64 {
     /// Create a new XXH3-64 hasher with the given seed.
+    ///
+    /// A zero seed is equivalent to the default, unseeded hasher.
     #[inline]
     pub const fn with_seed(seed: u64) -> Self {
-        Xxh3_64 {
-            seed,
-            secret: DEFAULT_SECRET,
-            buf: [0u8; MID_SIZE_MAX],
-            buf_len: 0,
-            long: None,
+        if seed == 0 {
+            Xxh3_64 {
+                state: Xxh3State::new(DEFAULT_SECRET, 0, false),
+            }
+        } else {
+            Xxh3_64 {
+                state: Xxh3State::new(custom_default_secret_scalar(seed), seed, true),
+            }
         }
     }
 
@@ -863,23 +1084,20 @@ impl Xxh3_64 {
     #[inline]
     pub const fn with_secret(secret: [u8; DEFAULT_SECRET_SIZE]) -> Self {
         Xxh3_64 {
-            seed: 0,
-            secret,
-            buf: [0u8; MID_SIZE_MAX],
-            buf_len: 0,
-            long: None,
+            state: Xxh3State::new(secret, 0, false),
         }
     }
 
     /// Create a new XXH3-64 hasher with a custom seed and secret.
+    ///
+    /// This matches the reference `XXH3_64bits_withSecretandSeed()` contract:
+    /// the `seed` is used for inputs of up to 240 bytes (with the *default*
+    /// secret), while the custom `secret` is used — and the seed is ignored —
+    /// for longer inputs.
     #[inline]
     pub const fn with_seed_and_secret(seed: u64, secret: [u8; DEFAULT_SECRET_SIZE]) -> Self {
         Xxh3_64 {
-            seed,
-            secret,
-            buf: [0u8; MID_SIZE_MAX],
-            buf_len: 0,
-            long: None,
+            state: Xxh3State::new(secret, seed, true),
         }
     }
 }
@@ -891,53 +1109,23 @@ impl Checksum for Xxh3_64 {
         Self::with_seed(0)
     }
 
-    fn checksum(data: &[u8]) -> Self::Output {
+    #[inline]
+    fn checksum(data: &[u8]) -> u64 {
         if data.len() <= MID_SIZE_MAX {
-            xxh3_64(data)
+            xxh3_64_short(data, 0, &DEFAULT_SECRET)
         } else {
-            let mut hasher = Self::new();
-            hasher.update(data);
-            hasher.sum()
+            xxh3_64_long(data, &DEFAULT_SECRET)
         }
     }
 
+    #[inline]
     fn update(&mut self, data: &[u8]) {
-        if let Some(long) = &mut self.long {
-            long.update(data);
-            return;
-        }
-
-        let mut remaining = data;
-
-        if self.buf_len < MID_SIZE_MAX {
-            let take = (MID_SIZE_MAX - self.buf_len).min(remaining.len());
-            self.buf[self.buf_len..self.buf_len + take].copy_from_slice(&remaining[..take]);
-            self.buf_len += take;
-            remaining = &remaining[take..];
-        }
-
-        if self.buf_len >= MID_SIZE_MAX && !remaining.is_empty() {
-            let long_secret = if self.seed == 0 {
-                self.secret
-            } else {
-                custom_default_secret(self.seed)
-            };
-            let mut long = LongState::new(&long_secret);
-            long.update(&self.buf[..self.buf_len]);
-            self.long = Some(long);
-            self.buf_len = 0;
-
-            if !remaining.is_empty() {
-                self.long.as_mut().unwrap().update(remaining);
-            }
-        }
+        self.state.update(data);
     }
 
-    fn sum(self) -> Self::Output {
-        if let Some(long) = self.long {
-            return long.sum_64b();
-        }
-        xxh3_64_one_shot(&self.buf[..self.buf_len], self.seed, &self.secret)
+    #[inline]
+    fn sum(self) -> u64 {
+        self.state.digest_64()
     }
 }
 
@@ -963,6 +1151,24 @@ impl Default for Xxh3_64 {
 /// A fast non-cryptographic hash using the XXH3-128 algorithm. Supports an
 /// optional `u64` seed and an optional custom 192-byte secret.
 ///
+/// Incremental hashing ([`update`](Checksum::update)) produces exactly the same
+/// value as one-shot hashing ([`checksum`](Checksum::checksum), or the
+/// [`xxh3_128`] free function), for any input length and any split of the input
+/// across `update` calls. No input can make it panic.
+///
+/// When the `std` feature is enabled (the default), the long-input path uses
+/// AVX2 / AVX-512 (x86) or NEON (aarch64) kernels selected at runtime; with
+/// `no_std`, the kernels are selected at compile time from the enabled target
+/// features.
+///
+/// # Security
+///
+/// XXH3 is **not** a cryptographic hash: it must not be used to authenticate
+/// messages, derive keys, or store passwords, and a seed or a custom secret is
+/// not a security boundary. It is also not collision-resistant against
+/// deliberate attacks; do not use it to defend a hash table against
+/// attacker-chosen keys (hash flooding).
+///
 /// # Example
 ///
 /// ```rust
@@ -972,23 +1178,23 @@ impl Default for Xxh3_64 {
 /// ```
 #[derive(Clone)]
 pub struct Xxh3_128 {
-    seed: u64,
-    secret: [u8; DEFAULT_SECRET_SIZE],
-    buf: [u8; MID_SIZE_MAX],
-    buf_len: usize,
-    long: Option<LongState>,
+    state: Xxh3State,
 }
 
 impl Xxh3_128 {
     /// Create a new XXH3-128 hasher with the given seed.
+    ///
+    /// A zero seed is equivalent to the default, unseeded hasher.
     #[inline]
     pub const fn with_seed(seed: u64) -> Self {
-        Xxh3_128 {
-            seed,
-            secret: DEFAULT_SECRET,
-            buf: [0u8; MID_SIZE_MAX],
-            buf_len: 0,
-            long: None,
+        if seed == 0 {
+            Xxh3_128 {
+                state: Xxh3State::new(DEFAULT_SECRET, 0, false),
+            }
+        } else {
+            Xxh3_128 {
+                state: Xxh3State::new(custom_default_secret_scalar(seed), seed, true),
+            }
         }
     }
 
@@ -996,23 +1202,20 @@ impl Xxh3_128 {
     #[inline]
     pub const fn with_secret(secret: [u8; DEFAULT_SECRET_SIZE]) -> Self {
         Xxh3_128 {
-            seed: 0,
-            secret,
-            buf: [0u8; MID_SIZE_MAX],
-            buf_len: 0,
-            long: None,
+            state: Xxh3State::new(secret, 0, false),
         }
     }
 
     /// Create a new XXH3-128 hasher with a custom seed and secret.
+    ///
+    /// This matches the reference `XXH3_128bits_withSecretandSeed()` contract:
+    /// the `seed` is used for inputs of up to 240 bytes (with the *default*
+    /// secret), while the custom `secret` is used — and the seed is ignored —
+    /// for longer inputs.
     #[inline]
     pub const fn with_seed_and_secret(seed: u64, secret: [u8; DEFAULT_SECRET_SIZE]) -> Self {
         Xxh3_128 {
-            seed,
-            secret,
-            buf: [0u8; MID_SIZE_MAX],
-            buf_len: 0,
-            long: None,
+            state: Xxh3State::new(secret, seed, true),
         }
     }
 }
@@ -1024,53 +1227,23 @@ impl Checksum for Xxh3_128 {
         Self::with_seed(0)
     }
 
-    fn checksum(data: &[u8]) -> Self::Output {
+    #[inline]
+    fn checksum(data: &[u8]) -> u128 {
         if data.len() <= MID_SIZE_MAX {
-            xxh3_128(data)
+            xxh3_128_short(data, 0, &DEFAULT_SECRET)
         } else {
-            let mut hasher = Self::new();
-            hasher.update(data);
-            hasher.sum()
+            xxh3_128_long(data, &DEFAULT_SECRET)
         }
     }
 
+    #[inline]
     fn update(&mut self, data: &[u8]) {
-        if let Some(long) = &mut self.long {
-            long.update(data);
-            return;
-        }
-
-        let mut remaining = data;
-
-        if self.buf_len < MID_SIZE_MAX {
-            let take = (MID_SIZE_MAX - self.buf_len).min(remaining.len());
-            self.buf[self.buf_len..self.buf_len + take].copy_from_slice(&remaining[..take]);
-            self.buf_len += take;
-            remaining = &remaining[take..];
-        }
-
-        if self.buf_len >= MID_SIZE_MAX && !remaining.is_empty() {
-            let long_secret = if self.seed == 0 {
-                self.secret
-            } else {
-                custom_default_secret(self.seed)
-            };
-            let mut long = LongState::new(&long_secret);
-            long.update(&self.buf[..self.buf_len]);
-            self.long = Some(long);
-            self.buf_len = 0;
-
-            if !remaining.is_empty() {
-                self.long.as_mut().unwrap().update(remaining);
-            }
-        }
+        self.state.update(data);
     }
 
-    fn sum(self) -> Self::Output {
-        if let Some(long) = self.long {
-            return long.sum_128b();
-        }
-        xxh3_128_one_shot(&self.buf[..self.buf_len], self.seed, &self.secret)
+    #[inline]
+    fn sum(self) -> u128 {
+        self.state.digest_128()
     }
 }
 
@@ -1093,8 +1266,10 @@ impl Default for Xxh3_128 {
 
 /// Compute the XXH3 64-bit hash of `data` in a single call.
 ///
-/// Available as a `const fn` for compile-time hashing.
-/// Uses seed=0 and the default XXH3 secret.
+/// Available as a `const fn` for compile-time hashing, using seed=0 and the
+/// default XXH3 secret. For inputs longer than 240 bytes the `const` path is
+/// scalar only; use [`Xxh3_64::checksum`](Checksum::checksum) to benefit from
+/// SIMD acceleration at runtime. Both produce identical results.
 ///
 /// # Example
 ///
@@ -1106,13 +1281,19 @@ impl Default for Xxh3_128 {
 /// ```
 #[inline]
 pub const fn xxh3_64(data: &[u8]) -> u64 {
-    xxh3_64_one_shot(data, 0, &DEFAULT_SECRET)
+    if data.len() <= MID_SIZE_MAX {
+        xxh3_64_short(data, 0, &DEFAULT_SECRET)
+    } else {
+        xxh3_64_long_scalar(data, &DEFAULT_SECRET)
+    }
 }
 
 /// Compute the XXH3 128-bit hash of `data` in a single call.
 ///
-/// Available as a `const fn` for compile-time hashing.
-/// Uses seed=0 and the default XXH3 secret.
+/// Available as a `const fn` for compile-time hashing, using seed=0 and the
+/// default XXH3 secret. For inputs longer than 240 bytes the `const` path is
+/// scalar only; use [`Xxh3_128::checksum`](Checksum::checksum) to benefit from
+/// SIMD acceleration at runtime. Both produce identical results.
 ///
 /// # Example
 ///
@@ -1124,7 +1305,11 @@ pub const fn xxh3_64(data: &[u8]) -> u64 {
 /// ```
 #[inline]
 pub const fn xxh3_128(data: &[u8]) -> u128 {
-    xxh3_128_one_shot(data, 0, &DEFAULT_SECRET)
+    if data.len() <= MID_SIZE_MAX {
+        xxh3_128_short(data, 0, &DEFAULT_SECRET)
+    } else {
+        xxh3_128_long_scalar(data, &DEFAULT_SECRET)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1135,6 +1320,8 @@ pub const fn xxh3_128(data: &[u8]) -> u128 {
 mod tests {
     use super::*;
     use crate::{Checksum, test_helpers::fill_test_buffer};
+
+    extern crate alloc;
 
     /// PRIME64 used in the C reference sanity check as seed (0x9E3779B185EBCA8D).
     const TEST_SEED: u64 = 0x9E3779B185EBCA8D;
@@ -1408,5 +1595,258 @@ mod tests {
         );
         let buf = &[0x42u8; 200];
         assert_eq!(xxh3_128(buf), Xxh3_128::checksum(buf));
+    }
+
+    // -----------------------------------------------------------------------
+    // Reference vectors generated by the official C implementation
+    // -----------------------------------------------------------------------
+
+    /// The custom secret used by the reference-vector tables.
+    fn test_secret() -> [u8; 192] {
+        let mut secret = [0u8; 192];
+        secret.copy_from_slice(&fill_test_buffer(192));
+        secret
+    }
+
+    /// `Xxh3_*::with_seed()` must match the C reference at every boundary
+    /// length, and the `const` (scalar) one-shot functions must agree with it.
+    #[test]
+    fn test_reference_vectors_with_seed() {
+        for &(len, seed, h64, h128) in crate::test_vectors::XXH3_VECTORS {
+            let buf = fill_test_buffer(len);
+
+            let mut hasher = Xxh3_64::with_seed(seed);
+            hasher.update(&buf);
+            assert_eq!(hasher.sum(), h64, "XXH3-64 len={len} seed={seed:#018x}");
+
+            let mut hasher = Xxh3_128::with_seed(seed);
+            hasher.update(&buf);
+            assert_eq!(hasher.sum(), h128, "XXH3-128 len={len} seed={seed:#018x}");
+
+            if seed == 0 {
+                // The scalar `const` path and the (SIMD-dispatched) `checksum`
+                // entry points must all agree with the reference.
+                assert_eq!(xxh3_64(&buf), h64, "xxh3_64 const len={len}");
+                assert_eq!(xxh3_128(&buf), h128, "xxh3_128 const len={len}");
+                assert_eq!(Xxh3_64::checksum(&buf), h64, "checksum 64 len={len}");
+                assert_eq!(Xxh3_128::checksum(&buf), h128, "checksum 128 len={len}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_reference_vectors_with_secret() {
+        let secret = test_secret();
+        for &(len, h64, h128) in crate::test_vectors::XXH3_SECRET_VECTORS {
+            let buf = fill_test_buffer(len);
+
+            let mut hasher = Xxh3_64::with_secret(secret);
+            hasher.update(&buf);
+            assert_eq!(hasher.sum(), h64, "XXH3-64 secret len={len}");
+
+            let mut hasher = Xxh3_128::with_secret(secret);
+            hasher.update(&buf);
+            assert_eq!(hasher.sum(), h128, "XXH3-128 secret len={len}");
+        }
+    }
+
+    #[test]
+    fn test_reference_vectors_with_secret_and_seed() {
+        let secret = test_secret();
+        for &(len, seed, h64, h128) in crate::test_vectors::XXH3_SECRET_SEED_VECTORS {
+            let buf = fill_test_buffer(len);
+
+            let mut hasher = Xxh3_64::with_seed_and_secret(seed, secret);
+            hasher.update(&buf);
+            assert_eq!(hasher.sum(), h64, "XXH3-64 secret+seed len={len} seed={seed:#018x}");
+
+            let mut hasher = Xxh3_128::with_seed_and_secret(seed, secret);
+            hasher.update(&buf);
+            assert_eq!(hasher.sum(), h128, "XXH3-128 secret+seed len={len} seed={seed:#018x}");
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Randomized / structural tests
+    // -----------------------------------------------------------------------
+
+    /// A tiny deterministic PRNG, so the randomized tests are reproducible and
+    /// need no dependency.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+
+        fn below(&mut self, n: u64) -> u64 {
+            self.next() % n
+        }
+    }
+
+    fn random_data(rng: &mut Rng, len: usize) -> alloc::vec::Vec<u8> {
+        (0..len).map(|_| rng.next() as u8).collect()
+    }
+
+    /// Incremental hashing must equal one-shot hashing for arbitrary inputs,
+    /// whatever the split across `update()` calls.
+    #[test]
+    fn test_streaming_matches_one_shot_randomized() {
+        let mut rng = Rng(0x243F6A8885A308D3);
+        for _ in 0..4000 {
+            let len = rng.below(3000) as usize;
+            let data = random_data(&mut rng, len);
+            let seed = rng.next();
+
+            // Build a random chunking of `data`.
+            let mut chunks = alloc::vec::Vec::new();
+            let mut left = len;
+            let max_chunk = [1_u64, 3, 64, 65, 240, 241, 1024][rng.below(7) as usize];
+            while left > 0 {
+                let n = ((rng.below(max_chunk) + 1) as usize).min(left);
+                chunks.push(n);
+                left -= n;
+            }
+
+            let mut hasher = Xxh3_64::with_seed(seed);
+            let mut hasher128 = Xxh3_128::with_seed(seed);
+            let mut offset = 0;
+            for &n in &chunks {
+                hasher.update(&data[offset..offset + n]);
+                hasher128.update(&data[offset..offset + n]);
+                offset += n;
+            }
+            let streamed64 = hasher.sum();
+            let streamed128 = hasher128.sum();
+
+            let mut one_shot = Xxh3_64::with_seed(seed);
+            one_shot.update(&data);
+            assert_eq!(streamed64, one_shot.sum(), "XXH3-64 len={len} chunks={chunks:?}");
+
+            let mut one_shot = Xxh3_128::with_seed(seed);
+            one_shot.update(&data);
+            assert_eq!(streamed128, one_shot.sum(), "XXH3-128 len={len} chunks={chunks:?}");
+        }
+    }
+
+    /// Byte-at-a-time hashing agrees with the one-shot for every small length.
+    #[test]
+    fn test_byte_at_a_time_matches_one_shot() {
+        for len in 0..=600 {
+            let buf = fill_test_buffer(len);
+
+            let mut hasher = Xxh3_64::new();
+            for byte in &buf {
+                hasher.update(core::slice::from_ref(byte));
+            }
+            assert_eq!(hasher.sum(), xxh3_64(&buf), "XXH3-64 len={len}");
+
+            let mut hasher = Xxh3_128::new();
+            for byte in &buf {
+                hasher.update(core::slice::from_ref(byte));
+            }
+            assert_eq!(hasher.sum(), xxh3_128(&buf), "XXH3-128 len={len}");
+        }
+    }
+
+    /// Regression: a buffered 64-byte stripe used to be consumed without the
+    /// per-block bookkeeping. That produced wrong hashes and could panic
+    /// (`range end index ... out of range`) or, with the SIMD kernels, read past
+    /// the secret.
+    #[test]
+    fn test_regression_flush_at_block_boundary() {
+        for total in [241_usize, 256, 257, 320, 512, 1024, 1025, 1088, 1089, 1152, 2048, 2049] {
+            let buf = fill_test_buffer(total);
+            for split in [1_usize, 63, 64, 65, 240, 241, 256] {
+                if split >= total {
+                    continue;
+                }
+
+                let mut hasher = Xxh3_64::new();
+                hasher.update(&buf[..split]);
+                hasher.update(&buf[split..]);
+                assert_eq!(hasher.sum(), Xxh3_64::checksum(&buf), "total={total} split={split}");
+
+                let mut hasher = Xxh3_128::new();
+                hasher.update(&buf[..split]);
+                hasher.update(&buf[split..]);
+                assert_eq!(hasher.sum(), Xxh3_128::checksum(&buf), "total={total} split={split}");
+            }
+        }
+    }
+
+    /// Mirrors hashing a long SQL statement followed by many 4-byte parameter
+    /// OIDs (see `postgresql`'s statement cache). This used to panic — or read
+    /// past the secret — after enough small updates.
+    #[test]
+    fn test_many_small_updates_after_long_prefix() {
+        let sql = fill_test_buffer(300);
+        let mut hasher = Xxh3_128::new();
+        hasher.update(&sql);
+        let mut scratch = sql.clone();
+        for i in 0..500u32 {
+            let oid = (2500 + i).to_be_bytes();
+            hasher.update(&oid);
+            scratch.extend_from_slice(&oid);
+        }
+        assert_eq!(hasher.sum(), xxh3_128(&scratch));
+    }
+
+    /// Empty `update` calls never change the result.
+    #[test]
+    fn test_empty_updates_are_noop() {
+        let buf = fill_test_buffer(500);
+        let mut hasher = Xxh3_64::new();
+        hasher.update(&[]);
+        hasher.update(&buf);
+        hasher.update(&[]);
+        assert_eq!(hasher.sum(), Xxh3_64::checksum(&buf));
+    }
+
+    /// The runtime-dispatched (SIMD when available) long path must agree with
+    /// the scalar `const` path bit for bit.
+    #[test]
+    fn test_dispatched_matches_scalar() {
+        for len in [
+            241_usize, 255, 256, 257, 300, 512, 1023, 1024, 1025, 2048, 2049, 4096, 5000, 8192, 10000,
+        ] {
+            let buf = fill_test_buffer(len);
+            assert_eq!(Xxh3_64::checksum(&buf), xxh3_64(&buf), "XXH3-64 len={len}");
+            assert_eq!(Xxh3_128::checksum(&buf), xxh3_128(&buf), "XXH3-128 len={len}");
+        }
+    }
+
+    /// Hashing must perform no heap allocation and must not leak.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn test_hashing_does_not_allocate() {
+        let small = fill_test_buffer(240);
+        let large = fill_test_buffer(4096);
+        let secret = test_secret();
+
+        let ((), counters) = alloc_counter::measure(|| {
+            let _ = core::hint::black_box(xxh3_64(core::hint::black_box(&small)));
+            let _ = core::hint::black_box(xxh3_128(core::hint::black_box(&large)));
+
+            let mut hasher = Xxh3_64::with_seed(42);
+            hasher.update(core::hint::black_box(&large));
+            let _ = core::hint::black_box(hasher.sum());
+
+            let mut hasher = Xxh3_128::with_secret(secret);
+            for chunk in large.chunks(7) {
+                hasher.update(core::hint::black_box(chunk));
+            }
+            let _ = core::hint::black_box(hasher.sum());
+
+            let mut hasher = Xxh3_64::new();
+            hasher.update(core::hint::black_box(&large));
+            let _ = core::hint::black_box(hasher.sum());
+        });
+
+        assert_eq!(counters.calls, 0, "hashing must not allocate");
+        assert_eq!(counters.live_allocations, 0, "hashing must not leak");
     }
 }

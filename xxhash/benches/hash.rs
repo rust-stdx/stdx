@@ -40,5 +40,50 @@ fn bench_hashes(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_hashes);
+/// Incremental hashing, to track the cost of the streaming state machine.
+///
+/// Feeding the data in small updates is inherently slower than one-shot
+/// hashing; these benchmarks make sure it stays within a reasonable factor.
+fn bench_streaming(c: &mut Criterion) {
+    const STREAM_SIZES: &[usize] = &[64, 1024, 16 * 1024, 1024 * 1024];
+    const CHUNKS: &[usize] = &[16, 4096];
+
+    for &size in STREAM_SIZES {
+        let data = vec![0xA5_u8; size];
+        let mut group = c.benchmark_group(format!("streaming/{size}"));
+        group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(BenchmarkId::from_parameter("one-shot"), &data, |b, data| {
+            b.iter(|| {
+                let _ = Xxh3_64::checksum(black_box(data.as_slice()));
+            });
+        });
+
+        for &chunk in CHUNKS {
+            group.bench_with_input(BenchmarkId::new("Xxh3_64", chunk), &data, |b, data| {
+                b.iter(|| {
+                    let mut hasher = Xxh3_64::new();
+                    for slice in data.chunks(chunk) {
+                        hasher.update(black_box(slice));
+                    }
+                    black_box(hasher.sum())
+                });
+            });
+
+            group.bench_with_input(BenchmarkId::new("Xxh3_128", chunk), &data, |b, data| {
+                b.iter(|| {
+                    let mut hasher = Xxh3_128::new();
+                    for slice in data.chunks(chunk) {
+                        hasher.update(black_box(slice));
+                    }
+                    black_box(hasher.sum())
+                });
+            });
+        }
+
+        group.finish();
+    }
+}
+
+criterion_group!(benches, bench_hashes, bench_streaming);
 criterion_main!(benches);

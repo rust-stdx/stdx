@@ -1,6 +1,28 @@
 use core::arch::wasm32::*;
 
-use crate::xxh3::{ACC_NB, PRIME32_1};
+use crate::xxh3::{ACC_NB, PRIME32_1, SECRET_CONSUME_RATE, STRIPE_LEN};
+
+#[allow(clippy::similar_names)]
+pub fn accumulate_loop(
+    acc: &mut [u64; ACC_NB],
+    input: &[u8],
+    input_off: usize,
+    secret: &[u8],
+    secret_off: usize,
+    nb_stripes: usize,
+) {
+    let mut i = 0;
+    while i < nb_stripes {
+        accumulate_512(
+            acc,
+            input,
+            input_off + i * STRIPE_LEN,
+            secret,
+            secret_off + i * SECRET_CONSUME_RATE,
+        );
+        i += 1;
+    }
+}
 
 #[allow(clippy::similar_names)]
 pub fn accumulate_512(acc: &mut [u64; ACC_NB], input: &[u8], input_off: usize, secret: &[u8], secret_off: usize) {
