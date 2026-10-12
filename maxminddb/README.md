@@ -1,81 +1,68 @@
-Fork of https://github.com/oschwald/maxminddb-rust - commit b5a6ccc2f1c8e990b54bbac648f524cdf043522a
+Fork of <https://github.com/oschwald/maxminddb-rust>.
 
 # Rust MaxMind DB Reader #
 
-[![crates.io](	https://img.shields.io/crates/v/maxminddb.svg)](https://crates.io/crates/maxminddb) [![Released API docs](https://docs.rs/maxminddb/badge.svg)](http://docs.rs/maxminddb) [![Master API docs](https://img.shields.io/badge/docs-master-green.svg)](https://oschwald.github.io/maxminddb-rust/)
-
-This library reads the MaxMind DB format, including the GeoIP2 and GeoLite2
-databases.
-
-## Building ##
-
-To build everything:
-
-```
-cargo build
-```
-
-## Testing ##
-
-This crate manages its test data within a git submodule.
-To run the tests, you will first need to run the following command.
-
-```bash
-git submodule update --init
-```
+This library reads the MaxMind DB file format, including the GeoIP2 and
+GeoLite2 databases published by MaxMind.
 
 ## Usage ##
 
-Add this to your `Cargo.toml`:
+stdx crates are used directly from git; there is no crates.io release.
 
 ```toml
 [dependencies]
-maxminddb = "0.17"
+maxminddb = { git = "https://github.com/rust-stdx/stdx", branch = "main" }
 ```
 
-and this to your crate root:
+Open a database and look up an address:
 
 ```rust
-extern crate maxminddb;
+use maxminddb::geoip2;
+use std::net::IpAddr;
+
+let reader = maxminddb::Reader::open_readfile("GeoIP2-City.mmdb")?;
+let ip: IpAddr = "89.160.20.128".parse()?;
+let city: geoip2::City = reader.lookup(ip)?;
+println!("{:?}", city);
 ```
 
-## API Documentation ##
+`Reader::from_source` accepts any buffer that implements `AsRef<[u8]>`, which
+is useful when the database is already in memory or memory mapped by the
+caller.
 
-The API docs are on [GitHub Pages](http://oschwald.github.io/maxminddb-rust/maxminddb/struct.Reader.html).
+To iterate over every network in the database, use `Reader::within`. See
+`examples/lookup.rs`, `examples/within.rs`, and `examples/write_database.rs`.
 
-## Example ##
+## Resource limits ##
 
-See [`examples/lookup.rs`](https://github.com/oschwald/maxminddb-rust/blob/master/examples/lookup.rs) for a basic example.
+A MaxMind DB encodes values with pointers, and many pointers may share one
+target, so a small record can describe a very large or deeply nested structure
+when expanded. To keep hostile or corrupt databases from consuming unbounded
+time or memory, decoding is bounded by `DecodeLimits`:
 
-## Benchmarks ##
+* a maximum nesting depth of `512` (maps, arrays, and followed pointers),
+* a maximum of `65_536` decoded values per operation, and
+* a maximum of `2 MiB` of string and byte payload per operation.
 
-The projects include benchmarks using [Criterion.rs](https://github.com/bheisler/criterion.rs).
+These are the values recommended by the MaxMind DB specification. When a limit
+is exceeded, decoding fails with `MaxMindDBError::ResourceLimit` instead of
+panicking or exhausting memory. The limits apply to metadata decoding at open
+as well as to record lookups.
 
-First you need to have a working copy of the GeoIP City database.
-You can fetch it from [here](https://dev.maxmind.com/geoip/geoip2/geolite2/).
+Use `Reader::from_source_with_options` or `Reader::open_readfile_with_options`
+with a `ReaderOptions` value to configure the limits.
 
-Place it in the root folder as `GeoIP2-City.mmdb`.
+A database that is a valid IPv4-only file but is looked up with an IPv6 address
+or CIDR is rejected with `MaxMindDBError::InvalidInputError`; the address family
+must match the database.
 
-Once this is done, run
+## Supported databases ##
 
-```
-cargo bench
-```
-
-If [gnuplot](http://www.gnuplot.info/) is installed, Criterion.rs can generate
-an HTML report displaying the results of the benchmark under
-`target/criterion/report/index.html`.
-
-Result of doing 100 random IP lookups:
-
-![](/assets/pdf_small.svg)
-
-## Contributing ##
-
-Contributions welcome! Please fork the repository and open a pull request
-with your changes.
+Both IPv4 and IPv6 databases are supported, as are the 24-, 28-, and 32-bit
+search tree record sizes. The `geoip2` module provides typed records for the
+common GeoIP2 and GeoLite2 database shapes. For other databases, deserialize
+into your own type or into `maxminddb::Value`.
 
 ## License ##
 
 This is free software, licensed under the ISC license.
-

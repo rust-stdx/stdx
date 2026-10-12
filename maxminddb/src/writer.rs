@@ -1,5 +1,6 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
+    hash::{Hash, Hasher},
     io::Write,
     net::IpAddr,
     time::{SystemTime, UNIX_EPOCH},
@@ -10,6 +11,11 @@ use serde::Serialize;
 
 use crate::encoder::{self, Value, encode_serialize};
 
+/// The result of a writer operation.
+///
+/// The writer reports errors as strings rather than as
+/// [`MaxMindDBError`](crate::MaxMindDBError) because it constructs databases
+/// rather than reading them.
 pub type WriterResult<T> = Result<T, String>;
 
 fn map_io_err(e: std::io::Error) -> String {
@@ -137,8 +143,8 @@ impl Node {
         let left_val = self.resolve_record_value(&self.children[0], node_count, data_offsets)?;
         let right_val = self.resolve_record_value(&self.children[1], node_count, data_offsets)?;
 
-        let max_record = 1usize << record_size;
-        if left_val >= max_record || right_val >= max_record {
+        let max_record = 1u64 << record_size;
+        if left_val as u64 >= max_record || right_val as u64 >= max_record {
             return Err(format!(
                 "record value ({}, {}) exceeds max for {} bit record size",
                 left_val, right_val, record_size
@@ -213,10 +219,38 @@ fn bit_at(ip: &[u8], depth: usize) -> u8 {
     (ip[depth >> 3] >> (7 - (depth & 7))) & 1
 }
 
+/// Builds a MaxMind DB file from inserted networks.
+///
+/// The writer accumulates encoded data records, deduplicating equal payloads,
+/// and serializes a search tree plus metadata when [`Writer::write_to`] is
+/// called.
+///
+/// # Example
+///
+/// ```
+/// use maxminddb::writer::{Writer, WriterOptions};
+///
+/// let opts = WriterOptions {
+///     database_type: "Test".to_string(),
+///     ip_version: 4,
+///     record_size: 24,
+///     ..Default::default()
+/// };
+/// let mut writer = Writer::new(opts).unwrap();
+/// writer.insert("10.0.0.0/8".parse().unwrap(), "example").unwrap();
+///
+/// let mut buf = Vec::new();
+/// writer.write_to(&mut buf).unwrap();
+/// let reader = maxminddb::Reader::from_source(buf).unwrap();
+/// assert_eq!(reader.lookup::<String>("10.0.0.1".parse().unwrap()).unwrap(), "example");
+/// ```
 #[derive(Debug)]
 pub struct Writer {
     root: Node,
     data_map: BTreeMap<u64, Vec<u8>>,
+    /// Maps a hash of an encoded payload to the data keys with that hash, used
+    /// to deduplicate equal payloads without an O(n) scan per insert.
+    data_index: HashMap<u64, Vec<u64>>,
     node_count: usize,
     ip_version: u16,
     record_size: u16,
@@ -227,13 +261,22 @@ pub struct Writer {
     next_data_key: u64,
 }
 
+/// Configuration for a [`Writer`].
 #[derive(Clone)]
 pub struct WriterOptions {
+    /// IP version of the database: `4` or `6`. For an IPv6 database, IPv4
+    /// networks are stored in the IPv4-mapped subtree.
     pub ip_version: u16,
+    /// Search tree record size in bits: `24`, `28`, or `32`. Larger records
+    /// allow more nodes at the cost of file size.
     pub record_size: u16,
+    /// Value for the `database_type` metadata field.
     pub database_type: String,
+    /// Localized descriptions for the `description` metadata field.
     pub description: BTreeMap<String, String>,
+    /// Languages present in `description`.
     pub languages: Vec<String>,
+    /// Build time as a Unix timestamp for the `build_epoch` metadata field.
     pub build_epoch: u64,
 }
 
@@ -254,6 +297,12 @@ impl Default for WriterOptions {
 }
 
 impl Writer {
+    /// Create a writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `ip_version` is not `4` or `6`, or if `record_size`
+    /// is not `24`, `28`, or `32`.
     pub fn new(opts: WriterOptions) -> WriterResult<Self> {
         if opts.ip_version != 4 && opts.ip_version != 6 {
             return Err(format!("invalid ip_version: {} (must be 4 or 6)", opts.ip_version));
@@ -264,6 +313,7 @@ impl Writer {
         Ok(Writer {
             root: Node::new(),
             data_map: BTreeMap::new(),
+            data_index: HashMap::new(),
             node_count: 0,
             ip_version: opts.ip_version,
             record_size: opts.record_size,
@@ -275,6 +325,43 @@ impl Writer {
         })
     }
 
+    /// Stores an encoded payload, returning the existing key if an equal
+    /// payload was already stored.
+    fn intern_value(&mut self, encoded: Vec<u8>) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        encoded.hash(&mut hasher);
+        let digest = hasher.finish();
+
+        if let Some(keys) = self.data_index.get(&digest) {
+            for key in keys {
+                if self.data_map.get(key).is_some_and(|existing| existing == &encoded) {
+                    return *key;
+                }
+            }
+        }
+
+        let key = self.next_data_key;
+        self.next_data_key += 1;
+        self.data_map.insert(key, encoded);
+        self.data_index.entry(digest).or_default().push(key);
+        key
+    }
+
+    /// Insert a fully encoded [`Value`] for `network`.
+    ///
+    /// Equal values are stored once in the data section and referenced by every
+    /// network that uses them.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an IPv6 network is inserted into an IPv4 database or
+    /// if the value cannot be encoded.
+    ///
+    /// # Overwriting
+    ///
+    /// Inserting a network replaces the subtree at that prefix. Inserting a
+    /// *less specific* network after a more specific one therefore discards the
+    /// more specific entries, so insert least specific networks first.
     pub fn insert_value(&mut self, network: IpNetwork, value: Value) -> WriterResult<()> {
         let prefix_len = network.prefix() as usize;
         let ip = ip_to_bytes(network.network());
@@ -293,24 +380,7 @@ impl Writer {
 
         let encoded = encoder::encode_value(&value)?;
 
-        let data_key = {
-            let mut found_key = None;
-            for (k, v) in &self.data_map {
-                if *v == encoded {
-                    found_key = Some(*k);
-                    break;
-                }
-            }
-            match found_key {
-                Some(k) => k,
-                None => {
-                    let key = self.next_data_key;
-                    self.next_data_key += 1;
-                    self.data_map.insert(key, encoded);
-                    key
-                }
-            }
-        };
+        let data_key = self.intern_value(encoded);
 
         self.node_count = 0;
         self.root.insert(&ip_bytes, actual_prefix_len, 0, data_key)?;
@@ -318,6 +388,19 @@ impl Writer {
         Ok(())
     }
 
+    /// Insert a `Serialize` value for `network`.
+    ///
+    /// This is the same as [`Writer::insert_value`] but encodes `value` for you.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `value` cannot be encoded, if an IPv6 network is
+    /// inserted into an IPv4 database, or if the value is out of range for the
+    /// MaxMind DB format (for example a negative integer below `i32::MIN`).
+    ///
+    /// # Overwriting
+    ///
+    /// See [`Writer::insert_value`]: insert least specific networks first.
     pub fn insert<T: Serialize>(&mut self, network: IpNetwork, value: T) -> WriterResult<()> {
         let encoded = encode_serialize(&value).map_err(|e| format!("serialization failed: {e}"))?;
 
@@ -336,24 +419,7 @@ impl Writer {
             (ip, prefix_len)
         };
 
-        let data_key = {
-            let mut found_key = None;
-            for (k, v) in &self.data_map {
-                if *v == encoded {
-                    found_key = Some(*k);
-                    break;
-                }
-            }
-            match found_key {
-                Some(k) => k,
-                None => {
-                    let key = self.next_data_key;
-                    self.next_data_key += 1;
-                    self.data_map.insert(key, encoded);
-                    key
-                }
-            }
-        };
+        let data_key = self.intern_value(encoded);
 
         self.node_count = 0;
         self.root.insert(&ip_bytes, actual_prefix_len, 0, data_key)?;
@@ -361,6 +427,15 @@ impl Writer {
         Ok(())
     }
 
+    /// Serialize the database into `writer`, returning the number of bytes
+    /// written.
+    ///
+    /// This finalizes node numbering, so call it once, after all inserts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a record value does not fit the configured record
+    /// size, if the node count exceeds `u32`, or if writing to `writer` fails.
     pub fn write_to<W: Write>(&mut self, writer: &mut W) -> WriterResult<u64> {
         let mut next = 1usize;
         for child in &mut self.root.children {
@@ -370,7 +445,13 @@ impl Writer {
         }
         self.node_count = next;
 
-        let search_tree_size_bytes = self.node_count * self.record_size as usize / 4;
+        let search_tree_size_bytes = self
+            .node_count
+            .checked_mul(self.record_size as usize)
+            .map(|v| v / 4)
+            .ok_or_else(|| "search tree size overflow".to_string())?;
+        let node_count_u32 =
+            u32::try_from(self.node_count).map_err(|_| format!("node count {} exceeds u32", self.node_count))?;
 
         let mut data_offsets: BTreeMap<u64, usize> = BTreeMap::new();
         let mut data_section = Vec::new();
@@ -389,7 +470,7 @@ impl Writer {
         writer.write_all(METADATA_START_MARKER).map_err(map_io_err)?;
 
         let metadata = build_metadata_value(
-            self.node_count as u32,
+            node_count_u32,
             self.record_size,
             self.ip_version,
             &self.database_type,
@@ -398,6 +479,14 @@ impl Writer {
             self.build_epoch,
         );
         let metadata_bytes = encoder::encode_value(&metadata)?;
+        const METADATA_MAX_SIZE: usize = 128 * 1024;
+        if metadata_bytes.len() > METADATA_MAX_SIZE {
+            return Err(format!(
+                "encoded metadata is {} bytes; the MaxMind DB maximum is {} bytes",
+                metadata_bytes.len(),
+                METADATA_MAX_SIZE
+            ));
+        }
         writer.write_all(&metadata_bytes).map_err(map_io_err)?;
 
         Ok((search_tree_size_bytes
@@ -563,7 +652,6 @@ mod tests {
             description: desc,
             languages: vec!["en".to_string()],
             build_epoch: 1000000,
-            ..Default::default()
         };
         let mut tree = Writer::new(opts).unwrap();
         let mut m = BTreeMap::new();
@@ -938,11 +1026,15 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
 
-        let reader = crate::Reader::from_source(buf).unwrap();
+        let reader = crate::Reader::from_source(&buf[..]).unwrap();
         let node_count = reader.metadata.node_count as usize;
         let record_size = reader.metadata.record_size as usize;
-        assert_eq!(record_size * 2 / 8 * node_count, record_size * 2 / 8 * node_count);
-        assert!(node_count * (record_size * 2 / 8) <= usize::MAX);
+
+        // The search tree occupies node_count * record_size / 4 bytes, and must
+        // fit in the file ahead of the 16-byte separator and the data section.
+        let tree_size = node_count * record_size / 4;
+        assert!(tree_size > 0);
+        assert!(tree_size + 16 < buf.len());
     }
 
     #[test]
@@ -1300,7 +1392,7 @@ mod tests {
         };
         let mut tree = Writer::new(opts).unwrap();
         let mut m = BTreeMap::new();
-        m.insert("f64".to_string(), Value::Float64(3.141592653589793));
+        m.insert("f64".to_string(), Value::Float64(std::f64::consts::PI));
         tree.insert_value("10.0.0.0/8".parse().unwrap(), Value::Map(m)).unwrap();
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
@@ -1310,7 +1402,7 @@ mod tests {
             f64: f64,
         }
         let r: TestRecord = reader.lookup("10.0.0.1".parse().unwrap()).unwrap();
-        assert!((r.f64 - 3.141592653589793).abs() < 1e-15);
+        assert!((r.f64 - std::f64::consts::PI).abs() < 1e-15);
     }
 
     #[test]
@@ -1557,5 +1649,64 @@ mod tests {
         }
         let result: R = reader.lookup("10.0.0.1".parse().unwrap()).unwrap();
         assert_eq!(result.value, "hello");
+    }
+
+    #[test]
+    fn test_insert_rejects_negative_out_of_range_integer() {
+        let opts = WriterOptions {
+            database_type: "Test".to_string(),
+            ip_version: 4,
+            record_size: 24,
+            ..Default::default()
+        };
+        let mut tree = Writer::new(opts).unwrap();
+        let err = tree.insert("10.0.0.0/8".parse().unwrap(), i64::MIN).unwrap_err();
+        assert!(err.contains("out of range"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_insert_accepts_large_positive_integer_as_u64() {
+        let opts = WriterOptions {
+            database_type: "Test".to_string(),
+            ip_version: 4,
+            record_size: 24,
+            ..Default::default()
+        };
+        let mut tree = Writer::new(opts).unwrap();
+        let big = i64::MAX;
+        tree.insert("10.0.0.0/8".parse().unwrap(), big).unwrap();
+        let mut buf = Vec::new();
+        tree.write_to(&mut buf).unwrap();
+
+        let reader = crate::Reader::from_source(buf).unwrap();
+        // The value is encoded as a bare u64, so decode it as such.
+        let decoded: u64 = reader.lookup("10.0.0.1".parse().unwrap()).unwrap();
+        assert_eq!(decoded, big as u64);
+    }
+
+    #[test]
+    fn test_encode_rejects_oversized_payload() {
+        let too_big = crate::encoder::Value::String("x".repeat(16_843_037));
+        let err = crate::encoder::encode_value(&too_big).unwrap_err();
+        assert!(err.contains("too large"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_metadata_size_limit_is_enforced() {
+        let mut description = BTreeMap::new();
+        // One description string above the 128 KiB metadata budget.
+        description.insert("en".to_string(), "x".repeat(200 * 1024));
+        let opts = WriterOptions {
+            database_type: "Test".to_string(),
+            ip_version: 4,
+            record_size: 24,
+            description,
+            languages: vec!["en".to_string()],
+            build_epoch: 1,
+        };
+        let mut tree = Writer::new(opts).unwrap();
+        tree.insert("10.0.0.0/8".parse().unwrap(), "v").unwrap();
+        let err = tree.write_to(&mut Vec::new()).unwrap_err();
+        assert!(err.contains("metadata"), "unexpected error: {err}");
     }
 }

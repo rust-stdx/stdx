@@ -1,3 +1,40 @@
+//! Fixed-size unsigned and signed big integers with `u64` limbs.
+//!
+//! The central type is [`Uint<BITS, LIMBS>`], a `LIMBS * 64`-bit stack value
+//! used by the [`crypto`](https://github.com/rust-stdx/stdx) crate as the
+//! backing type for RSA, the NIST prime curves and Curve25519 arithmetic. The
+//! crate is `no_std`-compatible; heap-allocating helpers (`to_be_bytes`,
+//! `to_string_radix`, `Display`) require the `alloc` feature.
+//!
+//! # Representation
+//!
+//! `LIMBS` must equal `ceil(BITS / 64)` (enforced by a compile-time check).
+//! Values are stored little-endian, base `2^64`. When `BITS` is not a multiple
+//! of 64 the top limb may hold up to `BITS % 64` significant bits; the byte
+//! conversion helpers ([`Uint::from_be_slice`] and friends) and
+//! [`Uint::from_str_radix`] reject or mask anything above `BITS`.
+//!
+//! Arithmetic operators (`+`, `-`, `*`) are **wrapping**: carry/borrow past
+//! `LIMBS` limbs is silently discarded, matching primitive integer semantics.
+//! Use the explicit `*_raw`, `mul_word` and `div_rem_word` methods when the
+//! carry/borrow matters.
+//!
+//! # Constant time
+//!
+//! `add_mod`, `sub_mod`, `double_mod`, `mul_mod`, `mul_mod_barrett`,
+//! `ct_select`, `ct_eq` and `ct_ge` branch only on public bounds, not on limb
+//! values. In contrast [`Uint::modpow`] and [`Uint::modpow_barrett`] iterate
+//! over the exponent bits with a data-dependent branch and are therefore only
+//! suitable for a *public* exponent (e.g. the RSA public exponent `e`).
+//!
+//! # Errors, panics and limits
+//!
+//! - [`Uint::from_str_radix`] returns [`Error`] for invalid input; it never
+//!   panics and does not allocate.
+//! - The byte conversion helpers and the modular methods assert their
+//!   documented length/limb preconditions (see each method).
+//! - No method allocates unless it returns a `Vec`/`String`.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
@@ -13,9 +50,13 @@ use core::{
 // Largest number of limbs a `Uint` may use is `MAX_LIMBS / 2` (the wide
 // product of two values must fit). Barrett reduction additionally needs one
 // limb of headroom on the `q1 * mu` intermediate, so `MAX_LIMBS` must be at
-// least `2 * (max_limbs + 1)`. 260 limbs supports values up to 8320 bits
-// (and 8192-bit values, i.e. 128 limbs, with Barrett reduction).
+// least `2 * (eff_limbs + 1)`. 260 limbs supports a 130-limb (8320-bit) wide
+// product and up to a 129-limb (8256-bit) modulus with Barrett reduction.
 pub const MAX_LIMBS: usize = 260;
+
+/// Largest effective limb count accepted by Barrett reduction, i.e. the
+/// largest `eff_limbs` for which `2 * (eff_limbs + 1) <= MAX_LIMBS`.
+pub const MAX_BARRETT_LIMBS: usize = MAX_LIMBS / 2 - 1;
 
 const fn max_limbs<const BITS: usize, const LIMBS: usize>() -> [u64; LIMBS] {
     let mut limbs = [u64::MAX; LIMBS];
@@ -26,20 +67,37 @@ const fn max_limbs<const BITS: usize, const LIMBS: usize>() -> [u64; LIMBS] {
     limbs
 }
 
+/// A fixed-size unsigned integer of `BITS` bits stored in `LIMBS` 64-bit limbs.
+///
+/// `LIMBS` must be `ceil(BITS / 64)` (checked at compile time). Values are
+/// little-endian. When `BITS` is not a multiple of 64 the caller must keep the
+/// unused high bits of the top limb zero; the decoding helpers do this
+/// automatically but [`Uint::from_limbs`] does not.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct Uint<const BITS: usize, const LIMBS: usize> {
     pub limbs: [u64; LIMBS],
 }
 
+/// A fixed-size two's-complement signed integer of `BITS` bits.
+///
+/// The sign bit is bit `BITS - 1`. Arithmetic wraps around the `BITS`-bit
+/// range. Note that when `BITS` is not a multiple of 64 the unused high bits
+/// of the top limb are significant to the representation; keep them
+/// sign-extended for well-formed values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Int<const BITS: usize, const LIMBS: usize>(Uint<BITS, LIMBS>);
 
+/// Errors returned by [`Uint::from_str_radix`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
+    /// The radix was outside `2..=36`.
     InvalidRadix,
+    /// A character was not an ASCII digit valid for the radix.
     InvalidDigit,
+    /// The input string was empty.
     EmptyString,
+    /// The value does not fit in `BITS` bits.
     Overflow,
 }
 
@@ -61,6 +119,12 @@ pub const fn mac(acc: u64, a: u64, b: u64, carry: u64) -> (u64, u64) {
     (value as u64, (value >> 64) as u64)
 }
 
+/// Schoolbook multiply-accumulate of `a[..a_len]` and `b[..b_len]` into `out`.
+///
+/// `out` must be at least `a_len + b_len` limbs and zero-initialised for the
+/// range `0..a_len + b_len` unless it deliberately carries an accumulator. The
+/// carry propagated past `i + b_len` cannot exceed `out.len()` for a product
+/// that fits; the loop is bounded defensively.
 fn mul_limbs(out: &mut [u64], a: &[u64], a_len: usize, b: &[u64], b_len: usize) {
     for i in 0..a_len {
         let mut carry = 0u64;
@@ -70,7 +134,7 @@ fn mul_limbs(out: &mut [u64], a: &[u64], a_len: usize, b: &[u64], b_len: usize) 
             carry = next_carry;
         }
         let mut k = i + b_len;
-        while carry != 0 {
+        while carry != 0 && k < out.len() {
             let (word, next_carry) = adc(out[k], 0, carry);
             out[k] = word;
             carry = next_carry;
@@ -85,6 +149,7 @@ const fn ct_select_u64(a: u64, b: u64, choice: bool) -> u64 {
     b ^ ((a ^ b) & mask)
 }
 
+#[cfg(feature = "alloc")]
 #[inline]
 const fn digit_to_char(digit: u64, upper: bool) -> char {
     match digit {
@@ -136,6 +201,12 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         limbs: max_limbs::<BITS, LIMBS>(),
     };
 
+    /// Builds a value directly from its little-endian limbs.
+    ///
+    /// This is a low-level escape hatch: when `BITS` is not a multiple of 64
+    /// the caller is responsible for ensuring the unused high bits of the top
+    /// limb are zero. The decoding helpers ([`Self::from_be_slice`],
+    /// [`Self::from_le_slice`], [`Self::from_str_radix`]) enforce this for you.
     #[inline]
     pub const fn from_limbs(limbs: [u64; LIMBS]) -> Self {
         Self {
@@ -143,6 +214,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         }
     }
 
+    /// Builds a value from a `u64`.
     #[inline]
     pub const fn from_u64(v: u64) -> Self {
         let mut limbs = [0u64; LIMBS];
@@ -154,13 +226,32 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         }
     }
 
+    /// Clears any bits at or above `BITS` in the top limb.
+    #[inline]
+    const fn truncate_to_bits(mut self) -> Self {
+        let rem = BITS % 64;
+        if rem != 0 {
+            self.limbs[LIMBS - 1] &= (1u64 << rem) - 1;
+        }
+        self
+    }
+
+    /// Decodes `LIMBS * 8` big-endian bytes.
+    ///
+    /// The expected byte length is the limb-aligned width `ceil(BITS / 64) * 8`
+    /// bytes, which equals `BITS / 8` whenever `BITS` is a multiple of 64. Any
+    /// bits at or above `BITS` are cleared.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bytes.len() != LIMBS * 8`.
     #[inline]
     pub fn from_be_slice(bytes: &[u8]) -> Self {
-        assert_eq!(bytes.len(), BITS / 8);
+        assert_eq!(bytes.len(), LIMBS * 8, "expected LIMBS * 8 big-endian bytes");
         let mut limbs = [0u64; LIMBS];
         let mut i = 0;
         while i < LIMBS {
-            let start = bytes.len() - ((i + 1) * 8);
+            let start = (LIMBS - 1 - i) * 8;
             let mut limb = [0u8; 8];
             limb.copy_from_slice(&bytes[start..start + 8]);
             limbs[i] = u64::from_be_bytes(limb);
@@ -169,11 +260,21 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         Self {
             limbs,
         }
+        .truncate_to_bits()
     }
 
+    /// Decodes `LIMBS * 8` little-endian bytes.
+    ///
+    /// The expected byte length is the limb-aligned width `ceil(BITS / 64) * 8`
+    /// bytes, which equals `BITS / 8` whenever `BITS` is a multiple of 64. Any
+    /// bits at or above `BITS` are cleared.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bytes.len() != LIMBS * 8`.
     #[inline]
     pub fn from_le_slice(bytes: &[u8]) -> Self {
-        assert_eq!(bytes.len(), BITS / 8);
+        assert_eq!(bytes.len(), LIMBS * 8, "expected LIMBS * 8 little-endian bytes");
         let mut limbs = [0u64; LIMBS];
         let mut i = 0;
         while i < LIMBS {
@@ -186,12 +287,17 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         Self {
             limbs,
         }
+        .truncate_to_bits()
     }
 
+    /// Encodes the value as `LIMBS * 8` big-endian bytes.
+    ///
+    /// Allocates a `Vec`. Prefer [`Self::to_be_bytes_fixed`] in allocation-free
+    /// contexts.
     #[cfg(feature = "alloc")]
     #[inline]
     pub fn to_be_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(BITS / 8);
+        let mut out = Vec::with_capacity(LIMBS * 8);
         let mut i = LIMBS;
         while i > 0 {
             i -= 1;
@@ -200,10 +306,14 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         out
     }
 
+    /// Encodes the value as `LIMBS * 8` little-endian bytes.
+    ///
+    /// Allocates a `Vec`. Prefer [`Self::to_le_bytes_fixed`] in allocation-free
+    /// contexts.
     #[cfg(feature = "alloc")]
     #[inline]
     pub fn to_le_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(BITS / 8);
+        let mut out = Vec::with_capacity(LIMBS * 8);
         let mut i = 0;
         while i < LIMBS {
             out.extend_from_slice(&self.limbs[i].to_le_bytes());
@@ -212,9 +322,14 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         out
     }
 
+    /// Encodes the value as `N` big-endian bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `N != LIMBS * 8`.
     #[inline]
     pub fn to_be_bytes_fixed<const N: usize>(&self) -> [u8; N] {
-        assert_eq!(N, BITS / 8);
+        assert_eq!(N, LIMBS * 8, "expected an array of LIMBS * 8 big-endian bytes");
         let mut out = [0u8; N];
         let mut i = 0;
         while i < LIMBS {
@@ -225,9 +340,14 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         out
     }
 
+    /// Encodes the value as `N` little-endian bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `N != LIMBS * 8`.
     #[inline]
     pub fn to_le_bytes_fixed<const N: usize>(&self) -> [u8; N] {
-        assert_eq!(N, BITS / 8);
+        assert_eq!(N, LIMBS * 8, "expected an array of LIMBS * 8 little-endian bytes");
         let mut out = [0u8; N];
         let mut i = 0;
         while i < LIMBS {
@@ -238,6 +358,9 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         out
     }
 
+    /// Returns bit `index` (0 is the least significant).
+    ///
+    /// Returns `false` for any `index >= BITS`.
     #[inline]
     pub fn bit(&self, index: usize) -> bool {
         if index >= BITS {
@@ -246,6 +369,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         ((self.limbs[index / 64] >> (index % 64)) & 1) == 1
     }
 
+    /// Returns `true` when the value is zero.
     #[inline]
     pub fn is_zero(&self) -> bool {
         let mut acc = 0u64;
@@ -269,17 +393,22 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         0
     }
 
+    /// Returns `true` when the value is odd.
     #[inline]
     pub fn is_odd(&self) -> bool {
         (self.limbs[0] & 1) == 1
     }
 
+    /// Constant-time `self >= rhs`.
+    ///
+    /// The execution path does not depend on the operand values.
     #[inline]
     pub fn ct_ge(&self, rhs: &Self) -> bool {
         let (_, borrow) = self.sub_raw(rhs);
         borrow == 0
     }
 
+    /// Constant-time `self == rhs`.
     #[inline]
     pub fn ct_eq(&self, rhs: &Self) -> bool {
         let mut diff = 0u64;
@@ -291,6 +420,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         diff == 0
     }
 
+    /// Constant-time select: returns `*a` if `choice` is `true`, else `*b`.
     #[inline]
     pub fn ct_select(a: &Self, b: &Self, choice: bool) -> Self {
         let mut limbs = [0u64; LIMBS];
@@ -304,6 +434,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         }
     }
 
+    /// Adds with carry, returning the wrapped sum and the carry out (`0` or `1`).
     #[inline]
     pub fn add_raw(&self, rhs: &Self) -> (Self, u64) {
         let mut out = [0u64; LIMBS];
@@ -323,6 +454,8 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         )
     }
 
+    /// Subtracts with borrow, returning the wrapped difference and the borrow
+    /// out (`0` or `1`).
     #[inline]
     pub fn sub_raw(&self, rhs: &Self) -> (Self, u64) {
         let mut out = [0u64; LIMBS];
@@ -342,6 +475,9 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         )
     }
 
+    /// `(self + rhs) mod modulus`, constant time.
+    ///
+    /// Requires `self < modulus` and `rhs < modulus`, and `modulus > 0`.
     #[inline]
     pub fn add_mod(&self, rhs: &Self, modulus: &Self) -> Self {
         let (sum, carry) = self.add_raw(rhs);
@@ -351,6 +487,10 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         Self::ct_select(&reduced, &sum, (carry | (borrow ^ 1)) != 0)
     }
 
+    /// `(self - rhs) mod modulus`, constant time.
+    ///
+    /// Requires `self < modulus`, `rhs < modulus`, and `modulus > 0`. For
+    /// `self < rhs` the result wraps to `modulus - (rhs - self)`.
     #[inline]
     pub fn sub_mod(&self, rhs: &Self, modulus: &Self) -> Self {
         let (diff, borrow) = self.sub_raw(rhs);
@@ -358,6 +498,9 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         Self::ct_select(&corrected, &diff, borrow == 1)
     }
 
+    /// `(self + self) mod modulus`, constant time.
+    ///
+    /// Requires `self < modulus` and `modulus > 0`.
     #[inline]
     pub fn double_mod(&self, modulus: &Self) -> Self {
         self.add_mod(self, modulus)
@@ -417,13 +560,28 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         rem
     }
 
+    /// `(self * rhs) mod modulus` using a bit-serial (shift-and-subtract)
+    /// reduction.
+    ///
+    /// Constant time in the operands. Requires `modulus > 0` and that the wide
+    /// product fits in `2 * LIMBS` limbs (always true). This is the reference
+    /// implementation; prefer [`Self::mul_mod_barrett`] in hot loops.
     #[inline]
     pub fn mul_mod(&self, rhs: &Self, modulus: &Self) -> Self {
         let product = self.mul_wide_internal(rhs);
         Self::reduce_wide_internal(&product, modulus)
     }
 
-    /// Precompute mu for Barrett reduction, auto-detecting effective limb count.
+    /// Computes `mu = floor(2^(2 * eff_limbs * 64) / self)` for Barrett
+    /// reduction, where `eff_limbs` is `ceil(self.bit_len() / 64)`.
+    ///
+    /// Pass the result to [`Self::modpow_barrett`] or
+    /// [`Self::mul_mod_barrett_eff`]. The value is produced for the modulus's
+    /// own effective limb count, which is what those functions use.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `self` is zero (the reciprocal is undefined).
     pub fn compute_mu_for_barrett(&self) -> [u64; MAX_LIMBS] {
         let eff_limbs = (self.bit_len() + 63) / 64;
         self.compute_mu_for_barrett_eff(eff_limbs)
@@ -433,7 +591,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         const {
             assert!(LIMBS + 1 <= MAX_LIMBS);
         }
-        assert!(eff_limbs >= 1 && eff_limbs <= LIMBS);
+        assert!(eff_limbs >= 1 && eff_limbs <= LIMBS, "modulus must be nonzero");
 
         let total_bits = eff_limbs * 128;
         let mut mu = [0u64; MAX_LIMBS];
@@ -472,13 +630,29 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         mu
     }
 
-    /// Modular exponentiation using Barrett reduction.
+    /// `self^exp mod modulus` using Barrett reduction.
+    ///
+    /// `mu` must be produced by [`Self::compute_mu_for_barrett`] for the same
+    /// `modulus`; the effective limb count is derived from `modulus.bit_len()`.
+    /// The base is reduced internally, so any input is accepted.
+    ///
+    /// Not constant time in `exp` (it branches on each exponent bit); only use
+    /// it with a public exponent.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `modulus` is zero or its effective limb count exceeds
+    /// [`MAX_BARRETT_LIMBS`].
     pub fn modpow_barrett(&self, exp: &Self, modulus: &Self, mu: &[u64]) -> Self {
         let eff_limbs = (modulus.bit_len() + 63) / 64;
         self.modpow_barrett_eff(exp, modulus, mu, eff_limbs)
     }
 
-    /// Barrett modular exponentiation with explicit effective limb count.
+    /// Barrett modular exponentiation with an explicit effective limb count.
+    ///
+    /// `eff_limbs` must equal `ceil(modulus.bit_len() / 64)` and `mu` must be
+    /// the matching reciprocal. See [`Self::modpow_barrett`] for the other
+    /// requirements.
     pub fn modpow_barrett_eff(&self, exp: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
         let mut base = self.mul_mod_barrett_eff(&Self::ONE, modulus, mu, eff_limbs);
         let mut result = Self::ONE;
@@ -488,27 +662,70 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             if exp.bit(i) {
                 result = result.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
             }
-            base = base.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
             i += 1;
+            // The square after the most significant bit is never consumed.
+            if i < bits {
+                base = base.mul_mod_barrett_eff(&base, modulus, mu, eff_limbs);
+            }
         }
         result
     }
 
-    /// Modular multiplication using Barrett reduction.
+    /// `(self * rhs) mod modulus` using Barrett reduction.
+    ///
+    /// `mu` must be produced by [`Self::compute_mu_for_barrett`] for the same
+    /// `modulus`. Both operands must already be reduced (`< 2^(eff*64)`, in
+    /// practice `< modulus`); passing unreduced operands yields silently wrong
+    /// results. The effective limb count is derived from `modulus.bit_len()`.
+    ///
+    /// # Panics
+    ///
+    /// Panics under the same conditions as [`Self::reduce_wide_barrett_eff`].
     pub fn mul_mod_barrett(&self, rhs: &Self, modulus: &Self, mu: &[u64]) -> Self {
+        debug_assert!(
+            {
+                let eff = (modulus.bit_len() + 63) / 64;
+                modulus.bit_len() > 0 && self.bit_len() <= eff * 64 && rhs.bit_len() <= eff * 64
+            },
+            "Barrett operands must be reduced below the modulus"
+        );
         let product = self.mul_wide_internal(rhs);
         Self::reduce_wide_barrett(&product, modulus, mu)
     }
 
-    /// Modular multiplication using Barrett reduction with explicit effective limb count.
+    /// Barrett multiplication with an explicit effective limb count.
+    ///
+    /// `eff_limbs` must equal `ceil(modulus.bit_len() / 64)` and both operands
+    /// must already be reduced. See [`Self::mul_mod_barrett`].
     pub fn mul_mod_barrett_eff(&self, rhs: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
+        debug_assert!(
+            self.bit_len() <= eff_limbs * 64 && rhs.bit_len() <= eff_limbs * 64,
+            "Barrett operands must be reduced below 2^(eff_limbs * 64)"
+        );
         let product = self.mul_wide_internal(rhs);
         Self::reduce_wide_barrett_eff(&product, modulus, mu, eff_limbs)
     }
 
-    /// Barrett reduction with explicit effective limb count.
+    /// Barrett reduction of a `2 * LIMBS`-wide product with an explicit
+    /// effective limb count `k = eff_limbs`.
+    ///
+    /// `mu` must equal `floor(2^(2 * k * 64) / modulus)` — that is, the value
+    /// returned by [`Self::compute_mu_for_barrett`] for this modulus — and have
+    /// at least `k + 1` entries. The product must be less than
+    /// `2^(2 * k * 64)`; when `k < LIMBS` this means the factors of the product
+    /// must already be reduced (see [`Self::mul_mod_barrett_eff`]).
+    ///
+    /// # Panics
+    ///
+    /// Panics when `eff_limbs` is out of range, when the effective width does
+    /// not fit in `MAX_LIMBS`, or when `mu` is too short.
     pub fn reduce_wide_barrett_eff(product: &[u64; MAX_LIMBS], modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
-        assert!(mu.len() >= eff_limbs + 1);
+        assert!(eff_limbs >= 1 && eff_limbs <= LIMBS, "eff_limbs out of range");
+        assert!(
+            eff_limbs <= MAX_BARRETT_LIMBS,
+            "Barrett reduction supports at most MAX_BARRETT_LIMBS effective limbs"
+        );
+        assert!(mu.len() >= eff_limbs + 1, "mu is too short for the effective limb count");
 
         let k = eff_limbs;
         let k1 = k + 1;
@@ -571,8 +788,19 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         }
     }
 
-    /// Modular exponentiation: `self^exp mod modulus` using square-and-multiply,
-    /// scanning only up to the exponent's bit length.
+    /// `self^exp mod modulus` using square-and-multiply, scanning only up to
+    /// the exponent's bit length.
+    ///
+    /// Uses the bit-serial [`Self::mul_mod`] reduction and is therefore slow;
+    /// prefer [`Self::modpow_barrett`] in hot loops.
+    ///
+    /// Not constant time in `exp` (it branches on each exponent bit); only use
+    /// it with a public exponent.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds `modulus` must be nonzero; in release a zero modulus
+    /// yields an unreduced result.
     pub fn modpow(&self, exp: &Self, modulus: &Self) -> Self {
         let mut base = self.mul_mod(&Self::ONE, modulus);
         let mut result = Self::ONE;
@@ -582,80 +810,32 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             if exp.bit(i) {
                 result = result.mul_mod(&base, modulus);
             }
-            base = base.mul_mod(&base, modulus);
             i += 1;
+            // The square after the most significant bit is never consumed.
+            if i < bits {
+                base = base.mul_mod(&base, modulus);
+            }
         }
         result
     }
 
-    /// Barrett reduction of a 2*LIMBS-wide product modulo `modulus`.
+    /// Barrett reduction of a `2 * LIMBS`-wide product modulo `modulus`.
     ///
-    /// `mu` must equal `floor(2^(2*LIMBS*64) / modulus)` and have at least `LIMBS+1` entries.
-    /// Prefer `reduce_wide_barrett_eff` which auto-detects the effective limb count.
+    /// The effective limb count is derived from `modulus.bit_len()`, so `mu`
+    /// must be the matching value from [`Self::compute_mu_for_barrett`]. The
+    /// product must be less than `2^(2 * k * 64)`, where `k` is that effective
+    /// limb count; when the modulus does not fill all `LIMBS` limbs this means
+    /// the product's factors must already be reduced (see
+    /// [`Self::mul_mod_barrett`]).
+    ///
+    /// Equivalent to [`Self::reduce_wide_barrett_eff`] with
+    /// `k = ceil(modulus.bit_len() / 64)`.
     pub fn reduce_wide_barrett(product: &[u64; MAX_LIMBS], modulus: &Self, mu: &[u64]) -> Self {
-        assert!(mu.len() >= LIMBS + 1);
-
-        let k = LIMBS;
-        let k1 = k + 1;
-        let k_minus_1 = k - 1;
-
-        let mut q1 = [0u64; MAX_LIMBS];
-        q1[..k1].copy_from_slice(&product[k_minus_1..k_minus_1 + k1]);
-
-        let mut q2 = [0u64; MAX_LIMBS];
-        mul_limbs(&mut q2, &q1, k1, mu, k1);
-
-        let mut q3 = [0u64; MAX_LIMBS];
-        q3[..k1].copy_from_slice(&q2[k1..k1 + k1]);
-
-        let mut r1 = [0u64; MAX_LIMBS];
-        r1[..k1].copy_from_slice(&product[..k1]);
-
-        let mut q3m = [0u64; MAX_LIMBS];
-        mul_limbs(&mut q3m, &q3[..k1], k1, &modulus.limbs, k);
-        let mut r2 = [0u64; MAX_LIMBS];
-        r2[..k1].copy_from_slice(&q3m[..k1]);
-
-        let mut r = [0u64; MAX_LIMBS];
-        let mut borrow = 0u64;
-        let mut i = 0;
-        while i < k1 {
-            let (word, next_borrow) = sbb(r1[i], r2[i], borrow);
-            r[i] = word;
-            borrow = next_borrow;
-            i += 1;
-        }
-
-        // Conditional subtract modulus up to twice, using the full k+1-limb r.
-        // The Barrett remainder r = product - q3 * n can be up to 3n, requiring
-        // k+1 limbs.  Truncating to k limbs before subtracting would lose the
-        // top limb and give incorrect results.
-        for _ in 0..2 {
-            let mut r_try = r;
-            let mut borrow = 0u64;
-            let mut j = 0;
-            while j < k1 {
-                let mod_limb = if j < LIMBS { modulus.limbs[j] } else { 0u64 };
-                let (word, next_borrow) = sbb(r_try[j], mod_limb, borrow);
-                r_try[j] = word;
-                borrow = next_borrow;
-                j += 1;
-            }
-            let choose = borrow == 0;
-            let mut j = 0;
-            while j < k1 {
-                r[j] = ct_select_u64(r_try[j], r[j], choose);
-                j += 1;
-            }
-        }
-
-        let mut limbs = [0u64; LIMBS];
-        limbs.copy_from_slice(&r[..LIMBS]);
-        Self {
-            limbs,
-        }
+        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        Self::reduce_wide_barrett_eff(product, modulus, mu, eff_limbs)
     }
 
+    /// Adds a single `u64`, returning the wrapped result and carry out.
     #[inline]
     pub fn add_word(&self, word: u64) -> (Self, u64) {
         let mut out = self.limbs;
@@ -676,6 +856,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         )
     }
 
+    /// Subtracts a single `u64`, returning the wrapped result and borrow out.
     #[inline]
     pub fn sub_word(&self, word: u64) -> (Self, u64) {
         let mut out = self.limbs;
@@ -696,6 +877,8 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         )
     }
 
+    /// Multiplies by a single `u64`, returning the low `LIMBS` limbs and the
+    /// carry (high word) out.
     #[inline]
     pub fn mul_word(&self, word: u64) -> (Self, u64) {
         let mut out = [0u64; LIMBS];
@@ -715,6 +898,11 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         )
     }
 
+    /// Divides by a single `u64`, returning the quotient and remainder.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `word` is zero.
     #[inline]
     pub fn div_rem_word(&self, word: u64) -> (Self, u64) {
         assert!(word != 0, "division by zero");
@@ -735,6 +923,163 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         )
     }
 
+    /// Adds `value` at limb `index`, propagating the carry into higher limbs.
+    ///
+    /// Returns the carry out (zero when it fits). Used for the two-word
+    /// `u128` operators.
+    #[inline]
+    fn add_word_at(&self, index: usize, word: u64) -> (Self, u64) {
+        let mut out = self.limbs;
+        let mut carry = word;
+        let mut i = index;
+        while i < LIMBS && carry != 0 {
+            let (next, next_carry) = adc(out[i], carry, 0);
+            out[i] = next;
+            carry = next_carry;
+            i += 1;
+        }
+        (
+            Self {
+                limbs: out,
+            },
+            carry,
+        )
+    }
+
+    /// Subtracts `value` at limb `index`, propagating the borrow into higher
+    /// limbs. Returns the borrow out.
+    #[inline]
+    fn sub_word_at(&self, index: usize, word: u64) -> (Self, u64) {
+        let mut out = self.limbs;
+        let mut borrow = word;
+        let mut i = index;
+        while i < LIMBS && borrow != 0 {
+            let (next, next_borrow) = sbb(out[i], borrow, 0);
+            out[i] = next;
+            borrow = next_borrow;
+            i += 1;
+        }
+        (
+            Self {
+                limbs: out,
+            },
+            borrow,
+        )
+    }
+
+    /// Adds a `u128`, wrapping on overflow.
+    #[inline]
+    pub fn add_u128(&self, value: u128) -> Self {
+        let (lo, hi) = (value as u64, (value >> 64) as u64);
+        self.add_word(lo).0.add_word_at(1, hi).0
+    }
+
+    /// Subtracts a `u128`, wrapping on underflow.
+    #[inline]
+    pub fn sub_u128(&self, value: u128) -> Self {
+        let (lo, hi) = (value as u64, (value >> 64) as u64);
+        self.sub_word(lo).0.sub_word_at(1, hi).0
+    }
+
+    /// Multiplies by a `u128`, returning the low `BITS` bits (wrapping).
+    #[inline]
+    pub fn mul_u128(&self, value: u128) -> Self {
+        let (lo, hi) = (value as u64, (value >> 64) as u64);
+        if hi == 0 {
+            return self.mul_word(lo).0;
+        }
+        let (low, _) = self.mul_word(lo);
+        let (high, _) = self.mul_word(hi);
+        // result = low + (high << 64); the top limb of `high` shifts out.
+        let mut out = low.limbs;
+        let mut carry = 0u64;
+        let mut j = 1;
+        while j < LIMBS {
+            let (sum, next_carry) = adc(out[j], high.limbs[j - 1], carry);
+            out[j] = sum;
+            carry = next_carry;
+            j += 1;
+        }
+        Self {
+            limbs: out,
+        }
+    }
+
+    /// Divides by a `u128`, returning the quotient and remainder.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `divisor` is zero.
+    pub fn div_rem_u128(&self, divisor: u128) -> (Self, u128) {
+        assert!(divisor != 0, "division by zero");
+        if divisor <= u64::MAX as u128 {
+            let (q, r) = self.div_rem_word(divisor as u64);
+            return (q, r as u128);
+        }
+        // The divisor needs two limbs. When the type is a single limb, it is
+        // larger than any representable value, so the quotient is zero.
+        if LIMBS < 2 {
+            return (Self::ZERO, self.limbs[0] as u128);
+        }
+        let d = {
+            let mut limbs = [0u64; LIMBS];
+            limbs[0] = divisor as u64;
+            limbs[1] = (divisor >> 64) as u64;
+            Self {
+                limbs,
+            }
+        };
+
+        let mut quotient = Self::ZERO;
+        let mut rem = Self::ZERO;
+        let mut i = self.bit_len();
+        while i > 0 {
+            i -= 1;
+            // rem = rem * 2 + bit(i)
+            let mut carry = self.bit(i) as u64;
+            let mut j = 0;
+            while j < LIMBS {
+                let next = rem.limbs[j] >> 63;
+                rem.limbs[j] = (rem.limbs[j] << 1) | carry;
+                carry = next;
+                j += 1;
+            }
+            // The shifted remainder is < 2 * divisor; when it carries out of
+            // the limbs it is certainly >= divisor.
+            let (sub, borrow) = rem.sub_raw(&d);
+            if carry != 0 || borrow == 0 {
+                rem = sub;
+                quotient.limbs[i / 64] |= 1u64 << (i % 64);
+            }
+        }
+        let remainder = rem.limbs[0] as u128 | ((rem.limbs[1] as u128) << 64);
+        (quotient, remainder)
+    }
+
+    /// Parses `src` as an unsigned integer in `radix` (2..=36), accepting the
+    /// ASCII digits `0-9`, `a-z` and `A-Z`.
+    ///
+    /// Leading zero digits are accepted. The value must fit in `BITS` bits,
+    /// otherwise [`Error::Overflow`] is returned. Signs (`+`/`-`), whitespace,
+    /// `_` separators and prefixes such as `0x` are not accepted. The input
+    /// length is bounded before any per-digit work, so a hostile multi-megabyte
+    /// string cannot force unbounded computation. This method never allocates.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidRadix`] for `radix` outside `2..=36`,
+    /// [`Error::EmptyString`] for an empty input, [`Error::InvalidDigit`] for a
+    /// non-digit or out-of-range character, and [`Error::Overflow`] when the
+    /// value does not fit in `BITS` bits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use big_number::Uint;
+    /// let max = Uint::<64, 1>::from_str_radix("ffffffffffffffff", 16).unwrap();
+    /// assert_eq!(max, Uint::<64, 1>::MAX);
+    /// assert!(Uint::<64, 1>::from_str_radix("10000000000000000", 16).is_err()); // 2^64
+    /// ```
     pub fn from_str_radix(src: &str, radix: u32) -> Result<Self, Error> {
         if !(2..=36).contains(&radix) {
             return Err(Error::InvalidRadix);
@@ -743,8 +1088,26 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             return Err(Error::EmptyString);
         }
 
+        // Skip leading zeros: they do not change the value and skipping them
+        // keeps the loop below proportional to the significant digits rather
+        // than to the input length.
+        let bytes = src.as_bytes();
+        let start = bytes.iter().position(|&b| b != b'0').unwrap_or(bytes.len());
+        if start == bytes.len() {
+            return Ok(Self::ZERO);
+        }
+        let significant = &bytes[start..];
+
+        // A value below 2^BITS has at most `BITS / floor(log2(radix)) + 1`
+        // digits, so a longer significant run necessarily overflows. This is a
+        // fast rejection that also bounds the work below.
+        let bits_per_digit = (63 - (radix as u64).leading_zeros()) as usize;
+        if significant.len() > BITS / bits_per_digit + 1 {
+            return Err(Error::Overflow);
+        }
+
         let mut out = Self::ZERO;
-        for byte in src.bytes() {
+        for &byte in significant {
             let digit = char_to_digit(byte).ok_or(Error::InvalidDigit)?;
             if digit >= radix {
                 return Err(Error::InvalidDigit);
@@ -759,9 +1122,21 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             }
             out = next;
         }
+        // `mul_word`/`add_word` only detect overflow past `LIMBS * 64` bits, so
+        // reject values that fit the limbs but exceed `BITS`.
+        if out.bit_len() > BITS {
+            return Err(Error::Overflow);
+        }
         Ok(out)
     }
 
+    /// Formats the value in `radix` (2..=36) using lowercase digits.
+    ///
+    /// Allocates a single [`String`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `radix` is outside `2..=36`.
     #[cfg(feature = "alloc")]
     pub fn to_string_radix(&self, radix: u32) -> String {
         assert!((2..=36).contains(&radix), "invalid radix");
@@ -769,21 +1144,26 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             return String::from("0");
         }
 
+        // Upper bound on the number of digits, so the buffer is allocated once.
+        let bits_per_digit = (63 - (radix as u64).leading_zeros()) as usize;
+        let capacity = self.bit_len() / bits_per_digit + 1;
+        let mut digits: Vec<u8> = Vec::with_capacity(capacity);
         let mut value = *self;
-        let mut digits = Vec::new();
         while !value.is_zero() {
             let (quotient, remainder) = value.div_rem_word(radix as u64);
-            digits.push(digit_to_char(remainder, false));
+            digits.push(digit_to_char(remainder, false) as u8);
             value = quotient;
         }
-        digits.into_iter().rev().collect()
+        digits.reverse();
+        // Every byte is an ASCII digit, so validation succeeds without copying.
+        String::from_utf8(digits).expect("digits are ASCII")
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<const BITS: usize, const LIMBS: usize> fmt::Display for Uint<BITS, LIMBS> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string_radix(10))
+        f.write_str(&self.to_string_radix(10))
     }
 }
 
@@ -868,11 +1248,13 @@ impl<const BITS: usize, const LIMBS: usize> Int<BITS, LIMBS> {
         }
     }
 
+    /// Returns `true` when the sign bit (bit `BITS - 1`) is set.
     #[inline]
     pub fn is_negative(&self) -> bool {
-        (self.0.limbs[LIMBS - 1] >> 63) == 1
+        self.0.bit(BITS - 1)
     }
 
+    /// Returns the absolute value as an unsigned [`Uint`].
     #[inline]
     pub fn abs(&self) -> Uint<BITS, LIMBS> {
         if self.is_negative() {
@@ -1114,7 +1496,7 @@ macro_rules! impl_int_ops_signed {
                 fn mul(self, rhs: $ty) -> Self::Output {
                     let (word, negative) = i128_abs_to_word(rhs as i128);
                     let (product, _) = self.abs().mul_word(word);
-                    let make_negative = self.is_negative() ^ negative;
+                    let make_negative = self.is_negative() != negative;
                     let bits = if make_negative {
                         Uint::ZERO.sub_raw(&product).0
                     } else {
@@ -1129,7 +1511,7 @@ macro_rules! impl_int_ops_signed {
                 fn div(self, rhs: $ty) -> Self::Output {
                     let (word, negative) = i128_abs_to_word(rhs as i128);
                     let (quotient, _) = self.abs().div_rem_word(word);
-                    let make_negative = self.is_negative() ^ negative;
+                    let make_negative = self.is_negative() != negative;
                     let bits = if make_negative {
                         Uint::ZERO.sub_raw(&quotient).0
                     } else {
@@ -1157,10 +1539,201 @@ macro_rules! impl_int_ops_signed {
     };
 }
 
-impl_uint_ops_unsigned!(u8, u16, u32, u64, u128);
-impl_uint_ops_signed!(i8, i16, i32, i64, i128);
-impl_int_ops_unsigned!(u8, u16, u32, u64, u128);
-impl_int_ops_signed!(i8, i16, i32, i64, i128);
+impl_uint_ops_unsigned!(u8, u16, u32, u64);
+impl_uint_ops_signed!(i8, i16, i32, i64);
+impl_int_ops_unsigned!(u8, u16, u32, u64);
+impl_int_ops_signed!(i8, i16, i32, i64);
+
+// `u128`/`i128` operands are handled explicitly through the two-word helpers
+// (`add_u128`, `sub_u128`, `mul_u128`, `div_rem_u128`) so that no operand
+// value can trigger a panic.
+impl<const BITS: usize, const LIMBS: usize> Add<u128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn add(self, rhs: u128) -> Self::Output {
+        self.add_u128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Sub<u128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn sub(self, rhs: u128) -> Self::Output {
+        self.sub_u128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Mul<u128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn mul(self, rhs: u128) -> Self::Output {
+        self.mul_u128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Div<u128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn div(self, rhs: u128) -> Self::Output {
+        self.div_rem_u128(rhs).0
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Rem<u128> for Uint<BITS, LIMBS> {
+    type Output = u128;
+    fn rem(self, rhs: u128) -> Self::Output {
+        self.div_rem_u128(rhs).1
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Add<i128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn add(self, rhs: i128) -> Self::Output {
+        if rhs < 0 {
+            self.sub_u128(rhs.unsigned_abs())
+        } else {
+            self.add_u128(rhs as u128)
+        }
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Sub<i128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn sub(self, rhs: i128) -> Self::Output {
+        if rhs < 0 {
+            self.add_u128(rhs.unsigned_abs())
+        } else {
+            self.sub_u128(rhs as u128)
+        }
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Mul<i128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn mul(self, rhs: i128) -> Self::Output {
+        self.mul_u128(rhs.unsigned_abs())
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Div<i128> for Uint<BITS, LIMBS> {
+    type Output = Self;
+    fn div(self, rhs: i128) -> Self::Output {
+        self.div_rem_u128(rhs.unsigned_abs()).0
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Rem<i128> for Uint<BITS, LIMBS> {
+    type Output = u128;
+    fn rem(self, rhs: i128) -> Self::Output {
+        self.div_rem_u128(rhs.unsigned_abs()).1
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Add<u128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn add(self, rhs: u128) -> Self::Output {
+        self + Self::from_u128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Sub<u128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn sub(self, rhs: u128) -> Self::Output {
+        self - Self::from_u128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Mul<u128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn mul(self, rhs: u128) -> Self::Output {
+        let product = self.abs().mul_u128(rhs);
+        let bits = if self.is_negative() {
+            Uint::ZERO.sub_raw(&product).0
+        } else {
+            product
+        };
+        Self::from_uint_bits(bits)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Div<u128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn div(self, rhs: u128) -> Self::Output {
+        let (quotient, _) = self.abs().div_rem_u128(rhs);
+        let bits = if self.is_negative() {
+            Uint::ZERO.sub_raw(&quotient).0
+        } else {
+            quotient
+        };
+        Self::from_uint_bits(bits)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Rem<u128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn rem(self, rhs: u128) -> Self::Output {
+        let (_, remainder) = self.abs().div_rem_u128(rhs);
+        let bits = uint_from_u128::<BITS, LIMBS>(remainder);
+        let bits = if self.is_negative() {
+            Uint::ZERO.sub_raw(&bits).0
+        } else {
+            bits
+        };
+        Self::from_uint_bits(bits)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Add<i128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn add(self, rhs: i128) -> Self::Output {
+        self + Self::from_i128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Sub<i128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn sub(self, rhs: i128) -> Self::Output {
+        self - Self::from_i128(rhs)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Mul<i128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn mul(self, rhs: i128) -> Self::Output {
+        let product = self.abs().mul_u128(rhs.unsigned_abs());
+        let make_negative = self.is_negative() != rhs.is_negative();
+        let bits = if make_negative {
+            Uint::ZERO.sub_raw(&product).0
+        } else {
+            product
+        };
+        Self::from_uint_bits(bits)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Div<i128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn div(self, rhs: i128) -> Self::Output {
+        let (quotient, _) = self.abs().div_rem_u128(rhs.unsigned_abs());
+        let make_negative = self.is_negative() != rhs.is_negative();
+        let bits = if make_negative {
+            Uint::ZERO.sub_raw(&quotient).0
+        } else {
+            quotient
+        };
+        Self::from_uint_bits(bits)
+    }
+}
+
+impl<const BITS: usize, const LIMBS: usize> Rem<i128> for Int<BITS, LIMBS> {
+    type Output = Self;
+    fn rem(self, rhs: i128) -> Self::Output {
+        let (_, remainder) = self.abs().div_rem_u128(rhs.unsigned_abs());
+        let bits = uint_from_u128::<BITS, LIMBS>(remainder);
+        let bits = if self.is_negative() {
+            Uint::ZERO.sub_raw(&bits).0
+        } else {
+            bits
+        };
+        Self::from_uint_bits(bits)
+    }
+}
 
 #[cfg(test)]
 mod tests {

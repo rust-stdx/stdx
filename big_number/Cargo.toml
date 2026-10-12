@@ -2,6 +2,7 @@
 name = "big_number"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 
 [lib]
 path = "./big_number.rs"
@@ -14,3 +15,6 @@ zeroize = ["dep:zeroize", "zeroize/derive"]
 
 [dependencies]
 zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+crypto = { path = "../crypto" }

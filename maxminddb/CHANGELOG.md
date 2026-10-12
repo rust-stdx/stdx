@@ -1,5 +1,72 @@
 # Change Log #
 
+## Unreleased
+
+### Security and robustness
+
+* Decoding is now bounded by resource limits exposed as `DecodeLimits` and
+  `ReaderOptions`, with new `Reader::from_source_with_options` and
+  `Reader::open_readfile_with_options` constructors. The defaults follow the
+  MaxMind DB specification: a maximum nesting depth of 512, a maximum of 65,536
+  decoded values, and a maximum of 2 MiB of string/byte payload per operation.
+  Exceeding a limit returns the new `MaxMindDBError::ResourceLimit` instead of
+  panicking, recursing without bound, or exhausting memory. Limits apply to
+  metadata decoding at open as well as to lookups.
+* Fixed a stack overflow (process abort) when a data value is a pointer cycle,
+  a long pointer chain, or a structure nested more than a few thousand levels
+  deep. Pointer following is now iterative and depth-limited, including the path
+  that skips unknown or ignored fields, and the metadata section.
+* Fixed a `u8` overflow on malformed extended type bytes (`249..=255`), which
+  panicked in debug builds and silently decoded the value as an unrelated type
+  in release builds.
+* Fixed a panic (index out of bounds / integer underflow) in `within()` when
+  iterating a corrupt or cyclic search tree. Iteration now returns an error.
+* Fixed an integer underflow when formatting an IPv6 network below the
+  IPv4-mapped range (`prefix - 96`), which panicked in debug builds.
+* `lookup` and `within` now reject IPv6 addresses or CIDRs against IPv4-only
+  databases with `MaxMindDBError::InvalidInputError` instead of returning data
+  from an unrelated IPv4 network.
+* Databases are validated at open: unsupported major format versions, IP
+  versions, and record sizes, a zero node count, and a search tree that does
+  not fit in the file are rejected with `MaxMindDBError::InvalidDatabaseError`.
+* Search tree offsets and pointer resolution now use checked arithmetic, so
+  corrupt values cannot overflow into out-of-bounds reads.
+
+### Performance
+
+* Lookups of addresses not present in the database no longer allocate; IPv4 and
+  IPv6 lookups use a stack buffer instead of a `Vec`.
+* Network iteration (`within`) no longer allocates a `Vec` per visitor tip.
+* The lookup hot path dispatches on the record size once instead of on every
+  node read.
+* Removed the unused `tracing` dependency and the logging calls in the decoder
+  hot path.
+
+### Writer and encoder
+
+* Deduplicating equal data records is now `O(1)` amortized instead of `O(n)`
+  per insert.
+* Encoding a payload larger than the format can represent (16,843,036 bytes)
+  now returns an error instead of silently emitting a corrupt size.
+* A negative integer below `i32::MIN` now returns an error instead of being
+  silently reinterpreted as a large `u64`. Positive integers above `i32::MAX`
+  are still encoded as `u64`.
+* Fixed a shift overflow for 32-bit record sizes on 32-bit targets.
+* The writer now enforces the 128 KiB metadata size limit.
+* Documented the writer API, including the overwrite behavior of `insert`.
+
+### Testing and documentation
+
+* Added a robustness test suite that builds malformed databases in memory
+  (extended-type overflow, pointer cycles and chains, deep nesting in data,
+  ignored fields, and metadata, cyclic search trees, invalid metadata) and
+  asserts errors rather than crashes.
+* Added tests for the official denial-of-service and resource-limit boundary
+  fixtures, and for iteration over the corrupt-database corpus.
+* Added allocation regression tests using a per-thread counting allocator.
+* Synchronized the bundled MaxMind DB specification (which now documents reader
+  resource limits) and rewrote the README for stdx.
+
 ## 0.24.0 - 2024-01-09
 
 * Added the `is_anycast` field to the `Traits` struct. Pull request

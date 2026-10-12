@@ -7,6 +7,7 @@ use serde::{
 
 pub type EncodeResult<T> = Result<T, String>;
 
+/// Error returned while encoding a value for a MaxMind DB.
 #[derive(Debug)]
 pub struct SerError(pub String);
 
@@ -28,6 +29,15 @@ const FIRST_SIZE: usize = 29;
 const SECOND_SIZE: usize = FIRST_SIZE + 256;
 const THIRD_SIZE: usize = SECOND_SIZE + (1 << 16);
 
+/// A MaxMind DB value.
+///
+/// This is a fully owned representation. When reading, prefer deserializing
+/// into a borrowed type (for example the structs in [`crate::geoip2`]) to avoid
+/// copying strings and byte arrays out of the database.
+///
+/// [`Value::Pointer`] is only meaningful while encoding: the numeric value is a
+/// raw data-section pointer. Use it only if you are building pointer-based
+/// databases by hand.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Pointer(u32),
@@ -111,6 +121,9 @@ impl From<bool> for Value {
     }
 }
 
+/// Build a [`Value::Map`] from `key => value` pairs.
+///
+/// Keys are converted with `to_string`; values with `Into<Value>`.
 #[macro_export]
 macro_rules! map {
     ($($key:expr => $val:expr),* $(,)?) => {{
@@ -143,8 +156,13 @@ impl<'de> Deserialize<'de> for Value {
             fn visit_i64<E: de::Error>(self, v: i64) -> Result<Value, E> {
                 if let Ok(v) = i32::try_from(v) {
                     Ok(Value::Int32(v))
-                } else {
+                } else if v >= 0 {
                     Ok(Value::Uint64(v as u64))
+                } else {
+                    Err(E::custom(format!(
+                        "negative integer {v} is out of range for a MaxMind DB value (minimum is {})",
+                        i32::MIN
+                    )))
                 }
             }
 
@@ -197,9 +215,10 @@ impl<'de> Deserialize<'de> for Value {
 // ValueSerializer — converts Serialize into owned Value (used by insert_value)
 // ---------------------------------------------------------------------------
 
+/// Serializes a value into an owned [`Value`].
 pub struct ValueSerializer;
 
-impl<'a> ser::Serializer for &'a ValueSerializer {
+impl ser::Serializer for &ValueSerializer {
     type Ok = Value;
     type Error = SerError;
 
@@ -228,10 +247,16 @@ impl<'a> ser::Serializer for &'a ValueSerializer {
     }
 
     fn serialize_i64(self, v: i64) -> Result<Value, SerError> {
-        i32::try_from(v)
-            .map(Value::Int32)
-            .or_else(|_| Ok(Value::Uint64(v as u64)))
-            .map_err(SerError)
+        if let Ok(v) = i32::try_from(v) {
+            Ok(Value::Int32(v))
+        } else if v >= 0 {
+            Ok(Value::Uint64(v as u64))
+        } else {
+            Err(SerError(format!(
+                "negative integer {v} is out of range for a MaxMind DB value (minimum is {})",
+                i32::MIN
+            )))
+        }
     }
 
     fn serialize_u8(self, v: u8) -> Result<Value, SerError> {
@@ -502,6 +527,8 @@ impl SerializeStruct for OwnedMapOrSlice {
 //                  avoiding the intermediate Value allocation.
 // ---------------------------------------------------------------------------
 
+/// Serializes a value directly into MaxMind DB binary form, avoiding an
+/// intermediate [`Value`] allocation.
 pub struct ByteSerializer {
     buf: Vec<u8>,
 }
@@ -518,7 +545,30 @@ impl ByteSerializer {
     }
 }
 
+impl Default for ByteSerializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Largest payload size representable in a MaxMind DB header. The three-byte
+/// size extension covers values below this bound.
+const MAX_PAYLOAD_SIZE: usize = 65_821 + (1 << 24);
+
+/// Reject payloads whose length cannot be encoded.
+fn check_payload_size(len: usize) -> Result<(), SerError> {
+    if len >= MAX_PAYLOAD_SIZE {
+        Err(SerError(format!(
+            "payload of {len} bytes is too large to encode (maximum is {})",
+            MAX_PAYLOAD_SIZE - 1
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 fn ctrl_and_size(w: &mut Vec<u8>, type_num: u8, payload_len: usize) {
+    debug_assert!(payload_len < MAX_PAYLOAD_SIZE, "payload size {payload_len} is not encodable");
     let first_byte: u8;
     let second_byte: u8;
 
@@ -576,14 +626,16 @@ impl ByteMapOrSlice<'_> {
     fn flush_map(self) -> Result<(), SerError> {
         match self.state {
             ByteMOS::Map(m) => {
+                check_payload_size(m.len())?;
                 ctrl_and_size(&mut self.ser.buf, 7, m.len());
                 for (k, v) in m {
-                    write_str_raw(&mut self.ser.buf, &k);
+                    write_str_raw(&mut self.ser.buf, &k)?;
                     self.ser.buf.extend_from_slice(&v);
                 }
                 Ok(())
             }
             ByteMOS::Slice(s) => {
+                check_payload_size(s.len())?;
                 ctrl_and_size(&mut self.ser.buf, 11, s.len());
                 for v in s {
                     self.ser.buf.extend_from_slice(&v);
@@ -594,14 +646,18 @@ impl ByteMapOrSlice<'_> {
     }
 }
 
-fn write_str_raw(w: &mut Vec<u8>, s: &str) {
+fn write_str_raw(w: &mut Vec<u8>, s: &str) -> Result<(), SerError> {
+    check_payload_size(s.len())?;
     ctrl_and_size(w, 2, s.len());
     w.extend_from_slice(s.as_bytes());
+    Ok(())
 }
 
-fn write_bytes_raw(w: &mut Vec<u8>, b: &[u8]) {
+fn write_bytes_raw(w: &mut Vec<u8>, b: &[u8]) -> Result<(), SerError> {
+    check_payload_size(b.len())?;
     ctrl_and_size(w, 4, b.len());
     w.extend_from_slice(b);
+    Ok(())
 }
 
 impl SerializeSeq for ByteMapOrSlice<'_> {
@@ -657,14 +713,9 @@ impl SerializeMap for ByteMapOrSlice<'_> {
         match self.state {
             ByteMOS::Slice(_) => Err(SerError("expected element, got map key".into())),
             ByteMOS::Map(_) => {
-                let mut sub = ByteSerializer::new();
-                key.serialize(ByteSerializerRef(&mut sub))?;
-                // let raw = sub.buf;
-                // let s = String::new();
-                // decode the key from the encoded bytes
-                // simplest: serialize through ValueSerializer then extract
-                let k = key.serialize(&ValueSerializer)?;
-                match k {
+                // Keys are stored as decoded strings and re-encoded when the map
+                // is flushed, so only the value form is needed here.
+                match key.serialize(&ValueSerializer)? {
                     Value::String(s_val) => {
                         self.pending_key = Some(s_val);
                         Ok(())
@@ -758,8 +809,13 @@ impl<'a> ser::Serializer for ByteSerializerRef<'a> {
     fn serialize_i64(self, v: i64) -> Result<(), SerError> {
         if let Ok(v) = i32::try_from(v) {
             self.serialize_i32(v)
-        } else {
+        } else if v >= 0 {
             self.serialize_u64(v as u64)
+        } else {
+            Err(SerError(format!(
+                "negative integer {v} is out of range for a MaxMind DB value (minimum is {})",
+                i32::MIN
+            )))
         }
     }
 
@@ -820,12 +876,12 @@ impl<'a> ser::Serializer for ByteSerializerRef<'a> {
     }
 
     fn serialize_str(self, v: &str) -> Result<(), SerError> {
-        write_str_raw(&mut self.0.buf, v);
+        write_str_raw(&mut self.0.buf, v)?;
         Ok(())
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<(), SerError> {
-        write_bytes_raw(&mut self.0.buf, v);
+        write_bytes_raw(&mut self.0.buf, v)?;
         Ok(())
     }
 
@@ -962,7 +1018,7 @@ impl ByteSerializerRef<'_> {
                 Ok(())
             }
             Value::String(s) => {
-                write_str_raw(&mut self.0.buf, s);
+                write_str_raw(&mut self.0.buf, s)?;
                 Ok(())
             }
             Value::Float64(f) => {
@@ -971,7 +1027,7 @@ impl ByteSerializerRef<'_> {
                 Ok(())
             }
             Value::Bytes(b) => {
-                write_bytes_raw(&mut self.0.buf, b);
+                write_bytes_raw(&mut self.0.buf, b)?;
                 Ok(())
             }
             Value::Uint16(n) => {
@@ -1016,14 +1072,16 @@ impl ByteSerializerRef<'_> {
                 Ok(())
             }
             Value::Map(m) => {
+                check_payload_size(m.len())?;
                 ctrl_and_size(&mut self.0.buf, 7, m.len());
                 for (k, val) in m.iter() {
-                    write_str_raw(&mut self.0.buf, k);
+                    write_str_raw(&mut self.0.buf, k)?;
                     ByteSerializerRef(&mut *self.0).serialize_value(val)?;
                 }
                 Ok(())
             }
             Value::Slice(s) => {
+                check_payload_size(s.len())?;
                 ctrl_and_size(&mut self.0.buf, 11, s.len());
                 for val in s {
                     ByteSerializerRef(&mut *self.0).serialize_value(val)?;
@@ -1044,12 +1102,22 @@ impl ByteSerializerRef<'_> {
     }
 }
 
+/// Encode `v` into MaxMind DB binary form.
+///
+/// # Errors
+///
+/// Returns an error if a payload is larger than the format can encode
+/// (`16_843_036` bytes).
 pub fn encode_value(v: &Value) -> EncodeResult<Vec<u8>> {
     let mut ser = ByteSerializer::new();
     ByteSerializerRef(&mut ser).serialize_value(v).map_err(|e| e.0)?;
     Ok(ser.into_bytes())
 }
 
+/// Encode `v` and return the number of bytes it would occupy.
+///
+/// Returns `0` if `v` cannot be encoded; use [`encode_value`] if you need the
+/// error.
 pub fn encoded_size(v: &Value) -> usize {
     encode_value(v).map(|b| b.len()).unwrap_or(0)
 }

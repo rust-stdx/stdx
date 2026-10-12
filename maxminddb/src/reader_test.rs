@@ -399,9 +399,16 @@ fn check_ip<T: AsRef<[u8]>>(reader: &Reader<T>, ip_version: usize) {
 
     for &address in &no_record {
         let ip: IpAddr = FromStr::from_str(address).unwrap();
-        match reader.lookup::<IpType>(ip) {
-            Ok(v) => panic!("received an unexpected value: {v:?}"),
-            Err(e) => assert_eq!(e, MaxMindDBError::AddressNotFoundError(ip)),
+        let err = reader.lookup::<IpType>(ip).unwrap_err();
+        if ip_version == 4 && ip.is_ipv6() {
+            // An IPv6 address in an IPv4-only database is a caller error, not a
+            // missing record.
+            assert!(
+                matches!(err, MaxMindDBError::InvalidInputError(_)),
+                "expected InvalidInputError for {address}, got {err:?}"
+            );
+        } else {
+            assert_eq!(err, MaxMindDBError::AddressNotFoundError(ip));
         }
     }
 }
@@ -571,6 +578,7 @@ fn test_nested_database() {
     let ip: IpAddr = "1.1.1.1".parse().unwrap();
     let result: Value = reader.lookup(ip).unwrap();
 
+    #[allow(clippy::collapsible_if)]
     fn extract_map3(v: &Value) -> Option<&std::collections::BTreeMap<String, Value>> {
         if let Value::Map(outer) = v {
             if let Some(Value::Map(m1)) = outer.get("map1") {
@@ -597,17 +605,17 @@ fn test_nested_database() {
 #[test]
 fn test_open_and_read_invalid_node_count_db() {
     let filename = "test-data/test-data/GeoIP2-City-Test-Invalid-Node-Count.mmdb";
-    // This database has node_count=100000 but a much smaller search tree.
-    // It opens successfully (metadata is valid) but lookups should fail
-    // gracefully.
-    let reader = Reader::open_readfile(filename).unwrap();
-    assert_eq!(reader.metadata.node_count, 100000);
-
-    let ip: IpAddr = "::1".parse().unwrap();
-    let result = reader.lookup::<super::Value>(ip);
-    // Should fail gracefully - either AddressNotFound or out-of-bounds error
-    // but should NOT panic
-    let _ = result;
+    // This database declares node_count=100000 but the file is much smaller,
+    // so the declared search tree does not fit. Opening must fail cleanly
+    // instead of reading out of bounds later.
+    let result = Reader::open_readfile(filename);
+    match result {
+        Ok(reader) => panic!("expected open to fail, got node_count={}", reader.metadata.node_count),
+        Err(e) => assert!(
+            matches!(e, MaxMindDBError::InvalidDatabaseError(_)),
+            "expected InvalidDatabaseError, got {e:?}"
+        ),
+    }
 }
 
 #[test]
