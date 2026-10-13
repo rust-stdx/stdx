@@ -504,7 +504,6 @@ async fn test_ipv6_ecn() {
     assert_eq!(item.ecn(), Some(Ecn::Ect0));
 }
 
-#[cfg(unix)]
 #[tokio::test]
 async fn test_reuse_port_bind() {
     let first = FastUdpSocket::build(loop_addr(0)).reuse_port(true).bind().unwrap();

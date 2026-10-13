@@ -99,10 +99,9 @@ fn embedded(
             /// Get an embedded file and its metadata.
             pub fn get(file_path: &str) -> ::std::option::Option<#crate_path::EmbeddedFile> {
               #handle_prefix
-              let key = file_path.replace("\\", "/");
               const ENTRIES: &'static [(&'static str, #value_type)] = &[
                   #(#match_values)*];
-              let position = ENTRIES.binary_search_by_key(&key.as_str(), |entry| entry.0);
+              let position = ENTRIES.binary_search_by_key(&file_path, |entry| entry.0);
               position.ok().map(#get_value)
 
             }
@@ -184,8 +183,8 @@ fn dynamic(
             pub fn get(file_path: &str) -> ::std::option::Option<#crate_path::EmbeddedFile> {
                 #handle_prefix
 
-                let rel_file_path = file_path.replace("\\", "/");
-                let file_path = ::std::path::Path::new(#folder_path).join(&rel_file_path);
+                let rel_file_path = file_path;
+                let file_path = ::std::path::Path::new(#folder_path).join(rel_file_path);
 
                 // Make sure the path requested does not escape the folder path
                 let canonical_file_path = file_path.canonicalize().ok()?;

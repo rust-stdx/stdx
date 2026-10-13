@@ -13,5 +13,5 @@ categories = ["hardware-support"]
 [lints]
 workspace = true
 
-[target.'cfg(not(windows))'.dependencies]
+[dependencies]
 libc = { workspace = true }

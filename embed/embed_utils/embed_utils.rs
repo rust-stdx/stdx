@@ -26,11 +26,6 @@ pub fn get_files(folder_path: String, matcher: PathMatcher) -> impl Iterator<Ite
             let full_canonical_path =
                 path_to_str(std::fs::canonicalize(e.path()).expect("Could not get canonical path"));
 
-            let rel_path = if std::path::MAIN_SEPARATOR == '\\' {
-                rel_path.replace('\\', "/")
-            } else {
-                rel_path
-            };
             if matcher.is_path_included(&rel_path) {
                 Some(FileEntry {
                     rel_path,

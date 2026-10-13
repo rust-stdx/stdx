@@ -24,15 +24,6 @@ fn get_old_name_works() {
   assert!(AssetOld::get("images/llama.png").is_some(), "llama.png should exist");
 }
 
-/// Using Windows-style path separators (`\`) is acceptable
-#[test]
-fn get_windows_style() {
-  assert!(
-    Asset::get("images\\llama.png").is_some(),
-    "llama.png should be accessible via \"images\\lama.png\""
-  );
-}
-
 #[test]
 fn iter_works() {
   let mut num_files = 0;

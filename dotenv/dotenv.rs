@@ -1194,7 +1194,7 @@ mod tests {
     }
 
     #[test]
-    fn windows_line_endings() {
+    fn crlf_line_endings() {
         assert_eq!(parse_ok("A=1\r\nB=2"), vec![("A".into(), "1".into()), ("B".into(), "2".into())]);
     }
 

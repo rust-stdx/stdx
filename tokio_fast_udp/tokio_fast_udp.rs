@@ -1,4 +1,4 @@
-//! Fast cross-platform UDP I/O for tokio.
+//! Fast Unix UDP I/O for tokio.
 //!
 //! Provides async UDP sockets that leverage modern OS syscalls for high
 //! throughput:
@@ -12,9 +12,9 @@
 //! - **SO_REUSEPORT** (Linux): bind multiple sockets to the same address:port
 //!   for kernel-level load balancing across processes/threads.
 //!
-//! On platforms without these optimizations (macOS, Windows, etc.) a
+//! On platforms without these optimizations (macOS, iOS, etc.) a
 //! portable `sendmsg`/`recvmsg` fallback is used so the same application code
-//! compiles and runs everywhere.
+//! compiles and runs across Unix targets.
 //!
 //! # Quick start
 //!
@@ -66,17 +66,14 @@
 //! kernel distributing incoming datagrams across them:
 //!
 //! ```no_run
-//! # #[cfg(unix)]
-//! # fn main() -> std::io::Result<()> {
 //! use tokio_fast_udp::FastUdpSocket;
 //!
-//! let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
-//!     .reuse_port(true)
-//!     .bind()?;
-//! # Ok(())
-//! # }
-//! # #[cfg(not(unix))]
-//! # fn main() {}
+//! fn main() -> std::io::Result<()> {
+//!     let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
+//!         .reuse_port(true)
+//!         .bind()?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! `SO_REUSEPORT` is a no-op on platforms that don't support it.
@@ -87,25 +84,18 @@
 //! without feature flags:
 //!
 //! ```no_run
-//! # #[cfg(unix)]
-//! # fn main() -> std::io::Result<()> {
 //! use tokio_fast_udp::FastUdpSocket;
 //!
-//! let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
-//!     .gso(false) // no segmentation offload on send
-//!     .gro(false) // no coalescing on receive
-//!     .ecn(false) // no ECN ancillary data
-//!     .max_batch_size(64)
-//!     .bind()?;
-//! # Ok(())
-//! # }
-//! # #[cfg(not(unix))]
-//! # fn main() {}
+//! fn main() -> std::io::Result<()> {
+//!     let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
+//!         .gso(false) // no segmentation offload on send
+//!         .gro(false) // no coalescing on receive
+//!         .ecn(false) // no ECN ancillary data
+//!         .max_batch_size(64)
+//!         .bind()?;
+//!     Ok(())
+//! }
 //! ```
-//!
-//! On Windows, the builder instead exposes no-op `disable_gso`,
-//! `disable_gro`, `disable_sendmmsg`, `disable_ecn`, and `enable_reuse_port`
-//! methods, so the same building code compiles on every platform.
 //!
 //! # Platform support
 //!
@@ -114,15 +104,12 @@
 //! | Linux    | yes | yes | yes | yes       | sendmmsg | recv_gro |
 //! | macOS    | —   | —   | yes | yes       | sendmsg loop | recvmsg loop |
 //! | iOS      | —   | —   | yes | yes       | sendmsg loop | recvmsg loop |
-//! | Windows  | —   | —   | —   | —         | send_to loop | recv_from loop |
 //!
 //! **Linux** is the primary fast path. GSO and GRO are probed at build time and
 //! gracefully disabled if the kernel doesn't support them.
 //!
 //! **macOS, iOS and other Unix** platforms use `sendmsg`/`recvmsg` with ECN
 //! ancillary data where supported.
-//!
-//! **Windows** uses `tokio::net::UdpSocket` (IOCP-based).
 //!
 //! # API
 //!
