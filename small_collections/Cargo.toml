@@ -1,8 +1,11 @@
 [package]
 name = "small_collections"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 path = "small_collections.rs"
@@ -21,4 +24,5 @@ serde = { workspace = true, optional = true, default-features = false }
 heapless = { workspace = true }
 
 [dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
 serde_json = { workspace = true }

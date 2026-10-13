@@ -3,9 +3,12 @@ name = "json_rpc"
 version = "0.1.0"
 description = "JSON-RPC 2.0 types and serialization"
 license = "MIT"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 readme = "README.md"
+
+[lints]
+workspace = true
 
 [lib]
 path = "src/json_rpc.rs"

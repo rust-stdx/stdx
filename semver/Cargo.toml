@@ -1,9 +1,12 @@
 [package]
 name = "semver"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Semantic Versioning 2.0 parser and comparator"
+
+[lints]
+workspace = true
 
 [lib]
 path = "./semver.rs"

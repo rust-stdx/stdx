@@ -7,8 +7,10 @@ use postgresql_protocol::{DbError, error::Error as ProtocolError};
 #[non_exhaustive]
 pub enum Error {
     /// A server-reported error (`ErrorResponse`).
+    ///
+    /// Boxed to keep every `Result<T, Error>` small: [`DbError`] is ~250 bytes.
     #[error("{0}")]
-    Server(#[from] DbError),
+    Server(Box<DbError>),
 
     /// A wire-protocol, decode, encode or authentication error.
     #[error(transparent)]
@@ -84,6 +86,12 @@ pub enum Error {
     /// A string was not valid UTF-8.
     #[error("invalid UTF-8: {0}")]
     Utf8(#[from] std::str::Utf8Error),
+}
+
+impl From<DbError> for Error {
+    fn from(err: DbError) -> Self {
+        Error::Server(Box::new(err))
+    }
 }
 
 impl From<ProtocolError> for Error {

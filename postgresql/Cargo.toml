@@ -1,9 +1,12 @@
 [package]
 name = "postgresql"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Async PostgreSQL client with a macro-only query API"
+
+[lints]
+workspace = true
 
 [lib]
 path = "postgresql.rs"
@@ -15,7 +18,7 @@ crypto_rustls = { path = "../crypto_rustls" }
 futures-util = { workspace = true }
 indexmap = { workspace = true }
 ipnetwork = { path = "../ipnetwork" }
-percent-encoding = { path = "../percent_encoding" }
+percent_encoding = { path = "../percent_encoding" }
 postgresql_derive = { path = "postgresql_derive" }
 postgresql_macros = { path = "postgresql_macros" }
 postgresql_protocol = { path = "postgresql_protocol" }

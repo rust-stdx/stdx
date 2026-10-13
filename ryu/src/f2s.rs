@@ -138,7 +138,7 @@ pub fn f2d(ieee_mantissa: u32, ieee_exponent: u32) -> FloatingDecimal32 {
             removed += 1;
         }
         if vm_is_trailing_zeros {
-            while vm % 10 == 0 {
+            while vm.is_multiple_of(10) {
                 vr_is_trailing_zeros &= last_removed_digit == 0;
                 last_removed_digit = (vr % 10) as u8;
                 vr /= 10;

@@ -1,9 +1,12 @@
 [package]
 name = "postgresql_macros"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Compile-time checked query macros for the postgresql crate"
+
+[lints]
+workspace = true
 
 [lib]
 path = "postgresql_macros.rs"
@@ -18,5 +21,5 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 rustls = { workspace = true }
 syn = { workspace = true }
-percent-encoding = { path = "../../percent_encoding" }
+percent_encoding = { path = "../../percent_encoding" }
 url = { workspace = true }

@@ -80,6 +80,7 @@ members = [
 ]
 
 [workspace.package]
+edition = "2024"
 rust-version = "1.99"
 
 # The following packages may stack overflow in WASM debug builds so we need to force them to compile to
@@ -93,12 +94,14 @@ opt-level = 3
 [profile.test.package.jwt]
 opt-level = 3
 
+[workspace.lints.clippy]
+needless_return = "allow"
+
 [workspace.dependencies]
 anyerr = { path = "anyerr" }
 antlr4rust = "=0.3.0-rc2"
 arbitrary = { version = "1", features = ["derive"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
-blake3 = { default-features = false, git = "https://github.com/BLAKE3-team/BLAKE3", rev = "f3149ec5bb5449af877ba20377a11008ff499fa2" } # 1.8.7
 bytes = { version = "1", default-features = false }
 futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }

@@ -162,9 +162,9 @@ impl Buf<'_> {
     fn fraction(&mut self, nanos: u32) -> bool {
         if nanos == 0 {
             true
-        } else if nanos % 1_000_000 == 0 {
+        } else if nanos.is_multiple_of(1_000_000) {
             self.byte(b'.') && self.pad(nanos / 1_000_000, 3)
-        } else if nanos % 1_000 == 0 {
+        } else if nanos.is_multiple_of(1_000) {
             self.byte(b'.') && self.pad(nanos / 1_000, 6)
         } else {
             self.byte(b'.') && self.pad(nanos, 9)
@@ -336,9 +336,9 @@ fn write_offset_compact(f: &mut fmt::Formatter<'_>, offset: i32) -> fmt::Result 
 fn write_fraction(f: &mut fmt::Formatter<'_>, nanos: u32) -> fmt::Result {
     if nanos == 0 {
         Ok(())
-    } else if nanos % 1_000_000 == 0 {
+    } else if nanos.is_multiple_of(1_000_000) {
         write!(f, ".{:03}", nanos / 1_000_000)
-    } else if nanos % 1_000 == 0 {
+    } else if nanos.is_multiple_of(1_000) {
         write!(f, ".{:06}", nanos / 1_000)
     } else {
         write!(f, ".{nanos:09}")

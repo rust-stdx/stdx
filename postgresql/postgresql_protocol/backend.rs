@@ -4,6 +4,7 @@
 //! buffer, so a `DataRow` never copies its column data.
 
 use bytes::{Buf, Bytes, BytesMut};
+use small_collections::SmallString;
 
 use crate::{
     error::{DbError, Error},
@@ -275,7 +276,7 @@ fn parse(tag: u8, payload: Bytes) -> Result<BackendMessage, Error> {
         b'I' => Ok(BackendMessage::EmptyQueryResponse),
         b'E' => {
             let err = decode_error(payload)?;
-            Err(Error::Server(err))
+            Err(Error::Server(Box::new(err)))
         }
         b'N' => {
             let err = decode_error(payload)?;
@@ -345,20 +346,23 @@ fn decode_error(payload: Bytes) -> Result<DbError, Error> {
         if field == 0 {
             break;
         }
-        let value = r.string_lossy()?;
         match field {
-            b'S' | b'V' => err.severity = value,
-            b'C' => err.code = value,
-            b'M' => err.message = value,
-            b'D' => err.detail = Some(value),
-            b'H' => err.hint = Some(value),
-            b'P' => err.position = value.parse().ok(),
-            b'n' => err.constraint = Some(value),
-            b't' => err.table = Some(value),
-            b'c' => err.column = Some(value),
-            b's' => err.schema = Some(value),
-            b'd' => err.data_type = Some(value),
-            _ => {}
+            // Short, bounded fields stay inline and never allocate.
+            b'S' | b'V' => err.severity = r.small_string_lossy::<8>()?,
+            b'C' => err.code = r.small_string_lossy::<5>()?,
+            b'M' => err.message = r.string_lossy()?,
+            b'D' => err.detail = Some(r.string_lossy()?),
+            b'H' => err.hint = Some(r.string_lossy()?),
+            b'P' => err.position = r.string_lossy()?.parse().ok(),
+            b'n' => err.constraint = Some(r.string_lossy()?),
+            b't' => err.table = Some(r.string_lossy()?),
+            b'c' => err.column = Some(r.string_lossy()?),
+            b's' => err.schema = Some(r.string_lossy()?),
+            b'd' => err.data_type = Some(r.string_lossy()?),
+            // Unknown fields still have to be consumed.
+            _ => {
+                let _ = r.string_lossy()?;
+            }
         }
     }
     Ok(err)
@@ -462,6 +466,16 @@ impl Reader {
         let bytes = self.cstr()?;
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
+
+    /// Like [`Reader::string_lossy`], but stores the result in a [`SmallString`].
+    ///
+    /// Short fields (the SQLSTATE code, the severity word) then live inline and
+    /// never allocate; longer values — including a hostile server's oversized
+    /// fields — spill onto the heap exactly like [`Reader::string_lossy`].
+    fn small_string_lossy<const N: usize>(&mut self) -> Result<SmallString<N>, Error> {
+        let bytes = self.cstr()?;
+        Ok(SmallString::from_utf8_lossy(&bytes))
+    }
 }
 
 #[cfg(test)]
@@ -471,7 +485,7 @@ mod tests {
     fn message(tag: u8, payload: &[u8]) -> BytesMut {
         let mut buf = BytesMut::new();
         buf.extend_from_slice(&[tag]);
-        buf.extend_from_slice(&((payload.len() + 4) as i32).to_be_bytes());
+        buf.extend_from_slice(&i32::try_from(payload.len() + 4).unwrap().to_be_bytes());
         buf.extend_from_slice(payload);
         buf
     }

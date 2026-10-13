@@ -1,9 +1,12 @@
 [package]
 name = "base64"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Fast base64 encoding and decoding with SIMD acceleration when available"
+
+[lints]
+workspace = true
 
 [lib]
 path = "./base64.rs"

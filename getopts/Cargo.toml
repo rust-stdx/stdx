@@ -11,8 +11,11 @@ description = """
 getopts-like option parsing.
 """
 categories = ["command-line-interface"]
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 unicode-width = { workspace = true }

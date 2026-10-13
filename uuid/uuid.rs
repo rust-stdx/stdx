@@ -43,7 +43,7 @@ mod serde;
 thread_local! {
     /// Per-thread state for UUIDv7 monotonic counter generation.
     /// Tracks `(last_timestamp_ms, counter_value)`.
-    static V7_STATE: std::cell::RefCell<(u64, u32)> = std::cell::RefCell::new((0, 0));
+    static V7_STATE: std::cell::RefCell<(u64, u32)> = const { std::cell::RefCell::new((0, 0)) };
 }
 
 /// A 128-bit UUID (RFC 9562).
@@ -548,7 +548,7 @@ mod tests {
         assert_eq!(uuid.version(), Version::Nil);
         assert_eq!(uuid.to_string(), "00000000-0000-0000-0000-000000000000");
         assert_eq!(Uuid::from_bytes(uuid.as_bytes()), uuid);
-        assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);
+        assert_eq!(Uuid::parse(uuid.to_string()).unwrap(), uuid);
     }
 
     #[test]
@@ -557,7 +557,7 @@ mod tests {
         assert_eq!(uuid.version(), Version::Max);
         assert_eq!(uuid.to_string(), "ffffffff-ffff-ffff-ffff-ffffffffffff");
         assert_eq!(Uuid::from_bytes(uuid.as_bytes()), uuid);
-        assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);
+        assert_eq!(Uuid::parse(uuid.to_string()).unwrap(), uuid);
     }
 
     #[test]

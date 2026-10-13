@@ -25,7 +25,7 @@ pub fn get_num_physical_cpus() -> usize {
     let mut physid: u32 = 0;
     let mut cores: usize = 0;
     let mut chgcount = 0;
-    for line in reader.lines().filter_map(|result| result.ok()) {
+    for line in reader.lines().map_while(Result::ok) {
         let mut it = line.split(':');
         let (key, value) = match (it.next(), it.next()) {
             (Some(key), Some(value)) => (key.trim(), value.trim()),

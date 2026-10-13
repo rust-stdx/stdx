@@ -1,9 +1,12 @@
 [package]
 name = "postgresql_protocol"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "PostgreSQL wire protocol codec and authentication state machine"
+
+[lints]
+workspace = true
 
 [lib]
 path = "postgresql_protocol.rs"
@@ -14,4 +17,5 @@ bytes = { workspace = true }
 constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto" }
 hex = { path = "../../hex" }
+small_collections = { path = "../../small_collections" }
 thiserror = { path = "../../thiserror" }

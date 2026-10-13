@@ -409,8 +409,8 @@ impl DoubleEndedIterator for OwnedScheduleIterator {
 
 fn is_leap_year(year: Ordinal) -> bool {
     let by_four = year.is_multiple_of(4);
-    let by_hundred = year % 100 == 0;
-    let by_four_hundred = year % 400 == 0;
+    let by_hundred = year.is_multiple_of(100);
+    let by_four_hundred = year.is_multiple_of(400);
     by_four && ((!by_hundred) || by_four_hundred)
 }
 

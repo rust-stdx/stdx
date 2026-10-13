@@ -1,13 +1,16 @@
 [package]
 name = "zeroize_derive"
 version = "1.5.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Custom derive support for zeroize"
 readme = "README.md"
 license = "MIT"
 keywords = ["memory", "memset", "secure", "volatile", "zero"]
 categories = ["cryptography", "memory-management", "no-std", "os"]
+
+[lints]
+workspace = true
 
 [lib]
 path = "./zeroize_derive.rs"

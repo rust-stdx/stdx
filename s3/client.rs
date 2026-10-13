@@ -290,7 +290,7 @@ impl<H: HttpClient> Client<H> {
         let payload_hash = if body.is_empty() {
             EMPTY_PAYLOAD_SHA256.to_string()
         } else {
-            hex::encode(&sha256(body))
+            hex::encode(sha256(body))
         };
 
         let mut headers = vec![
@@ -332,10 +332,10 @@ impl<H: HttpClient> Client<H> {
             "AWS4-HMAC-SHA256\n{}\n{}\n{}",
             amz_datetime,
             credential_scope,
-            hex::encode(&sha256(canonical_request.as_bytes()))
+            hex::encode(sha256(canonical_request.as_bytes()))
         );
 
-        let signature = hex::encode(&sign_v4(
+        let signature = hex::encode(sign_v4(
             &self.credentials.secret_access_key,
             &date,
             &self.region,
@@ -554,11 +554,11 @@ mod tests {
     #[test]
     fn sha256_known_vectors() {
         assert_eq!(
-            hex::encode(&sha256(b"")),
+            hex::encode(sha256(b"")),
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         );
         assert_eq!(
-            hex::encode(&sha256(b"abc")),
+            hex::encode(sha256(b"abc")),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }
@@ -568,7 +568,7 @@ mod tests {
         let key = [0x0b; 20];
         let sig = hmac_sha256(&key, b"Hi There");
         assert_eq!(
-            hex::encode(&sig),
+            hex::encode(sig),
             "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
         );
     }
@@ -627,6 +627,6 @@ mod tests {
 
     #[test]
     fn empty_payload_sha256_constant_is_correct() {
-        assert_eq!(EMPTY_PAYLOAD_SHA256, hex::encode(&sha256(b"")));
+        assert_eq!(EMPTY_PAYLOAD_SHA256, hex::encode(sha256(b"")));
     }
 }

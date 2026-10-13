@@ -137,9 +137,9 @@ fn decrypt_with_params(password: &[u8], ciphertext: &[u8], params: &crypto::argo
     let nonce_seed = &ciphertext[..NONCE_SEED_LENGTH];
     let ciphertext = &ciphertext[NONCE_SEED_LENGTH..];
 
-    let chacha20_nonce = derive_key::<CHACHA20_BLAKE3_NONCE_LENGTH>(&nonce_seed, KDF_INFO_CHACHA20_BLAKE3_NONCE);
-    let aes_nonce = derive_key::<AES_NONCE_LENGTH>(&nonce_seed, KDF_INFO_AES_NONCE);
-    let argon2_salt = derive_key::<ARGON2_SALT_LENGTH>(&nonce_seed, KDF_INFO_ARGON2_SALT);
+    let chacha20_nonce = derive_key::<CHACHA20_BLAKE3_NONCE_LENGTH>(nonce_seed, KDF_INFO_CHACHA20_BLAKE3_NONCE);
+    let aes_nonce = derive_key::<AES_NONCE_LENGTH>(nonce_seed, KDF_INFO_AES_NONCE);
+    let argon2_salt = derive_key::<ARGON2_SALT_LENGTH>(nonce_seed, KDF_INFO_ARGON2_SALT);
 
     let root_key = argon2_derive_key(password, argon2_salt.as_slice(), params)?;
 

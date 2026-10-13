@@ -2,7 +2,7 @@
 
 name = "num_cpus"
 version = "1.16.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Get the number of CPUs on a machine."
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
@@ -11,6 +11,9 @@ documentation = "https://docs.rs/num_cpus"
 keywords = ["cpu", "cpus", "cores"]
 categories = ["hardware-support"]
 readme = "README.md"
+
+[lints]
+workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 libc = { workspace = true }

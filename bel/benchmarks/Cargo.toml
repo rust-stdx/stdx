@@ -1,9 +1,12 @@
 [package]
 name = "bel_benchmarks"
 version = "0.11.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 license = "MIT"
+
+[lints]
+workspace = true
 
 [dev-dependencies]
 bel = { path = ".." }

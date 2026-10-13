@@ -5,10 +5,13 @@ authors = ["David Tolnay <dtolnay@gmail.com>"]
 categories = ["encoding", "parser-implementations"]
 description = "YAML data format for Serde"
 documentation = "https://docs.rs/serde_yaml/"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 keywords = ["yaml", "serde", "serialization"]
 license = "Apache-2.0"
+
+[lints]
+workspace = true
 
 [dependencies]
 indexmap = { workspace = true }

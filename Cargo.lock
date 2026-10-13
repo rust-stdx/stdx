@@ -90,12 +90,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrayvec"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
-
-[[package]]
 name = "async-compression"
 version = "0.4.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -137,7 +131,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime",
- "percent-encoding 2.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "percent-encoding",
  "pin-project-lite 0.2.17",
  "serde_core",
  "serde_json",
@@ -266,18 +260,6 @@ name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
-
-[[package]]
-name = "blake3"
-version = "1.8.7"
-source = "git+https://github.com/BLAKE3-team/BLAKE3?rev=f3149ec5bb5449af877ba20377a11008ff499fa2#f3149ec5bb5449af877ba20377a11008ff499fa2"
-dependencies = [
- "arrayvec",
- "cc",
- "cfg-if",
- "constant_time_eq 0.4.2",
- "cpufeatures",
-]
 
 [[package]]
 name = "bumpalo"
@@ -420,12 +402,6 @@ name = "constant_time_eq"
 version = "0.3.0"
 
 [[package]]
-name = "constant_time_eq"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
-
-[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -564,8 +540,7 @@ dependencies = [
  "alloc_counter",
  "base64 0.1.0",
  "big_number",
- "blake3",
- "constant_time_eq 0.3.0",
+ "constant_time_eq",
  "criterion",
  "getrandom 0.4.3",
  "hex",
@@ -751,7 +726,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 name = "form_urlencoded"
 version = "1.2.2"
 dependencies = [
- "percent-encoding 2.3.2",
+ "percent_encoding",
 ]
 
 [[package]]
@@ -760,7 +735,7 @@ version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
- "percent-encoding 2.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "percent-encoding",
 ]
 
 [[package]]
@@ -1038,7 +1013,7 @@ dependencies = [
  "hyper",
  "ipnet",
  "libc",
- "percent-encoding 2.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "percent-encoding",
  "pin-project-lite 0.2.17",
  "socket2",
  "tokio",
@@ -1284,7 +1259,7 @@ name = "jwt"
 version = "0.1.0"
 dependencies = [
  "base64 0.1.0",
- "constant_time_eq 0.3.0",
+ "constant_time_eq",
  "crypto",
  "serde",
  "serde_json",
@@ -1512,12 +1487,12 @@ source = "git+https://github.com/dtolnay/paste?rev=6a302522990cbfd9de4e0c61d9185
 [[package]]
 name = "percent-encoding"
 version = "2.3.2"
-
-[[package]]
-name = "percent-encoding"
-version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+
+[[package]]
+name = "percent_encoding"
+version = "2.3.2"
 
 [[package]]
 name = "pin-project-lite"
@@ -1569,7 +1544,7 @@ dependencies = [
  "futures-util",
  "indexmap 2.14.2",
  "ipnetwork",
- "percent-encoding 2.3.2",
+ "percent_encoding",
  "postgresql_derive",
  "postgresql_macros",
  "postgresql_protocol",
@@ -1604,7 +1579,7 @@ dependencies = [
  "base64 0.1.0",
  "bytes",
  "crypto_rustls",
- "percent-encoding 2.3.2",
+ "percent_encoding",
  "postgresql_protocol",
  "proc-macro2",
  "quote",
@@ -1619,9 +1594,10 @@ version = "0.1.0"
 dependencies = [
  "base64 0.1.0",
  "bytes",
- "constant_time_eq 0.3.0",
+ "constant_time_eq",
  "crypto",
  "hex",
+ "small_collections",
  "thiserror 2.0.21",
 ]
 
@@ -1771,7 +1747,7 @@ dependencies = [
  "hyper-util",
  "js-sys",
  "log",
- "percent-encoding 2.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "percent-encoding",
  "pin-project-lite 0.2.17",
  "rustls",
  "rustls-pki-types",
@@ -2151,6 +2127,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 name = "small_collections"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "bytes",
  "heapless",
  "serde",
@@ -2512,7 +2489,7 @@ checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
 dependencies = [
  "form_urlencoded 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "idna",
- "percent-encoding 2.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "percent-encoding",
  "serde",
 ]
 

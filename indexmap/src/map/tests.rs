@@ -687,7 +687,7 @@ fn shift_remove_full() {
 #[test]
 fn sorted_unstable_by() {
     let map = IndexMap::<i32, i32>::from_iter([(1, 10), (2, 20), (3, 30), (4, 40), (5, 50)]);
-    let sorted = map.sorted_unstable_by(|_a, b, _c, d| d.cmp(&b));
+    let sorted = map.sorted_unstable_by(|_a, b, _c, d| d.cmp(b));
 
     assert_eq!(sorted.as_slice(), &[(5, 50), (4, 40), (3, 30), (2, 20), (1, 10)]);
 }

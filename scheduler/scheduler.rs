@@ -6,7 +6,10 @@ use crate::error::SchedulerError;
 
 pub enum Scheduler {
     /// Set to execute on set time periods
-    Cron(cron::Schedule),
+    ///
+    /// Boxed: a [`cron::Schedule`] is ~248 bytes, and boxing keeps the enum
+    /// small (in particular the elements of [`Scheduler::Multi`]).
+    Cron(Box<cron::Schedule>),
 
     /// Set to execute exactly `duration` away from the previous execution.
     /// If
@@ -119,11 +122,11 @@ impl TryToScheduler for &[&dyn TryToScheduler] {
 
 impl<'a> TryToScheduler for &'a str {
     fn to_scheduler(&self) -> Result<Scheduler, SchedulerError> {
-        Ok(Scheduler::Cron(self.parse().map_err(|err| {
+        Ok(Scheduler::Cron(Box::new(self.parse().map_err(|err| {
             SchedulerError::ScheduleDefinitionError {
                 message: format!("Cannot create schedule for [{self}]. Err: {err:?}"),
             }
-        })?))
+        })?)))
     }
 }
 

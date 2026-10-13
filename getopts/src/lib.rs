@@ -103,13 +103,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 use core::error::Error;
-use std::{
-    ffi::OsStr,
-    fmt,
-    iter::{IntoIterator, repeat},
-    result,
-    str::FromStr,
-};
+use std::{ffi::OsStr, fmt, iter::IntoIterator, result, str::FromStr};
 
 use unicode_width::UnicodeWidthStr;
 
@@ -498,7 +492,7 @@ impl Options {
                             // FloatingFrees is in use.
                             if let Some(i_arg) = i_arg.take() {
                                 vals[opt_id].push((arg_pos, Val(i_arg)));
-                            } else if was_long || args.peek().map_or(true, |n| is_arg(&n)) {
+                            } else if was_long || args.peek().is_none_or(|n| is_arg(n)) {
                                 vals[opt_id].push((arg_pos, Given));
                             } else {
                                 vals[opt_id].push((arg_pos, Val(args.next().unwrap())));
@@ -560,7 +554,7 @@ impl Options {
 
     /// Derive usage items from a set of options.
     fn usage_items<'a>(&'a self) -> Box<dyn Iterator<Item = String> + 'a> {
-        let desc_sep = format!("\n{}", repeat(" ").take(24).collect::<String>());
+        let desc_sep = format!("\n{}", " ".repeat(24));
 
         let any_short = self.grps.iter().any(|optref| !optref.short_name.is_empty());
 
@@ -780,11 +774,13 @@ impl Name {
             Long(nm.to_string())
         }
     }
+}
 
-    fn to_string(&self) -> String {
+impl fmt::Display for Name {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Short(ch) => ch.to_string(),
-            Long(ref s) => s.to_string(),
+            Short(ch) => write!(f, "{ch}"),
+            Long(ref s) => write!(f, "{s}"),
         }
     }
 }
@@ -821,8 +817,8 @@ impl OptGroup {
                 occur,
                 aliases: vec![Opt {
                     name: Short(short_name.as_bytes()[0] as char),
-                    hasarg: hasarg,
-                    occur: occur,
+                    hasarg,
+                    occur,
                     aliases: Vec::new(),
                 }],
             },
@@ -876,10 +872,9 @@ impl Matches {
 
     /// Returns true if any of several options were matched.
     pub fn opts_present(&self, names: &[String]) -> bool {
-        names.iter().any(|nm| match find_opt(&self.opts, &Name::from_str(&nm)) {
-            Some(id) if !self.vals[id].is_empty() => true,
-            _ => false,
-        })
+        names
+            .iter()
+            .any(|nm| matches!(find_opt(&self.opts, &Name::from_str(nm)), Some(id) if !self.vals[id].is_empty()))
     }
 
     /// Returns true if any of several options were matched.
@@ -919,7 +914,7 @@ impl Matches {
     pub fn opts_str(&self, names: &[String]) -> Option<String> {
         names
             .iter()
-            .filter_map(|nm| match self.opt_val(&nm) {
+            .filter_map(|nm| match self.opt_val(nm) {
                 Some(Val(s)) => Some(s),
                 _ => None,
             })
@@ -1108,7 +1103,7 @@ impl Matches {
 }
 
 fn is_arg(arg: &str) -> bool {
-    arg.as_bytes().get(0) == Some(&b'-') && arg.len() > 1
+    arg.as_bytes().first() == Some(&b'-') && arg.len() > 1
 }
 
 fn find_opt(opts: &[Opt], nm: &Name) -> Option<usize> {

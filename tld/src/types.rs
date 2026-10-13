@@ -192,7 +192,7 @@ impl Ord for Suffix<'_> {
 impl PartialOrd for Suffix<'_> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.trim().bytes.cmp(strip_dot(other.bytes)))
+        Some(self.cmp(other))
     }
 }
 
@@ -279,7 +279,7 @@ impl Ord for Domain<'_> {
 impl PartialOrd for Domain<'_> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.trim().bytes.cmp(strip_dot(other.bytes)))
+        Some(self.cmp(other))
     }
 }
 

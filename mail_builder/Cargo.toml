@@ -2,11 +2,14 @@
 name = "mail_builder"
 description = "E-mail builder library for Rust"
 version = "0.4.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 license = "MIT"
 keywords = ["email", "mime", "mail", "e-mail"]
 categories = ["email"]
+
+[lints]
+workspace = true
 
 [lib]
 doctest = false

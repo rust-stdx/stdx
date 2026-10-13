@@ -371,10 +371,10 @@ pub fn encode_into_string(output: &mut alloc::string::String, data: &[u8], alpha
     if encoded_length <= 256 {
         // zero-alloc version for small data
         let mut buf = [0u8; 256];
-        let mut buf = &mut buf[..encoded_length];
-        encode_into(&mut buf, data, alphabet).unwrap();
+        let buf = &mut buf[..encoded_length];
+        encode_into(buf, data, alphabet).unwrap();
         // SAFETY: base64 only produces ASCII characters, which are valid UTF-8.
-        output.push_str(unsafe { core::str::from_utf8_unchecked(&buf) });
+        output.push_str(unsafe { core::str::from_utf8_unchecked(buf) });
     } else {
         let mut buf = alloc::vec![0u8; encoded_length];
         encode_into(&mut buf, data, alphabet).unwrap();
@@ -619,7 +619,7 @@ const fn nibble_from_hex(c: u8) -> u8 {
 
 #[inline]
 const fn check_decode_input_and_output_length(encoded_length: usize, output_length: usize) -> Result<(), DecodeError> {
-    if encoded_length % 2 != 0 {
+    if !encoded_length.is_multiple_of(2) {
         return Err(DecodeError::InvalidInputLength);
     }
     if output_length != encoded_length / 2 {

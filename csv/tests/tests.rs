@@ -2466,7 +2466,9 @@ fn test_parse_headers_fails_then_rows_still_work() {
 
 #[test]
 fn test_set_delimiter_null_byte() {
-    let data = b"a\0b\0c\n1\02\03\n";
+    // `\x00` (explicit, two hex digits) rather than `\02`, which Rust reads as
+    // `\0` followed by `'2'`.
+    let data = b"a\x00b\x00c\n1\x002\x003\n";
     let mut reader = Reader::new(std::io::Cursor::new(data)).set_delimiter(0x00);
     let rows: Vec<Vec<String>> = reader
         .rows()

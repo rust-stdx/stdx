@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["network", "ip", "address", "cidr"]
 readme = "README.md"
 categories = ["network-programming", "parser-implementations"]
-edition = "2021"
+edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]

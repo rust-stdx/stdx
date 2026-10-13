@@ -505,7 +505,7 @@ impl Key {
     fn generate() -> Result<(Self, [u8; 138]), Error> {
         let inner = SecretKey::generate().map_err(|_| Error::Crypto)?;
         let pkcs8_der = pkcs8::encode_p256_pkcs8_der(&inner).map_err(|_| Error::Crypto)?;
-        let thumb = base64::encode(&Jwk::thumb_sha256(&inner.public_key())?, base64::Alphabet::UrlNoPadding);
+        let thumb = base64::encode(Jwk::thumb_sha256(&inner.public_key())?, base64::Alphabet::UrlNoPadding);
 
         Ok((
             Self {
@@ -519,7 +519,7 @@ impl Key {
 
     fn from_pkcs8_der(pkcs8_der: &[u8]) -> Result<Self, Error> {
         let inner = pkcs8::decode_p256_pkcs8_der(pkcs8_der).map_err(|_| Error::CryptoKey)?;
-        let thumb = base64::encode(&Jwk::thumb_sha256(&inner.public_key())?, base64::Alphabet::UrlNoPadding);
+        let thumb = base64::encode(Jwk::thumb_sha256(&inner.public_key())?, base64::Alphabet::UrlNoPadding);
 
         Ok(Self {
             signing_algorithm: SigningAlgorithm::Es256,

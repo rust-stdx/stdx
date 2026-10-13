@@ -1,8 +1,11 @@
 [package]
 name = "hyper_utils"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 pin-project-lite = { path = "../pin_project_lite" }

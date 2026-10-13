@@ -5,8 +5,11 @@ authors = ["The rust-url developers"]
 description = "Parser and serializer for the application/x-www-form-urlencoded syntax, as used by HTML forms."
 categories = ["no-std"]
 license = "Apache-2.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 path = "./form_urlencoded.rs"
@@ -14,11 +17,11 @@ test = false
 
 [features]
 default = ["std"]
-std = ["alloc", "percent-encoding/std"]
-alloc = ["percent-encoding/alloc"]
+std = ["alloc", "percent_encoding/std"]
+alloc = ["percent_encoding/alloc"]
 
 [dependencies]
-percent-encoding = { default-features = false, path = "../percent_encoding" }
+percent_encoding = { default-features = false, path = "../percent_encoding" }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--generate-link-to-definition"]

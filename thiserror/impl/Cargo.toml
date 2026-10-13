@@ -3,9 +3,12 @@ name = "thiserror_impl"
 version = "2.0.21"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 description = "Implementation detail of the `thiserror` crate"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 license = "MIT"
+
+[lints]
+workspace = true
 
 [lib]
 proc-macro = true

@@ -23,8 +23,8 @@ mod size;
 
 pub use crate::{
     error::{IpNetworkError, NetworkSizeError},
-    ipv4::{ipv4_mask_to_prefix, ipv4_mask_to_prefix_checked, Ipv4Network, Ipv4NetworkIterator},
-    ipv6::{ipv6_mask_to_prefix, ipv6_mask_to_prefix_checked, Ipv6Network, Ipv6NetworkIterator},
+    ipv4::{Ipv4Network, Ipv4NetworkIterator, ipv4_mask_to_prefix, ipv4_mask_to_prefix_checked},
+    ipv6::{Ipv6Network, Ipv6NetworkIterator, ipv6_mask_to_prefix, ipv6_mask_to_prefix_checked},
     size::NetworkSize,
 };
 

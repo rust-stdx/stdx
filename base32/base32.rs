@@ -411,10 +411,10 @@ pub fn encode_into_string(output: &mut alloc::string::String, data: &[u8], alpha
     if encoded_length <= 256 {
         // zero-alloc version for small data
         let mut buf = [0u8; 256];
-        let mut buf = &mut buf[..encoded_length];
-        encode_into(&mut buf, data, alphabet).unwrap();
+        let buf = &mut buf[..encoded_length];
+        encode_into(buf, data, alphabet).unwrap();
         // SAFETY: base64 only produces ASCII characters, which are valid UTF-8.
-        output.push_str(unsafe { core::str::from_utf8_unchecked(&buf) });
+        output.push_str(unsafe { core::str::from_utf8_unchecked(buf) });
     } else {
         let mut buf = alloc::vec![0u8; encoded_length];
         encode_into(&mut buf, data, alphabet).unwrap();
@@ -798,7 +798,7 @@ const fn strip_padding_info(data: &[u8], expect_padding: bool) -> Result<(usize,
         let count = count_trailing_padding(data);
         let content_len = in_len - count;
 
-        let err = (count > 0 && in_len % 8 != 0)
+        let err = (count > 0 && !in_len.is_multiple_of(8))
             || count > 6
             || (count > 0
                 && match count {

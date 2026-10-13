@@ -320,7 +320,7 @@ mod tests {
         let mut buf = BytesMut::new();
         startup(&mut buf, &[("user", "bob"), ("database", "db")]).unwrap();
         let len = i32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]);
-        assert_eq!(len as usize, buf.len());
+        assert_eq!(usize::try_from(len).unwrap(), buf.len());
         assert_eq!(&buf[4..8], &196608i32.to_be_bytes());
         // body ends with a NUL, keys are NUL-terminated
         assert_eq!(*buf.last().unwrap(), 0);
@@ -351,7 +351,7 @@ mod tests {
         write_param(&mut buf, Some(&[1, 2, 3, 4])).unwrap();
         bind_finish(&mut buf, Format::Binary, pos).unwrap();
         let len = i32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
-        assert_eq!(len as usize, buf.len() - 1);
+        assert_eq!(usize::try_from(len).unwrap(), buf.len() - 1);
     }
 
     #[test]
@@ -359,7 +359,7 @@ mod tests {
         let mut buf = BytesMut::new();
         parse(&mut buf, "", "SELECT $1", &[23]).unwrap();
         let len = i32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
-        assert_eq!(len as usize, buf.len() - 1);
+        assert_eq!(usize::try_from(len).unwrap(), buf.len() - 1);
     }
 
     #[test]

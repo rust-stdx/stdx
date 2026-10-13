@@ -201,7 +201,7 @@ fn zeroize_limbs(limbs: &mut [u64]) {
 }
 
 impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
-    const _LIMBS_CHECK: () = assert!(LIMBS == (BITS + 63) / 64, "LIMBS must equal ceil(BITS/64)");
+    const _LIMBS_CHECK: () = assert!(LIMBS == BITS.div_ceil(64), "LIMBS must equal ceil(BITS/64)");
 
     pub const ZERO: Self = Self {
         limbs: [0u64; LIMBS],
@@ -609,7 +609,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     ///
     /// Panics when `self` is zero (the reciprocal is undefined).
     pub fn compute_mu_for_barrett(&self) -> [u64; MAX_LIMBS] {
-        let eff_limbs = (self.bit_len() + 63) / 64;
+        let eff_limbs = self.bit_len().div_ceil(64);
         self.compute_mu_for_barrett_eff(eff_limbs)
     }
 
@@ -690,7 +690,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// [`Self::modpow_barrett`] (which uses `W = MAX_LIMBS`). Callers should
     /// pick `W` from the modulus size; see the RSA public-key code.
     pub fn modpow_barrett_w<const W: usize>(&self, exp: &Self, modulus: &Self, mu: &[u64]) -> Self {
-        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        let eff_limbs = modulus.bit_len().div_ceil(64);
         self.modpow_barrett_impl::<W>(exp, modulus, mu, eff_limbs)
     }
 
@@ -746,7 +746,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     ///
     /// The operands must already be reduced below the modulus.
     pub fn mul_mod_barrett_w<const W: usize>(&self, rhs: &Self, modulus: &Self, mu: &[u64]) -> Self {
-        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        let eff_limbs = modulus.bit_len().div_ceil(64);
         self.mul_mod_barrett_impl::<W>(rhs, modulus, mu, eff_limbs)
     }
 
@@ -908,7 +908,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     /// Equivalent to [`Self::reduce_wide_barrett_eff`] with
     /// `k = ceil(modulus.bit_len() / 64)`.
     pub fn reduce_wide_barrett(product: &[u64; MAX_LIMBS], modulus: &Self, mu: &[u64]) -> Self {
-        let eff_limbs = (modulus.bit_len() + 63) / 64;
+        let eff_limbs = modulus.bit_len().div_ceil(64);
         Self::reduce_wide_barrett_eff(product, modulus, mu, eff_limbs)
     }
 
@@ -1299,7 +1299,7 @@ impl<const BITS: usize, const LIMBS: usize> fmt::Debug for Uint<BITS, LIMBS> {
 }
 
 impl<const BITS: usize, const LIMBS: usize> Int<BITS, LIMBS> {
-    const _LIMBS_CHECK: () = assert!(LIMBS == (BITS + 63) / 64, "LIMBS must equal ceil(BITS/64)");
+    const _LIMBS_CHECK: () = assert!(LIMBS == BITS.div_ceil(64), "LIMBS must equal ceil(BITS/64)");
 
     pub const ZERO: Self = Self(Uint::ZERO);
     pub const ONE: Self = Self(Uint::ONE);

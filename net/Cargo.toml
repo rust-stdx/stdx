@@ -1,8 +1,11 @@
 [package]
 name = "net"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 path = "./net.rs"

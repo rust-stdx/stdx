@@ -1,9 +1,12 @@
 [package]
 name = "dotenv"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Load environment variables from .env files"
+
+[lints]
+workspace = true
 
 [lib]
 path = "./dotenv.rs"

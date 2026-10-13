@@ -5,10 +5,13 @@ authors = ["David Tolnay <dtolnay@gmail.com>"]
 categories = ["rust-patterns", "no-std"]
 description = "Flexible concrete Error type built on std::error::Error"
 documentation = "https://docs.rs/anyhow"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 keywords = ["error", "error-handling"]
 license = "Apache-2.0"
+
+[lints]
+workspace = true
 
 [features]
 default = ["std"]

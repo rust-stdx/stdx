@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Media types (formerly known as MIME types): parsing, constants, and file extension guessing."
 keywords = ["mime", "media-type", "filesystem", "extension"]
 license = "MIT"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 path = "./media_type.rs"

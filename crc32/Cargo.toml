@@ -10,8 +10,11 @@ description = "Fast, SIMD-accelerated CRC32 (IEEE) checksum computation"
 readme = "README.md"
 keywords = ["hash", "crc", "crc32", "simd", "fast"]
 categories = ["algorithms", "no-std"]
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }

@@ -1,9 +1,12 @@
 [package]
 name = "hex"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Fast hex encoding and decoding with SIMD, constant-time ops, and const fn support"
+
+[lints]
+workspace = true
 
 [lib]
 path = "./hex.rs"

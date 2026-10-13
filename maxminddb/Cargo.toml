@@ -8,9 +8,12 @@ keywords = ["MaxMind", "GeoIP2", "GeoIP", "geolocation", "ip"]
 categories = ["database", "network-programming"]
 license = "ISC"
 include = ["/Cargo.toml", "/src/**/*.rs", "/README.md", "/LICENSE"]
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 
+
+[lints]
+workspace = true
 
 [lib]
 name ="maxminddb"

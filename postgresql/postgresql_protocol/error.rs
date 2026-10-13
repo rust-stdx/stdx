@@ -2,13 +2,21 @@
 
 use std::fmt;
 
+use small_collections::SmallString;
+
 /// A structured `ErrorResponse` / `NoticeResponse` from the server.
 #[derive(Debug, Clone, Default)]
 pub struct DbError {
     /// Localized severity (`ERROR`, `FATAL`, …).
-    pub severity: String,
+    ///
+    /// Stored inline; only values longer than 8 bytes (unusual localizations)
+    /// spill onto the heap.
+    pub severity: SmallString<8>,
     /// SQLSTATE code.
-    pub code: String,
+    ///
+    /// The wire protocol bounds this to five bytes, so it is always stored
+    /// inline and decoding it never allocates.
+    pub code: SmallString<5>,
     /// Primary human-readable message.
     pub message: String,
     /// Optional detail.
@@ -95,9 +103,18 @@ pub enum Error {
     #[error("encode error: {0}")]
     Encode(String),
     /// The server reported an error.
+    ///
+    /// Boxed to keep [`Error`] (and therefore every `Result<T, Error>`) small;
+    /// [`DbError`] itself is ~250 bytes.
     #[error("server error: {0}")]
-    Server(#[from] DbError),
+    Server(Box<DbError>),
     /// Authentication failed.
     #[error("authentication error: {0}")]
     Auth(String),
+}
+
+impl From<DbError> for Error {
+    fn from(err: DbError) -> Self {
+        Error::Server(Box::new(err))
+    }
 }

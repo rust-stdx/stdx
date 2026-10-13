@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::{borrow::Cow, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 use core::str::FromStr;
 
 /// A string that stores up to `N` bytes inline (on the stack) and spills onto
@@ -152,21 +152,20 @@ impl<const N: usize> SmallString<N> {
     /// Converts a slice of bytes to a [`SmallString`], replacing invalid
     /// sequences with U+FFFD.
     ///
-    /// Input that is already valid UTF-8 is copied directly, without
-    /// allocating. When replacements are needed, the result is stored inline
-    /// if it fits in `N` and on the heap otherwise.
+    /// The bytes are streamed directly into the inline storage, so nothing is
+    /// allocated unless the (lossily converted) contents exceed the `N`-byte
+    /// inline capacity, in which case they spill onto the heap. This holds even
+    /// when replacements are needed: no intermediate [`String`] is created.
     #[inline]
     pub fn from_utf8_lossy(bytes: &[u8]) -> Self {
-        match String::from_utf8_lossy(bytes) {
-            Cow::Borrowed(borrowed) => Self::from_str(borrowed),
-            Cow::Owned(owned) => {
-                if owned.len() <= N {
-                    Self::from_str(&owned)
-                } else {
-                    Self::from_string(owned)
-                }
+        let mut out = Self::new();
+        for chunk in bytes.utf8_chunks() {
+            out.push_str(chunk.valid());
+            if !chunk.invalid().is_empty() {
+                out.push('\u{FFFD}');
             }
         }
+        out
     }
 
     /// Returns `true` if the string is currently storing data inline (on the
@@ -1728,8 +1727,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_utf8_lossy_owned_fits_inline() {
-        // Invalid input forces the owned `Cow` path.
+    fn test_from_utf8_lossy_invalid_fits_inline() {
+        // Invalid input is still stored inline when the replaced result fits.
         let s: SmallString<16> = SmallString::from_utf8_lossy(&[0xFF, 0xFE]);
         assert!(s.is_inline());
         assert_eq!(s.as_str(), "\u{FFFD}\u{FFFD}");

@@ -43,6 +43,14 @@ hex = { git = "...", default-features = false, features = ["alloc"] }  # no_std 
 
 Check the package index for per-crate feature flags. The `std` feature is typically enabled by default; disable it for embedded or `no_std` environments.
 
+The crates that support `no_std` are checked for the bare-metal Tier 1 targets
+`riscv32imac-unknown-none-elf` and `thumbv7em-none-eabi` by `make check_no_std`
+(`tools/check_no_std/check_no_std.js`), which derives the `std`-free feature
+configurations from `cargo metadata`. A few crates need a random number
+generator (for example ML-DSA signing in `jwt` via its `random` feature);
+`getrandom` has no bare-metal backend by default, so those features are checked
+but not required to compile.
+
 ## Quick Reference: Common Tasks
 
 ### Encoding / Decoding

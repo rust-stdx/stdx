@@ -1108,7 +1108,7 @@ impl Actor {
             return;
         }
 
-        let mut pending_error: Option<DbError> = None;
+        let mut pending_error: Option<Box<DbError>> = None;
         loop {
             match self.read_message().await {
                 Ok(BackendMessage::ParseComplete) => {}
@@ -1437,7 +1437,7 @@ impl Actor {
             return Err(AttemptError::before_rows(err));
         }
 
-        let mut pending_error: Option<DbError> = None;
+        let mut pending_error: Option<Box<DbError>> = None;
         let mut affected = 0u64;
         let mut rows_sent = false;
 
@@ -1601,7 +1601,7 @@ impl Actor {
         self.flush().await?;
 
         let mut fields: Option<Vec<postgresql_protocol::backend::FieldDescription>> = None;
-        let mut pending_error: Option<DbError> = None;
+        let mut pending_error: Option<Box<DbError>> = None;
         loop {
             match self.read_message().await {
                 Ok(BackendMessage::ParseComplete) => {}
@@ -1776,12 +1776,12 @@ async fn authenticate(stream: &mut PgStream, read_buf: &mut BytesMut, config: &C
             }
             BackendMessage::AuthenticationSasl(mechanisms) => {
                 if !mechanisms.iter().any(|m| m == "SCRAM-SHA-256") {
-                    return Err(Error::Server(DbError {
+                    return Err(Error::Server(Box::new(DbError {
                         severity: "FATAL".into(),
-                        code: String::new(),
+                        code: Default::default(),
                         message: "server does not offer SCRAM-SHA-256 authentication".into(),
                         ..DbError::default()
-                    }));
+                    })));
                 }
                 let mut client = ScramClient::with_max_iterations(
                     config.password.as_deref().unwrap_or(""),
@@ -1840,12 +1840,12 @@ async fn authenticate(stream: &mut PgStream, read_buf: &mut BytesMut, config: &C
                 }
             }
             BackendMessage::AuthenticationMd5Password(_) => {
-                return Err(Error::Server(DbError {
+                return Err(Error::Server(Box::new(DbError {
                     severity: "FATAL".into(),
-                    code: String::new(),
+                    code: Default::default(),
                     message: "MD5 authentication is not supported; configure the server to use SCRAM-SHA-256".into(),
                     ..DbError::default()
-                }));
+                })));
             }
             BackendMessage::ParameterStatus {
                 name,
@@ -1935,10 +1935,10 @@ mod tests {
 
     #[test]
     fn stale_plan_is_only_retried_before_rows_are_delivered() {
-        let stale = Error::Server(DbError {
+        let stale = Error::Server(Box::new(DbError {
             code: "0A000".into(),
             ..DbError::default()
-        });
+        }));
         assert!(should_retry(1, false, &stale));
         assert!(
             !should_retry(1, true, &stale),
@@ -1946,16 +1946,16 @@ mod tests {
         );
         assert!(!should_retry(2, false, &stale), "only one retry is allowed");
 
-        let missing = Error::Server(DbError {
+        let missing = Error::Server(Box::new(DbError {
             code: "26000".into(),
             ..DbError::default()
-        });
+        }));
         assert!(should_retry(1, false, &missing));
 
-        let other = Error::Server(DbError {
+        let other = Error::Server(Box::new(DbError {
             code: "23505".into(),
             ..DbError::default()
-        });
+        }));
         assert!(!should_retry(1, false, &other));
 
         assert!(!should_retry(1, false, &Error::Closed));

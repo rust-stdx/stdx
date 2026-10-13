@@ -5,7 +5,7 @@ use super::{Fail::*, HasArg, Name, Occur, Opt, Options, ParsingStyle, each_split
 #[test]
 fn test_split_within() {
     fn t(s: &str, i: usize, u: &[String]) {
-        let v = each_split_within(&(s.to_string()), i);
+        let v = each_split_within(s, i);
         assert!(v.iter().zip(u.iter()).all(|(a, b)| a == b));
     }
     t("", 0, &[]);
@@ -967,8 +967,8 @@ fn test_nonexistant_opt() {
     opts.optflag("b", "bar", "Desc");
     let args: Vec<String> = Vec::new();
     let matches = opts.parse(&args).unwrap();
-    assert_eq!(matches.opt_defined("foo"), false);
-    assert_eq!(matches.opt_defined("bar"), true);
+    assert!(!matches.opt_defined("foo"));
+    assert!(matches.opt_defined("bar"));
 }
 #[test]
 fn test_args_with_equals() {

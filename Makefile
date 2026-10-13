@@ -28,7 +28,7 @@ check:
 
 # Check Tier 1 platofrms.
 .PHONY: check_tier1
-check_tier1: check_tier1
+check_tier1:
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-D warnings" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
@@ -38,17 +38,11 @@ check_tier1: check_tier1
 	RUSTFLAGS="-D warnings" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
 
 
-# Check that some package compile for no_std targets
+# Check that every package that declares `no_std` compiles for the bare-metal
+# Tier 1 targets (riscv32imac-unknown-none-elf and thumbv7em-none-eabi).
 .PHONY: check_no_std
 check_no_std:
-	cargo check --no-default-features --target thumbv7em-none-eabi -p crypto
-	cargo check --no-default-features --features zeroize --target thumbv7em-none-eabi -p crypto
-	cargo check --no-default-features --features alloc,zeroize --target thumbv7em-none-eabi -p crypto
-	cargo check --no-default-features --target thumbv7em-none-eabi -p csv
-	cargo check --no-default-features --features serde --target thumbv7em-none-eabi -p csv
-	cargo check --no-default-features --target thumbv7em-none-eabi -p time
-	cargo check --no-default-features --features timezone-db --target thumbv7em-none-eabi -p time
-	cargo check --no-default-features --features serde,timezone-db --target thumbv7em-none-eabi -p time
+	node tools/check_no_std/check_no_std.js
 
 
 .PHONY: check_all
@@ -59,7 +53,7 @@ check_no_std:
 # TODO: find a better solution to check more packages
 WASM_SIMD_PKGS = -p base64 -p hex -p xxhash -p crypto
 
-check_all: check
+check_all:
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
@@ -79,15 +73,6 @@ check_all: check
 	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS)
 	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --all-features
 	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --no-default-features
-
-# 	cargo check --target=riscv32imac-unknown-none-elf
-# 	cargo check --target=riscv32imac-unknown-none-elf --all-features
-# 	cargo check --target=riscv32imac-unknown-none-elf --no-default-features
-
-# 	cargo check --target=thumbv7em-none-eabi
-# 	cargo check --target=thumbv7em-none-eabi --all-features
-# 	cargo check --target=thumbv7em-none-eabi --no-default-features
-
 
 
 .PHONY: docs

@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Date and time handling with an embedded IANA time zone database."
 keywords = ["date", "time", "timezone", "tzdb", "no_std"]
 license = "MIT"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 path = "./time.rs"

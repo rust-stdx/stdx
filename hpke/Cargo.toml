@@ -1,9 +1,12 @@
 [package]
 name = "hpke"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 description = "Hybrid Public Key Encryption (draft-ietf-hpke-hpke-05, which obsoletes RFC 9180) built on the stdx `crypto` crate"
+
+[lints]
+workspace = true
 
 [lib]
 path = "./hpke.rs"
