@@ -207,7 +207,7 @@ impl hash::Hasher for Hasher {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod test {
     use rand::{TryRng, rngs::SysRng};
 

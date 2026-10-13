@@ -27,6 +27,7 @@
 //! SHAKE256 + ChaCha20-Poly1305 suite:
 //!
 //! ```
+//! # #[cfg(all(feature = "alloc", feature = "random"))] {
 //! use hpke::{
 //!     self, Mode,
 //!     aead::ChaCha20Poly1305,
@@ -48,6 +49,7 @@
 //! ).unwrap();
 //! let plaintext = recipient.open(&ciphertext, b"a gentleman's game").unwrap();
 //! assert_eq!(plaintext, b"fronthand or backhand?");
+//! # }
 //! ```
 //!
 //! # Pre-shared key mode
@@ -60,6 +62,7 @@
 //! when the recipient must attribute a message to a specific sender.
 //!
 //! ```
+//! # #[cfg(all(feature = "alloc", feature = "random"))] {
 //! use hpke::{
 //!     self, Mode,
 //!     aead::Aes256Gcm,
@@ -85,6 +88,7 @@
 //! ).unwrap();
 //! let plaintext = recipient.open(&ciphertext, b"a gentleman's game").unwrap();
 //! assert_eq!(plaintext, b"fronthand or backhand?");
+//! # }
 //! ```
 //!
 //! # Sender authentication
@@ -98,6 +102,7 @@
 //! signature scheme.
 //!
 //! ```
+//! # #[cfg(all(feature = "alloc", feature = "random"))] {
 //! use crypto::mldsa::MlDsa65SecretKey;
 //! use hpke::{
 //!     self, Mode,
@@ -137,6 +142,7 @@
 //! ).unwrap();
 //! let plaintext = recipient.open(&ciphertext, b"a gentleman's game").unwrap();
 //! assert_eq!(plaintext, b"fronthand or backhand?");
+//! # }
 //! ```
 //!
 //! The signature covers the encapsulated key as well as the ciphertext, so a

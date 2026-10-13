@@ -104,8 +104,10 @@ impl MediaTypeGuess {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "alloc")] {
     /// assert_eq!(media_type::from_ext("png").first(), Some(media_type::IMAGE_PNG));
     /// assert!(media_type::from_ext("").is_empty());
+    /// # }
     /// ```
     pub fn from_ext(ext: &str) -> MediaTypeGuess {
         if ext.is_empty() {

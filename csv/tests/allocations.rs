@@ -2,6 +2,7 @@
 //!
 //! Counting comes from `alloc_counter`, which attributes allocations to the
 //! current thread, so these assertions are not perturbed by parallel tests.
+#![cfg(feature = "std")]
 
 use std::io::Cursor;
 

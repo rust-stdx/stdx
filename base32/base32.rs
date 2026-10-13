@@ -41,6 +41,7 @@
 //! # Examples
 //!
 //! ```rust
+//! # #[cfg(feature = "alloc")] {
 //! let encoded = base32::encode(b"hello", base32::Alphabet::Rfc4648);
 //! assert_eq!(encoded, "NBSWY3DP");
 //!
@@ -52,6 +53,7 @@
 //!
 //! let z32 = base32::encode(b"hello", base32::Alphabet::Z32);
 //! assert_eq!(z32, "pb1sa5dx");
+//! # }
 //! ```
 
 #[cfg(any(feature = "alloc", test))]
@@ -904,7 +906,7 @@ const fn crockford_to_quintet(c: u8) -> u8 {
     value | (invalid & 0x20)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
 

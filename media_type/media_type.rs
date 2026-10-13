@@ -7,6 +7,7 @@
 //! # Parsing
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use media_type::MediaType;
 //!
 //! let media_type: MediaType = "text/plain; charset=utf-8".parse().unwrap();
@@ -14,6 +15,7 @@
 //! assert_eq!(media_type.type_(), "text");
 //! assert_eq!(media_type.subtype(), "plain");
 //! assert_eq!(media_type.get_parameter("charset"), Some("utf-8"));
+//! # }
 //! ```
 //!
 //! # Guessing from a path or extension
@@ -21,11 +23,13 @@
 //! The file does not have to exist: only its extension is inspected.
 //!
 //! ```
+//! # #[cfg(feature = "std")] {
 //! let guess = media_type::from_path("images/logo.png");
 //! assert_eq!(guess.first(), Some(media_type::IMAGE_PNG));
 //!
 //! let guess = media_type::from_ext("zst");
 //! assert_eq!(guess.first(), Some(media_type::APPLICATION_ZSTD));
+//! # }
 //! ```
 //!
 //! # Parsing a list of media types
@@ -35,6 +39,7 @@
 //! be parsed:
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use media_type::MediaTypeIter;
 //!
 //! let header = "text/html, application/json, invalid, text/xml";
@@ -45,6 +50,7 @@
 //! assert_eq!(parsed[1].as_ref().unwrap(), &media_type::APPLICATION_JSON);
 //! assert_eq!(*parsed[2].as_ref().unwrap_err(), "invalid");
 //! assert_eq!(parsed[3].as_ref().unwrap(), &media_type::TEXT_XML);
+//! # }
 //! ```
 //!
 //! # Cargo features
@@ -138,6 +144,7 @@ impl Source {
 /// # Examples
 ///
 /// ```
+/// # #[cfg(feature = "alloc")] {
 /// use media_type::MediaType;
 ///
 /// let media_type: MediaType = "IMAGE/SVG+XML; Charset=UTF-8".parse().unwrap();
@@ -146,6 +153,7 @@ impl Source {
 /// assert_eq!(media_type.suffix(), Some("xml"));
 /// assert_eq!(media_type.essence(), "image/svg+xml");
 /// assert_eq!(media_type.to_string(), "image/svg+xml; charset=utf-8");
+/// # }
 /// ```
 #[derive(Clone)]
 pub struct MediaType {
@@ -192,11 +200,13 @@ impl MediaType {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "alloc")] {
     /// use media_type::MediaType;
     ///
     /// assert_eq!(media_type::TEXT_PLAIN.subtype(), "plain");
     /// let svg: MediaType = "image/svg+xml".parse().unwrap();
     /// assert_eq!(svg.subtype(), "svg");
+    /// # }
     /// ```
     #[inline]
     pub fn subtype(&self) -> &str {
@@ -212,11 +222,13 @@ impl MediaType {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "alloc")] {
     /// use media_type::MediaType;
     ///
     /// assert_eq!(media_type::TEXT_PLAIN.suffix(), None);
     /// let svg: MediaType = "image/svg+xml".parse().unwrap();
     /// assert_eq!(svg.suffix(), Some("xml"));
+    /// # }
     /// ```
     #[inline]
     pub fn suffix(&self) -> Option<&str> {
@@ -250,11 +262,13 @@ impl MediaType {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "alloc")] {
     /// use media_type::MediaType;
     ///
     /// let media_type: MediaType = "text/plain; charset=utf-8; foo=bar".parse().unwrap();
     /// let params: Vec<_> = media_type.parameters().collect();
     /// assert_eq!(params, [("charset", "utf-8"), ("foo", "bar")]);
+    /// # }
     /// ```
     #[inline]
     pub fn parameters(&self) -> Parameters<'_> {

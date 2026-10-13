@@ -1,3 +1,5 @@
+#![cfg(feature = "std")]
+
 use std::io::{Cursor, Read};
 
 use csv::*;

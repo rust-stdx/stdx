@@ -2,6 +2,7 @@
 //! line numbers and the opt-in resource limits.
 //!
 //! These complement `tests.rs`, which covers the functional behaviour.
+#![cfg(feature = "std")]
 
 use std::{error::Error as _, io::Cursor};
 

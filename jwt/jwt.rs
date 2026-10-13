@@ -19,10 +19,10 @@
 //! # Example
 //!
 //! ```
+//! # #[cfg(feature = "std")] {
 //! use jwt::*;
 //! use crypto::curve25519::ed25519;
 //!
-//! fn main() -> Result<(), Error> {
 //!     // 1. Generate an Ed25519 secret key.
 //!     let secret_key = ed25519::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!
@@ -62,9 +62,8 @@
 //!     let claims: serde_json::Value =
 //!         parse_and_verify(&public_key, &parsed_header, &token, &opts)?;
 //!     assert_eq!(claims["sub"], "user123");
-//!
-//!     Ok(())
-//! }
+//! # }
+//! # Ok::<(), jwt::Error>(())
 //! ```
 //!
 //! # JSON Web Key (JWK) import and export
@@ -75,10 +74,10 @@
 //! after fetching a JWKS document. P-256, P-384 and P-521 public keys are all supported.
 //!
 //! ```
+//! # #[cfg(feature = "std")] {
 //! use jwt::*;
 //! use crypto::p256;
 //!
-//! fn main() -> Result<(), Error> {
 //!     // Generate a P-256 key pair.
 //!     let secret_key = p256::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!     let public_key = secret_key.public_key();
@@ -94,9 +93,8 @@
 //!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
 //!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
-//!
-//!     Ok(())
-//! }
+//! # }
+//! # Ok::<(), jwt::Error>(())
 //! ```
 //!
 //! When the key type is not known ahead of time (for example a JWKS document that may contain
@@ -106,10 +104,10 @@
 //! [`parse_and_verify`]:
 //!
 //! ```
+//! # #[cfg(feature = "std")] {
 //! use jwt::*;
 //! use crypto::curve25519::ed25519;
 //!
-//! fn main() -> Result<(), Error> {
 //!     let secret_key = ed25519::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!
 //!     // A JWKS entry whose key type is only known at runtime.
@@ -121,19 +119,18 @@
 //!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
 //!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
-//!
-//!     Ok(())
-//! }
+//! # }
+//! # Ok::<(), jwt::Error>(())
 //! ```
 //!
 //! When a JWK derived from a secret key is decoded, the secret variant is preferred, so the same
 //! [`Key`] can be used for signing:
 //!
 //! ```
+//! # #[cfg(feature = "std")] {
 //! use jwt::*;
 //! use crypto::curve25519::ed25519;
 //!
-//! fn main() -> Result<(), Error> {
 //!     let secret_key = ed25519::SecretKey::generate().map_err(|_| Error::InvalidKey)?;
 //!     let jwk = Jwk::from(&secret_key);
 //!     let key = Key::try_from(&jwk)?;
@@ -143,9 +140,8 @@
 //!     let token = sign(&key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
 //!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
-//!
-//!     Ok(())
-//! }
+//! # }
+//! # Ok::<(), jwt::Error>(())
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]

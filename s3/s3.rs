@@ -9,9 +9,9 @@
 //! # Example
 //!
 //! ```no_run
+//! # #[cfg(feature = "reqwest")] {
 //! use s3::{Client, ClientConfig, StaticCredentials};
 //!
-//! # fn main() -> Result<(), s3::Error> {
 //! let cfg = ClientConfig {
 //!     endpoint: "http://127.0.0.1:9000",
 //!     credentials: StaticCredentials {
@@ -24,8 +24,8 @@
 //! };
 //!
 //! let client = Client::new(&cfg)?;
-//! # Ok(())
 //! # }
+//! # Ok::<(), s3::Error>(())
 //! ```
 pub mod buckets;
 pub mod client;

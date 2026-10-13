@@ -149,6 +149,7 @@ pub struct FieldRange {
 /// ```
 ///
 /// ```no_run
+/// # #[cfg(feature = "std")] {
 /// # use csv::Reader;
 /// let file = std::fs::File::open("data.csv").unwrap();
 /// let mut reader = Reader::new(file).set_delimiter(b';');
@@ -157,6 +158,7 @@ pub struct FieldRange {
 ///     let name = row.get(0).unwrap().unwrap();
 ///     println!("{name}");
 /// }
+/// # }
 /// ```
 pub struct Reader<R: Read> {
     /// Raw input data read from source.

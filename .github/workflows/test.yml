@@ -32,10 +32,10 @@ jobs:
       # Check that some packages compile for no_std targets.
       - run: make check_no_std
       - run: cargo test --workspace --target ${{ matrix.target }}
+      - run: cargo test --no-default-features --target ${{ matrix.target }}]
       # `cargo test --workspace` runs each package with its default features,
       # so feature-gated test modules (e.g. csv's serde tests) would be skipped.
       - run: cargo test --all-features --target ${{ matrix.target }} -p csv -p uuid
-      - run: cargo test --no-default-features --target ${{ matrix.target }} -p uuid
 
 
   test_macos:
@@ -53,8 +53,8 @@ jobs:
       - run: rustup update stable
       - run: make check
       - run: cargo test --workspace
+      - run: cargo test --no-default-features
       - run: cargo test -p uuid --all-features
-      - run: cargo test -p uuid --no-default-features
 
 
   test_wasm:

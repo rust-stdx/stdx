@@ -40,6 +40,7 @@
 //! # Streaming from any [`Read`] source
 //!
 //! ```no_run
+//! # #[cfg(feature = "std")] {
 //! use std::fs::File;
 //! use csv::Reader;
 //!
@@ -50,18 +51,21 @@
 //!     let name = row.get(0).unwrap().unwrap();
 //!     println!("{name}");
 //! }
+//! # }
 //! # Ok::<_, csv::ReadError>(())
 //! ```
 //!
 //! # Headers
 //!
 //! ```no_run
+//! # #[cfg(feature = "std")] {
 //! use csv::Reader;
 //! let data = b"name,age\nAlice,30\n";
 //! let mut reader = Reader::new(std::io::Cursor::new(data));
 //! let headers = reader.parse_headers()?;
 //! for row in reader.rows() {
 //! }
+//! # }
 //! # Ok::<_, csv::ReadError>(())
 //! ```
 //!

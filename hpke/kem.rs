@@ -23,12 +23,14 @@ use super::{
 /// # Example
 ///
 /// ```
+/// # #[cfg(all(feature = "alloc", feature = "random"))] {
 /// use hpke::kem::{Kem, X25519HkdfSha256};
 ///
 /// let (secret_key, public_key) = X25519HkdfSha256::generate_keypair().unwrap();
 /// let (shared_secret, encapped_key) = X25519HkdfSha256::encap(&public_key).unwrap();
 /// let decapsulated = X25519HkdfSha256::decap(&encapped_key, &secret_key).unwrap();
 /// assert_eq!(shared_secret.as_ref(), decapsulated.as_ref());
+/// # }
 /// ```
 ///
 /// # Custom KEMs
@@ -268,12 +270,14 @@ pub trait Kem: Sized {
 /// # Example
 ///
 /// ```
+/// # #[cfg(all(feature = "alloc", feature = "random"))] {
 /// use hpke::kem::{Kem, MLKEM768X25519};
 ///
 /// let (secret_key, public_key) = MLKEM768X25519::generate_keypair().unwrap();
 /// let (shared_secret, encapped_key) = MLKEM768X25519::encap(&public_key).unwrap();
 /// let decapsulated = MLKEM768X25519::decap(&encapped_key, &secret_key).unwrap();
 /// assert_eq!(shared_secret.as_ref(), decapsulated.as_ref());
+/// # }
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MLKEM768X25519;

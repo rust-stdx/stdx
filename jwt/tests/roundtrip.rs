@@ -1,3 +1,5 @@
+#![cfg(feature = "std")]
+
 use crypto::{
     curve25519::ed25519,
     mldsa::{
