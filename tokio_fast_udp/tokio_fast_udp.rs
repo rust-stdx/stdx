@@ -42,7 +42,8 @@
 //!
 //! On Linux, a single [`SendItem`] with a segment size is sent as one
 //! `sendmsg` plus `UDP_SEGMENT`, and the kernel or NIC performs the
-//! segmentation (GSO):
+//! segmentation (GSO). On platforms without GSO the payload is split into one
+//! datagram per segment in user space, so the same code runs everywhere.
 //!
 //! ```no_run
 //! use tokio_fast_udp::{FastUdpSocket, SendItem};
@@ -109,7 +110,8 @@
 //! gracefully disabled if the kernel doesn't support them.
 //!
 //! **macOS, iOS and other Unix** platforms use `sendmsg`/`recvmsg` with ECN
-//! ancillary data where supported.
+//! ancillary data where supported. Segmented sends (`SendItem::segment_size`)
+//! are emulated there by splitting the payload into one datagram per segment.
 //!
 //! # API
 //!

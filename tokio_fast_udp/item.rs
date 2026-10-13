@@ -10,7 +10,8 @@ use crate::Ecn;
 /// When [`segment_size`] is set and the platform supports it (Linux GSO), the
 /// kernel will segment `data` into multiple datagrams of `segment_size` bytes
 /// each (the final segment may be shorter). This allows sending N packets in
-/// a single syscall.
+/// a single syscall. On platforms without GSO the same datagrams are produced
+/// by splitting `data` in user space.
 ///
 /// [`ecn`]: SendItem::ecn
 /// [`segment_size`]: SendItem::segment_size
@@ -40,12 +41,19 @@ impl<'a> SendItem<'a> {
         self
     }
 
-    /// Enable UDP segmentation offload (GSO on Linux). The kernel will split
-    /// `data` into consecutive chunks of `segment_size` bytes and send each as
-    /// a separate UDP datagram to the same `destination`.
+    /// Enable UDP segmentation offload (GSO on Linux). `data` is split into
+    /// consecutive chunks of `segment_size` bytes and each chunk is sent as a
+    /// separate UDP datagram to the same `destination` (the final chunk may be
+    /// shorter).
     ///
-    /// `data.len()` must be a multiple of `segment_size`, except for the final
-    /// segment which may be shorter.
+    /// On Linux with GSO available the kernel performs the segmentation from a
+    /// single `sendmsg`; everywhere else the chunks are emitted as individual
+    /// datagrams in user space.
+    ///
+    /// `segment_size` must be greater than zero: a zero value makes the next
+    /// send fail with [`io::ErrorKind::InvalidInput`].
+    ///
+    /// [`io::ErrorKind::InvalidInput`]: std::io::ErrorKind::InvalidInput
     pub fn segment_size(mut self, segment_size: u16) -> Self {
         self.segment_size = Some(segment_size);
         self

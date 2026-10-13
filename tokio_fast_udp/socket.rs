@@ -210,9 +210,20 @@ mod unix_socket {
             true
         }
 
-        /// The kernel only reads the ancillary data on `sendmsg`.
+        /// Pointer to hand to `sendmsg`/`sendmmsg` as the control buffer.
+        ///
+        /// Returns a null pointer when no control message was appended. POSIX
+        /// requires `msg_control` to be null when `msg_controllen` is zero, and
+        /// XNU's `sendit()` rejects a non-null `msg_control` whose
+        /// `msg_controllen` is smaller than `sizeof(struct cmsghdr)` with
+        /// `EINVAL`, so a non-null pointer to an empty buffer makes every
+        /// ancillary-data-free send fail on macOS/iOS.
         fn as_ptr(&self) -> *const libc::c_void {
-            self.buf.as_ptr() as *const libc::c_void
+            if self.len == 0 {
+                std::ptr::null()
+            } else {
+                self.buf.as_ptr() as *const libc::c_void
+            }
         }
 
         fn len(&self) -> usize {
@@ -228,6 +239,18 @@ mod unix_socket {
         fn new() -> Self {
             RecvCmsgBuf([0u8; CMSG_BUF_SIZE])
         }
+    }
+
+    /// Reject a `segment_size` of zero up front: it is meaningless and would
+    /// otherwise make `slice::chunks(0)` panic inside the send path.
+    fn reject_zero_segment_size(items: &[SendItem<'_>]) -> io::Result<()> {
+        if items.iter().any(|item| item.segment_size == Some(0)) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "segment_size must be greater than zero",
+            ));
+        }
+        Ok(())
     }
 
     /// Set a boolean socket option (an `int` read as `0`/`1`).
@@ -565,7 +588,7 @@ mod unix_socket {
 
         use super::{
             BuildConfig, CmsgBuf, RecvCmsgBuf, fill_sockaddr, get_int_opt, push_ecn_cmsg, push_gso_cmsg, recvmsg_raw,
-            sendmsg_raw, set_bool_opt,
+            reject_zero_segment_size, sendmsg_raw, set_bool_opt,
         };
         use crate::{
             capability::Capabilities,
@@ -666,6 +689,8 @@ mod unix_socket {
             if items.is_empty() {
                 return Ok(0);
             }
+
+            reject_zero_segment_size(items)?;
 
             // Single-item GSO fast path — only attempted once
             if items.len() == 1 && items[0].segment_size.is_some() && caps.gso && !state.gso_einval {
@@ -855,16 +880,21 @@ mod unix_socket {
 
         #[cfg(target_vendor = "apple")]
         use super::push_ecn_cmsg;
-        use super::{BuildConfig, CmsgBuf, RecvCmsgBuf, recvmsg_raw, sendmsg_raw, set_bool_opt};
+        use super::{
+            BuildConfig, CmsgBuf, RecvCmsgBuf, recvmsg_raw, reject_zero_segment_size, sendmsg_raw, set_bool_opt,
+        };
         use crate::{
             capability::Capabilities,
             item::{ReceiveItem, SendItem},
         };
 
-        /// The generic-Unix send path carries no per-call state; this exists
-        /// only to match the contract used by `send_many`.
+        /// Per-call state threaded through [`send_batch`] so that partially
+        /// completed user-space segmentation survives the retries performed by
+        /// `AsyncFd::async_io`.
         #[derive(Default)]
-        pub struct SendState;
+        pub struct SendState {
+            pub chunk_offset: usize,
+        }
 
         fn send_one(fd: std::os::fd::RawFd, item: &SendItem, ecn_enabled: bool) -> io::Result<()> {
             #[cfg_attr(not(target_vendor = "apple"), allow(unused_mut))]
@@ -888,23 +918,50 @@ mod unix_socket {
             fd: std::os::fd::RawFd,
             items: &[SendItem<'_>],
             caps: &Capabilities,
-            _state: &mut SendState,
+            state: &mut SendState,
         ) -> io::Result<usize> {
             if items.is_empty() {
                 return Ok(0);
             }
 
+            reject_zero_segment_size(items)?;
+
             let mut count = 0;
             for item in items {
-                match send_one(fd, item, caps.ecn) {
-                    Ok(()) => count += 1,
-                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        if count == 0 {
-                            return Err(e);
+                if let Some(seg) = item.segment_size {
+                    // No GSO on this platform: emulate it by splitting the
+                    // payload into one datagram per segment in user space.
+                    let seg = seg as usize;
+                    let data_slice = &item.data[state.chunk_offset..];
+                    for chunk in data_slice.chunks(seg) {
+                        let mut chunk_item = SendItem::new(item.destination, chunk);
+                        if let Some(ecn) = item.ecn {
+                            chunk_item = chunk_item.ecn(ecn);
                         }
-                        return Ok(count);
+                        match send_one(fd, &chunk_item, caps.ecn) {
+                            Ok(()) => state.chunk_offset += chunk.len(),
+                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                if count == 0 && state.chunk_offset == 0 {
+                                    return Err(e);
+                                }
+                                return Ok(count);
+                            }
+                            Err(e) => return Err(e),
+                        }
                     }
-                    Err(e) => return Err(e),
+                    state.chunk_offset = 0;
+                    count += 1;
+                } else {
+                    match send_one(fd, item, caps.ecn) {
+                        Ok(()) => count += 1,
+                        Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            if count == 0 {
+                                return Err(e);
+                            }
+                            return Ok(count);
+                        }
+                        Err(e) => return Err(e),
+                    }
                 }
             }
             Ok(count)

@@ -294,7 +294,14 @@ async fn test_gso_fallback_manual_chunking() {
 
     let mut total = 0;
     while total < count {
-        total += receiver.receive_many(&mut recv_items[total..]).await.unwrap();
+        let n = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            receiver.receive_many(&mut recv_items[total..]),
+        )
+        .await
+        .expect("timed out waiting for manually chunked datagrams")
+        .unwrap();
+        total += n;
     }
 
     assert_eq!(total, count);
@@ -515,4 +522,59 @@ async fn test_reuse_port_bind() {
     #[cfg(target_os = "linux")]
     assert!(second.is_ok(), "SO_REUSEPORT second bind failed: {:?}", second.as_ref().err());
     let _ = second;
+}
+
+/// When the payload is not a whole multiple of the segment size, the final
+/// datagram must be the short remainder. This exercises the user-space
+/// segmentation fallback (GSO is disabled on the sender and GRO on the
+/// receiver so the datagrams are observed individually).
+#[tokio::test]
+async fn test_segment_size_short_final_segment() {
+    let receiver = FastUdpSocket::build(loop_addr(0)).gro(false).bind().unwrap();
+    let raddr = receiver.local_addr().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).gso(false).bind().unwrap();
+
+    let seg = 16usize;
+    let tail = 5usize;
+    let payload = vec![0x7Fu8; seg * 2 + tail];
+
+    let items = [SendItem::new(raddr, &payload).segment_size(seg as u16)];
+    sender.send_many(&items).await.unwrap();
+
+    let mut bufs: Vec<Vec<u8>> = (0..3).map(|_| vec![0u8; 128]).collect();
+    let mut recv_items: Vec<ReceiveItem> = bufs.iter_mut().map(|b| ReceiveItem::new(b)).collect();
+
+    let mut total = 0;
+    while total < 3 {
+        let n = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            receiver.receive_many(&mut recv_items[total..]),
+        )
+        .await
+        .expect("timed out waiting for segmented datagrams")
+        .unwrap();
+        total += n;
+    }
+
+    assert_eq!(total, 3);
+    assert_eq!(recv_items[0].data(), &payload[..seg]);
+    assert_eq!(recv_items[1].data(), &payload[seg..seg * 2]);
+    assert_eq!(recv_items[2].len(), tail);
+    assert_eq!(recv_items[2].data(), &payload[seg * 2..]);
+}
+
+/// A zero segment size is meaningless and must surface as an error instead of
+/// panicking inside the send path.
+#[tokio::test]
+async fn test_zero_segment_size_is_error() {
+    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
+    let raddr = receiver.local_addr().unwrap();
+    let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
+
+    let err = sender
+        .send(SendItem::new(raddr, b"payload").segment_size(0))
+        .await
+        .expect_err("a zero segment size must be rejected");
+
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
 }
