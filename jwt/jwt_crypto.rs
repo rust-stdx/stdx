@@ -1,6 +1,9 @@
+#[cfg(feature = "random")]
 use alloc::boxed::Box;
 
 use constant_time_eq::constant_time_eq;
+#[cfg(feature = "random")]
+use crypto::mldsa::{MlDsa44SecretKey, MlDsa65SecretKey, MlDsa87SecretKey};
 use crypto::{
     Hash, Hasher,
     blake3::Blake3,
@@ -8,7 +11,7 @@ use crypto::{
     hmac::Hmac,
     mldsa::{
         ML_DSA_44_SIGNATURE_SIZE, ML_DSA_65_SIGNATURE_SIZE, ML_DSA_87_SIGNATURE_SIZE, MlDsa44PublicKey,
-        MlDsa44SecretKey, MlDsa65PublicKey, MlDsa65SecretKey, MlDsa87PublicKey, MlDsa87SecretKey,
+        MlDsa65PublicKey, MlDsa87PublicKey,
     },
     p256, p384, p521, rsa,
     sha2::{Sha256, Sha384, Sha512},
@@ -149,6 +152,9 @@ pub enum Key<'a> {
     MlDsa44Public(MlDsa44PublicKey),
 
     /// ML-DSA-44 secret key for `ML-DSA-44`.
+    ///
+    /// Only available with the `random` feature, because signing needs a random number generator.
+    #[cfg(feature = "random")]
     MlDsa44Secret(MlDsa44SecretKey),
 
     /// ML-DSA-65 public key for `ML-DSA-65`.
@@ -158,6 +164,9 @@ pub enum Key<'a> {
     ///
     /// Boxed because an expanded ML-DSA-65 secret key is roughly 50 KiB, which would otherwise
     /// inflate every [`Key`] value and overflow the stack in debug builds.
+    ///
+    /// Only available with the `random` feature, because signing needs a random number generator.
+    #[cfg(feature = "random")]
     MlDsa65Secret(Box<MlDsa65SecretKey>),
 
     /// ML-DSA-87 public key for `ML-DSA-87`.
@@ -167,6 +176,9 @@ pub enum Key<'a> {
     ///
     /// Boxed because an expanded ML-DSA-87 secret key is roughly 82 KiB, which would otherwise
     /// inflate every [`Key`] value and overflow the stack in debug builds.
+    ///
+    /// Only available with the `random` feature, because signing needs a random number generator.
+    #[cfg(feature = "random")]
     MlDsa87Secret(Box<MlDsa87SecretKey>),
 }
 
@@ -212,8 +224,11 @@ impl<'a> TryFrom<&'a Jwk> for Key<'a> {
             JwkCrypto::Akp {
                 private_key: Some(_), ..
             } => match jwk.algorithm {
+                #[cfg(feature = "random")]
                 Algorithm::MlDsa44 => Ok(Key::MlDsa44Secret(MlDsa44SecretKey::try_from(jwk)?)),
+                #[cfg(feature = "random")]
                 Algorithm::MlDsa65 => Ok(Key::MlDsa65Secret(alloc::boxed::Box::new(MlDsa65SecretKey::try_from(jwk)?))),
+                #[cfg(feature = "random")]
                 Algorithm::MlDsa87 => Ok(Key::MlDsa87Secret(alloc::boxed::Box::new(MlDsa87SecretKey::try_from(jwk)?))),
                 _ => Err(Error::InvalidKey),
             },
@@ -239,22 +254,24 @@ impl Key<'_> {
             Key::P384Public(_) => Algorithm::ES384,
             Key::P521Public(_) | Key::P521Secret(_) => Algorithm::ES512,
             Key::Rsa(key) => Verifier::algorithm(key),
-            Key::MlDsa44Public(_) | Key::MlDsa44Secret(_) => Algorithm::MlDsa44,
-            Key::MlDsa65Public(_) | Key::MlDsa65Secret(_) => Algorithm::MlDsa65,
-            Key::MlDsa87Public(_) | Key::MlDsa87Secret(_) => Algorithm::MlDsa87,
+            Key::MlDsa44Public(_) => Algorithm::MlDsa44,
+            #[cfg(feature = "random")]
+            Key::MlDsa44Secret(_) => Algorithm::MlDsa44,
+            Key::MlDsa65Public(_) => Algorithm::MlDsa65,
+            #[cfg(feature = "random")]
+            Key::MlDsa65Secret(_) => Algorithm::MlDsa65,
+            Key::MlDsa87Public(_) => Algorithm::MlDsa87,
+            #[cfg(feature = "random")]
+            Key::MlDsa87Secret(_) => Algorithm::MlDsa87,
         }
     }
 
     /// Returns true if the Key is a secret key that can be used for signing.
     pub fn is_secret_key(&self) -> bool {
         match self {
-            Key::Secret(_)
-            | Key::Ed25519Secret(_)
-            | Key::P256Secret(_)
-            | Key::P521Secret(_)
-            | Key::MlDsa44Secret(_)
-            | Key::MlDsa65Secret(_)
-            | Key::MlDsa87Secret(_) => true,
+            Key::Secret(_) | Key::Ed25519Secret(_) | Key::P256Secret(_) | Key::P521Secret(_) => true,
+            #[cfg(feature = "random")]
+            Key::MlDsa44Secret(_) | Key::MlDsa65Secret(_) | Key::MlDsa87Secret(_) => true,
             _ => false,
         }
     }
@@ -267,8 +284,11 @@ impl Signer for Key<'_> {
             Key::Ed25519Secret(key) => Signer::sign(key, message),
             Key::P256Secret(key) => Signer::sign(key, message),
             Key::P521Secret(key) => Signer::sign(key, message),
+            #[cfg(feature = "random")]
             Key::MlDsa44Secret(key) => Signer::sign(key, message),
+            #[cfg(feature = "random")]
             Key::MlDsa65Secret(key) => Signer::sign(key.as_ref(), message),
+            #[cfg(feature = "random")]
             Key::MlDsa87Secret(key) => Signer::sign(key.as_ref(), message),
             _ => Err(Error::InvalidKey),
         }
@@ -293,10 +313,13 @@ impl Verifier for Key<'_> {
             Key::P521Secret(key) => Verifier::verify(&key.public_key(), message, signature),
             Key::Rsa(key) => Verifier::verify(key, message, signature),
             Key::MlDsa44Public(key) => Verifier::verify(key, message, signature),
+            #[cfg(feature = "random")]
             Key::MlDsa44Secret(key) => Verifier::verify(&key.public_key(), message, signature),
             Key::MlDsa65Public(key) => Verifier::verify(key, message, signature),
+            #[cfg(feature = "random")]
             Key::MlDsa65Secret(key) => Verifier::verify(&key.public_key(), message, signature),
             Key::MlDsa87Public(key) => Verifier::verify(key, message, signature),
+            #[cfg(feature = "random")]
             Key::MlDsa87Secret(key) => Verifier::verify(&key.public_key(), message, signature),
         }
     }
@@ -320,10 +343,13 @@ impl core::fmt::Debug for Key<'_> {
             Key::P521Secret(_) => "Key::P521Secret",
             Key::Rsa(_) => "Key::Rsa",
             Key::MlDsa44Public(_) => "Key::MlDsa44Public",
+            #[cfg(feature = "random")]
             Key::MlDsa44Secret(_) => "Key::MlDsa44Secret",
             Key::MlDsa65Public(_) => "Key::MlDsa65Public",
+            #[cfg(feature = "random")]
             Key::MlDsa65Secret(_) => "Key::MlDsa65Secret",
             Key::MlDsa87Public(_) => "Key::MlDsa87Public",
+            #[cfg(feature = "random")]
             Key::MlDsa87Secret(_) => "Key::MlDsa87Secret",
         })
     }
@@ -512,6 +538,7 @@ impl Verifier for p521::PublicKey {
 // ML-DSA-44
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#[cfg(feature = "random")]
 impl Signer for MlDsa44SecretKey {
     fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
         return MlDsa44SecretKey::sign(self, message, b"")
@@ -542,6 +569,7 @@ impl Verifier for MlDsa44PublicKey {
 // ML-DSA-65
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#[cfg(feature = "random")]
 impl Signer for MlDsa65SecretKey {
     fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
         return MlDsa65SecretKey::sign(self, message, b"")
@@ -572,6 +600,7 @@ impl Verifier for MlDsa65PublicKey {
 // ML-DSA-87
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#[cfg(feature = "random")]
 impl Signer for MlDsa87SecretKey {
     fn sign(&self, message: &[u8]) -> Result<Signature, Error> {
         return MlDsa87SecretKey::sign(self, message, b"")

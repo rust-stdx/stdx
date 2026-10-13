@@ -11,6 +11,11 @@
 //! Disable default features (`default-features = false`) and provide your own
 //! [`Clock`] implementation for time-based claim verification (optional).
 //!
+//! `jwt` still requires `alloc`. ML-DSA signing additionally requires a random
+//! number generator: enable the `random` feature (implied by `std`), or provide
+//! a `getrandom` backend. Without `random`, the ML-DSA secret-key variants of
+//! [`Key`] and the ML-DSA [`Signer`] implementations are not compiled.
+//!
 //! # Example
 //!
 //! ```
@@ -447,7 +452,7 @@ impl core::fmt::Display for Error {
                 kid,
                 err,
             } => write!(f, "{kid} is not a valid JWK: {err}"),
-            Error::Unspecified(err) => f.write_str(&err),
+            Error::Unspecified(err) => f.write_str(err),
             Error::ClockIsMissing => f.write_str("a clock is needed for exp or nbf verification"),
         }
     }
@@ -592,8 +597,7 @@ pub fn parse_and_verify<C: DeserializeOwned>(
     key.verify(signed_message, &signature_buffer[..signature_size])
         .map_err(|_| Error::InvalidSignature)?;
 
-    let claims_json =
-        base64::decode(&claims_base64, base64::Alphabet::UrlNoPadding).map_err(|_| Error::InvalidToken)?;
+    let claims_json = base64::decode(claims_base64, base64::Alphabet::UrlNoPadding).map_err(|_| Error::InvalidToken)?;
 
     let claims =
         if verify_options.exp || verify_options.nbf || verify_options.aud.is_some() || verify_options.iss.is_some() {
