@@ -971,7 +971,7 @@ impl<C: Curve> Rfc6979<C> {
     // qlen`). `self.v` is left holding the last generated block, so a
     // subsequent `retry()` continues the sequence.
     fn build_t(&mut self, t: &mut [u8]) -> usize {
-        let blocks = (C::FIELD_BITS + C::DIGEST_BYTES * 8 - 1) / (C::DIGEST_BYTES * 8);
+        let blocks = C::FIELD_BITS.div_ceil(C::DIGEST_BYTES * 8);
         let len = blocks * C::DIGEST_BYTES;
         assert!(len <= MAX_NONCE_BYTES);
         for b in 0..blocks {
@@ -1018,7 +1018,7 @@ impl<C: Curve> Rfc6979<C> {
         if found {
             // `candidate` passed the identical range check that
             // `scalar_from_nonce` applies, so this always succeeds.
-            let len = (C::FIELD_BITS + C::DIGEST_BYTES * 8 - 1) / (C::DIGEST_BYTES * 8) * C::DIGEST_BYTES;
+            let len = C::FIELD_BITS.div_ceil(C::DIGEST_BYTES * 8) * C::DIGEST_BYTES;
             if let Some(value) = C::scalar_from_nonce(&candidate[..len]) {
                 self.k = candidate_k;
                 self.v = candidate_v;
@@ -1183,7 +1183,7 @@ pub(crate) fn is_valid_public_key<C: Curve>(public_key: &[u8]) -> bool {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Public API
+// Public API
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// ECDSA secret key.

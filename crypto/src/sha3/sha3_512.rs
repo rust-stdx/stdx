@@ -104,7 +104,7 @@ mod tests {
             for chunk in input.chunks(11) {
                 sha3_512.update(chunk);
             }
-            assert_eq!(hex::encode(&sha3_512.sum()), expected);
+            assert_eq!(hex::encode(sha3_512.sum()), expected);
         }
     }
 
@@ -112,7 +112,7 @@ mod tests {
     fn hasher_trait_impl() {
         for (input, expected) in vectors_sha3_512() {
             let digest = <Sha3_512 as Hasher>::hash(&input);
-            assert_eq!(hex::encode(&digest), expected);
+            assert_eq!(hex::encode(digest), expected);
         }
     }
 }

@@ -89,7 +89,7 @@ impl<const N: usize, const L: usize> From<&[u8; L]> for Bytes<N> {
 impl<const N: usize> PartialEq for Bytes<N> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        constant_time_eq(&self, &other)
+        constant_time_eq(self, other)
     }
 }
 

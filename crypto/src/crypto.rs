@@ -215,7 +215,7 @@ impl From<getrandom::Error> for RandomError {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Traits
+// Traits
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub trait StreamCipher {
@@ -252,7 +252,7 @@ pub trait Aead {
         let mut plaintext = Vec::with_capacity(plaintext_length);
         plaintext.extend_from_slice(&ciphertext[..plaintext_length]);
 
-        self.decrypt_in_place(&mut plaintext, &nonce, aad, &ciphertext[plaintext_length..])?;
+        self.decrypt_in_place(&mut plaintext, nonce, aad, &ciphertext[plaintext_length..])?;
 
         return Ok(plaintext);
     }

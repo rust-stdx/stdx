@@ -1,8 +1,12 @@
 [package]
 name = "crypto"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
+
+[lints]
+workspace = true
+
 
 [lib]
 path = "./src/crypto.rs"
@@ -12,13 +16,12 @@ default = ["std", "zeroize"]
 
 alloc = ["dep:small_collections", "memchr/alloc", "base64/alloc", "big_number/alloc", "zeroize?/alloc"]
 random = ["dep:getrandom"]
-std = ["alloc", "small_collections?/std", "blake3/std", "memchr/std", "random", "big_number/std"]
+std = ["alloc", "small_collections?/std", "memchr/std", "random", "big_number/std"]
 zeroize = ["dep:zeroize", "big_number/zeroize"]
 
 [dependencies]
 base64 = { path = "../base64", default-features = false }
 big_number = { path = "../big_number", default-features = false }
-blake3 = { workspace = true, features = ["neon", "wasm32_simd"] }
 constant_time_eq = { path = "../constant_time_eq" }
 getrandom = { workspace = true, optional = true }
 memchr = { workspace = true }

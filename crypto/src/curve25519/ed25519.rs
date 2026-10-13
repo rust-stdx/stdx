@@ -304,7 +304,7 @@ impl Scalar {
             }
             Self(result)
         } else {
-            let chunk_count = (len + 31) / 32;
+            let chunk_count = len.div_ceil(32);
             let mut acc = U256::ZERO;
             let mut chunk_idx = chunk_count;
             while chunk_idx > 0 {
@@ -530,7 +530,7 @@ fn scalar_mul_table(table: &[EdwardsPoint; 16], scalar: &Scalar) -> EdwardsPoint
     let mut win = 63;
     loop {
         let idx = scalar_window(scalar, win);
-        let selected = ct_select_from_table(&table, idx);
+        let selected = ct_select_from_table(table, idx);
         result = result.add(&selected);
         if win == 0 {
             break;

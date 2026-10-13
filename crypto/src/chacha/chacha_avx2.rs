@@ -101,7 +101,7 @@ pub fn chacha_avx2<const ROUNDS: usize, const IS_IETF: bool>(
         state[13] = (counter >> 32) as u32;
     }
 
-    if input.len() % BLOCK_SIZE != 0 {
+    if !input.len().is_multiple_of(BLOCK_SIZE) {
         let last_keystream_block_index = ((input.len() - 1) / BLOCK_SIZE) % SIMD_LANES;
         let last_keystream_block_offset = last_keystream_block_index * BLOCK_SIZE;
         // copy the last 63 bytes of the leftover keystream block

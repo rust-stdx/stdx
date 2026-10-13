@@ -131,7 +131,7 @@ fn write_fixed(value: &[u8], out: &mut [u8]) -> Result<(), EcdsaError> {
 /// negative or too large for its half of the output, or when the lengths are
 /// inconsistent.
 pub fn decode_signature_der(der: &[u8], raw_out: &mut [u8]) -> Result<(), EcdsaError> {
-    if raw_out.is_empty() || raw_out.len() % 2 != 0 {
+    if raw_out.is_empty() || !raw_out.len().is_multiple_of(2) {
         return Err(EcdsaError::InvalidOutputLength);
     }
 

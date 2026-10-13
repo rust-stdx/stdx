@@ -40,7 +40,7 @@ pub fn derive<H: Hasher, const N: usize>(password: &[u8], salt: &[u8], iteration
     }
 
     let hlen = H::OUTPUT_SIZE;
-    let block_count = (N + hlen - 1) / hlen;
+    let block_count = N.div_ceil(hlen);
 
     let mut okm = [0u8; N];
     let mut t = [0u8; MAX_HASH_BLOCK_SIZE];

@@ -219,7 +219,7 @@ fn add128(a_lo: u64, a_hi: u64, b_lo: u64, b_hi: u64) -> (u64, u64) {
 /// Process whole 16-byte blocks. `data.len()` must be a multiple of 16.
 #[inline(always)]
 fn blocks(h: &mut [u64; 3], r: &[u64; 2], data: &[u8]) {
-    for chunk in data.chunks_exact(16) {
+    for chunk in data.as_chunks::<16>().0 {
         let t0 = u64::from_le_bytes(chunk[0..8].try_into().unwrap());
         let t1 = u64::from_le_bytes(chunk[8..16].try_into().unwrap());
         absorb(h, r, t0, t1, true);

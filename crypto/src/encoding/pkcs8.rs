@@ -451,8 +451,6 @@ pub const OID_ML_DSA_87: &[u8] = &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x0
 ///
 /// Only the seed is retained: the expanded key material is recomputed from it,
 /// so keys stored purely in `expandedKey` form cannot be represented.
-///
-/// The keys are large, so each variant is boxed.
 pub enum MlDsaPrivateKey {
     /// ML-DSA-44.
     Dsa44(crate::mldsa::MlDsa44SecretKey),

@@ -84,3 +84,78 @@ fn repeated_operations_do_not_leak() {
     let after = alloc_counter::counters().live_bytes;
     assert_eq!(before, after, "post-quantum operations retained heap memory");
 }
+
+#[test]
+fn blake3_does_not_allocate() {
+    use crypto::{Hasher, Xof, blake3::Blake3};
+
+    // Built before the measured closures so the buffer itself is not counted.
+    let data = vec![0x5au8; 3000];
+    let key = [0x11u8; 32];
+
+    assert_no_alloc("blake3 one-shot", || Blake3::hash(&data));
+    assert_no_alloc("blake3 keyed_hash", || Blake3::keyed_hash(&key, &data));
+    assert_no_alloc("blake3 derive_key", || Blake3::derive_key("allocation test context", &data));
+
+    assert_no_alloc("blake3 incremental", || {
+        let mut hasher = Blake3::new();
+        for chunk in data.chunks(7) {
+            hasher.update(chunk);
+        }
+        hasher.sum()
+    });
+
+    assert_no_alloc("blake3 keyed incremental", || {
+        let mut hasher = Blake3::new_keyed(&key);
+        hasher.update(&data);
+        hasher.sum()
+    });
+
+    assert_no_alloc("blake3 new_derive_key", || {
+        let mut hasher = Blake3::new_derive_key("allocation test context");
+        hasher.update(&data);
+        hasher.sum()
+    });
+
+    assert_no_alloc("blake3 xof squeeze", || {
+        let mut out = [0u8; 256];
+        let mut hasher = Blake3::new();
+        hasher.update(&data);
+        let mut xof = hasher.finalize_xof();
+        xof.squeeze(&mut out);
+        out[0]
+    });
+}
+
+#[test]
+fn blake3_does_not_leak() {
+    use crypto::{Hasher, Xof, blake3::Blake3};
+
+    let data = vec![0x33u8; 4096];
+
+    let before_bytes = alloc_counter::counters().live_bytes;
+    let before_allocs = alloc_counter::counters().live_allocations;
+
+    for i in 0..1000usize {
+        let mut hasher = Blake3::new_keyed(&[i as u8; 32]);
+        hasher.update(&data);
+        let _ = hasher.sum();
+
+        let mut hasher = Blake3::new();
+        hasher.update(&data[..100]);
+        let mut xof = hasher.finalize_xof();
+        let mut out = [0u8; 128];
+        xof.squeeze(&mut out);
+    }
+
+    assert_eq!(
+        before_bytes,
+        alloc_counter::counters().live_bytes,
+        "blake3 retained heap memory"
+    );
+    assert_eq!(
+        before_allocs,
+        alloc_counter::counters().live_allocations,
+        "blake3 leaked allocations"
+    );
+}

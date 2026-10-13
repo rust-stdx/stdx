@@ -34,7 +34,6 @@
 /// where · is GF(2¹²⁸) multiplication and Hⁱ are the precomputed powers.
 /// This reduces the reduction critical path compared to four serial
 /// multiply-reduce chains.
-#[allow(clippy::many_single_char_names)]
 use core::arch::x86_64::*;
 
 use super::{

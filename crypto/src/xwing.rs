@@ -126,7 +126,7 @@ impl SecretKey {
         let ct_m = &ct[..mlkem::CIPHERTEXT_SIZE_768].try_into().unwrap();
         let ct_x = x25519::PublicKey::from_bytes(&ct[mlkem::CIPHERTEXT_SIZE_768..].try_into().unwrap());
 
-        let ss_m = self.mlkem_secret_key.decapsulate(&ct_m)?;
+        let ss_m = self.mlkem_secret_key.decapsulate(ct_m)?;
         // A low-order `ct_x` yields an all-zero (non-contributory) X25519 shared
         // secret. X-Wing is safe here because the combiner binds `ct_x` and the
         // recipient's `pk_x`, and the draft specifies that Decapsulate always
@@ -198,7 +198,7 @@ impl PublicKey {
         let ss_x = ek_x.ecdh(&self.x25519_public_key).unwrap_or_default();
 
         let m = &eseed[..32].try_into().unwrap();
-        let (ss_m, ct_m) = self.mlkem_public_key.encapsulate_derand(&m);
+        let (ss_m, ct_m) = self.mlkem_public_key.encapsulate_derand(m);
 
         let ss = combiner(&ss_m, &ss_x, &ct_x.to_bytes(), &self.x25519_public_key.to_bytes());
 

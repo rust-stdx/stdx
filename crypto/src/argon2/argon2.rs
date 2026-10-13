@@ -288,7 +288,7 @@ pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Err
     if parts.len() != 6 {
         return Err(Argon2Error::InvalidEncoding("invalid PHC string format"));
     }
-    if parts[0] != "" {
+    if !parts[0].is_empty() {
         return Err(Argon2Error::InvalidEncoding("must start with $"));
     }
     if parts[1] != "argon2id" {

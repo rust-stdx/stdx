@@ -214,12 +214,12 @@ impl<const N: usize> AesGcm<N> {
             #[cfg(target_arch = "aarch64")]
             (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
-                gcm_encrypt_armv8(round_keys, &h_powers, in_out, nonce, aad)
+                gcm_encrypt_armv8(round_keys, h_powers, in_out, nonce, aad)
             },
             #[cfg(target_arch = "x86_64")]
             (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
-                gcm_encrypt_aesni(&round_keys, &h_powers, in_out, nonce, aad)
+                gcm_encrypt_aesni(round_keys, h_powers, in_out, nonce, aad)
             },
             (RoundKeys::Software(round_keys), GHashPowers::Software(h)) => {
                 self.encrypt_in_place_soft(in_out, round_keys, h, nonce, aad)
@@ -243,12 +243,12 @@ impl<const N: usize> AesGcm<N> {
             #[cfg(target_arch = "aarch64")]
             (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_arm64::gcm_decrypt_armv8;
-                gcm_decrypt_armv8(round_keys, &h_powers, in_out, tag, nonce, aad)
+                gcm_decrypt_armv8(round_keys, h_powers, in_out, tag, nonce, aad)
             },
             #[cfg(target_arch = "x86_64")]
             (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
-                gcm_decrypt_aesni(&round_keys, &h_powers, in_out, tag, nonce, aad)
+                gcm_decrypt_aesni(round_keys, h_powers, in_out, tag, nonce, aad)
             },
             (RoundKeys::Software(round_keys), GHashPowers::Software(h)) => {
                 self.decrypt_in_place_soft(in_out, round_keys, h, tag, nonce, aad)

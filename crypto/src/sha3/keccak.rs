@@ -100,14 +100,14 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
         self.squeeze_chunk(&mut out[..rate_remainder]);
 
         // then we can squeeze `RATE`-sized chunks
-        for mut chunk in out[rate_remainder..].chunks_mut(self.rate) {
-            self.squeeze_chunk(&mut chunk);
+        for chunk in out[rate_remainder..].chunks_mut(self.rate) {
+            self.squeeze_chunk(chunk);
         }
     }
 
     #[inline]
     fn absorb_chunk(&mut self, chunk: &[u8]) {
-        xor(&mut self.state[self.pos..self.pos + chunk.len()], &chunk);
+        xor(&mut self.state[self.pos..self.pos + chunk.len()], chunk);
         self.pos += chunk.len();
 
         // if the sponge is full, apply the permutation
@@ -137,8 +137,8 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
     fn permute_and_reset_pos(&mut self) {
         // this is totally safe as long as state.len() == 200 and state remains a [u8]. We are just
         // playing with the memory representation of the array, from [u8] to [u64].
-        let mut state: &mut [u64; 200 / 8] = unsafe { core::mem::transmute(&mut self.state) };
-        p1600::<ROUNDS>(&mut state);
+        let state: &mut [u64; 200 / 8] = unsafe { core::mem::transmute(&mut self.state) };
+        p1600::<ROUNDS>(state);
         self.pos = 0;
     }
 }

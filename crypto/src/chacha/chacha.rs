@@ -257,7 +257,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
 
 #[inline]
 fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
-    mut state: &mut [u32; STATE_WORDS],
+    state: &mut [u32; STATE_WORDS],
     keystream_leftover: &mut [u8; BLOCK_SIZE - 1],
     plaintext: &mut [u8],
 ) {
@@ -267,7 +267,7 @@ fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
 
     // process the input by blocks of 64 bytes
     for plaintext_block in plaintext.chunks_mut(BLOCK_SIZE) {
-        ChaCha::<ROUNDS, IS_IETF>::inject_counter(&mut state, counter);
+        ChaCha::<ROUNDS, IS_IETF>::inject_counter(state, counter);
 
         // prepare temporary (working) state
         let mut tmp_state = *state;
@@ -319,7 +319,7 @@ fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
 
     ChaCha::<ROUNDS, IS_IETF>::inject_counter(state, counter);
 
-    if plaintext.len() % BLOCK_SIZE != 0 {
+    if !plaintext.len().is_multiple_of(BLOCK_SIZE) {
         // copy the last 63 bytes of the leftover keystream block
         keystream_leftover.copy_from_slice(&keystream[1..]);
     }

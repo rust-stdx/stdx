@@ -83,7 +83,7 @@ impl Aead for ChaCha20Blake3 {
         let mut mac_hasher = Blake3::new_keyed(authentication_key);
         mac_hasher.update(aad);
         mac_hasher.update(&(aad.len() as u64).to_le_bytes());
-        mac_hasher.update(&in_out);
+        mac_hasher.update(in_out);
         mac_hasher.update(&(in_out.len() as u64).to_le_bytes());
         let tag = mac_hasher.sum();
 
@@ -111,7 +111,7 @@ impl Aead for ChaCha20Blake3 {
         let authentication_key: &[u8; 32] = kdf_out[32..64].try_into().unwrap();
         let chacha20_nonce: &[u8; 8] = kdf_out[64..].try_into().unwrap();
 
-        let mut mac_hasher = Blake3::new_keyed(&authentication_key);
+        let mut mac_hasher = Blake3::new_keyed(authentication_key);
         mac_hasher.update(aad);
         mac_hasher.update(&(aad.len() as u64).to_le_bytes());
         mac_hasher.update(in_out);
@@ -122,7 +122,7 @@ impl Aead for ChaCha20Blake3 {
             return Err(AeadError::InvalidCiphertext);
         }
 
-        ChaCha20Djb::new(&chacha20_key, &chacha20_nonce).xor_keystream(in_out);
+        ChaCha20Djb::new(chacha20_key, chacha20_nonce).xor_keystream(in_out);
 
         #[cfg(feature = "zeroize")]
         kdf_out.zeroize();
