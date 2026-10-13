@@ -55,9 +55,8 @@ pub fn get_files(folder_path: &Path, matcher: &PathMatcher) -> impl Iterator<Ite
         .filter(|entry| entry.file_type().is_file())
         .filter_map(move |entry| {
             let rel_path = entry.path().strip_prefix(folder_path).ok()?;
-            let rel_path = rel_path.to_str()?;
-            let rel_path = normalize_rel_path(rel_path);
-            if !is_valid_key(&rel_path) || !matcher.is_path_included(&rel_path) {
+            let rel_path = rel_path_key(rel_path)?;
+            if !matcher.is_path_included(&rel_path) {
                 return None;
             }
 
@@ -89,6 +88,21 @@ fn normalize_rel_path(path: &str) -> Cow<'_, str> {
 #[cfg(not(windows))]
 fn normalize_rel_path(path: &str) -> Cow<'_, str> {
     Cow::Borrowed(path)
+}
+
+/// Converts a path relative to the folder root into a lookup key, or `None`
+/// when the path cannot be used as one.
+///
+/// Names that are not valid UTF-8 and names rejected by [`is_valid_key`] (for
+/// example those containing a backslash on non-Windows platforms) yield `None`,
+/// and callers skip them.
+fn rel_path_key(rel_path: &Path) -> Option<Cow<'_, str>> {
+    let rel_path = rel_path.to_str()?;
+    let rel_path = normalize_rel_path(rel_path);
+    if !is_valid_key(&rel_path) {
+        return None;
+    }
+    Some(rel_path)
 }
 
 /// Returns `true` when `key` is a valid relative path that may be passed to
@@ -494,11 +508,23 @@ mod tests {
         {
             use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
             let bad = dir.join(OsStr::from_bytes(b"bad_\xff\xfe.txt"));
-            fs::write(&bad, b"bad").unwrap();
+            // Some file systems (macOS APFS/HFS+) reject non-UTF-8 names with
+            // EILSEQ, so the entry may simply not exist to be skipped. The
+            // decision itself is covered by `non_utf8_names_are_rejected_as_keys`.
+            let _ = fs::write(&bad, b"bad");
         }
 
         assert_eq!(walk(&dir, &PathMatcher::new(&[], &[])), ["ok.txt"]);
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_names_are_rejected_as_keys() {
+        use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+
+        assert_eq!(rel_path_key(Path::new(OsStr::from_bytes(b"bad_\xff\xfe.txt"))), None);
+        assert_eq!(rel_path_key(Path::new("good.txt")).as_deref(), Some("good.txt"));
     }
 
     #[cfg(unix)]
