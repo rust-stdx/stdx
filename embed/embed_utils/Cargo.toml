@@ -2,9 +2,7 @@
 name = "embed_utils"
 version = "8.4.0"
 description = "Utilities for rust-embed"
-readme = "readme.md"
 documentation = "https://docs.rs/rust-embed"
-license = "MIT"
 keywords = ["http", "rocket", "static", "web", "server"]
 categories = ["web-programming::http-server"]
 authors = ["pyros2097 <pyros2097@gmail.com>"]

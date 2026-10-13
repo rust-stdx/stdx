@@ -7,8 +7,12 @@
 // except according to those terms.
 
 /*!
-A crate for string searching. The main trait is `Searcher`, which has a function for finding fixed
-things in long byte-strings. Currently, the only implementer of `Searcher` is `TwoWaySearcher`.
+A crate for substring searching, with functionality similar to the `memmem`
+function in C.
+
+The main trait is [`Searcher`], which finds fixed byte-strings in longer
+byte-strings. The only implementer is [`TwoWaySearcher`], a copy of the two-way
+search implementation from Rust's standard library adapted to search `&[u8]`.
 
 # Example
 

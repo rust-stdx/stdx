@@ -1,4 +1,4 @@
-// FastUdpSocket and FastUdpSocketBuilder for Unix (AsyncFd + nix syscalls)
+// FastUdpSocket and FastUdpSocketBuilder for Unix (AsyncFd + libc syscalls)
 // and Windows (tokio::net::UdpSocket).
 
 // ---------------------------------------------------------------------------
@@ -8,8 +8,8 @@
 mod unix_socket {
     use std::{
         io,
-        net::SocketAddr,
-        os::fd::{AsRawFd, OwnedFd},
+        net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6},
+        os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd},
     };
 
     // -- platform alias --------------------------------------------------------
@@ -19,10 +19,9 @@ mod unix_socket {
     #[cfg(all(unix, not(target_os = "linux")))]
     use unix_inner as plat;
 
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    use crate::ecn::Ecn;
     use crate::{
         capability::Capabilities,
+        ecn::Ecn,
         item::{ReceiveItem, SendItem},
     };
 
@@ -90,7 +89,7 @@ mod unix_socket {
         }
 
         pub fn local_addr(&self) -> io::Result<SocketAddr> {
-            plat::local_addr(self.fd.get_ref())
+            socket_local_addr(self.fd.get_ref())
         }
     }
 
@@ -145,7 +144,6 @@ mod unix_socket {
                 let std_socket = std::net::UdpSocket::bind(self.addr)?;
                 std_socket.set_nonblocking(true)?;
 
-                use std::os::fd::{FromRawFd, IntoRawFd};
                 let raw_fd = std_socket.into_raw_fd();
                 unsafe { OwnedFd::from_raw_fd(raw_fd) }
             };
@@ -168,37 +166,124 @@ mod unix_socket {
         }
     }
 
-    // -- shared nix helpers (used by the platform inner modules via super::) --
+    // -- shared syscall helpers (used by the platform inner modules via super::) --
 
+    /// Size of the ancillary-data buffer used for one datagram.
+    ///
+    /// The largest control-message set this crate produces is a GSO segment size
+    /// plus an ECN codepoint, which fits comfortably.
+    const CMSG_BUF_SIZE: usize = 128;
+
+    /// Alignment-safe outgoing ancillary-data buffer.
+    #[repr(align(8))]
+    struct CmsgBuf {
+        buf: [u8; CMSG_BUF_SIZE],
+        len: usize,
+    }
+
+    impl CmsgBuf {
+        fn new() -> Self {
+            Self {
+                buf: [0u8; CMSG_BUF_SIZE],
+                len: 0,
+            }
+        }
+
+        /// Append one control message, returning `false` if it does not fit.
+        #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+        fn push(&mut self, level: libc::c_int, ty: libc::c_int, data: *const u8, data_len: usize) -> bool {
+            let space = unsafe { libc::CMSG_SPACE(data_len as u32) as usize };
+            if self.len + space > self.buf.len() {
+                return false;
+            }
+
+            // Control messages are laid out sequentially, each occupying
+            // `CMSG_SPACE(payload_len)` bytes starting at the previous message's
+            // end. The buffer is aligned via `#[repr(align(8))]`.
+            let header = unsafe { self.buf.as_mut_ptr().add(self.len) as *mut libc::cmsghdr };
+            unsafe {
+                (*header).cmsg_len = libc::CMSG_LEN(data_len as u32) as _;
+                (*header).cmsg_level = level;
+                (*header).cmsg_type = ty;
+                std::ptr::copy_nonoverlapping(data, libc::CMSG_DATA(header), data_len);
+            }
+            self.len += space;
+            true
+        }
+
+        /// The kernel only reads the ancillary data on `sendmsg`.
+        fn as_ptr(&self) -> *const libc::c_void {
+            self.buf.as_ptr() as *const libc::c_void
+        }
+
+        fn len(&self) -> usize {
+            self.len
+        }
+    }
+
+    /// Alignment-safe buffer for received ancillary data.
+    #[repr(align(8))]
+    struct RecvCmsgBuf([u8; CMSG_BUF_SIZE]);
+
+    impl RecvCmsgBuf {
+        fn new() -> Self {
+            RecvCmsgBuf([0u8; CMSG_BUF_SIZE])
+        }
+    }
+
+    /// Set a boolean socket option (an `int` read as `0`/`1`).
+    fn set_bool_opt(fd: std::os::fd::RawFd, level: libc::c_int, name: libc::c_int) -> io::Result<()> {
+        let enable: libc::c_int = 1;
+        let ret = unsafe {
+            libc::setsockopt(
+                fd,
+                level,
+                name,
+                &enable as *const libc::c_int as *const libc::c_void,
+                std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+            )
+        };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    /// Read an `int`-valued socket option.
     #[cfg(target_os = "linux")]
-    use nix::sys::socket::ControlMessageOwned;
-    use nix::sys::socket::SockaddrStorage;
-
-    fn nix_err(e: nix::errno::Errno) -> io::Error {
-        e.into()
+    fn get_int_opt(fd: std::os::fd::RawFd, level: libc::c_int, name: libc::c_int) -> io::Result<libc::c_int> {
+        let mut value: libc::c_int = 0;
+        let mut len = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
+        let ret =
+            unsafe { libc::getsockopt(fd, level, name, &mut value as *mut libc::c_int as *mut libc::c_void, &mut len) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(value)
     }
 
     fn create_socket_with_reuse_port(addr: SocketAddr) -> io::Result<OwnedFd> {
-        use nix::sys::socket::{AddressFamily, SockFlag, SockType, bind, setsockopt, socket, sockopt::ReusePort};
-
-        let is_ipv6 = addr.is_ipv6();
-        let domain = if is_ipv6 {
-            AddressFamily::Inet6
-        } else {
-            AddressFamily::Inet
-        };
+        let domain = if addr.is_ipv6() { libc::AF_INET6 } else { libc::AF_INET };
 
         // `SOCK_NONBLOCK` / `SOCK_CLOEXEC` are not accepted by `socket()` on
         // every Unix (notably macOS), so create a plain socket and apply the
         // flags portably via `fcntl`.
-        let fd = socket(domain, SockType::Datagram, SockFlag::empty(), None).map_err(nix_err)?;
+        let raw_fd = unsafe { libc::socket(domain, libc::SOCK_DGRAM, 0) };
+        if raw_fd < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let fd = unsafe { OwnedFd::from_raw_fd(raw_fd) };
+
         set_cloexec(&fd)?;
         set_nonblocking(&fd)?;
+        set_bool_opt(fd.as_raw_fd(), libc::SOL_SOCKET, libc::SO_REUSEPORT)?;
 
-        setsockopt(&fd, ReusePort, &true).map_err(nix_err)?;
-
-        let sock_addr = SockaddrStorage::from(addr);
-        bind(fd.as_raw_fd(), &sock_addr).map_err(nix_err)?;
+        let mut sock_addr: libc::sockaddr_storage = unsafe { std::mem::zeroed() };
+        let addr_len = fill_sockaddr(&addr, &mut sock_addr);
+        let ret = unsafe { libc::bind(fd.as_raw_fd(), &sock_addr as *const _ as *const libc::sockaddr, addr_len) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
 
         Ok(fd)
     }
@@ -230,28 +315,234 @@ mod unix_socket {
         ecn.to_tos_bits()
     }
 
-    /// Decode ECN from the `Ipv4Tos` / `Ipv6TClass` ancillary messages that
-    /// nix decodes natively on Linux.
-    #[cfg(target_os = "linux")]
-    fn parse_ecn(cmsgs: &[ControlMessageOwned]) -> Option<Ecn> {
-        for cmsg in cmsgs {
-            match cmsg {
-                ControlMessageOwned::Ipv4Tos(tos) => return Some(Ecn::from_tos_bits(*tos)),
-                ControlMessageOwned::Ipv6TClass(tc) => return Some(Ecn::from_tos_bits(*tc as u8)),
-                _ => {}
+    /// Fill a `sockaddr_storage` from a `SocketAddr`, returning its length.
+    fn fill_sockaddr(addr: &SocketAddr, ss: &mut libc::sockaddr_storage) -> libc::socklen_t {
+        unsafe {
+            std::ptr::write_bytes(ss as *mut _ as *mut u8, 0, std::mem::size_of::<libc::sockaddr_storage>());
+        }
+        match addr {
+            SocketAddr::V4(v4) => {
+                let sin = ss as *mut _ as *mut libc::sockaddr_in;
+                unsafe {
+                    (*sin).sin_family = libc::AF_INET as libc::sa_family_t;
+                    (*sin).sin_port = v4.port().to_be();
+                    (*sin).sin_addr.s_addr = u32::from_be_bytes(v4.ip().octets()).to_be();
+                }
+                // BSD-style sockets carry their own length field.
+                #[cfg(any(
+                    target_vendor = "apple",
+                    target_os = "freebsd",
+                    target_os = "dragonfly",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                unsafe {
+                    (*sin).sin_len = std::mem::size_of::<libc::sockaddr_in>() as u8;
+                }
+                std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t
+            }
+            SocketAddr::V6(v6) => {
+                let sin6 = ss as *mut _ as *mut libc::sockaddr_in6;
+                unsafe {
+                    (*sin6).sin6_family = libc::AF_INET6 as libc::sa_family_t;
+                    (*sin6).sin6_port = v6.port().to_be();
+                    (*sin6).sin6_addr.s6_addr = v6.ip().octets();
+                    (*sin6).sin6_flowinfo = v6.flowinfo().to_be();
+                    (*sin6).sin6_scope_id = v6.scope_id();
+                }
+                #[cfg(any(
+                    target_vendor = "apple",
+                    target_os = "freebsd",
+                    target_os = "dragonfly",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                unsafe {
+                    (*sin6).sin6_len = std::mem::size_of::<libc::sockaddr_in6>() as u8;
+                }
+                std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t
             }
         }
-        None
     }
 
-    fn storage_to_addr(addr: &SockaddrStorage) -> SocketAddr {
-        if let Some(v4) = addr.as_sockaddr_in() {
-            return (*v4).into();
+    /// Convert a `sockaddr_storage` into a `SocketAddr`.
+    ///
+    /// Addresses of an unknown family fall back to `0.0.0.0:0`.
+    fn storage_to_addr(ss: &libc::sockaddr_storage) -> SocketAddr {
+        match ss.ss_family as libc::c_int {
+            libc::AF_INET => {
+                let sin = unsafe { &*(ss as *const _ as *const libc::sockaddr_in) };
+                let ip = Ipv4Addr::from(sin.sin_addr.s_addr.to_ne_bytes());
+                SocketAddr::new(IpAddr::V4(ip), u16::from_be(sin.sin_port))
+            }
+            libc::AF_INET6 => {
+                let sin6 = unsafe { &*(ss as *const _ as *const libc::sockaddr_in6) };
+                let ip = Ipv6Addr::from(sin6.sin6_addr.s6_addr);
+                SocketAddr::V6(SocketAddrV6::new(
+                    ip,
+                    u16::from_be(sin6.sin6_port),
+                    u32::from_be(sin6.sin6_flowinfo),
+                    sin6.sin6_scope_id,
+                ))
+            }
+            _ => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
         }
-        if let Some(v6) = addr.as_sockaddr_in6() {
-            return (*v6).into();
+    }
+
+    /// Send a single datagram to `destination`, with optional ancillary data.
+    fn sendmsg_raw(fd: std::os::fd::RawFd, data: &[u8], destination: &SocketAddr, cmsgs: &CmsgBuf) -> io::Result<()> {
+        // `sendmsg` only reads the payload, so the cast from a shared slice to a
+        // mutable pointer is sound.
+        let mut iov = libc::iovec {
+            iov_base: data.as_ptr() as *mut libc::c_void,
+            iov_len: data.len(),
+        };
+
+        let mut addr: libc::sockaddr_storage = unsafe { std::mem::zeroed() };
+        let addr_len = fill_sockaddr(destination, &mut addr);
+
+        let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
+        mhdr.msg_name = &mut addr as *mut _ as *mut libc::c_void;
+        mhdr.msg_namelen = addr_len;
+        mhdr.msg_iov = &mut iov as *mut libc::iovec;
+        mhdr.msg_iovlen = 1;
+        mhdr.msg_control = cmsgs.as_ptr() as *mut libc::c_void;
+        mhdr.msg_controllen = cmsgs.len() as _;
+
+        let ret = unsafe { libc::sendmsg(fd, &mhdr, 0) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
         }
-        SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0)
+        Ok(())
+    }
+
+    /// Receive one datagram into `buf`.
+    ///
+    /// Returns the number of bytes received, the source address, and the decoded
+    /// ancillary data: the GRO segment size and the ECN codepoint, if present.
+    fn recvmsg_raw(
+        fd: std::os::fd::RawFd,
+        buf: &mut [u8],
+        cmsg_buf: &mut RecvCmsgBuf,
+        ecn_enabled: bool,
+    ) -> io::Result<(usize, SocketAddr, Option<u32>, Option<Ecn>)> {
+        let mut iov = libc::iovec {
+            iov_base: buf.as_mut_ptr() as *mut libc::c_void,
+            iov_len: buf.len(),
+        };
+        let mut addr: libc::sockaddr_storage = unsafe { std::mem::zeroed() };
+
+        let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
+        mhdr.msg_name = &mut addr as *mut _ as *mut libc::c_void;
+        mhdr.msg_namelen = std::mem::size_of::<libc::sockaddr_storage>() as _;
+        mhdr.msg_iov = &mut iov as *mut libc::iovec;
+        mhdr.msg_iovlen = 1;
+        mhdr.msg_control = cmsg_buf.0.as_mut_ptr() as *mut libc::c_void;
+        mhdr.msg_controllen = cmsg_buf.0.len() as _;
+
+        let ret = unsafe { libc::recvmsg(fd, &mut mhdr, 0) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
+
+        let (gro_seg, ecn) = decode_cmsgs(&mhdr, ecn_enabled);
+        Ok((ret as usize, storage_to_addr(&addr), gro_seg, ecn))
+    }
+
+    /// Decode the GRO/ECN ancillary data attached to a received datagram.
+    ///
+    /// GRO segment sizes and ECN codepoints are read straight from the kernel's
+    /// `cmsghdr` layout, since the levels/types and payload widths differ across
+    /// platforms (and across Apple OS versions for IPv6 traffic class).
+    fn decode_cmsgs(mhdr: &libc::msghdr, ecn_enabled: bool) -> (Option<u32>, Option<Ecn>) {
+        #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+        let mut gro_seg = None;
+        let mut ecn = None;
+
+        let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(mhdr) };
+        while !cmsg.is_null() {
+            let level = unsafe { (*cmsg).cmsg_level };
+            let ty = unsafe { (*cmsg).cmsg_type };
+            let data = unsafe { libc::CMSG_DATA(cmsg) };
+            let header_len = unsafe { libc::CMSG_LEN(0) } as usize;
+            let payload_len = (unsafe { (*cmsg).cmsg_len } as usize).saturating_sub(header_len);
+
+            // UDP Generic Receive Offload (Linux): the segment size is an `int`.
+            #[cfg(target_os = "linux")]
+            if level == libc::SOL_UDP && ty == libc::UDP_GRO && gro_seg.is_none() && payload_len >= 4 {
+                gro_seg = Some(unsafe { std::ptr::read_unaligned(data as *const libc::c_int) } as u32);
+            }
+
+            if ecn_enabled && ecn.is_none() {
+                // IPv4: `IP_TOS` on Linux, `IP_RECVTOS` on the BSDs and Apple,
+                // reported as a single byte.
+                if level == libc::IPPROTO_IP && (ty == libc::IP_TOS || ty == libc::IP_RECVTOS) && payload_len >= 1 {
+                    ecn = Some(Ecn::from_tos_bits(unsafe { std::ptr::read_unaligned(data as *const u8) }));
+                }
+                // IPv6: `IPV6_TCLASS` is an `int`, but Apple has historically
+                // reported it as a single byte (Apple bug 48761855).
+                if level == libc::IPPROTO_IPV6 && ty == libc::IPV6_TCLASS {
+                    if payload_len >= std::mem::size_of::<libc::c_int>() {
+                        let tc = unsafe { std::ptr::read_unaligned(data as *const libc::c_int) };
+                        ecn = Some(Ecn::from_tos_bits(tc as u8));
+                    } else if payload_len >= 1 {
+                        ecn = Some(Ecn::from_tos_bits(unsafe { std::ptr::read_unaligned(data as *const u8) }));
+                    }
+                }
+            }
+
+            cmsg = unsafe { libc::CMSG_NXTHDR(mhdr, cmsg) };
+        }
+
+        (gro_seg, ecn)
+    }
+
+    /// Append the UDP GSO segment-size control message.
+    #[cfg(target_os = "linux")]
+    fn push_gso_cmsg(cmsgs: &mut CmsgBuf, segment_size: u16) -> bool {
+        cmsgs.push(
+            libc::SOL_UDP,
+            libc::UDP_SEGMENT,
+            &segment_size as *const u16 as *const u8,
+            std::mem::size_of::<u16>(),
+        )
+    }
+
+    /// Append the outgoing ECN codepoint control message.
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    fn push_ecn_cmsg(cmsgs: &mut CmsgBuf, ecn: Ecn, is_v6: bool) -> bool {
+        if is_v6 {
+            let value = ecn_to_tos(ecn) as libc::c_int;
+            cmsgs.push(
+                libc::IPPROTO_IPV6,
+                libc::IPV6_TCLASS,
+                &value as *const libc::c_int as *const u8,
+                std::mem::size_of::<libc::c_int>(),
+            )
+        } else if cfg!(target_vendor = "apple") {
+            // Apple expects an `int`-valued `IP_TOS`.
+            let value = ecn_to_tos(ecn) as libc::c_int;
+            cmsgs.push(
+                libc::IPPROTO_IP,
+                libc::IP_TOS,
+                &value as *const libc::c_int as *const u8,
+                std::mem::size_of::<libc::c_int>(),
+            )
+        } else {
+            // Linux requires exactly one byte for `IP_TOS`.
+            let value = ecn_to_tos(ecn);
+            cmsgs.push(libc::IPPROTO_IP, libc::IP_TOS, &value as *const u8, std::mem::size_of::<u8>())
+        }
+    }
+
+    fn socket_local_addr(fd: &OwnedFd) -> io::Result<SocketAddr> {
+        let mut addr: libc::sockaddr_storage = unsafe { std::mem::zeroed() };
+        let mut len = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
+        let ret = unsafe { libc::getsockname(fd.as_raw_fd(), &mut addr as *mut _ as *mut libc::sockaddr, &mut len) };
+        if ret < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(storage_to_addr(&addr))
     }
 
     // Fields for Linux-only offload features are still populated by the
@@ -270,16 +561,15 @@ mod unix_socket {
     mod linux_inner {
         use std::{
             io,
-            net::SocketAddr,
             os::fd::{AsRawFd, OwnedFd},
         };
 
-        use nix::sys::socket::{ControlMessage, MsgFlags, SockaddrStorage, recvmsg, sendmsg};
-
-        use super::{BuildConfig, ecn_to_tos, nix_err, parse_ecn, storage_to_addr};
+        use super::{
+            BuildConfig, CmsgBuf, RecvCmsgBuf, fill_sockaddr, get_int_opt, push_ecn_cmsg, push_gso_cmsg, recvmsg_raw,
+            sendmsg_raw, set_bool_opt,
+        };
         use crate::{
             capability::Capabilities,
-            ecn::Ecn,
             item::{ReceiveItem, SendItem},
         };
 
@@ -293,112 +583,26 @@ mod unix_socket {
         }
 
         fn send_one(fd: std::os::fd::RawFd, item: &SendItem, ecn_enabled: bool, gso_enabled: bool) -> io::Result<()> {
-            let iov = [std::io::IoSlice::new(item.data)];
-            let addr = SockaddrStorage::from(item.destination);
+            let mut cmsgs = CmsgBuf::new();
 
-            let has_gso = gso_enabled && item.segment_size.is_some();
-            let has_ecn = ecn_enabled && item.ecn.is_some();
-            let is_v4 = item.destination.is_ipv4();
-
-            match (has_gso, has_ecn, is_v4) {
-                (true, true, true) => {
-                    let s = item.segment_size.as_ref().unwrap();
-                    let tos = &ecn_to_tos(item.ecn.unwrap());
-                    sendmsg(
-                        fd,
-                        &iov,
-                        &[ControlMessage::UdpGsoSegments(s), ControlMessage::Ipv4Tos(tos)],
-                        MsgFlags::empty(),
-                        Some(&addr),
-                    )
-                }
-                (true, true, false) => {
-                    let s = item.segment_size.as_ref().unwrap();
-                    let tc = &(ecn_to_tos(item.ecn.unwrap()) as i32);
-                    sendmsg(
-                        fd,
-                        &iov,
-                        &[ControlMessage::UdpGsoSegments(s), ControlMessage::Ipv6TClass(tc)],
-                        MsgFlags::empty(),
-                        Some(&addr),
-                    )
-                }
-                (true, false, _) => {
-                    let s = item.segment_size.as_ref().unwrap();
-                    sendmsg(fd, &iov, &[ControlMessage::UdpGsoSegments(s)], MsgFlags::empty(), Some(&addr))
-                }
-                (false, true, true) => {
-                    let tos = &ecn_to_tos(item.ecn.unwrap());
-                    sendmsg(fd, &iov, &[ControlMessage::Ipv4Tos(tos)], MsgFlags::empty(), Some(&addr))
-                }
-                (false, true, false) => {
-                    let tc = &(ecn_to_tos(item.ecn.unwrap()) as i32);
-                    sendmsg(fd, &iov, &[ControlMessage::Ipv6TClass(tc)], MsgFlags::empty(), Some(&addr))
-                }
-                (false, false, _) => sendmsg::<SockaddrStorage>(fd, &iov, &[], MsgFlags::empty(), Some(&addr)),
+            if gso_enabled
+                && let Some(segment_size) = item.segment_size
+                && !push_gso_cmsg(&mut cmsgs, segment_size)
+            {
+                return Err(io::Error::other("control message buffer overflow"));
             }
-            .map_err(nix_err)?;
-            Ok(())
+
+            if ecn_enabled
+                && let Some(ecn) = item.ecn
+                && !push_ecn_cmsg(&mut cmsgs, ecn, item.destination.is_ipv6())
+            {
+                return Err(io::Error::other("control message buffer overflow"));
+            }
+
+            sendmsg_raw(fd, item.data, &item.destination, &cmsgs)
         }
 
         const SENDMMSG_MAX: usize = 64;
-        const SENDMMSG_CMSG: usize = 32;
-
-        fn fill_sockaddr(addr: &SocketAddr, ss: &mut libc::sockaddr_storage) -> libc::socklen_t {
-            unsafe {
-                std::ptr::write_bytes(ss as *mut _ as *mut u8, 0, std::mem::size_of::<libc::sockaddr_storage>());
-            }
-            match addr {
-                SocketAddr::V4(v4) => {
-                    let sin = ss as *mut _ as *mut libc::sockaddr_in;
-                    unsafe {
-                        (*sin).sin_family = libc::AF_INET as u16;
-                        (*sin).sin_port = v4.port().to_be();
-                        (*sin).sin_addr.s_addr = u32::from_be_bytes(v4.ip().octets()).to_be();
-                    }
-                    std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t
-                }
-                SocketAddr::V6(v6) => {
-                    let sin6 = ss as *mut _ as *mut libc::sockaddr_in6;
-                    unsafe {
-                        (*sin6).sin6_family = libc::AF_INET6 as u16;
-                        (*sin6).sin6_port = v6.port().to_be();
-                        (*sin6).sin6_addr.s6_addr = v6.ip().octets();
-                        (*sin6).sin6_flowinfo = v6.flowinfo().to_be();
-                        (*sin6).sin6_scope_id = v6.scope_id();
-                    }
-                    std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t
-                }
-            }
-        }
-
-        fn encode_ecn_cmsg(buf: &mut [u8], ecn: Option<Ecn>, is_v6: bool) -> usize {
-            let ecn = match ecn {
-                Some(e) => e,
-                None => return 0,
-            };
-            let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
-            mhdr.msg_control = buf.as_mut_ptr() as *mut _;
-            mhdr.msg_controllen = buf.len() as _;
-            let cmsg = unsafe { libc::CMSG_FIRSTHDR(&mhdr) };
-            if is_v6 {
-                unsafe {
-                    (*cmsg).cmsg_level = libc::IPPROTO_IPV6;
-                    (*cmsg).cmsg_type = libc::IPV6_TCLASS;
-                    (*cmsg).cmsg_len = libc::CMSG_LEN(std::mem::size_of::<i32>() as u32) as _;
-                    *(libc::CMSG_DATA(cmsg) as *mut i32) = ecn.to_tos_bits() as i32;
-                }
-                unsafe { libc::CMSG_SPACE(std::mem::size_of::<i32>() as u32) as usize }
-            } else {
-                unsafe {
-                    (*cmsg).cmsg_level = libc::IPPROTO_IP;
-                    (*cmsg).cmsg_type = libc::IP_TOS;
-                    (*cmsg).cmsg_len = libc::CMSG_LEN(std::mem::size_of::<u8>() as u32) as _;
-                    *libc::CMSG_DATA(cmsg) = ecn.to_tos_bits();
-                }
-                unsafe { libc::CMSG_SPACE(std::mem::size_of::<u8>() as u32) as usize }
-            }
-        }
 
         fn sendmmsg_batch(fd: std::os::fd::RawFd, items: &[SendItem], caps: &Capabilities) -> io::Result<usize> {
             let mut total_sent = 0;
@@ -409,17 +613,19 @@ mod unix_socket {
 
                 let mut addrs: [libc::sockaddr_storage; SENDMMSG_MAX] = unsafe { std::mem::zeroed() };
                 let mut iovs: [libc::iovec; SENDMMSG_MAX] = unsafe { std::mem::zeroed() };
-                let mut cmsg_bufs: [[u8; SENDMMSG_CMSG]; SENDMMSG_MAX] = [[0u8; SENDMMSG_CMSG]; SENDMMSG_MAX];
+                let mut cmsg_bufs: [CmsgBuf; SENDMMSG_MAX] = std::array::from_fn(|_| CmsgBuf::new());
                 let mut msgs: [libc::mmsghdr; SENDMMSG_MAX] = unsafe { std::mem::zeroed() };
 
                 for i in 0..chunk_len {
                     let item = &chunk[i];
                     let addr_len = fill_sockaddr(&item.destination, &mut addrs[i]);
-                    let cmsg_len = if caps.ecn {
-                        encode_ecn_cmsg(&mut cmsg_bufs[i], item.ecn, item.destination.is_ipv6())
-                    } else {
-                        0
-                    };
+
+                    if caps.ecn
+                        && let Some(ecn) = item.ecn
+                        && !push_ecn_cmsg(&mut cmsg_bufs[i], ecn, item.destination.is_ipv6())
+                    {
+                        return Err(io::Error::other("control message buffer overflow"));
+                    }
 
                     iovs[i].iov_base = item.data.as_ptr() as *mut _;
                     iovs[i].iov_len = item.data.len();
@@ -429,8 +635,8 @@ mod unix_socket {
                     mhdr.msg_namelen = addr_len;
                     mhdr.msg_iov = &mut iovs[i] as *mut _ as *mut _;
                     mhdr.msg_iovlen = 1;
-                    mhdr.msg_control = cmsg_bufs[i].as_mut_ptr() as *mut _;
-                    mhdr.msg_controllen = cmsg_len as _;
+                    mhdr.msg_control = cmsg_bufs[i].as_ptr() as *mut _;
+                    mhdr.msg_controllen = cmsg_bufs[i].len() as _;
                     mhdr.msg_flags = 0;
                 }
 
@@ -524,65 +730,22 @@ mod unix_socket {
             Ok(count)
         }
 
-        const RECV_CMSG_BUF_SIZE: usize = 128;
-
         fn recv_one(fd: std::os::fd::RawFd, item: &mut ReceiveItem<'_>, ecn_enabled: bool) -> io::Result<()> {
-            let mut iov = [std::io::IoSliceMut::new(item.buf)];
-            let mut cmsg_buf = [0u8; RECV_CMSG_BUF_SIZE];
+            let mut cmsg_buf = RecvCmsgBuf::new();
+            let (len, source, _gro_seg, ecn) = recvmsg_raw(fd, item.buf, &mut cmsg_buf, ecn_enabled)?;
 
-            let result =
-                recvmsg::<SockaddrStorage>(fd, &mut iov, Some(&mut cmsg_buf), MsgFlags::empty()).map_err(nix_err)?;
-
-            item.len = result.bytes;
-            item.source = result
-                .address
-                .as_ref()
-                .map(storage_to_addr)
-                .unwrap_or_else(|| SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0));
-
-            if ecn_enabled && let Ok(cmsgs) = result.cmsgs() {
-                let collected: Vec<_> = cmsgs.collect();
-                item.ecn = parse_ecn(&collected);
-            }
+            item.len = len;
+            item.source = source;
+            item.ecn = ecn;
 
             Ok(())
         }
 
         fn recv_gro(fd: std::os::fd::RawFd, items: &mut [ReceiveItem<'_>], ecn_enabled: bool) -> io::Result<usize> {
             let mut gro_buf = [0u8; 65536];
-            let mut iov = [std::io::IoSliceMut::new(&mut gro_buf)];
-            let mut cmsg_buf = [0u8; RECV_CMSG_BUF_SIZE];
+            let mut cmsg_buf = RecvCmsgBuf::new();
 
-            let result =
-                recvmsg::<SockaddrStorage>(fd, &mut iov, Some(&mut cmsg_buf), MsgFlags::empty()).map_err(nix_err)?;
-
-            let total = result.bytes;
-            let source = result
-                .address
-                .as_ref()
-                .map(storage_to_addr)
-                .unwrap_or_else(|| SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0));
-
-            // Single-pass cmsg parsing — always inspect GRO segment info
-            // (GRO is independent of ECN). No heap allocation.
-            let mut ecn_val: Option<Ecn> = None;
-            let mut seg_size: Option<u32> = None;
-            if let Ok(cmsgs) = result.cmsgs() {
-                for cmsg in cmsgs {
-                    match cmsg {
-                        nix::sys::socket::ControlMessageOwned::UdpGroSegments(seg) if seg_size.is_none() => {
-                            seg_size = Some(seg as u32);
-                        }
-                        nix::sys::socket::ControlMessageOwned::Ipv4Tos(tos) if ecn_enabled && ecn_val.is_none() => {
-                            ecn_val = Some(Ecn::from_tos_bits(tos));
-                        }
-                        nix::sys::socket::ControlMessageOwned::Ipv6TClass(tc) if ecn_enabled && ecn_val.is_none() => {
-                            ecn_val = Some(Ecn::from_tos_bits(tc as u8));
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            let (total, source, seg_size, ecn_val) = recvmsg_raw(fd, &mut gro_buf, &mut cmsg_buf, ecn_enabled)?;
 
             if seg_size.is_none() {
                 if items.is_empty() {
@@ -645,31 +808,24 @@ mod unix_socket {
         }
 
         fn probe_gso(fd: &OwnedFd) -> bool {
-            use nix::sys::socket::{getsockopt, sockopt::UdpGsoSegment};
-            getsockopt(fd, UdpGsoSegment).is_ok()
+            get_int_opt(fd.as_raw_fd(), libc::SOL_UDP, libc::UDP_SEGMENT).is_ok()
         }
 
         fn probe_gro(fd: &OwnedFd) -> bool {
-            use nix::sys::socket::{setsockopt, sockopt::UdpGroSegment};
-            setsockopt(fd, UdpGroSegment, &true).is_ok()
+            set_bool_opt(fd.as_raw_fd(), libc::IPPROTO_UDP, libc::UDP_GRO).is_ok()
         }
 
         fn enable_ecn_recv(fd: &OwnedFd, is_ipv6: bool) -> bool {
-            use nix::sys::socket::{
-                setsockopt,
-                sockopt::{IpRecvTos, Ipv6RecvTClass},
-            };
-            if is_ipv6 {
-                setsockopt(fd, Ipv6RecvTClass, &true).is_ok()
+            let (level, name) = if is_ipv6 {
+                (libc::IPPROTO_IPV6, libc::IPV6_RECVTCLASS)
             } else {
-                setsockopt(fd, IpRecvTos, &true).is_ok()
-            }
+                (libc::IPPROTO_IP, libc::IP_RECVTOS)
+            };
+            set_bool_opt(fd.as_raw_fd(), level, name).is_ok()
         }
 
         pub fn setup_and_probe(fd: &OwnedFd, config: &BuildConfig, is_ipv6: bool) -> io::Result<Capabilities> {
-            use nix::sys::socket::{setsockopt, sockopt::ReuseAddr};
-
-            setsockopt(fd, ReuseAddr, &true).map_err(nix_err)?;
+            set_bool_opt(fd.as_raw_fd(), libc::SOL_SOCKET, libc::SO_REUSEADDR)?;
 
             let gso = if config.disable_gso { false } else { probe_gso(fd) };
             let gro = if config.disable_gro { false } else { probe_gro(fd) };
@@ -688,12 +844,6 @@ mod unix_socket {
                 max_batch: config.max_batch,
             })
         }
-
-        pub fn local_addr(fd: &OwnedFd) -> io::Result<SocketAddr> {
-            use nix::sys::socket::getsockname;
-            let addr: SockaddrStorage = getsockname(fd.as_raw_fd()).map_err(nix_err)?;
-            Ok(storage_to_addr(&addr))
-        }
     }
 
     // -- Generic Unix fallback -------------------------------------------------
@@ -701,20 +851,14 @@ mod unix_socket {
     mod unix_inner {
         use std::{
             io,
-            net::SocketAddr,
             os::fd::{AsRawFd, OwnedFd},
         };
 
         #[cfg(target_vendor = "apple")]
-        use nix::sys::socket::SockaddrLike;
-        use nix::sys::socket::{ControlMessageOwned, MsgFlags, SockaddrStorage, recvmsg, sendmsg};
-
-        #[cfg(target_vendor = "apple")]
-        use super::ecn_to_tos;
-        use super::{BuildConfig, nix_err, storage_to_addr};
+        use super::push_ecn_cmsg;
+        use super::{BuildConfig, CmsgBuf, RecvCmsgBuf, recvmsg_raw, sendmsg_raw, set_bool_opt};
         use crate::{
             capability::Capabilities,
-            ecn::Ecn,
             item::{ReceiveItem, SendItem},
         };
 
@@ -723,125 +867,22 @@ mod unix_socket {
         #[derive(Default)]
         pub struct SendState;
 
-        /// Control-message buffer, aligned for `cmsghdr`.
-        #[cfg(target_vendor = "apple")]
-        #[repr(align(8))]
-        struct CmsgBuf([u8; 32]);
-
         fn send_one(fd: std::os::fd::RawFd, item: &SendItem, ecn_enabled: bool) -> io::Result<()> {
-            // ECN on Apple targets has to be sent as hand-built ancillary data,
-            // because nix does not expose the relevant control messages there.
+            #[cfg_attr(not(target_vendor = "apple"), allow(unused_mut))]
+            let mut cmsgs = CmsgBuf::new();
+
+            // ECN is only implemented on Apple targets among non-Linux Unixes.
             #[cfg(target_vendor = "apple")]
-            if ecn_enabled && item.ecn.is_some() {
-                return send_one_ecn(fd, item);
+            if ecn_enabled
+                && let Some(ecn) = item.ecn
+                && !push_ecn_cmsg(&mut cmsgs, ecn, item.destination.is_ipv6())
+            {
+                return Err(io::Error::other("control message buffer overflow"));
             }
             #[cfg(not(target_vendor = "apple"))]
             let _ = ecn_enabled;
 
-            let iov = [std::io::IoSlice::new(item.data)];
-            let addr = SockaddrStorage::from(item.destination);
-            sendmsg::<SockaddrStorage>(fd, &iov, &[], MsgFlags::empty(), Some(&addr)).map_err(nix_err)?;
-            Ok(())
-        }
-
-        /// Send a single datagram carrying an ECN codepoint.
-        #[cfg(target_vendor = "apple")]
-        fn send_one_ecn(fd: std::os::fd::RawFd, item: &SendItem) -> io::Result<()> {
-            let Some(ecn) = item.ecn else {
-                return Ok(());
-            };
-            let addr = SockaddrStorage::from(item.destination);
-
-            let mut iov = libc::iovec {
-                iov_base: item.data.as_ptr() as *mut libc::c_void,
-                iov_len: item.data.len(),
-            };
-
-            let mut cmsg = CmsgBuf([0u8; 32]);
-            let cmsg_len = encode_ecn_cmsg(&mut cmsg.0, ecn, item.destination.is_ipv6());
-
-            let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
-            mhdr.msg_name = addr.as_ptr() as *mut libc::c_void;
-            mhdr.msg_namelen = addr.len();
-            mhdr.msg_iov = &mut iov as *mut libc::iovec;
-            mhdr.msg_iovlen = 1;
-            mhdr.msg_control = cmsg.0.as_mut_ptr() as *mut libc::c_void;
-            mhdr.msg_controllen = cmsg_len as _;
-
-            let ret = unsafe { libc::sendmsg(fd, &mhdr, 0) };
-            if ret < 0 {
-                return Err(io::Error::last_os_error());
-            }
-            Ok(())
-        }
-
-        /// Build the per-packet ECN control message.
-        ///
-        /// On Apple targets, outgoing ECN is expressed as an `int` with level
-        /// `IPPROTO_IP`/type `IP_TOS` for IPv4 and level `IPPROTO_IPV6`/type
-        /// `IPV6_TCLASS` for IPv6. nix does not expose these control messages
-        /// on Apple targets, so they are built directly with `libc`.
-        #[cfg(target_vendor = "apple")]
-        fn encode_ecn_cmsg(buf: &mut [u8], ecn: Ecn, is_v6: bool) -> usize {
-            let mut mhdr: libc::msghdr = unsafe { std::mem::zeroed() };
-            mhdr.msg_control = buf.as_mut_ptr() as *mut _;
-            mhdr.msg_controllen = buf.len() as _;
-
-            let cmsg = unsafe { libc::CMSG_FIRSTHDR(&mhdr) };
-            if cmsg.is_null() {
-                return 0;
-            }
-
-            let (level, ty) = if is_v6 {
-                (libc::IPPROTO_IPV6, libc::IPV6_TCLASS)
-            } else {
-                (libc::IPPROTO_IP, libc::IP_TOS)
-            };
-            let value = ecn_to_tos(ecn) as libc::c_int;
-            unsafe {
-                (*cmsg).cmsg_level = level;
-                (*cmsg).cmsg_type = ty;
-                (*cmsg).cmsg_len = libc::CMSG_LEN(std::mem::size_of::<libc::c_int>() as u32) as _;
-                *(libc::CMSG_DATA(cmsg) as *mut libc::c_int) = value;
-            }
-            unsafe { libc::CMSG_SPACE(std::mem::size_of::<libc::c_int>() as u32) as usize }
-        }
-
-        /// Decode an ECN codepoint from a received control message.
-        ///
-        /// nix only decodes `Ipv4Tos` / `Ipv6TClass` on Linux and FreeBSD, so
-        /// on Apple targets these arrive as [`ControlMessageOwned::Unknown`]
-        /// and are decoded here from their raw level/type.
-        #[cfg(target_vendor = "apple")]
-        fn parse_ecn_msg(cmsg: &ControlMessageOwned) -> Option<Ecn> {
-            let ControlMessageOwned::Unknown(u) = cmsg else {
-                return None;
-            };
-            let level = u.cmsg_header.cmsg_level;
-            let ty = u.cmsg_header.cmsg_type;
-
-            // IPv4: `IP_TOS` on Linux/FreeBSD, `IP_RECVTOS` on Apple/BSD.
-            if level == libc::IPPROTO_IP && (ty == libc::IP_TOS || ty == libc::IP_RECVTOS) {
-                return u.data_bytes.first().map(|b| Ecn::from_tos_bits(*b));
-            }
-            // IPv6: macOS may report the traffic class as either a byte or an
-            // `int` depending on OS version (see Apple bug 48761855).
-            if level == libc::IPPROTO_IPV6 && ty == libc::IPV6_TCLASS {
-                let int_size = std::mem::size_of::<libc::c_int>();
-                if u.data_bytes.len() >= int_size {
-                    let mut raw = [0u8; std::mem::size_of::<libc::c_int>()];
-                    raw.copy_from_slice(&u.data_bytes[..int_size]);
-                    return Some(Ecn::from_tos_bits(i32::from_ne_bytes(raw) as u8));
-                }
-                return u.data_bytes.first().map(|b| Ecn::from_tos_bits(*b));
-            }
-            None
-        }
-
-        /// ECN receive decoding is only implemented on Apple targets.
-        #[cfg(not(target_vendor = "apple"))]
-        fn parse_ecn_msg(_cmsg: &ControlMessageOwned) -> Option<Ecn> {
-            None
+            sendmsg_raw(fd, item.data, &item.destination, &cmsgs)
         }
 
         pub fn send_batch(
@@ -870,25 +911,13 @@ mod unix_socket {
             Ok(count)
         }
 
-        const RECV_CMSG_BUF_SIZE: usize = 64;
-
         fn recv_one(fd: std::os::fd::RawFd, item: &mut ReceiveItem<'_>, ecn_enabled: bool) -> io::Result<()> {
-            let mut iov = [std::io::IoSliceMut::new(item.buf)];
-            let mut cmsg_buf = [0u8; RECV_CMSG_BUF_SIZE];
+            let mut cmsg_buf = RecvCmsgBuf::new();
+            let (len, source, _gro_seg, ecn) = recvmsg_raw(fd, item.buf, &mut cmsg_buf, ecn_enabled)?;
 
-            let result =
-                recvmsg::<SockaddrStorage>(fd, &mut iov, Some(&mut cmsg_buf), MsgFlags::empty()).map_err(nix_err)?;
-
-            item.len = result.bytes;
-            item.source = result
-                .address
-                .as_ref()
-                .map(storage_to_addr)
-                .unwrap_or_else(|| SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0));
-
-            if ecn_enabled && let Ok(mut cmsgs) = result.cmsgs() {
-                item.ecn = cmsgs.find_map(|cmsg| parse_ecn_msg(&cmsg));
-            }
+            item.len = len;
+            item.source = source;
+            item.ecn = ecn;
 
             Ok(())
         }
@@ -920,12 +949,10 @@ mod unix_socket {
 
         /// Enable reception of ECN codepoints.
         ///
-        /// Uses `libc` directly because nix does not expose `IP_RECVTOS` /
-        /// `IPV6_RECVTCLASS` on Apple targets. An IPv4 socket reports TOS via
-        /// `IP_RECVTOS`; an IPv6 socket reports the traffic class via
-        /// `IPV6_RECVTCLASS`, which also covers IPv4-mapped traffic. Setting
-        /// `IP_RECVTOS` on a dual-stack IPv6 socket fails on macOS, so only the
-        /// option matching the socket family is set.
+        /// An IPv4 socket reports the TOS byte via `IP_RECVTOS`; an IPv6 socket
+        /// reports the traffic class via `IPV6_RECVTCLASS`, which also covers
+        /// IPv4-mapped traffic. Setting `IP_RECVTOS` on a dual-stack IPv6 socket
+        /// fails on macOS, so only the option matching the socket family is set.
         #[cfg(target_vendor = "apple")]
         fn enable_ecn_recv(fd: &OwnedFd, is_ipv6: bool) -> bool {
             let (level, name) = if is_ipv6 {
@@ -933,17 +960,7 @@ mod unix_socket {
             } else {
                 (libc::IPPROTO_IP, libc::IP_RECVTOS)
             };
-            let enable: libc::c_int = 1;
-            let ret = unsafe {
-                libc::setsockopt(
-                    fd.as_raw_fd(),
-                    level,
-                    name,
-                    &enable as *const libc::c_int as *const libc::c_void,
-                    std::mem::size_of::<libc::c_int>() as libc::socklen_t,
-                )
-            };
-            ret == 0
+            set_bool_opt(fd.as_raw_fd(), level, name).is_ok()
         }
 
         /// ECN is only implemented on Apple targets among non-Linux Unixes.
@@ -953,9 +970,7 @@ mod unix_socket {
         }
 
         pub fn setup_and_probe(fd: &OwnedFd, config: &BuildConfig, is_ipv6: bool) -> io::Result<Capabilities> {
-            use nix::sys::socket::{setsockopt, sockopt::ReuseAddr};
-
-            setsockopt(fd, ReuseAddr, &true).map_err(nix_err)?;
+            set_bool_opt(fd.as_raw_fd(), libc::SOL_SOCKET, libc::SO_REUSEADDR)?;
 
             let ecn = !config.disable_ecn && enable_ecn_recv(fd, is_ipv6);
 
@@ -966,12 +981,6 @@ mod unix_socket {
                 ecn,
                 max_batch: config.max_batch,
             })
-        }
-
-        pub fn local_addr(fd: &OwnedFd) -> io::Result<SocketAddr> {
-            use nix::sys::socket::getsockname;
-            let addr: SockaddrStorage = getsockname(fd.as_raw_fd()).map_err(nix_err)?;
-            Ok(storage_to_addr(&addr))
         }
     }
 }

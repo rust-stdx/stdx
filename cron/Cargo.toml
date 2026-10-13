@@ -3,10 +3,8 @@ name = "cron"
 version = "0.12.1"
 authors = ["Zack Slayton <zack.slayton@gmail.com>"]
 documentation = "https://docs.rs/cron"
-readme = "README.md"
 description = "A cron expression parser and schedule explorer."
 keywords = [ "cron", "schedule", "repeat", "periodic", "time" ]
-license = "Apache-2.0"
 edition.workspace = true
 rust-version.workspace = true
 

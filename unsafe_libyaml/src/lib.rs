@@ -1,11 +1,6 @@
-//! [![github]](https://github.com/dtolnay/unsafe-libyaml)&ensp;[![crates-io]](https://crates.io/crates/unsafe-libyaml)&ensp;[![docs-rs]](https://docs.rs/unsafe-libyaml)
-//!
-//! [github]: https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github
-//! [crates-io]: https://img.shields.io/badge/crates.io-fc8d62?style=for-the-badge&labelColor=555555&logo=rust
-//! [docs-rs]: https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
+//! A line-by-line translation of libyaml from C to unsafe Rust.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/unsafe-libyaml/0.2.11")]
 #![allow(non_camel_case_types, non_snake_case, unsafe_op_in_unsafe_fn, unused_assignments)]
 #![warn(clippy::pedantic)]
 #![allow(

@@ -30,9 +30,34 @@
 //!
 //! - A fast baseline implementation which processes up to 16 bytes per iteration
 //! - An optimized implementation for modern `x86` using `sse` and `pclmulqdq` instructions
+//! - An optimized implementation for `aarch64` using the `crc32` instructions
 //!
-//! Calling the [`Hasher::new`] constructor at runtime will perform a feature detection to select the most
-//! optimal implementation for the current CPU feature set.
+//! Calling the [`Hasher::new`] constructor at runtime will perform a feature
+//! detection to select the most optimal implementation for the current CPU
+//! feature set.
+//!
+//! ## Memory safety
+//!
+//! Due to the use of SIMD intrinsics for the optimized implementations, this
+//! crate contains some amount of `unsafe` code. The baseline implementation is
+//! safe, and the specialized implementations are exercised by the crate's
+//! tests.
+//!
+//! ## Feature flags
+//!
+//! ### `std` (default: enabled)
+//!
+//! The crate can be built without the Rust `std` library, which is useful for
+//! low-level use-cases such as embedded where no operating system is available.
+//! To build the crate in a `no_std` context, disable the default `std` feature.
+//!
+//! Because runtime CPU feature detection requires OS support, the specialized
+//! SIMD implementations are unavailable when the `std` feature is disabled.
+//!
+//! ### `nightly` (default: disabled)
+//!
+//! Enables unstable features that are only available on the `nightly` channel.
+//! Enabling it makes the optimized `aarch64` implementation available.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

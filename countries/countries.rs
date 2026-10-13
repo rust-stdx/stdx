@@ -1,3 +1,4 @@
+//! ISO 3166-1 alpha-2 country codes and names.
 #![no_std]
 
 #[cfg(feature = "serde")]

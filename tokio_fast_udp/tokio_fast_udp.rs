@@ -37,6 +37,115 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! # Sending many datagrams in one call
+//!
+//! On Linux, a single [`SendItem`] with a segment size is sent as one
+//! `sendmsg` plus `UDP_SEGMENT`, and the kernel or NIC performs the
+//! segmentation (GSO):
+//!
+//! ```no_run
+//! use tokio_fast_udp::{FastUdpSocket, SendItem};
+//!
+//! #[tokio::main]
+//! async fn main() -> std::io::Result<()> {
+//!     let socket = FastUdpSocket::build("0.0.0.0:0".parse().unwrap()).bind()?;
+//!     let segment_size = 1232; // a typical QUIC max datagram
+//!     let payload = vec![0u8; segment_size * 64]; // 64 datagrams back-to-back
+//!     let dst = "127.0.0.1:9001".parse().unwrap();
+//!
+//!     let items = [SendItem::new(dst, &payload).segment_size(segment_size as u16)];
+//!     socket.send_many(&items).await?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # SO_REUSEPORT
+//!
+//! On Linux, multiple sockets can bind the same address and port, with the
+//! kernel distributing incoming datagrams across them:
+//!
+//! ```no_run
+//! # #[cfg(unix)]
+//! # fn main() -> std::io::Result<()> {
+//! use tokio_fast_udp::FastUdpSocket;
+//!
+//! let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
+//!     .reuse_port(true)
+//!     .bind()?;
+//! # Ok(())
+//! # }
+//! # #[cfg(not(unix))]
+//! # fn main() {}
+//! ```
+//!
+//! `SO_REUSEPORT` is a no-op on platforms that don't support it.
+//!
+//! # Kill switches
+//!
+//! On Unix, each optimization can be turned on or off through the builder,
+//! without feature flags:
+//!
+//! ```no_run
+//! # #[cfg(unix)]
+//! # fn main() -> std::io::Result<()> {
+//! use tokio_fast_udp::FastUdpSocket;
+//!
+//! let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
+//!     .gso(false) // no segmentation offload on send
+//!     .gro(false) // no coalescing on receive
+//!     .ecn(false) // no ECN ancillary data
+//!     .max_batch_size(64)
+//!     .bind()?;
+//! # Ok(())
+//! # }
+//! # #[cfg(not(unix))]
+//! # fn main() {}
+//! ```
+//!
+//! On Windows, the builder instead exposes no-op `disable_gso`,
+//! `disable_gro`, `disable_sendmmsg`, `disable_ecn`, and `enable_reuse_port`
+//! methods, so the same building code compiles on every platform.
+//!
+//! # Platform support
+//!
+//! | Platform | GSO | GRO | ECN | ReusePort | Batch send | Batch recv |
+//! |----------|-----|-----|-----|-----------|------------|------------|
+//! | Linux    | yes | yes | yes | yes       | sendmmsg | recv_gro |
+//! | macOS    | —   | —   | yes | yes       | sendmsg loop | recvmsg loop |
+//! | iOS      | —   | —   | yes | yes       | sendmsg loop | recvmsg loop |
+//! | Windows  | —   | —   | —   | —         | send_to loop | recv_from loop |
+//!
+//! **Linux** is the primary fast path. GSO and GRO are probed at build time and
+//! gracefully disabled if the kernel doesn't support them.
+//!
+//! **macOS, iOS and other Unix** platforms use `sendmsg`/`recvmsg` with ECN
+//! ancillary data where supported.
+//!
+//! **Windows** uses `tokio::net::UdpSocket` (IOCP-based).
+//!
+//! # API
+//!
+//! ```text
+//! impl FastUdpSocket {
+//!     pub fn build(addr: SocketAddr) -> FastUdpSocketBuilder;
+//!     pub async fn send(&self, item: SendItem<'_>) -> io::Result<()>;
+//!     pub async fn send_many(&self, items: &[SendItem<'_>]) -> io::Result<usize>;
+//!     pub async fn receive(&self, item: &mut ReceiveItem<'_>) -> io::Result<()>;
+//!     pub async fn receive_many(&self, items: &mut [ReceiveItem<'_>]) -> io::Result<usize>;
+//!     pub fn capabilities(&self) -> &Capabilities;
+//!     pub fn local_addr(&self) -> io::Result<SocketAddr>;
+//! }
+//! ```
+//!
+//! The single-item methods are thin wrappers over the batch methods.
+//!
+//! # Design
+//!
+//! The crate uses tokio's `AsyncFd` for readiness notification and runs the
+//! batch and offload syscalls synchronously inside the `async_io` closure. This
+//! gives zero-copy, zero-allocation I/O: [`SendItem`] borrows the caller's
+//! `&[u8]` directly, with no channels, background tasks, or buffer copies.
 
 mod capability;
 mod ecn;

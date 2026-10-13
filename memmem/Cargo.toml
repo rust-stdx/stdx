@@ -4,8 +4,6 @@ version = "0.1.1"
 authors = ["Joe Neeman <joeneeman@gmail.com>"]
 description = "Substring searching"
 documentation = "http://jneem.github.io/memmem"
-readme = "README.md"
-license = "MIT/Apache-2.0"
 edition.workspace = true
 rust-version.workspace = true
 

@@ -8,7 +8,6 @@ documentation = "https://docs.rs/unsafe-libyaml"
 edition.workspace = true
 rust-version.workspace = true
 keywords = ["yaml"]
-license = "MIT"
 
 # [workspace]
 # [dev-dependencies]

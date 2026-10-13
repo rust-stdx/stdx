@@ -1,3 +1,6 @@
+//! Shared utilities used by the `embed` crate and by `embed_impl`.
+//!
+//! This crate is an implementation detail and should not be used directly.
 #![forbid(unsafe_code)]
 
 use std::{borrow::Cow, fs, io, path::Path, time::SystemTime};

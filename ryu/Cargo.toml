@@ -9,7 +9,6 @@ edition.workspace = true
 rust-version.workspace = true
 exclude = ["build.rs", "performance.png", "chart/**"]
 keywords = ["float"]
-license = "Apache-2.0 OR BSL-1.0"
 
 [lints]
 workspace = true

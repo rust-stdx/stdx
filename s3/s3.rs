@@ -1,3 +1,32 @@
+//! A minimal S3 client focused on the most common operations.
+//!
+//! Based on the commonly used S3 request categories and API operations
+//! documented by AWS.
+//!
+//! References:
+//! - <https://docs.aws.amazon.com/AmazonS3/latest/API/API_Operations.html>
+//!
+//! # Example
+//!
+//! ```no_run
+//! use s3::{Client, ClientConfig, StaticCredentials};
+//!
+//! # fn main() -> Result<(), s3::Error> {
+//! let cfg = ClientConfig {
+//!     endpoint: "http://127.0.0.1:9000",
+//!     credentials: StaticCredentials {
+//!         access_key_id: "minioadmin",
+//!         secret_access_key: "minioadmin",
+//!         session_token: "",
+//!     },
+//!     region: "auto",
+//!     virtual_hosted: false,
+//! };
+//!
+//! let client = Client::new(&cfg)?;
+//! # Ok(())
+//! # }
+//! ```
 pub mod buckets;
 pub mod client;
 pub mod objects;

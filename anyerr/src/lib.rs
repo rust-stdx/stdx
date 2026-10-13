@@ -1,15 +1,8 @@
-//! [![github]](https://github.com/dtolnay/anyhow)&ensp;[![crates-io]](https://crates.io/crates/anyhow)&ensp;[![docs-rs]](https://docs.rs/anyhow)
+//! A trait object based error type for easy idiomatic error handling in Rust
+//! applications.
 //!
-//! [github]: https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github
-//! [crates-io]: https://img.shields.io/badge/crates.io-fc8d62?style=for-the-badge&labelColor=555555&logo=rust
-//! [docs-rs]: https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
-//!
-//! <br>
-//!
-//! This library provides [`anyerr::Error`][Error], a trait object based error
-//! type for easy idiomatic error handling in Rust applications.
-//!
-//! <br>
+//! It provides [`Error`], a trait object based error type, and the [`Result`]
+//! alias.
 //!
 //! # Details
 //!
@@ -128,10 +121,10 @@
 //!   # ;
 //!   ```
 //!
-//! - If using Rust &ge; 1.65, a backtrace is captured and printed with the
-//!   error if the underlying error type does not already provide its own. In
-//!   order to see backtraces, they must be enabled through the environment
-//!   variables described in [`std::backtrace`]:
+//! - A backtrace is captured and printed with the error if the underlying
+//!   error type does not already provide its own. In order to see backtraces,
+//!   they must be enabled through the environment variables described in
+//!   [`std::backtrace`]:
 //!
 //!   - If you want panics and errors to both have backtraces, set
 //!     `RUST_BACKTRACE=1`;
@@ -141,12 +134,10 @@
 //!
 //!   [`std::backtrace`]: https://doc.rust-lang.org/std/backtrace/index.html#environment-variables
 //!
-//! - Anyhow works with any error type that has an impl of `std::error::Error`,
-//!   including ones defined in your crate. We do not bundle a `derive(Error)`
-//!   macro but you can write the impls yourself or use a standalone macro like
-//!   [thiserror].
-//!
-//!   [thiserror]: https://github.com/dtolnay/thiserror
+//! - This crate works with any error type that has an impl of
+//!   `std::error::Error`, including ones defined in your crate. It does not
+//!   bundle a `derive(Error)` macro, but you can write the impls yourself or
+//!   use the standalone `thiserror` crate in this workspace.
 //!
 //!   ```
 //!   use thiserror::Error;
@@ -188,25 +179,17 @@
 //!   # }
 //!   ```
 //!
-//! <br>
-//!
 //! # No-std support
 //!
 //! In no_std mode, almost all of the same API is available and works the same
-//! way. To depend on Anyhow in no_std mode, disable our default enabled "std"
-//! feature in Cargo.toml. A global allocator is required.
-//!
-//! ```toml
-//! [dependencies]
-//! anyhow = { version = "1.0", default-features = false }
-//! ```
+//! way. Disable the default enabled `std` feature to use it in no_std mode. A
+//! global allocator is required.
 //!
 //! Since the `?`-based error conversions would normally rely on the
 //! `std::error::Error` trait which is only available through std, no_std mode
 //! will require an explicit `.map_err(Error::msg)` when working with a
-//! non-Anyhow error type inside a function that returns Anyhow's error type.
+//! non-anyerr error type inside a function that returns anyerr's error type.
 
-#![doc(html_root_url = "https://docs.rs/anyhow/1.0.85")]
 #![cfg_attr(error_generic_member_access, feature(error_generic_member_access))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![no_std]

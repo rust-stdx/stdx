@@ -3,7 +3,6 @@ name = "pin-project-lite"
 version = "0.2.14" #publish:version
 edition.workspace = true
 rust-version.workspace = true
-license = "Apache-2.0 OR MIT"
 keywords = ["pin", "macros"]
 categories = ["no-std", "no-std::no-alloc", "rust-patterns"]
 exclude = ["/.*", "/tools", "/DEVELOPMENT.md"]

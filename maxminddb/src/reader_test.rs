@@ -109,7 +109,7 @@ fn test_missing_database() {
 
 #[test]
 fn test_non_database() {
-    let r = Reader::open_readfile("README.md");
+    let r = Reader::open_readfile("Cargo.toml");
     match r {
         Ok(_) => panic!("Received Reader when opening a non-MMDB file"),
         Err(e) => assert_eq!(

@@ -3,7 +3,6 @@ name = "time"
 version = "0.1.0"
 description = "Date and time handling with an embedded IANA time zone database."
 keywords = ["date", "time", "timezone", "tzdb", "no_std"]
-license = "MIT"
 edition.workspace = true
 rust-version.workspace = true
 

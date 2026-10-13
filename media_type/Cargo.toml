@@ -3,7 +3,6 @@ name = "media_type"
 version = "0.1.0"
 description = "Media types (formerly known as MIME types): parsing, constants, and file extension guessing."
 keywords = ["mime", "media-type", "filesystem", "extension"]
-license = "MIT"
 edition.workspace = true
 rust-version.workspace = true
 

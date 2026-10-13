@@ -28,22 +28,6 @@
 //! options don't require the space. Everything after double-dash "--"  argument
 //! is considered to be a 'free' argument, even if it starts with dash.
 //!
-//! # Usage
-//!
-//! This crate is [on crates.io](https://crates.io/crates/getopts) and can be
-//! used by adding `getopts` to the dependencies in your project's `Cargo.toml`.
-//!
-//! ```toml
-//! [dependencies]
-//! getopts = "0.2"
-//! ```
-//!
-//! and this to your crate root:
-//!
-//! ```rust
-//! extern crate getopts;
-//! ```
-//!
 //! # Example
 //!
 //! The following example shows simple command line parsing for an application
@@ -94,11 +78,6 @@
 //! }
 //! ```
 
-#![doc(
-    html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
-    html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/getopts/0.2.20"
-)]
 #![deny(missing_docs)]
 #![cfg_attr(test, deny(warnings))]
 

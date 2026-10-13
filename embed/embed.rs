@@ -1,3 +1,78 @@
+//! Load files into the Rust binary at compile time.
+//!
+//! A custom derive macro that embeds files into the binary in release builds
+//! and reads them from the file system during development. Use it to bundle
+//! CSS, JS, and images into a single executable which can be deployed to your
+//! servers, and to build small container images.
+//!
+//! The folder path given to `#[folder]` is resolved as follows:
+//!
+//! - In `debug` builds, and when the `debug-embed` feature is not enabled, it
+//!   is resolved relative to the directory the binary is run from.
+//! - In `release` builds, or when the `debug-embed` feature is enabled, it is
+//!   resolved relative to the directory containing `Cargo.toml`.
+//!
+//! Add the `Embed` derive to a struct with a `folder` attribute pointing at the
+//! static folder:
+//!
+//! ```
+//! use embed::Embed;
+//!
+//! #[derive(Embed)]
+//! #[folder = "examples/public/"]
+//! struct Asset;
+//! ```
+//!
+//! The macro generates two associated functions:
+//!
+//! - `get(file_path: &str) -> Option<embed::EmbeddedFile>` returns the file at
+//!   a path relative to the assets folder.
+//! - `iter()` iterates over the relative paths of the files in the folder.
+//!
+//! When the files are embedded (release builds, or with `debug-embed`), the
+//! data is returned as a `Cow::Borrowed(&'static [u8])` and the file list is a
+//! static array. Otherwise the data is read from the file system on each call
+//! and the file list is produced by walking the folder.
+//!
+//! An [`EmbeddedFile`] holds the file `data` and its [`Metadata`].
+//!
+//! # Attributes
+//!
+//! ## `prefix`
+//!
+//! `#[prefix = "my_prefix/"]` prepends a prefix to every file path. The prefix
+//! is required on `get` calls and is included in the paths returned by `iter`.
+//!
+//! ## `metadata_only`
+//!
+//! `#[metadata_only = true]` excludes the file contents from the binary. Only
+//! file paths and metadata are embedded.
+//!
+//! # Features
+//!
+//! - `debug-embed`: always embed the files in the binary, even in debug builds.
+//! - `guess-media-type`: add `EmbeddedFile::mimetype()` and guess each file's
+//!   media type from its path.
+//!
+//! # Example
+//!
+//! ```
+//! use embed::Embed;
+//!
+//! #[derive(Embed)]
+//! #[folder = "examples/public/"]
+//! #[prefix = "prefix/"]
+//! struct Asset;
+//!
+//! fn main() {
+//!     let index_html = Asset::get("prefix/index.html").unwrap();
+//!     println!("{:?}", std::str::from_utf8(index_html.data.as_ref()));
+//!
+//!     for file in Asset::iter() {
+//!         println!("{}", file.as_ref());
+//!     }
+//! }
+//! ```
 #![forbid(unsafe_code)]
 pub use embed_utils::{EmbeddedFile, Metadata};
 #[cfg(feature = "compression")]

@@ -3,11 +3,9 @@ name = "maxminddb"
 version = "0.24.0"
 authors = [ "Gregory J. Oschwald <oschwald@gmail.com>" ]
 description = "Library for reading MaxMind DB format used by GeoIP2 and GeoLite2"
-readme = "README.md"
 keywords = ["MaxMind", "GeoIP2", "GeoIP", "geolocation", "ip"]
 categories = ["database", "network-programming"]
-license = "ISC"
-include = ["/Cargo.toml", "/src/**/*.rs", "/README.md", "/LICENSE"]
+include = ["/Cargo.toml", "/src/**/*.rs", "/LICENSE"]
 edition.workspace = true
 rust-version.workspace = true
 

@@ -1,8 +1,7 @@
 [package]
 name = "serde_urlencoded"
-version = "0.7.1" # bump in documentation link and in README on update
+version = "0.7.1" # bump in documentation link on update
 authors = ["Anthony Ramine <n.oxyde@gmail.com>"]
-license = "Apache-2.0"
 documentation = "https://docs.rs/serde_urlencoded/0.7.1/serde_urlencoded/"
 description = "`x-www-form-urlencoded` meets Serde"
 categories = ["encoding", "web-programming"]

@@ -6,11 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 description = "Get the number of CPUs on a machine."
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
-license = "Apache-2.0"
 documentation = "https://docs.rs/num_cpus"
 keywords = ["cpu", "cpus", "cores"]
 categories = ["hardware-support"]
-readme = "README.md"
 
 [lints]
 workspace = true

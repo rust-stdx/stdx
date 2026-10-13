@@ -1,3 +1,6 @@
+//! Constant-time comparison of two equal-sized byte strings.
+//!
+//! Inspired by the Linux kernel's `crypto_memneq`.
 #![no_std]
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

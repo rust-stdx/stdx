@@ -1,7 +1,7 @@
-#![deny(rust_2018_idioms)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![allow(clippy::needless_doctest_main)]
 //! A cron expression parser and schedule explorer
+//!
 //! # Example
 //! ```
 //! use cron::Schedule;

@@ -4,7 +4,6 @@ version = "2.3.2"
 authors = ["The rust-url developers"]
 description = "Percent encoding and decoding"
 categories = ["no-std"]
-license = "Apache-2.0"
 edition.workspace = true
 rust-version.workspace = true
 

@@ -1,13 +1,11 @@
 [package]
 name = "crc32"
 version = "1.4.2"
-license = "Apache-2.0"
 authors = [
   "Sam Rijs <srijs@airpost.net>",
   "Alex Crichton <alex@alexcrichton.com>"
 ]
 description = "Fast, SIMD-accelerated CRC32 (IEEE) checksum computation"
-readme = "README.md"
 keywords = ["hash", "crc", "crc32", "simd", "fast"]
 categories = ["algorithms", "no-std"]
 edition.workspace = true

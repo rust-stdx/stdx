@@ -4,8 +4,8 @@
 //!
 //! ## Detail
 //! On Linux and Android, [`SingleInstance::new`] binds an abstract unix domain socket
-//! with the given name. On macOS, it creates or opens the file at the given path and
-//! takes an exclusive advisory lock on it.
+//! with the given name. On Apple platforms (macOS, iOS, tvOS, watchOS), it creates or
+//! opens the file at the given path and takes an exclusive advisory lock on it.
 //!
 //! ### Examples
 //! ```rust
@@ -19,6 +19,26 @@
 //!     assert!(instance.is_single());
 //! }
 //! ```
+//!
+//! #### Keeping the instance alive for the process lifetime
+//!
+//! The [`SingleInstance`] must stay alive for as long as the exclusivity
+//! guarantee is needed, because dropping it releases the lock. Store it for the
+//! lifetime of the process, for example by leaking it:
+//!
+//! ```rust
+//! use single_instance::SingleInstance;
+//!
+//! fn ensure_single_instance(unique_id: &str) -> bool {
+//!     let instance = Box::new(SingleInstance::new(unique_id).unwrap());
+//!     if instance.is_single() {
+//!         Box::leak(instance);
+//!         true
+//!     } else {
+//!         false
+//!     }
+//! }
+//! ```
 
 /// The error returned when a [`SingleInstance`] cannot be created.
 #[derive(thiserror::Error, Debug)]
@@ -26,7 +46,7 @@ pub enum Error {
     /// The underlying operating system operation failed.
     ///
     /// Binding the abstract socket (Linux/Android) or creating and locking the
-    /// file (macOS) returned an error.
+    /// file (Apple platforms) returned an error.
     #[error("single instance error")]
     Io(#[from] std::io::Error),
 }
@@ -35,12 +55,13 @@ pub use self::inner::*;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod inner {
+    #[cfg(target_os = "android")]
+    use std::os::android::net::SocketAddrExt;
+    #[cfg(target_os = "linux")]
+    use std::os::linux::net::SocketAddrExt;
     use std::{
         io,
-        os::{
-            linux::net::SocketAddrExt,
-            unix::net::{SocketAddr, UnixListener},
-        },
+        os::unix::net::{SocketAddr, UnixListener},
     };
 
     use super::Error;
@@ -81,7 +102,7 @@ mod inner {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 mod inner {
     use std::{
         fs::{File, TryLockError},
@@ -146,5 +167,16 @@ mod tests {
         }
         let instance_c = SingleInstance::new(UNIQ_ID).unwrap();
         assert!(instance_c.is_single());
+    }
+
+    #[test]
+    fn test_create_error() {
+        // On Linux and Android the name is an abstract socket name, so any
+        // string is a valid identifier. The file backends fail when the path
+        // cannot be created.
+        let result = SingleInstance::new("/nonexistent-stdx-dir/single_instance.lock");
+        #[cfg(target_vendor = "apple")]
+        assert!(result.is_err());
+        let _ = result;
     }
 }

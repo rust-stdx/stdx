@@ -110,7 +110,6 @@ hyper = { version = "1", features = ["full"] }
 indexmap = { path = "indexmap" }
 libc = "0.2"
 memchr = { version = "2", default-features = false }
-nix = { version = "0.31", features = ["socket"] }
 nom = "8"
 paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
 quick-xml = { version = "0.38", features = ["serialize"] }

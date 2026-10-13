@@ -21,9 +21,29 @@
 //! ML-DSA is supported in the "pure" mode required by RFC 9881 and the TLS 1.3
 //! ML-DSA profile (empty FIPS 204 context). Private keys must be in the RFC
 //! 9881 seed form; keys stored only as an expanded key are rejected because the
-//! seed cannot be recovered from them.
+//! seed cannot be recovered from them. OpenSSL's default `both` encoding (seed
+//! plus expanded key) is accepted.
 //!
-//! TLS 1.2 is not supported.
+//! The `X25519MLKEM768` hybrid is offered first, so a post-quantum key share is
+//! sent by default in the ClientHello, while classical groups remain available
+//! for peers that do not support it. Encapsulation keys received from a peer
+//! are validated per FIPS 203 section 7.2 (modulus check); a malformed key
+//! share is rejected as `PeerMisbehaved::InvalidKeyShare`.
+//!
+//! RSA PKCS#1 v1.5 certificates are accepted both with the customary `NULL`
+//! `AlgorithmIdentifier` parameters and with the parameters absent (RFC 4055
+//! section 2.1).
+//!
+//! # Limitations
+//!
+//! * TLS 1.2 is not supported. Only TLS 1.3 cipher suites are provided.
+//! * RSA signing is not supported. The [`crypto`] crate implements RSA
+//!   verification only, so a TLS server (or a client using client
+//!   authentication) must use an ECDSA P-256/P-384, Ed25519 or ML-DSA private
+//!   key. RSA-signed certificate chains are still verified normally.
+//! * The curve implementations bind each curve to a single hash (P-256 with
+//!   SHA-256, P-384 with SHA-384), so the uncommon cross combinations are not
+//!   registered.
 //!
 //! # Usage
 //!

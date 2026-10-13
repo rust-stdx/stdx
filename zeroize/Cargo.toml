@@ -5,8 +5,6 @@ authors = ["The RustCrypto Project Developers"]
 edition.workspace = true
 rust-version.workspace = true
 description = "Securely clear secrets from memory with a simple trait built on stable Rust primitives which guarantee memory is zeroed using an operation that will not be 'optimized away' by the compiler."
-readme = "README.md"
-license = "MIT"
 keywords = ["memory", "memset", "secure", "volatile", "zero"]
 categories = ["cryptography", "memory-management", "no-std", "os"]
 

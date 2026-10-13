@@ -1,15 +1,5 @@
-//! [![github]](https://github.com/dtolnay/thiserror)&ensp;[![crates-io]](https://crates.io/crates/thiserror)&ensp;[![docs-rs]](https://docs.rs/thiserror)
-//!
-//! [github]: https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github
-//! [crates-io]: https://img.shields.io/badge/crates.io-fc8d62?style=for-the-badge&labelColor=555555&logo=rust
-//! [docs-rs]: https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
-//!
-//! <br>
-//!
-//! This library provides a convenient derive macro for the standard library's
-//! [`std::error::Error`] trait.
-//!
-//! <br>
+//! A convenient derive macro for the standard library's [`std::error::Error`]
+//! and [`core::error::Error`] traits.
 //!
 //! # Example
 //!
@@ -32,8 +22,6 @@
 //!     Unknown,
 //! }
 //! ```
-//!
-//! <br>
 //!
 //! # Details
 //!
@@ -159,7 +147,7 @@
 //! - The Error trait's [`provide()`] method is implemented to provide whichever
 //!   field has a type named `Backtrace`, if any, as a
 //!   [`std::backtrace::Backtrace`]. Using `Backtrace` in errors requires a
-//!   nightly compiler with Rust version 1.73 or newer.
+//!   nightly compiler.
 //!
 //!   ```rust
 //!   # const IGNORE: &str = stringify! {
@@ -177,7 +165,7 @@
 //!   `#[from]` attribute) *and* is marked `#[backtrace]`, then the Error
 //!   trait's [`provide()`] method is forwarded to the source's `provide` so
 //!   that both layers of the error share the same backtrace. The `#[backtrace]`
-//!   attribute requires a nightly compiler with Rust version 1.73 or newer.
+//!   attribute requires a nightly compiler.
 //!
 //!   ```rust
 //!   # const IGNORE: &str = stringify! {
@@ -260,7 +248,6 @@
 //! [`Display`]: std::fmt::Display
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/thiserror/2.0.21")]
 #![allow(
     clippy::elidable_lifetime_names,
     clippy::module_name_repetitions,

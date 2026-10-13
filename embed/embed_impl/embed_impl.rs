@@ -1,3 +1,6 @@
+//! Implementation of the `Embed` derive macro for the `embed` crate.
+//!
+//! This crate is an implementation detail and should not be used directly.
 #![recursion_limit = "1024"]
 #![forbid(unsafe_code)]
 #[macro_use]

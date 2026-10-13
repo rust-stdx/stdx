@@ -1,3 +1,33 @@
+//! Better Expression Language (BEL), a non-Turing complete expression language
+//! designed for simplicity, speed, and safety.
+//!
+//! BEL is ideal for lightweight expression evaluation when a scripting language
+//! or a WASM module would be too resource intensive.
+//!
+//! ```text
+//! jwt.exp < now().unix()
+//! path.starts_with("/api") || path.matches(Regex("^/(admin|secret)"))
+//! headers.all(header, header.length() < 256)
+//! ```
+//!
+//! # Types
+//!
+//! `String`, `Int`, `Float`, `Regex`, `Timestamp`, `Duration`.
+//!
+//! # Example
+//!
+//! Create and execute a simple BEL expression:
+//!
+//! ```
+//! use bel::{Context, Program, Value};
+//!
+//! let program = Program::compile("add(40, 2) == 42").unwrap();
+//! let mut context = Context::default();
+//! context.add_function("add", |a: i64, b: i64| a + b);
+//! let value = program.execute(&context).unwrap();
+//! assert_eq!(value, Value::Bool(true));
+//! ```
+
 extern crate core;
 
 use std::{convert::TryFrom, sync::Arc};

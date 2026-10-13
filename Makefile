@@ -37,6 +37,21 @@ check_tier1:
 	RUSTFLAGS="-D warnings" cargo check --target=aarch64-unknown-linux-gnu --all-features
 	RUSTFLAGS="-D warnings" cargo check --target=aarch64-unknown-linux-gnu --no-default-features
 
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-apple-darwin
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-apple-darwin --all-features
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-apple-darwin --no-default-features
+
+
+.PHONY: check_tier2
+check_tier2:
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-linux-android
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-linux-android --all-features
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-linux-android --no-default-features
+
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-apple-ios
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-apple-ios --all-features
+	RUSTFLAGS="-D warnings" cargo check --target=aarch64-apple-ios --no-default-features
+
 
 # Check that every package that declares `no_std` compiles for the bare-metal
 # Tier 1 targets (riscv32imac-unknown-none-elf and thumbv7em-none-eabi).

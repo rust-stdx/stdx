@@ -3,7 +3,6 @@ name = "retry"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
-license = "MIT"
 description = "Retry async operations with configurable backoff strategies"
 
 [lints]

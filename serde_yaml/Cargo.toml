@@ -8,7 +8,6 @@ documentation = "https://docs.rs/serde_yaml/"
 edition.workspace = true
 rust-version.workspace = true
 keywords = ["yaml", "serde", "serialization"]
-license = "Apache-2.0"
 
 [lints]
 workspace = true

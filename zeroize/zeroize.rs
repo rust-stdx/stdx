@@ -1,7 +1,50 @@
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![doc = include_str!("README.md")]
 
+//! Securely zero memory (a.k.a. zeroize) while avoiding compiler
+//! optimizations.
+//!
+//! This crate implements a portable approach to securely zeroing memory using
+//! techniques which guarantee they won't be "optimized away" by the compiler.
+//!
+//! The [`Zeroize`] trait is the crate's primary API.
+//!
+//! ## About
+//!
+//! Zeroing memory securely is hard: compilers optimize for performance, and in
+//! doing so they love to "optimize away" unnecessary zeroing calls. There are
+//! many documented "tricks" to attempt to avoid these optimizations and ensure
+//! that a zeroing routine is performed reliably.
+//!
+//! This crate isn't about tricks: it uses [`core::ptr::write_volatile`] to
+//! provide easy-to-use, portable zeroing behavior which works on all of Rust's
+//! core number types and slices thereof. On supported architectures a minimal
+//! inline-assembly optimization barrier stops the compiler from eliding the
+//! writes, with a portable `core::hint::black_box` fallback on every other
+//! target.
+//!
+//! - No insecure fallbacks!
+//! - No required dependencies!
+//! - No FFI! A minimal optimization barrier uses inline assembly on supported
+//!   targets, with a portable fallback that keeps **WASM** working.
+//! - `#![no_std]`, i.e. **embedded-friendly**!
+//! - No functionality besides securely zeroing memory!
+//! - (Optional) Custom derive support for zeroing complex structures
+//!
+//! ## Example
+//!
+//! ```
+//! use zeroize::Zeroize;
+//!
+//! // Protip: don't embed secrets in your source code.
+//! // This is just an example.
+//! let mut secret = b"Air shield password: 1,2,3,4,5".to_vec();
+//! // [ ... ] open the air shield here
+//!
+//! // Now that we're done using the secret, zero it out.
+//! secret.zeroize();
+//! ```
+//!
 //! ## Usage
 //!
 //! ### Traits
