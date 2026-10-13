@@ -640,6 +640,8 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 name = "embed"
 version = "8.4.0"
 dependencies = [
+ "alloc_counter",
+ "crypto",
  "embed_impl",
  "embed_utils",
 ]
@@ -660,6 +662,7 @@ version = "8.4.0"
 dependencies = [
  "crypto",
  "media_type",
+ "uuid 0.1.0",
  "walkdir",
 ]
 

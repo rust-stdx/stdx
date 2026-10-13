@@ -2,7 +2,7 @@
 name = "embed_utils"
 version = "8.4.0"
 description = "Utilities for rust-embed"
-documentation = "https://docs.rs/rust-embed"
+documentation = "https://rust-stdx.github.io/stdx/embed_utils/"
 keywords = ["http", "rocket", "static", "web", "server"]
 categories = ["web-programming::http-server"]
 authors = ["pyros2097 <pyros2097@gmail.com>"]
@@ -19,6 +19,9 @@ walkdir = { workspace = true }
 
 
 media_type = { path = "../../media_type", optional = true }
+
+[dev-dependencies]
+uuid = { path = "../../uuid" }
 
 # [dependencies.globset]
 # version = "0.4.8"

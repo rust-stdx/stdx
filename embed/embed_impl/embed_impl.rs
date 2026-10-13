@@ -22,7 +22,7 @@ use syn::{Data, DeriveInput, Expr, ExprLit, Fields, Lit, Meta, MetaNameValue, pa
 fn embedded(
     ident: &syn::Ident,
     relative_folder_path: Option<&str>,
-    absolute_folder_path: String,
+    absolute_folder_path: &Path,
     prefix: Option<&str>,
     includes: &[String],
     excludes: &[String],
@@ -40,7 +40,7 @@ fn embedded(
     for embed_utils::FileEntry {
         rel_path,
         full_canonical_path,
-    } in embed_utils::get_files(absolute_folder_path.clone(), matcher)
+    } in embed_utils::get_files(absolute_folder_path, &matcher)
     {
         match_values.insert(
             rel_path.clone(),
@@ -73,7 +73,10 @@ fn embedded(
 
     let handle_prefix = if let Some(prefix) = prefix {
         quote! {
-          let file_path = file_path.strip_prefix(#prefix)?;
+          let file_path = match file_path.strip_prefix(#prefix) {
+            ::std::option::Option::Some(file_path) => file_path,
+            ::std::option::Option::None => return ::std::option::Option::None,
+          };
         }
     } else {
         TokenStream2::new()
@@ -131,7 +134,7 @@ fn embedded(
 
 fn dynamic(
     ident: &syn::Ident,
-    folder_path: String,
+    folder_paths: Vec<String>,
     prefix: Option<&str>,
     includes: &[String],
     excludes: &[String],
@@ -161,48 +164,69 @@ fn dynamic(
         .map(|mut file| { file.data = ::std::default::Default::default(); file })
     });
 
-    let canonical_folder_path = Path::new(&folder_path)
-        .canonicalize()
-        .expect("folder path must resolve to an absolute path");
-    let canonical_folder_path = canonical_folder_path
-        .to_str()
-        .expect("absolute folder path must be valid unicode");
-
+    // The assets folder is resolved at runtime from the given candidates, in
+    // order. `folder_paths[0]` is the absolute path captured at build time, so
+    // on a machine where the build directory is still present the previous
+    // behaviour is unchanged. The remaining candidates are the path as written
+    // in `#[folder]`, tried relative to the directory the binary is run from,
+    // which keeps debug builds working when the build directory is unavailable
+    // (for example inside a WASI sandbox).
     quote! {
         #[cfg(debug_assertions)]
         impl #ident {
 
 
-          fn matcher() -> #crate_path::utils::PathMatcher {
+          fn matcher() -> &'static #crate_path::utils::PathMatcher {
               #declare_includes
               #declare_excludes
               static PATH_MATCHER: ::std::sync::OnceLock<#crate_path::utils::PathMatcher> = ::std::sync::OnceLock::new();
-              PATH_MATCHER.get_or_init(|| #crate_path::utils::PathMatcher::new(INCLUDES, EXCLUDES)).clone()
+              PATH_MATCHER.get_or_init(|| #crate_path::utils::PathMatcher::new(INCLUDES, EXCLUDES))
           }
+
+          /// Resolves the assets folder at runtime, caching the result.
+          ///
+          /// Returns `None` if neither the build time path nor the path relative
+          /// to the current directory exists.
+          fn folder_root() -> ::std::option::Option<&'static ::std::path::Path> {
+              static FOLDER_ROOT: ::std::sync::OnceLock<::std::option::Option<::std::path::PathBuf>> = ::std::sync::OnceLock::new();
+              FOLDER_ROOT
+                  .get_or_init(|| {
+                      [#(::std::path::Path::new(#folder_paths)),*]
+                          .into_iter()
+                          .find_map(|candidate| candidate.canonicalize().ok())
+                  })
+                  .as_deref()
+          }
+
             /// Get an embedded file and its metadata.
+            ///
+            /// Returns `None` when the path is not a valid relative path, when
+            /// the folder cannot be resolved, when the file does not exist or
+            /// when the requested path would leave the folder (for example
+            /// through a symbolic link).
             pub fn get(file_path: &str) -> ::std::option::Option<#crate_path::EmbeddedFile> {
                 #handle_prefix
 
-                let rel_file_path = file_path;
-                let file_path = ::std::path::Path::new(#folder_path).join(rel_file_path);
-
-                // Make sure the path requested does not escape the folder path
-                let canonical_file_path = file_path.canonicalize().ok()?;
-                if !canonical_file_path.starts_with(#canonical_folder_path) {
-                    // Tried to request a path that is not in the embedded folder
-
-                    // TODO: Currently it allows "path_traversal_attack" for the symlink files
-                    // For it to be working properly we need to get absolute path first
-                    // and check that instead if it starts with `canonical_folder_path`
-                    // https://doc.rust-lang.org/std/path/fn.absolute.html (currently nightly)
-                    // Should be allowed only if it was a symlink
-                    let metadata = ::std::fs::symlink_metadata(&file_path).ok()?;
-                    if !metadata.is_symlink() {
-                      return ::std::option::Option::None;
-                    }
+                // Only accept paths that could have been returned by `iter`.
+                // This keeps debug builds behaving exactly like release builds,
+                // which look the path up in a static table of relative paths.
+                if !#crate_path::utils::is_valid_key(file_path) {
+                    return ::std::option::Option::None;
                 }
+
+                let rel_file_path = file_path;
+                let folder_root = Self::folder_root()?;
+                let file_path = folder_root.join(rel_file_path);
+
+                // Make sure the path requested does not escape the folder path,
+                // even through a symbolic link.
+                let canonical_file_path = file_path.canonicalize().ok()?;
+                if !canonical_file_path.starts_with(folder_root) {
+                    return ::std::option::Option::None;
+                }
+
                 let path_matcher = Self::matcher();
-                if path_matcher.is_path_included(&rel_file_path) {
+                if path_matcher.is_path_included(rel_file_path) {
                   #crate_path::utils::read_file_from_fs(&canonical_file_path).ok() #strip_contents
                 } else {
                   ::std::option::Option::None
@@ -211,10 +235,11 @@ fn dynamic(
 
             /// Iterates over the file paths in the folder.
             pub fn iter() -> impl ::std::iter::Iterator<Item = ::std::borrow::Cow<'static, str>> {
-                use ::std::path::Path;
-
-
-                #crate_path::utils::get_files(::std::string::String::from(#folder_path), Self::matcher())
+                Self::folder_root()
+                    .into_iter()
+                    .flat_map(|folder_root| {
+                        #crate_path::utils::get_files(folder_root, Self::matcher())
+                    })
                     .map(|e| #map_iter)
             }
         }
@@ -245,7 +270,7 @@ fn generate_assets(
     let embedded_impl = embedded(
         ident,
         relative_folder_path,
-        absolute_folder_path.clone(),
+        Path::new(&absolute_folder_path),
         prefix.as_deref(),
         &includes,
         &excludes,
@@ -256,9 +281,13 @@ fn generate_assets(
         return embedded_impl;
     }
     let embedded_impl = embedded_impl?;
+    // Resolve the folder at runtime from the build time absolute path first,
+    // then from the path as written in `#[folder]` relative to the directory
+    // the binary is run from.
+    let fallback_folder_path = relative_folder_path.unwrap_or(absolute_folder_path.as_str()).to_owned();
     let dynamic_impl = dynamic(
         ident,
-        absolute_folder_path,
+        vec![absolute_folder_path, fallback_folder_path],
         prefix.as_deref(),
         &includes,
         &excludes,
@@ -276,11 +305,20 @@ fn embed_file(
     folder_path: Option<&str>,
     ident: &syn::Ident,
     rel_path: &str,
-    full_canonical_path: &str,
+    full_canonical_path: &Path,
     metadata_only: bool,
     crate_path: &syn::Path,
 ) -> syn::Result<TokenStream2> {
-    let file = embed_utils::read_file_from_fs(Path::new(full_canonical_path)).expect("File should be readable");
+    let full_canonical_path = full_canonical_path.to_str().ok_or_else(|| {
+        syn::Error::new(
+            ident.span(),
+            format!("`{}` does not have a UTF-8 representation", full_canonical_path.display()),
+        )
+    })?;
+
+    let file = embed_utils::read_file_from_fs(Path::new(full_canonical_path)).map_err(|error| {
+        syn::Error::new(ident.span(), format!("could not read `{}`: {}", full_canonical_path, error))
+    })?;
     let hash = file.metadata.hash();
     let last_modified = match file.metadata.last_modified() {
         Some(last_modified) => quote! { ::std::option::Option::Some(#last_modified) },
@@ -290,13 +328,11 @@ fn embed_file(
         Some(created) => quote! { ::std::option::Option::Some(#created) },
         None => quote! { ::std::option::Option::None },
     };
-    #[cfg(feature = "guess-media-type")]
-    let mimetype_tokens = {
-        let mt = file.metadata.mimetype();
-        quote! { , #mt }
-    };
-    #[cfg(not(feature = "guess-media-type"))]
-    let mimetype_tokens = TokenStream2::new();
+    // The mimetype is always emitted. Whether it is kept is decided on the
+    // target by `__embed_metadata!`, because this proc-macro is compiled for
+    // the host and its features are resolved independently of the target.
+    let mimetype = embed_utils::mimetype_of(Path::new(full_canonical_path));
+    let mimetype = mimetype.as_str();
 
     let embedding_code = if metadata_only {
         quote! {
@@ -329,7 +365,7 @@ fn embed_file(
 
           #crate_path::EmbeddedFile {
               data: ::std::borrow::Cow::Borrowed(&BYTES),
-              metadata: #crate_path::Metadata::__embed_new([#(#hash),*], #last_modified, #created #mimetype_tokens)
+              metadata: #crate_path::utils::__embed_metadata!([#(#hash),*], #last_modified, #created, #mimetype)
           }
         }
     })
@@ -376,10 +412,11 @@ fn impl_embed(ast: &syn::DeriveInput) -> syn::Result<TokenStream2> {
         _ => return Err(syn::Error::new_spanned(ast, "RustEmbed can only be derived for unit structs")),
     };
 
-    let crate_path: syn::Path = find_attribute_values(ast, "crate_path")
-        .last()
-        .map(|v| syn::parse_str(v).unwrap())
-        .unwrap_or_else(|| syn::parse_str("embed").unwrap());
+    let crate_path: syn::Path = match find_attribute_values(ast, "crate_path").last() {
+        Some(value) => syn::parse_str(value)
+            .map_err(|error| syn::Error::new_spanned(ast, format!("invalid `crate_path` value `{value}`: {error}")))?,
+        None => syn::parse_str("embed").expect("`embed` is a valid path"),
+    };
 
     let mut folder_paths = find_attribute_values(ast, "folder");
     if folder_paths.len() != 1 {
@@ -410,10 +447,12 @@ fn impl_embed(ast: &syn::DeriveInput) -> syn::Result<TokenStream2> {
 
     // Base relative paths on the Cargo.toml location
     let (relative_path, absolute_folder_path) = if Path::new(&folder_path).is_relative() {
-        let absolute_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-            .join(&folder_path)
+        let manifest_dir = env::var("CARGO_MANIFEST_DIR")
+            .map_err(|_| syn::Error::new_spanned(ast, "the CARGO_MANIFEST_DIR environment variable is not set"))?;
+        let absolute_path = Path::new(&manifest_dir).join(&folder_path);
+        let absolute_path = absolute_path
             .to_str()
-            .unwrap()
+            .ok_or_else(|| syn::Error::new_spanned(ast, "the `folder` path is not valid UTF-8"))?
             .to_owned();
         (Some(folder_path.clone()), absolute_path)
     } else {
@@ -426,11 +465,15 @@ fn impl_embed(ast: &syn::DeriveInput) -> syn::Result<TokenStream2> {
         (None, folder_path)
     };
 
-    if !Path::new(&absolute_folder_path).exists() {
+    let absolute_path = Path::new(&absolute_folder_path);
+    if !absolute_path.exists() {
+        let cwd = env::current_dir()
+            .ok()
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "<unknown>".to_owned());
         let mut message = format!(
             "#[derive(RustEmbed)] folder '{}' does not exist. cwd: '{}'",
-            absolute_folder_path,
-            std::env::current_dir().unwrap().to_str().unwrap()
+            absolute_folder_path, cwd
         );
 
         // Add a message about the interpolate-folder-path feature if the path may
@@ -441,7 +484,13 @@ fn impl_embed(ast: &syn::DeriveInput) -> syn::Result<TokenStream2> {
         }
 
         return Err(syn::Error::new_spanned(ast, message));
-    };
+    }
+    if !absolute_path.is_dir() {
+        return Err(syn::Error::new_spanned(
+            ast,
+            format!("#[derive(RustEmbed)] folder '{}' is not a directory", absolute_folder_path),
+        ));
+    }
 
     generate_assets(
         &ast.ident,
@@ -461,5 +510,58 @@ pub fn derive_input_object(input: TokenStream) -> TokenStream {
     match impl_embed(&ast) {
         Ok(ok) => ok.into(),
         Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn derive(input: &str) -> syn::Result<TokenStream2> {
+        impl_embed(&syn::parse_str::<syn::DeriveInput>(input).expect("valid derive input"))
+    }
+
+    #[test]
+    fn a_folder_that_is_a_directory_is_accepted() {
+        // Resolved relative to this crate's manifest directory.
+        assert!(derive(r#"#[folder = "."] struct Assets;"#).is_ok());
+    }
+
+    #[test]
+    fn a_missing_folder_is_a_clean_error() {
+        let error = derive(r#"#[folder = "definitely-not-here"] struct Assets;"#).unwrap_err();
+        assert!(error.to_string().contains("does not exist"), "{}", error);
+    }
+
+    #[test]
+    fn a_folder_that_is_a_file_is_a_clean_error() {
+        let error = derive(r#"#[folder = "Cargo.toml"] struct Assets;"#).unwrap_err();
+        assert!(error.to_string().contains("not a directory"), "{}", error);
+    }
+
+    #[test]
+    fn the_folder_attribute_is_required_exactly_once() {
+        for input in ["struct Assets;", r#"#[folder = "."] #[folder = "."] struct Assets;"#] {
+            let error = derive(input).unwrap_err();
+            assert!(error.to_string().contains("one attribute"), "{}", error);
+        }
+    }
+
+    #[test]
+    fn an_invalid_crate_path_is_a_clean_error() {
+        let error = derive(r#"#[folder = "."] #[crate_path = "not a path!!"] struct Assets;"#).unwrap_err();
+        assert!(error.to_string().contains("crate_path"), "{}", error);
+    }
+
+    #[test]
+    fn only_unit_structs_are_supported() {
+        let error = derive(r#"#[folder = "."] struct Assets { field: u8 }"#).unwrap_err();
+        assert!(error.to_string().contains("unit structs"), "{}", error);
+    }
+
+    #[test]
+    fn a_wrongly_typed_metadata_only_is_ignored() {
+        // `metadata_only` without a boolean literal falls back to `false`.
+        assert!(derive(r#"#[folder = "."] #[metadata_only = "yes"] struct Assets;"#).is_ok());
     }
 }

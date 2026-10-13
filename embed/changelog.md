@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Thanks to [Mark Drobnak](https://github.com/AzureMarker) for the changelog.
 
+## [Unreleased]
+
+### Fixed
+
+- Debug builds now look paths up exactly like release builds: `get` rejects
+  paths that are not valid relative paths (empty, `.` or `..` segments,
+  backslashes, absolute paths, trailing slashes) instead of resolving them
+  against the file system.
+- Symbolic links that point outside the `#[folder]` directory are never
+  embedded into the binary nor served in debug builds. `iter` and `get` now
+  agree: every listed path can be retrieved, and escaping or broken symlinks
+  are listed by neither.
+- Files whose names are not valid UTF-8 (or contain a backslash) are skipped
+  instead of panicking the derive macro or the runtime `iter`.
+- An invalid `crate_path` value is reported as a regular compile error instead
+  of panicking the derive macro, and `#[folder]` must name a directory.
+- `guess-media-type` no longer fails to compile when the host and target
+  resolve the feature differently.
+- Reading a file from the file system now opens it once (open, metadata, read)
+  instead of reading it and then stat-ing it again.
+
+### Changed
+
+- Debug lookups cache the BLAKE3 hash of a file and only recompute it when the
+  file's length or modification time changes, and `SOURCE_DATE_EPOCH` is read
+  at most once per process. Repeatedly serving a large file in a debug build is
+  no longer dominated by re-hashing it.
+
+### Added
+
+- `Debug` implementations for `EmbeddedFile` and `Metadata`.
+- Documentation for lookup path rules, symbolic link handling, the
+  `crate_path` attribute and `SOURCE_DATE_EPOCH`.
+
+### Removed
+
+- The outdated `_tests` directory, superseded by `tests/`.
+
 ## [8.4.0] - 2024-05-11
 
 - Re-export RustEmbed as Embed [#245](https://github.com/pyrossh/rust-embed/pull/245/files). Thanks to [pyrossh](https://github.com/pyrossh)

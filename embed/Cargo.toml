@@ -2,10 +2,6 @@
 name = "embed"
 version = "8.4.0"
 description = "Rust Custom Derive Macro which loads files into the rust binary at compile time during release and loads the file from the fs during dev"
-documentation = "https://docs.rs/rust-embed"
-keywords = ["http", "rocket", "static", "web", "server"]
-categories = ["web-programming", "filesystem"]
-authors = ["pyros2097 <pyros2097@gmail.com>"]
 edition.workspace = true
 rust-version.workspace = true
 
@@ -16,86 +12,18 @@ path = "./embed.rs"
 embed_impl = { path = "./embed_impl"}
 embed_utils = { path = "./embed_utils"}
 
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
+crypto = { path = "../crypto" }
+
 
 [features]
 debug-embed = ["embed_impl/debug-embed", "embed_utils/debug-embed"]
-#interpolate-folder-path = ["rust-embed-impl/interpolate-folder-path"]
-#compression = ["rust-embed-impl/compression", "include-flate"]
 guess-media-type = ["embed_impl/guess-media-type", "embed_utils/guess-media-type"]
-#include-exclude = ["rust-embed-impl/include-exclude", "rust-embed-utils/include-exclude"]
-
-#actix = ["actix-web", "media_type"]
-#warp-ex = ["warp", "tokio", "media_type"]
-#axum-ex = ["axum", "tokio", "media_type"]
-#poem-ex = ["poem", "tokio", "media_type", "hex"]
-#salvo-ex = ["salvo", "tokio", "media_type", "hex"]
-
-
-
-#[[example]]
-#name = "warp"
-#path = "examples/warp.rs"
-#required-features = ["warp-ex"]
-#
-#[[example]]
-#name = "actix"
-#path = "examples/actix.rs"
-#required-features = ["actix"]
-#
-#[[example]]
-#name = "rocket"
-#path = "examples/rocket.rs"
-#required-features = ["rocket"]
-#
-#[[example]]
-#name = "axum"
-#path = "examples/axum.rs"
-#required-features = ["axum-ex"]
-#
-#[[example]]
-#name = "axum-spa"
-#path = "examples/axum-spa/main.rs"
-#required-features = ["axum-ex"]
-#
-#[[example]]
-#name = "poem"
-#path = "examples/poem.rs"
-#required-features = ["poem-ex"]
-#
-#[[example]]
-#name = "salvo"
-#path = "examples/salvo.rs"
-#required-features = ["salvo-ex"]
-#
-#[[test]]
-#name = "interpolated_path"
-#path = "tests/interpolated_path.rs"
-#required-features = ["interpolate-folder-path"]
-#
-#[[test]]
-#name = "include_exclude"
-#path = "tests/include_exclude.rs"
-#required-features = ["include-exclude"]
-#
-#[[test]]
-#name = "mime_guess"
-#path = "tests/mime_guess.rs"
-#required-features = ["guess-media-type"]
-
-#include-flate = { version = "0.3", optional = true }
-#actix-web = { version = "4", optional = true }
-#media_type = { path = "../../media_type", optional = true }
-#hex = { version = "0.4.3", optional = true }
-#tokio = { version = "1.0", optional = true, features = ["macros", "rt-multi-thread"] }
-#warp = { version = "0.3", default-features = false, optional = true }
-#rocket = { version = "0.5.0-rc.2", default-features = false, optional = true }
-#axum = { version = "0.7", default-features = false, features = ["http1", "tokio"], optional = true  }
-#poem = { version = "1.3.30", default-features = false, features = ["server"], optional = true  }
-#salvo = { version = "0.16", default-features = false, optional = true  }
-#
-#[dev-dependencies]
-#sha2 = "0.10"
-#
+# Features that need external dependencies and are therefore disabled:
+# interpolate-folder-path = ["embed_impl/interpolate-folder-path"]              # needs `shellexpand`
+# compression             = ["embed_impl/compression"]                          # needs `include-flate`
+# include-exclude         = ["embed_impl/include-exclude", "embed_utils/include-exclude"]  # needs `globset`
 
 # TODO: `compression` (needs `include-flate`), `include-exclude` (needs `globset`) and
 # `interpolate-folder-path` (needs `shellexpand`) are disabled because they require external
