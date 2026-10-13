@@ -1,9 +1,14 @@
 //! Hex encoding/decoding tables and helpers for UUID string representation.
 
-/// Precomputed lowercase hex encoding table.
-pub const HEX_ENCODE: [u8; 16] = [
-    b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'a', b'b', b'c', b'd', b'e', b'f',
-];
+/// Encode a hex nibble (`0..=15`) as its lowercase ASCII digit.
+///
+/// The argument is expected to be in `0..=15`. Callers only pass masked nibbles,
+/// so values outside that range are not produced in practice.
+#[inline]
+pub const fn encode_nibble(nibble: u8) -> u8 {
+    // 0x27 is `b'a' - b'0' - 10`, i.e. the shift from '0'..='9' to 'a'..='f'.
+    nibble + b'0' + if nibble > 9 { 0x27 } else { 0 }
+}
 
 /// Precomputed hex decoding table (256-entry, O(1) lookup).
 ///

@@ -17,8 +17,13 @@ std = ["dep:rand"]
 serde = ["dep:serde"]
 
 [dependencies]
+heapless = { workspace = true }
 rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
+serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
