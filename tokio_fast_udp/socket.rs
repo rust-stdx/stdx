@@ -156,7 +156,10 @@ mod unix_socket {
             };
 
             let caps = plat::setup_and_probe(&fd, &config, is_ipv6)?;
-            let async_fd = AsyncFd::new(fd)?;
+            // SAFETY: `fd` is an owned, open UDP socket descriptor. `AsyncFd` takes
+            // ownership of it and holds it for its entire lifetime, so the descriptor
+            // stays valid and unchanged until the `AsyncFd` is dropped.
+            let async_fd = unsafe { AsyncFd::register(fd) }?;
 
             Ok(FastUdpSocket {
                 fd: async_fd,
