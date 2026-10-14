@@ -123,7 +123,8 @@ Any contribution submitted for inclusion in this project shall be licensed as ab
 | `bel` | https://github.com/cel-rust/cel-rust | 8287d04156a1b31efe0dd53db78e943fef15c59a | MIT |
 | `cron` | https://github.com/zslayton/cron | ?? | MIT |
 | `anyerr` | https://github.com/dtolnay/anyhow | 5a88bc48ca18c9720be292487dcdcbc93004d15a | MIT |
-| `constant_time_eq` | https://github.com/cesarb/constant_time_eq | 09a34625babf29e1b622ed46e959ea517986b12a | MIT |
+| `constant_time_eq` | https://codeberg.org/cesarb/constant_time_eq | f5f9476a7f84206ecda2b33f3eb2a3fc1badbbe6 | MIT |
+| `count_instructions` | https://github.com/cesarb/count_instructions | ce2b66ff3fc2aa16fd330d00a2f60e8288847228 | MIT |
 | `crc32` | https://github.com/srijs/rust-crc32fast | 479ecdf0174dd3a0f7d48b2f66a386d8d2369963 | MIT |
 | `embed` | https://github.com/pyrossh/rust-embed | 105fdfebab5820ea0628149ee62b34f6d2df3bb8 | MIT |
 | `derivative` | https://github.com/mcarton/rust-derivative | 5179a968ca6d70792f62dfe6727ab8d5b8b5cf5e | MIT |

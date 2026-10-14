@@ -15,7 +15,7 @@ default = ["std", "zeroize"]
 
 # Enables the standard library: the `SystemClock` and the std-backed features of
 # the dependencies. Implies `random`.
-std = ["random", "crypto/std", "serde/std", "small_collections/std"]
+std = ["random", "crypto/std", "serde/std", "small_collections/std", "constant_time_eq/std"]
 # Enables ML-DSA signing, which requires a random number generator. On `no_std`
 # targets this needs a `getrandom` backend (see the `getrandom` documentation).
 random = ["crypto/random"]
@@ -23,7 +23,7 @@ zeroize = ["crypto/zeroize"]
 
 [dependencies]
 base64 = { path = "../base64" }
-constant_time_eq = { path = "../constant_time_eq" }
+constant_time_eq = { path = "../constant_time_eq", default-features = false }
 # `jwt` always needs `alloc` (it builds `String`s and `Vec`s), and it uses
 # `crypto`'s `alloc`-gated APIs (`rsa::PublicKey::n_bytes`/`e_bytes`).
 crypto = { path = "../crypto", default-features = false, features = ["alloc"] }

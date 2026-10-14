@@ -1,0 +1,15 @@
+[package]
+name = "count_instructions"
+version = "0.2.1"
+description = "Counts the instructions executed within a single function"
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "./count_instructions.rs"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }

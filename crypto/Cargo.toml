@@ -16,13 +16,13 @@ default = ["std", "zeroize"]
 
 alloc = ["dep:small_collections", "memchr/alloc", "base64/alloc", "big_number/alloc", "zeroize?/alloc"]
 random = ["dep:getrandom"]
-std = ["alloc", "small_collections?/std", "memchr/std", "random", "big_number/std"]
+std = ["alloc", "small_collections?/std", "memchr/std", "random", "big_number/std", "constant_time_eq/std"]
 zeroize = ["dep:zeroize", "big_number/zeroize"]
 
 [dependencies]
 base64 = { path = "../base64", default-features = false }
 big_number = { path = "../big_number", default-features = false }
-constant_time_eq = { path = "../constant_time_eq" }
+constant_time_eq = { path = "../constant_time_eq", default-features = false }
 getrandom = { workspace = true, optional = true }
 memchr = { workspace = true }
 small_collections = { path = "../small_collections", optional = true, default-features = false }
