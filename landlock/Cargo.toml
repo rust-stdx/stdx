@@ -1,0 +1,18 @@
+[package]
+name = "landlock"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "High-level Linux Landlock sandboxing: restrict filesystem, network and IPC access of your program"
+
+[lints]
+workspace = true
+
+[lib]
+path = "./landlock.rs"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
