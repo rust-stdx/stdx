@@ -41,7 +41,7 @@
 //! Due to the use of SIMD intrinsics for the optimized implementations, this
 //! crate contains some amount of `unsafe` code. The baseline implementation is
 //! safe, and the specialized implementations are exercised by the crate's
-//! tests.
+//! tests, which are only compiled when the `std` feature is enabled.
 //!
 //! ## Feature flags
 //!

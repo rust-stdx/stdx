@@ -78,7 +78,7 @@ pub unsafe fn calculate(crc: u32, data: &[u8]) -> u32 {
     !c32
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod test {
     use rand::{TryRng, rngs::SysRng};
 
@@ -98,8 +98,10 @@ mod test {
             for _ in 0..=(chunks[0] % 8) {
                 let mut len_bytes = [0u8; 2];
                 rng.try_fill_bytes(&mut len_bytes).unwrap();
-                let mut chunk = vec![0u8; (u16::from_le_bytes(len_bytes) % 512) as usize];
-                rng.try_fill_bytes(&mut chunk).unwrap();
+                let len = (u16::from_le_bytes(len_bytes) % 512) as usize;
+                let mut chunk = [0u8; 512];
+                rng.try_fill_bytes(&mut chunk[..len]).unwrap();
+                let chunk = &chunk[..len];
 
                 // simulate random alignments by offsetting the slice by up to 15 bytes
                 let mut offset_bytes = [0u8; 1];
