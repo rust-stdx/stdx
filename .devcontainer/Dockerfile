@@ -11,13 +11,13 @@ RUN apt-get install -y --no-install-recommends \
     # base system. psmisc for killall. openssh-client for git over SSH. socat for docker
     bash curl wget psmisc ca-certificates lsb-release openssh-client socat \
     # dev tools. dnsutils for dig. bsdmainutils for hexdump.
-    git vim make binutils coreutils build-essential pkg-config linux-perf ripgrep sqlite3 libdigest-sha3-perl \
+    git vim make binutils coreutils build-essential pkg-config linux-perf ripgrep sqlite3 \
     zip htop wrk zstd gdb dnsutils jq b3sum gnupg libimage-exiftool-perl bsdmainutils lsof xxd net-tools iproute2 \
-    python3 python3-pip pipx tcpdump tshark strace \
+    python3 python3-pip pipx tcpdump strace \
     # Rust toolchain
-    rustup libfindbin-libs-perl lld mold gcc g++ musl musl-dev musl-tools libc6-dev cmake clang llvm libclang-dev openssl libssl-dev \
+    rustup lld musl musl-dev musl-tools libc6-dev clang llvm libclang-dev openssl libssl-dev \
     # useful data. mailcap for mimetypes. tzdata for timezones.
-    mailcap tzdata libpcre2-dev
+    mailcap tzdata
 
 # setup node
 COPY --from=node /usr/local/bin/node /usr/local/bin/

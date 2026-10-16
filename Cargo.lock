@@ -2158,6 +2158,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "stripe"
+version = "0.1.0"
+dependencies = [
+ "alloc_counter",
+ "bytes",
+ "constant_time_eq",
+ "crypto",
+ "crypto_rustls",
+ "futures-util",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "stripe_codegen",
+ "tokio",
+ "uuid 0.1.0",
+ "zeroize 1.9.1",
+]
+
+[[package]]
+name = "stripe_codegen"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

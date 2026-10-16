@@ -1,0 +1,187 @@
+[package]
+name = "stripe"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Pure-Rust, dependency-light client for the Stripe API, generated from Stripe's official OpenAPI specification"
+
+[lints]
+workspace = true
+
+[lib]
+path = "stripe.rs"
+# The library has no unit tests (they all live in tests/), so there is no reason
+# for `cargo test` to build a second, test-harness copy of the whole crate.
+test = false
+
+[features]
+default = ["reqwest", "core"]
+# The default HTTP transport, backed by reqwest + the stdx rustls provider.
+reqwest = ["dep:reqwest", "dep:crypto_rustls", "dep:tokio"]
+# Umbrella over the resources most integrations need.
+core = [
+    "account",
+    "account_links",
+    "account_sessions",
+    "accounts",
+    "apple_pay",
+    "application_fees",
+    "balance",
+    "balance_settings",
+    "balance_transactions",
+    "charges",
+    "checkout",
+    "common",
+    "confirmation_tokens",
+    "country_specs",
+    "coupons",
+    "credit_notes",
+    "customer_sessions",
+    "customers",
+    "disputes",
+    "ephemeral_keys",
+    "exchange_rates",
+    "file_links",
+    "files",
+    "invoice_payments",
+    "invoice_rendering_templates",
+    "invoiceitems",
+    "invoices",
+    "mandates",
+    "payment_attempt_records",
+    "payment_intents",
+    "payment_links",
+    "payment_method_configurations",
+    "payment_method_domains",
+    "payment_methods",
+    "payment_records",
+    "payouts",
+    "plans",
+    "prices",
+    "products",
+    "promotion_codes",
+    "quotes",
+    "refunds",
+    "reviews",
+    "setup_attempts",
+    "setup_intents",
+    "shipping_rates",
+    "sources",
+    "subscription_items",
+    "subscription_schedules",
+    "subscriptions",
+    "tax_codes",
+    "tax_ids",
+    "tax_rates",
+    "three_d_secure",
+    "tokens",
+    "topups",
+    "transfers",
+    "webhook_endpoints",
+]
+# One feature per generated module (see `api/`), gating its request builders
+# and methods. Response types are gated by reachability instead: a type is
+# compiled when a module that can return it is enabled (see `stripe_codegen`),
+# except for a small set of shared types, which are always compiled.
+account = []
+account_links = []
+account_sessions = []
+accounts = []
+apple_pay = []
+application_fees = []
+apps = []
+balance = []
+balance_settings = []
+balance_transactions = []
+billing = []
+billing_portal = []
+charges = []
+checkout = []
+climate = []
+common = []
+confirmation_tokens = []
+country_specs = []
+coupons = []
+credit_notes = []
+customer_sessions = []
+customers = []
+disputes = []
+entitlements = []
+ephemeral_keys = []
+events = []
+exchange_rates = []
+file_links = []
+files = []
+financial_connections = []
+forwarding = []
+identity = []
+invoice_payments = []
+invoice_rendering_templates = []
+invoiceitems = []
+invoices = []
+issuing = []
+mandates = []
+payment_attempt_records = []
+payment_intents = []
+payment_links = []
+payment_method_configurations = []
+payment_method_domains = []
+payment_methods = []
+payment_records = []
+payouts = []
+plans = []
+prices = []
+product_catalog = []
+products = []
+promotion_codes = []
+quotes = []
+radar = []
+refunds = []
+reporting = []
+reviews = []
+setup_attempts = []
+setup_intents = []
+shipping_rates = []
+sigma = []
+sources = []
+subscription_items = []
+subscription_schedules = []
+subscriptions = []
+tax = []
+tax_codes = []
+tax_ids = []
+tax_rates = []
+terminal = []
+test_helpers = []
+three_d_secure = []
+tokens = []
+topups = []
+transfers = []
+treasury = []
+v2_billing = []
+v2_commerce = []
+v2_core = []
+webhook_endpoints = []
+
+[dependencies]
+bytes = { workspace = true }
+constant_time_eq = { path = "../constant_time_eq" }
+crypto = { path = "../crypto" }
+crypto_rustls = { path = "../crypto_rustls", optional = true }
+futures-util = { workspace = true, default-features = false, features = ["std"] }
+reqwest = { workspace = true, optional = true, features = ["stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { version = "1", optional = true, features = ["time"] }
+uuid = { path = "../uuid" }
+zeroize = { path = "../zeroize" }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
+crypto = { path = "../crypto" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+stripe_codegen = { path = "codegen" }
+# Only the runtime pieces the tests need: a current-thread runtime and the
+# `#[tokio::test]` attribute.
+tokio = { version = "1", features = ["macros", "rt", "time"] }

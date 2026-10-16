@@ -63,6 +63,8 @@ members = [
     "singleflight",
     "small_collections",
     "strings",
+    "stripe",
+    "stripe/codegen",
     "template",
     "term",
     "thiserror",
@@ -84,6 +86,17 @@ members = [
 [workspace.package]
 edition = "2024"
 rust-version = "1.99"
+
+# The Stripe client is generated from Stripe's full OpenAPI specification and
+# is very large; emitting debug information for it pushes rustc past the memory
+# available in constrained CI images. Debug info for this package is therefore
+# disabled in the dev and test profiles. Use `cargo check` for full type
+# checking, or enable debug info explicitly when needed.
+[profile.dev.package.stripe]
+debug = false
+
+[profile.test.package.stripe]
+debug = false
 
 # The following packages may stack overflow in WASM debug builds so we need to force them to compile to
 # release builds even in test mode.
