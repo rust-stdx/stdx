@@ -975,6 +975,196 @@ fn xof_squeeze_does_not_overwrite() {
     }
 }
 
+/// Every chunking of the same output stream must produce the same bytes. The
+/// reader caches the unread part of the current output block; this sweep covers
+/// every total length across the 64-byte boundaries (and across a full SIMD
+/// pass) with chunk sizes that split, straddle and coincide with them.
+#[test]
+fn xof_chunked_matches_one_shot() {
+    let input = pseudo_random(2000, 0x1234_5678);
+    let totals = (0..=2 * super::platform::BLOCK_LEN + 8)
+        .chain([255, 256, 257, 511, 512, 513, 1023, 1024, 1025, 4096, 4097, 8192])
+        .collect::<Vec<_>>();
+
+    for &total in &totals {
+        let mut expected = vec![0u8; total];
+        let mut h = Blake3::new();
+        h.update(&input);
+        h.finalize_xof().squeeze(&mut expected);
+
+        for &chunk in &[1usize, 2, 3, 5, 62, 63, 64, 65, 66, 127, 128, 129, 200, 1000] {
+            let mut h = Blake3::new();
+            h.update(&input);
+            let mut xof = h.finalize_xof();
+            let mut out = vec![0u8; total];
+            let mut offset = 0;
+            while offset < total {
+                let end = (offset + chunk).min(total);
+                xof.squeeze(&mut out[offset..end]);
+                offset = end;
+            }
+            assert_eq!(out, expected, "total={total} chunk={chunk}");
+        }
+    }
+}
+
+/// Reading one byte at a time must match a single read, for both plain and
+/// keyed hashing. (This is the pattern the previous, unbuffered reader handled
+/// by recomputing the output block on every call.)
+#[test]
+fn xof_one_byte_at_a_time_matches_one_shot() {
+    for &keyed in &[false, true] {
+        let input = pseudo_random(200, 0x5EED ^ u64::from(keyed));
+        let build = || {
+            let mut h = if keyed {
+                Blake3::new_keyed(TEST_KEY)
+            } else {
+                Blake3::new()
+            };
+            h.update(&input);
+            h
+        };
+
+        let mut expected = [0u8; 1024];
+        build().finalize_xof().squeeze(&mut expected);
+
+        let mut xof = build().finalize_xof();
+        let mut byte = [0u8; 1];
+        for (i, &want) in expected.iter().enumerate() {
+            xof.squeeze(&mut byte);
+            assert_eq!(byte[0], want, "keyed={keyed}, byte {i}");
+        }
+    }
+}
+
+/// Empty squeezes are no-ops wherever they occur, including between two partial
+/// reads that share a cached block.
+#[test]
+fn xof_empty_squeeze_is_noop() {
+    let input = pseudo_random(64, 0xABC);
+    let mut expected = [0u8; 256];
+    let mut h = Blake3::new();
+    h.update(&input);
+    h.finalize_xof().squeeze(&mut expected);
+
+    let mut h = Blake3::new();
+    h.update(&input);
+    let mut xof = h.finalize_xof();
+    let mut out = [0u8; 256];
+    let steps = [0usize, 1, 0, 31, 0, 0, 32, 0, 65, 0, 127, 0];
+    let mut offset = 0;
+    for &step in &steps {
+        let end = (offset + step).min(out.len());
+        xof.squeeze(&mut out[offset..end]);
+        offset = end;
+    }
+    assert_eq!(offset, out.len(), "steps must cover the whole buffer");
+    assert_eq!(out, expected);
+}
+
+/// A single call that starts inside the cached block, crosses whole blocks and
+/// ends in a fresh partial block must stitch the three regions correctly.
+#[test]
+fn xof_read_spans_cache_and_whole_blocks() {
+    let input = pseudo_random(77, 0xBEEF);
+    let mut expected = [0u8; 512];
+    let mut h = Blake3::new();
+    h.update(&input);
+    h.finalize_xof().squeeze(&mut expected);
+
+    for prefix in 0..super::platform::BLOCK_LEN {
+        for &len in &[
+            1usize,
+            62,
+            63,
+            64,
+            65,
+            127,
+            128,
+            129,
+            190,
+            200,
+            255,
+            256,
+            512 - super::platform::BLOCK_LEN,
+        ] {
+            assert!(prefix + len <= expected.len());
+
+            let mut h = Blake3::new();
+            h.update(&input);
+            let mut xof = h.finalize_xof();
+            let mut out = [0u8; 512];
+            xof.squeeze(&mut out[..prefix]);
+            xof.squeeze(&mut out[prefix..prefix + len]);
+
+            assert_eq!(out[..prefix + len], expected[..prefix + len], "prefix={prefix} len={len}");
+        }
+    }
+}
+
+/// Seeking must refresh the cache: bytes read after a seek continue from the new
+/// position, never from a block cached before the seek.
+#[test]
+fn xof_seek_refreshes_cache() {
+    let input = pseudo_random(300, 0x9001);
+    let mut hasher = super::hasher::Hasher::new();
+    hasher.update(&input);
+    let mut reference_hasher = reference::Hasher::new();
+    reference_hasher.update(&input);
+
+    for &position in &[0u64, 1, 63, 64, 65, 127, 128, 129, 512, 1 << 20] {
+        let mut expected = [0u8; 300];
+        reference_hasher.finalize_at(position, &mut expected);
+
+        let mut xof = hasher.finalize_xof();
+        xof.set_position(position);
+        let mut actual = [0u8; 300];
+        // Odd-sized reads straddle the cache and the wide path.
+        let mut offset = 0;
+        for &step in &[1usize, 62, 1, 63, 1, 72] {
+            let end = (offset + step).min(actual.len());
+            xof.fill(&mut actual[offset..end]);
+            offset = end;
+        }
+        xof.fill(&mut actual[offset..]);
+        assert_eq!(actual, expected, "seek to {position}");
+    }
+}
+
+/// Zeroization must clear the cached output block, not just the root state: the
+/// cached bytes are key-derived for keyed hashing.
+#[cfg(feature = "zeroize")]
+#[test]
+fn xof_zeroize_clears_cached_block() {
+    let build = || {
+        let mut h = super::hasher::Hasher::new_keyed(TEST_KEY);
+        h.update(b"key material");
+        h
+    };
+
+    // (a) partially consumed block
+    let mut reader = build().finalize_xof();
+    let mut out = [0u8; 33];
+    reader.fill(&mut out);
+    reader.zeroize();
+    assert!(reader.debug_is_zeroized(), "partially consumed cached block was not zeroized");
+
+    // (b) exactly on a block boundary (the cache is stale but still holds output)
+    let mut reader = build().finalize_xof();
+    let mut out = [0u8; 64];
+    reader.fill(&mut out);
+    reader.zeroize();
+    assert!(reader.debug_is_zeroized(), "block-boundary state was not zeroized");
+
+    // (c) after a seek, which refreshes the cache eagerly
+    let mut reader = build().finalize_xof();
+    reader.set_position(100);
+    let mut out = [0u8; 4];
+    reader.fill(&mut out);
+    reader.zeroize();
+    assert!(reader.debug_is_zeroized(), "post-seek state was not zeroized");
+}
+
 /// Input slices at every alignment, so the SIMD kernels' unaligned loads are
 /// exercised (they must never assume 16/32-byte alignment).
 #[test]
@@ -1123,7 +1313,10 @@ fn zeroize_clears_state() {
 /// The SIMD backends compiled into this build. The portable backend is always
 /// first (it is the reference), the rest are appended when available.
 #[cfg(any(
-    all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")),
+    all(
+        target_arch = "x86_64",
+        any(feature = "std", target_feature = "avx2", target_feature = "avx512f")
+    ),
     all(target_arch = "aarch64", target_feature = "neon"),
     all(target_arch = "wasm32", target_feature = "simd128"),
 ))]
@@ -1132,9 +1325,15 @@ fn available_simd_platforms() -> Vec<super::platform::Platform> {
     let mut platforms = Vec::new();
 
     #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    if is_x86_feature_detected!("avx512f") {
+        platforms.push(super::platform::Platform::Avx512);
+    }
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
     if is_x86_feature_detected!("avx2") {
         platforms.push(super::platform::Platform::Avx2);
     }
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+    platforms.push(super::platform::Platform::Avx512);
     #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
     platforms.push(super::platform::Platform::Avx2);
 
@@ -1148,7 +1347,10 @@ fn available_simd_platforms() -> Vec<super::platform::Platform> {
 }
 
 #[cfg(any(
-    all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")),
+    all(
+        target_arch = "x86_64",
+        any(feature = "std", target_feature = "avx2", target_feature = "avx512f")
+    ),
     all(target_arch = "aarch64", target_feature = "neon"),
     all(target_arch = "wasm32", target_feature = "simd128"),
 ))]
@@ -1161,14 +1363,17 @@ fn bytes_to_words<const N: usize>(bytes: &[u8]) -> [u32; N] {
 }
 
 #[cfg(any(
-    all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")),
+    all(
+        target_arch = "x86_64",
+        any(feature = "std", target_feature = "avx2", target_feature = "avx512f")
+    ),
     all(target_arch = "aarch64", target_feature = "neon"),
     all(target_arch = "wasm32", target_feature = "simd128"),
 ))]
 #[test]
 fn simd_kernels_match_portable() {
     use super::platform::{
-        CHUNK_END, CHUNK_START, DERIVE_KEY_MATERIAL, IncrementCounter, KEYED_HASH, PARENT, Platform, ROOT,
+        BLOCK_LEN, CHUNK_END, CHUNK_START, DERIVE_KEY_MATERIAL, IncrementCounter, KEYED_HASH, PARENT, Platform, ROOT,
     };
 
     // Counters chosen so that the per-lane increment carries out of the low
@@ -1181,6 +1386,9 @@ fn simd_kernels_match_portable() {
         i32::MAX as u64,
         u32::MAX as u64,
         (u32::MAX as u64) - 3,
+        // Carries out of the low 32-bit word *inside* a 16-lane AVX-512 group
+        // (the arrangement that exposed BLAKE3 issue #271).
+        (u32::MAX as u64) - 15,
         (0xDEAD_BEEF_u64 << 32) | 5,
     ];
     // Flags combinations that exercise the "end"/"root"/keyed bit handling.
@@ -1217,8 +1425,10 @@ fn simd_kernels_match_portable() {
         let key = bytes_to_words::<8>(&pseudo_random(32, 77));
 
         // --- parallel chunk hashing (16 blocks per input). The counts cover
-        //     full SIMD groups plus scalar tails (31 = 16+8+4+2+1). ---
-        for &n in &[1usize, 2, 3, 4, 5, 6, 7, 8, 9, 12, 15, 16, 17, 23, 24, 31] {
+        //     full SIMD groups plus scalar tails (33 = 16x2 + 1). ---
+        for &n in &[
+            1usize, 2, 3, 4, 5, 6, 7, 8, 9, 12, 15, 16, 17, 23, 24, 31, 32, 33, 47, 48,
+        ] {
             let inputs_owned: Vec<Vec<u8>> = (0..n).map(|i| pseudo_random(1024, 5000 + i as u64)).collect();
             let inputs: Vec<&[u8]> = inputs_owned.iter().map(Vec::as_slice).collect();
             for &counter in &counters {
@@ -1252,7 +1462,7 @@ fn simd_kernels_match_portable() {
         }
 
         // --- parallel parent hashing (one block per input), counter not incremented ---
-        for &n in &[2usize, 3, 4, 5, 7, 8, 9, 16, 17] {
+        for &n in &[2usize, 3, 4, 5, 7, 8, 9, 16, 17, 31, 32, 33] {
             let inputs_owned: Vec<Vec<u8>> = (0..n).map(|i| pseudo_random(64, 9000 + i as u64)).collect();
             let inputs: Vec<&[u8]> = inputs_owned.iter().map(Vec::as_slice).collect();
             let mut out_ref = vec![0u8; n * 32];
@@ -1261,6 +1471,42 @@ fn simd_kernels_match_portable() {
             platform.hash_many(&inputs, &key, 0, IncrementCounter::No, PARENT, 0, 0, &mut out_simd);
             assert_eq!(out_ref, out_simd, "parent hash_many mismatch ({platform:?}, n {n})");
         }
+
+        // --- wide XOF output: several 64-byte blocks produced at once ---
+        for &blocks in &[1usize, 2, 3, 4, 5, 7, 8, 15, 16, 17, 31, 32, 33] {
+            for &block_len in &[1u8, 64] {
+                for &counter in &counters {
+                    for &flags in &[ROOT | CHUNK_END, ROOT | CHUNK_END | KEYED_HASH] {
+                        let cv = bytes_to_words::<8>(&pseudo_random(32, 4242 + block_len as u64));
+                        let block_bytes = pseudo_random(64, 4242 + block_len as u64);
+                        let block: [u8; 64] = block_bytes.as_slice().try_into().unwrap();
+
+                        let mut out_ref = vec![0u8; blocks * BLOCK_LEN];
+                        for (i, out_block) in out_ref.chunks_exact_mut(BLOCK_LEN).enumerate() {
+                            out_block.copy_from_slice(&Platform::Portable.compress_xof(
+                                &cv,
+                                &block,
+                                block_len,
+                                counter.wrapping_add(i as u64),
+                                flags,
+                            ));
+                        }
+
+                        let mut out_simd = vec![0u8; blocks * BLOCK_LEN];
+                        platform.xof_many(&cv, &block, block_len, counter, flags, &mut out_simd);
+                        assert_eq!(
+                            out_ref, out_simd,
+                            "xof_many mismatch ({platform:?}, blocks {blocks}, block_len {block_len}, counter {counter}, flags {flags})"
+                        );
+                    }
+                }
+            }
+        }
+
+        // An empty output must be a no-op: several backends can only write a
+        // whole SIMD group at a time, so a shorter slice must be rejected by
+        // the contract rather than written out of bounds.
+        platform.xof_many(&key, &[0u8; BLOCK_LEN], BLOCK_LEN as u8, 0, ROOT, &mut []);
     }
 }
 

@@ -183,6 +183,24 @@ impl Output {
         )
     }
 
+    /// Write several consecutive root output blocks at once.
+    ///
+    /// `out` must be a whole number of 64-byte blocks; an empty slice is a
+    /// no-op. Block `i` is produced with counter `self.counter + i`. This is
+    /// the wide counterpart of [`Output::root_output_block`], letting the SIMD
+    /// backends compress several output blocks in parallel.
+    fn output_many(&self, out: &mut [u8]) {
+        debug_assert_eq!(out.len() % BLOCK_LEN, 0, "whole output blocks only");
+        self.platform.xof_many(
+            &self.input_chaining_value,
+            &self.block.0,
+            self.block_len,
+            self.counter,
+            self.flags | ROOT,
+            out,
+        );
+    }
+
     /// Test-only: whether the fields selected for zeroization have been cleared.
     #[cfg(all(test, feature = "zeroize"))]
     fn debug_is_zeroized(&self) -> bool {
@@ -450,7 +468,8 @@ pub(crate) fn derive_key(context: &str, key_material: &[u8]) -> [u8; OUT_LEN] {
 /// Incremental BLAKE3 hasher.
 ///
 /// The internal state is about 1.9 KiB and lives entirely on the stack: hashing
-/// never allocates. Cloning a hasher clones its state.
+/// never allocates. Compressing a wide subtree uses a few KiB of additional
+/// stack scratch inside `update`. Cloning a hasher clones its state.
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub(crate) struct Hasher {
@@ -504,8 +523,7 @@ impl Hasher {
     /// Merge the top of the stack until it has as many entries as there are
     /// set bits in `chunk_counter`.
     ///
-    /// Unlike the reference implementation (which merges eagerly, one chunk at
-    /// a time), this keeps unmerged subtrees on the stack so that the root
+    /// This keeps unmerged subtrees on the stack so that the root
     /// compression is never performed early; each stack entry corresponds to a
     /// 1-bit in the number of chunks hashed so far.
     fn merge_cv_stack(&mut self, chunk_counter: u64) {
@@ -676,11 +694,19 @@ impl Hasher {
 ///
 /// Output is generated on demand from the root node; the reader keeps the
 /// position so that repeated calls to [`OutputReader::fill`] continue the
-/// stream.
+/// stream. The unread part of the current output block is cached, so a partial
+/// read never recomputes an output block it has already started.
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub(crate) struct OutputReader {
     inner: Output,
+    /// The current 64-byte output block.
+    ///
+    /// Bytes at and after `position_within_block` have not been handed out yet.
+    /// When `position_within_block` is zero the cache is stale: the next block
+    /// is computed on demand.
+    block: [u8; BLOCK_LEN],
+    /// How many bytes of `block` have already been handed out.
     position_within_block: u8,
 }
 
@@ -688,56 +714,62 @@ impl OutputReader {
     fn new(inner: Output) -> Self {
         Self {
             inner,
+            block: [0u8; BLOCK_LEN],
             position_within_block: 0,
         }
-    }
-
-    fn fill_one_block(&mut self, buf: &mut &mut [u8]) {
-        let output_block = self.inner.root_output_block();
-        let output_bytes = &output_block[self.position_within_block as usize..];
-        let take = cmp::min(buf.len(), output_bytes.len());
-        buf[..take].copy_from_slice(&output_bytes[..take]);
-        self.position_within_block += take as u8;
-        if self.position_within_block as usize == BLOCK_LEN {
-            // Wrapping on purpose: reaching 2^64 bytes of output is impossible,
-            // but a debug-build panic here would be a denial of service.
-            self.inner.counter = self.inner.counter.wrapping_add(1);
-            self.position_within_block = 0;
-        }
-        let rest = core::mem::take(buf);
-        *buf = &mut rest[take..];
     }
 
     /// Write output bytes into `buf`, advancing the reader. An empty `buf` is a
     /// no-op.
     ///
-    /// Note that output is not buffered: repeating `fill` with an odd-sized
-    /// buffer redoes compression work, so prefer multiples of 64 bytes when
-    /// reading in a loop.
+    /// Output is buffered: the unread remainder of the current 64-byte block is
+    /// kept, so reading in small pieces costs at most one compression per 64
+    /// bytes instead of one per call. Supplying several whole blocks at once
+    /// (up to `MAX_SIMD_DEGREE` blocks per compression on SIMD backends) remains
+    /// the fastest way to read a long stream.
     pub(crate) fn fill(&mut self, mut buf: &mut [u8]) {
         if buf.is_empty() {
             return;
         }
 
+        // Serve the unread remainder of the cached block first.
         if self.position_within_block != 0 {
-            self.fill_one_block(&mut buf);
+            let start = self.position_within_block as usize;
+            let take = cmp::min(buf.len(), BLOCK_LEN - start);
+            buf[..take].copy_from_slice(&self.block[start..start + take]);
+            self.position_within_block += take as u8;
+            if self.position_within_block as usize == BLOCK_LEN {
+                // Wrapping on purpose: reaching 2^64 bytes of output is
+                // impossible, but a debug-build panic here would be a denial
+                // of service.
+                self.inner.counter = self.inner.counter.wrapping_add(1);
+                self.position_within_block = 0;
+            }
+            buf = &mut buf[take..];
+            if buf.is_empty() {
+                return;
+            }
         }
 
-        let full_blocks = buf.len() / BLOCK_LEN;
-        if full_blocks > 0 {
+        // Write whole blocks straight into the caller's buffer, keeping the
+        // wide, parallel SIMD output path available.
+        let full_len = (buf.len() / BLOCK_LEN) * BLOCK_LEN;
+        if full_len > 0 {
             debug_assert_eq!(self.position_within_block, 0);
-            let full_len = full_blocks * BLOCK_LEN;
-            for block in buf[..full_len].as_chunks_mut::<BLOCK_LEN>().0 {
-                block.copy_from_slice(&self.inner.root_output_block());
-                self.inner.counter = self.inner.counter.wrapping_add(1);
-            }
+            self.inner.output_many(&mut buf[..full_len]);
+            self.inner.counter = self.inner.counter.wrapping_add((full_len / BLOCK_LEN) as u64);
             buf = &mut buf[full_len..];
         }
 
+        // Cache the final partial block rather than recomputing it on the next
+        // call.
         if !buf.is_empty() {
+            debug_assert_eq!(self.position_within_block, 0);
             debug_assert!(buf.len() < BLOCK_LEN);
-            self.fill_one_block(&mut buf);
-            debug_assert!(buf.is_empty());
+            self.block = self.inner.root_output_block();
+            let take = buf.len();
+            buf.copy_from_slice(&self.block[..take]);
+            self.position_within_block = take as u8;
         }
     }
 
@@ -755,11 +787,15 @@ impl OutputReader {
     pub(crate) fn set_position(&mut self, position: u64) {
         self.position_within_block = (position % BLOCK_LEN as u64) as u8;
         self.inner.counter = position / BLOCK_LEN as u64;
+        if self.position_within_block != 0 {
+            // Refresh the cache so it matches the new position.
+            self.block = self.inner.root_output_block();
+        }
     }
 
     /// Test-only: whether the fields selected for zeroization have been cleared.
     #[cfg(all(test, feature = "zeroize"))]
     pub(crate) fn debug_is_zeroized(&self) -> bool {
-        self.inner.debug_is_zeroized() && self.position_within_block == 0
+        self.inner.debug_is_zeroized() && self.position_within_block == 0 && self.block.iter().all(|b| *b == 0)
     }
 }

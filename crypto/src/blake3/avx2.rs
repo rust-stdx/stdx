@@ -5,6 +5,10 @@
 //! across the blocks of a chunk, which is where most of the throughput on
 //! large inputs comes from.
 //!
+//! The `xof_many` path uses the same eight lanes, but one per extendable-output
+//! block (sharing the message and varying the counter), so several 64-byte
+//! output blocks are produced per call.
+//!
 //! Single-block compression is delegated to the portable kernel: a lone
 //! compression only fills a 128-bit vector register and gains little from
 //! AVX2.
@@ -290,23 +294,23 @@ unsafe fn load_counters(counter: u64, increment_counter: IncrementCounter) -> (_
         (
             set8(
                 counter_low(counter),
-                counter_low(counter + (mask & 1)),
-                counter_low(counter + (mask & 2)),
-                counter_low(counter + (mask & 3)),
-                counter_low(counter + (mask & 4)),
-                counter_low(counter + (mask & 5)),
-                counter_low(counter + (mask & 6)),
-                counter_low(counter + (mask & 7)),
+                counter_low(counter.wrapping_add(mask & 1)),
+                counter_low(counter.wrapping_add(mask & 2)),
+                counter_low(counter.wrapping_add(mask & 3)),
+                counter_low(counter.wrapping_add(mask & 4)),
+                counter_low(counter.wrapping_add(mask & 5)),
+                counter_low(counter.wrapping_add(mask & 6)),
+                counter_low(counter.wrapping_add(mask & 7)),
             ),
             set8(
                 counter_high(counter),
-                counter_high(counter + (mask & 1)),
-                counter_high(counter + (mask & 2)),
-                counter_high(counter + (mask & 3)),
-                counter_high(counter + (mask & 4)),
-                counter_high(counter + (mask & 5)),
-                counter_high(counter + (mask & 6)),
-                counter_high(counter + (mask & 7)),
+                counter_high(counter.wrapping_add(mask & 1)),
+                counter_high(counter.wrapping_add(mask & 2)),
+                counter_high(counter.wrapping_add(mask & 3)),
+                counter_high(counter.wrapping_add(mask & 4)),
+                counter_high(counter.wrapping_add(mask & 5)),
+                counter_high(counter.wrapping_add(mask & 6)),
+                counter_high(counter.wrapping_add(mask & 7)),
             ),
         )
     }
@@ -394,6 +398,78 @@ unsafe fn hash8(
         let ptr = out.as_mut_ptr();
         for (i, vec) in h_vecs.iter().enumerate() {
             storeu(*vec, ptr.add(i * 32));
+        }
+    }
+}
+
+/// Write exactly [`DEGREE`] extended-output blocks of a single root node.
+///
+/// Lane `i` compresses the same message block with counter `counter + i` and
+/// writes the resulting 64-byte output block.
+///
+/// # Safety
+/// AVX2 must be available on the running CPU.
+#[target_feature(enable = "avx2")]
+unsafe fn xof8(cv: &[u32; 8], block: &[u8; BLOCK_LEN], block_len: u8, counter: u64, flags: u8, out: &mut [u8]) {
+    unsafe {
+        let block_words = scalar::words_from_le_bytes_64(block);
+        let mut msg_vecs = [set1(0); 16];
+        for (vec, word) in msg_vecs.iter_mut().zip(block_words) {
+            *vec = set1(word);
+        }
+
+        let h_vecs = [
+            set1(cv[0]),
+            set1(cv[1]),
+            set1(cv[2]),
+            set1(cv[3]),
+            set1(cv[4]),
+            set1(cv[5]),
+            set1(cv[6]),
+            set1(cv[7]),
+        ];
+        let (counter_low_vec, counter_high_vec) = load_counters(counter, IncrementCounter::Yes);
+
+        let mut v = [
+            h_vecs[0],
+            h_vecs[1],
+            h_vecs[2],
+            h_vecs[3],
+            h_vecs[4],
+            h_vecs[5],
+            h_vecs[6],
+            h_vecs[7],
+            set1(IV[0]),
+            set1(IV[1]),
+            set1(IV[2]),
+            set1(IV[3]),
+            counter_low_vec,
+            counter_high_vec,
+            set1(block_len as u32),
+            set1(flags as u32),
+        ];
+        round(&mut v, &msg_vecs, 0);
+        round(&mut v, &msg_vecs, 1);
+        round(&mut v, &msg_vecs, 2);
+        round(&mut v, &msg_vecs, 3);
+        round(&mut v, &msg_vecs, 4);
+        round(&mut v, &msg_vecs, 5);
+        round(&mut v, &msg_vecs, 6);
+
+        for i in 0..8 {
+            v[i] = xor(v[i], v[i + 8]);
+            v[i + 8] = xor(v[i + 8], h_vecs[i]);
+        }
+
+        // After transposing each half, `v[i]` holds the first eight words of
+        // output block `i` and `v[i + DEGREE]` holds the second eight.
+        let (first, second) = v.split_at_mut(DEGREE);
+        transpose_vecs(first.try_into().unwrap());
+        transpose_vecs(second.try_into().unwrap());
+        let ptr = out.as_mut_ptr();
+        for i in 0..DEGREE {
+            storeu(v[i], ptr.add(i * BLOCK_LEN));
+            storeu(v[i + DEGREE], ptr.add(i * BLOCK_LEN + OUT_LEN));
         }
     }
 }
@@ -486,6 +562,33 @@ pub(crate) unsafe fn hash_many(
 
     // Tail: fewer than DEGREE inputs remain.
     scalar::hash_many(inputs, key, counter, increment_counter, flags, flags_start, flags_end, out);
+}
+
+/// Fill `out` with consecutive extendable-output blocks.
+///
+/// `out` must be a whole number of 64-byte blocks and may be empty, in which
+/// case this is a no-op.
+///
+/// # Safety
+/// AVX2 must be available on the running CPU.
+#[target_feature(enable = "avx2")]
+pub(crate) unsafe fn xof_many(
+    cv: &[u32; 8],
+    block: &[u8; BLOCK_LEN],
+    block_len: u8,
+    mut counter: u64,
+    flags: u8,
+    mut out: &mut [u8],
+) {
+    debug_assert_eq!(out.len() % BLOCK_LEN, 0, "out must be whole blocks");
+    while out.len() >= DEGREE * BLOCK_LEN {
+        // SAFETY: AVX2 is available and `out` has DEGREE whole blocks.
+        unsafe { xof8(cv, block, block_len, counter, flags, &mut out[..DEGREE * BLOCK_LEN]) };
+        counter = counter.wrapping_add(DEGREE as u64);
+        out = &mut out[DEGREE * BLOCK_LEN..];
+    }
+
+    scalar::xof_many(cv, block, block_len, counter, flags, out);
 }
 
 #[cfg(test)]

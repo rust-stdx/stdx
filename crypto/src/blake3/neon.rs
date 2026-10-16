@@ -1,9 +1,9 @@
 //! NEON (4-way) BLAKE3 kernel for `aarch64`.
 //!
 //! NEON is mandatory on AArch64, so no runtime detection is needed. Only the
-//! wide `hash_many` path is implemented: a single 64-byte compression fills a
-//! 128-bit register but does not parallelize, and the portable kernel is just
-//! as fast there.
+//! wide `hash_many` and `xof_many` paths are implemented: a single 64-byte
+//! compression fills a 128-bit register but does not parallelize, and the
+//! portable kernel is just as fast there.
 
 use core::arch::aarch64::*;
 
@@ -249,15 +249,15 @@ unsafe fn load_counters(counter: u64, increment_counter: IncrementCounter) -> (u
         (
             set4(
                 counter_low(counter),
-                counter_low(counter + (mask & 1)),
-                counter_low(counter + (mask & 2)),
-                counter_low(counter + (mask & 3)),
+                counter_low(counter.wrapping_add(mask & 1)),
+                counter_low(counter.wrapping_add(mask & 2)),
+                counter_low(counter.wrapping_add(mask & 3)),
             ),
             set4(
                 counter_high(counter),
-                counter_high(counter + (mask & 1)),
-                counter_high(counter + (mask & 2)),
-                counter_high(counter + (mask & 3)),
+                counter_high(counter.wrapping_add(mask & 1)),
+                counter_high(counter.wrapping_add(mask & 2)),
+                counter_high(counter.wrapping_add(mask & 3)),
             ),
         )
     }
@@ -356,6 +356,81 @@ unsafe fn hash4(
     }
 }
 
+/// Write exactly [`DEGREE`] extended-output blocks of a single root node.
+///
+/// Lane `i` compresses the same message block with counter `counter + i` and
+/// writes the resulting 64-byte output block.
+///
+/// # Safety
+/// NEON must be available (always true on AArch64).
+#[target_feature(enable = "neon")]
+unsafe fn xof4(cv: &[u32; 8], block: &[u8; BLOCK_LEN], block_len: u8, counter: u64, flags: u8, out: &mut [u8]) {
+    unsafe {
+        let block_words = scalar::words_from_le_bytes_64(block);
+        let mut msg_vecs = [set1(0); 16];
+        for (vec, word) in msg_vecs.iter_mut().zip(block_words) {
+            *vec = set1(word);
+        }
+
+        let h_vecs = [
+            set1(cv[0]),
+            set1(cv[1]),
+            set1(cv[2]),
+            set1(cv[3]),
+            set1(cv[4]),
+            set1(cv[5]),
+            set1(cv[6]),
+            set1(cv[7]),
+        ];
+        let (counter_low_vec, counter_high_vec) = load_counters(counter, IncrementCounter::Yes);
+
+        let mut v = [
+            h_vecs[0],
+            h_vecs[1],
+            h_vecs[2],
+            h_vecs[3],
+            h_vecs[4],
+            h_vecs[5],
+            h_vecs[6],
+            h_vecs[7],
+            set1(IV[0]),
+            set1(IV[1]),
+            set1(IV[2]),
+            set1(IV[3]),
+            counter_low_vec,
+            counter_high_vec,
+            set1(block_len as u32),
+            set1(flags as u32),
+        ];
+        round(&mut v, &msg_vecs, 0);
+        round(&mut v, &msg_vecs, 1);
+        round(&mut v, &msg_vecs, 2);
+        round(&mut v, &msg_vecs, 3);
+        round(&mut v, &msg_vecs, 4);
+        round(&mut v, &msg_vecs, 5);
+        round(&mut v, &msg_vecs, 6);
+
+        for i in 0..8 {
+            v[i] = xor(v[i], v[i + 8]);
+            v[i + 8] = xor(v[i + 8], h_vecs[i]);
+        }
+
+        // Four 4x4 transposes, one per group of four words: after them,
+        // `v[4 * group + i]` holds words `4 * group .. 4 * group + 4` of output
+        // block `i`.
+        for group in v.as_chunks_mut::<DEGREE>().0 {
+            transpose_vecs(group);
+        }
+        let ptr = out.as_mut_ptr();
+        for i in 0..DEGREE {
+            storeu(v[i], ptr.add(i * BLOCK_LEN));
+            storeu(v[i + DEGREE], ptr.add(i * BLOCK_LEN + 16));
+            storeu(v[i + 2 * DEGREE], ptr.add(i * BLOCK_LEN + 32));
+            storeu(v[i + 3 * DEGREE], ptr.add(i * BLOCK_LEN + 48));
+        }
+    }
+}
+
 /// Hash several equal-length inputs.
 ///
 /// Every input must be a whole number of 64-byte blocks with the same block
@@ -405,6 +480,33 @@ pub(crate) unsafe fn hash_many(
     }
 
     scalar::hash_many(inputs, key, counter, increment_counter, flags, flags_start, flags_end, out);
+}
+
+/// Fill `out` with consecutive extendable-output blocks.
+///
+/// `out` must be a whole number of 64-byte blocks and may be empty, in which
+/// case this is a no-op.
+///
+/// # Safety
+/// NEON must be available (always true on AArch64).
+#[target_feature(enable = "neon")]
+pub(crate) unsafe fn xof_many(
+    cv: &[u32; 8],
+    block: &[u8; BLOCK_LEN],
+    block_len: u8,
+    mut counter: u64,
+    flags: u8,
+    mut out: &mut [u8],
+) {
+    debug_assert_eq!(out.len() % BLOCK_LEN, 0, "out must be whole blocks");
+    while out.len() >= DEGREE * BLOCK_LEN {
+        // SAFETY: NEON is available and `out` has DEGREE whole blocks.
+        unsafe { xof4(cv, block, block_len, counter, flags, &mut out[..DEGREE * BLOCK_LEN]) };
+        counter = counter.wrapping_add(DEGREE as u64);
+        out = &mut out[DEGREE * BLOCK_LEN..];
+    }
+
+    scalar::xof_many(cv, block, block_len, counter, flags, out);
 }
 
 #[cfg(test)]

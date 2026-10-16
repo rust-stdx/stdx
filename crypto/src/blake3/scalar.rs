@@ -42,7 +42,7 @@ fn round(state: &mut [u32; 16], msg: &[u32; 16], r: usize) {
 }
 
 #[inline(always)]
-fn words_from_le_bytes_64(block: &[u8; BLOCK_LEN]) -> [u32; 16] {
+pub(crate) fn words_from_le_bytes_64(block: &[u8; BLOCK_LEN]) -> [u32; 16] {
     let mut words = [0u32; 16];
     for (word, chunk) in words.iter_mut().zip(block.as_chunks::<4>().0) {
         *word = u32::from_le_bytes(*chunk);
@@ -134,5 +134,24 @@ pub(crate) fn hash_many(
         if increment_counter.yes() {
             counter = counter.wrapping_add(1);
         }
+    }
+}
+
+/// Portable `xof_many`: writes the extended output, one 64-byte block per
+/// incrementing counter.
+///
+/// `out` must be a whole number of [`BLOCK_LEN`] blocks (it may be empty).
+pub(crate) fn xof_many(
+    cv: &[u32; 8],
+    block: &[u8; BLOCK_LEN],
+    block_len: u8,
+    mut counter: u64,
+    flags: u8,
+    out: &mut [u8],
+) {
+    debug_assert_eq!(out.len() % BLOCK_LEN, 0, "out must be whole blocks");
+    for out_block in out.as_chunks_mut::<BLOCK_LEN>().0 {
+        *out_block = compress_xof(cv, block, block_len, counter, flags);
+        counter = counter.wrapping_add(1);
     }
 }

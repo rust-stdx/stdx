@@ -6,6 +6,8 @@
 
 #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
 use super::avx2;
+#[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+use super::avx512;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use super::neon;
 use super::scalar;
@@ -66,7 +68,9 @@ pub(crate) const DERIVE_KEY_MATERIAL: u8 = 1 << 6;
 /// in parallel. Independent of what the running CPU actually supports; the
 /// runtime degree is [`Platform::simd_degree`].
 pub(crate) const MAX_SIMD_DEGREE: usize = {
-    if cfg!(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2"))) {
+    if cfg!(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f"))) {
+        16
+    } else if cfg!(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2"))) {
         8
     } else if cfg!(all(target_arch = "aarch64", target_feature = "neon")) {
         4
@@ -112,6 +116,8 @@ pub(crate) fn counter_high(counter: u64) -> u32 {
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub(crate) enum Platform {
     Portable,
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    Avx512,
     #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
     Avx2,
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -131,9 +137,17 @@ impl Platform {
     pub(crate) fn detect() -> Platform {
         #[cfg(all(target_arch = "x86_64", feature = "std"))]
         {
+            if is_x86_feature_detected!("avx512f") {
+                return Platform::Avx512;
+            }
             if is_x86_feature_detected!("avx2") {
                 return Platform::Avx2;
             }
+        }
+
+        #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+        {
+            return Platform::Avx512;
         }
 
         #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
@@ -159,6 +173,8 @@ impl Platform {
     pub(crate) fn simd_degree(self) -> usize {
         match self {
             Platform::Portable => 1,
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Platform::Avx512 => avx512::DEGREE,
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
             Platform::Avx2 => avx2::DEGREE,
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -180,6 +196,9 @@ impl Platform {
     ) {
         match self {
             Platform::Portable => scalar::compress_in_place(cv, block, block_len, counter, flags),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            // SAFETY: AVX-512F is guaranteed by `detect()` / the compile-time feature.
+            Platform::Avx512 => unsafe { avx512::compress_in_place(cv, block, block_len, counter, flags) },
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
             // SAFETY: AVX2 is guaranteed by `detect()` / the compile-time feature.
             Platform::Avx2 => unsafe { avx2::compress_in_place(cv, block, block_len, counter, flags) },
@@ -203,6 +222,9 @@ impl Platform {
     ) -> [u8; 64] {
         match self {
             Platform::Portable => scalar::compress_xof(cv, block, block_len, counter, flags),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            // SAFETY: AVX-512F is guaranteed by `detect()` / the compile-time feature.
+            Platform::Avx512 => unsafe { avx512::compress_xof(cv, block, block_len, counter, flags) },
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
             // SAFETY: AVX2 is guaranteed by `detect()` / the compile-time feature.
             Platform::Avx2 => unsafe { avx2::compress_xof(cv, block, block_len, counter, flags) },
@@ -236,6 +258,11 @@ impl Platform {
             Platform::Portable => {
                 scalar::hash_many(inputs, key, counter, increment_counter, flags, flags_start, flags_end, out)
             }
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            // SAFETY: AVX-512F is guaranteed by `detect()` / the compile-time feature.
+            Platform::Avx512 => unsafe {
+                avx512::hash_many(inputs, key, counter, increment_counter, flags, flags_start, flags_end, out)
+            },
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
             // SAFETY: AVX2 is guaranteed by `detect()` / the compile-time feature.
             Platform::Avx2 => unsafe {
@@ -250,6 +277,42 @@ impl Platform {
             Platform::Wasm32Simd => {
                 wasm32_simd128::hash_many(inputs, key, counter, increment_counter, flags, flags_start, flags_end, out)
             }
+        }
+    }
+
+    /// Fill `out` with consecutive extendable-output blocks of the root node
+    /// `cv`/`block`.
+    ///
+    /// Block `i` is produced with counter `counter + i`. `out` must be a whole
+    /// number of 64-byte blocks and may be empty, in which case this is a
+    /// no-op: some backends can only write a full SIMD group at a time.
+    #[inline]
+    pub(crate) fn xof_many(
+        self,
+        cv: &[u32; 8],
+        block: &[u8; BLOCK_LEN],
+        block_len: u8,
+        counter: u64,
+        flags: u8,
+        out: &mut [u8],
+    ) {
+        debug_assert_eq!(out.len() % BLOCK_LEN, 0, "out must be whole blocks");
+        if out.is_empty() {
+            return;
+        }
+        match self {
+            Platform::Portable => scalar::xof_many(cv, block, block_len, counter, flags, out),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            // SAFETY: AVX-512F is guaranteed by `detect()` / the compile-time feature.
+            Platform::Avx512 => unsafe { avx512::xof_many(cv, block, block_len, counter, flags, out) },
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            // SAFETY: AVX2 is guaranteed by `detect()` / the compile-time feature.
+            Platform::Avx2 => unsafe { avx2::xof_many(cv, block, block_len, counter, flags, out) },
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            // SAFETY: NEON is mandatory on aarch64.
+            Platform::Neon => unsafe { neon::xof_many(cv, block, block_len, counter, flags, out) },
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            Platform::Wasm32Simd => wasm32_simd128::xof_many(cv, block, block_len, counter, flags, out),
         }
     }
 }

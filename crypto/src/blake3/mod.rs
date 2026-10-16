@@ -2,7 +2,8 @@
 //! (MAC), key derivation and extendable output (XOF).
 //!
 //! Pure-Rust implementation without heap allocation: the incremental [`Blake3`] state
-//! lives entirely on the stack (about 1.9 KiB).
+//! lives entirely on the stack (about 1.9 KiB, plus a few KiB of short-lived
+//! scratch while `update` compresses a wide subtree).
 //!
 //! # Backends
 //!
@@ -10,16 +11,30 @@
 //!
 //! | Target        | Backend                          | Chunks in parallel |
 //! |---------------|----------------------------------|--------------------|
+//! | `x86_64`      | AVX-512 (runtime-detected with `std`) | 16           |
 //! | `x86_64`      | AVX2 (runtime-detected with `std`) | 8                |
 //! | `aarch64`     | NEON (always available)          | 4                  |
 //! | `wasm32`      | `simd128` (compile-time)         | 4                  |
 //! | anything else | portable scalar                  | 1                  |
 //!
+//! The extendable-output (XOF) reader also compresses several 64-byte output
+//! blocks in parallel on those backends, and buffers the unread remainder of
+//! the current block, so reading a stream in small pieces does not repeat
+//! compression work.
+//!
 //! On `x86_64`, runtime detection requires the `std` feature; without it the
-//! backend is chosen at compile time from `target_feature`. On `wasm32` the
+//! backend is chosen at compile time from `target_feature`. The AVX-512 kernel
+//! uses only the Foundation subset (never VL/BW/DQ), so it is selected by the
+//! `avx512f` feature alone and runs on every CPU that advertises it. See the
+//! `avx512` module for why VL/BW/DQ are not required for these kernels and the
+//! one path (single-block compression) where VL would help. On `wasm32` the
 //! `simd128` kernel is compiled only when `-C target-feature=+simd128` is set.
 //! The portable fallback is written with 32-bit words so that it maps well onto
 //! 32-bit platforms.
+//!
+//! The `std` runtime check also verifies that the operating system saves the
+//! AVX-512 vector and mask-register state, which is what makes the wide kernel
+//! safe across context switches and signal delivery.
 //!
 //! # One-shot API
 //!
@@ -107,6 +122,10 @@ mod neon;
 // import if the target runtime supports the feature (wasm has no runtime detection)
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod wasm32_simd128;
+
+// import if runtime CPU detection is enabled or if the target CPU supports the feature
+#[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+mod avx512;
 
 // import if runtime CPU detection is enabled or if the target CPU supports the feature
 #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
@@ -239,6 +258,11 @@ impl Xof for Blake3XofReader {
     fn absorb(&mut self, _data: &[u8]) {}
 
     /// Fill `out` with bytes.
+    ///
+    /// The unread remainder of the current 64-byte output block is buffered, so
+    /// squeezing in small pieces does not repeat compression work. Supplying
+    /// several whole blocks at once is still the fastest option: the SIMD
+    /// backends then compress multiple output blocks per pass.
     fn squeeze(&mut self, out: &mut [u8]) {
         self.reader.fill(out);
     }
