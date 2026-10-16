@@ -32,6 +32,41 @@ const MAX_DOC_BYTES: usize = 1_400_000;
 /// that can reach it), so it grows with the API surface and with gating.
 const MAX_GATE_FEATURES: usize = 140_000;
 
+/// The modules the crate documentation promises the `core` umbrella covers.
+///
+/// `core` is the default feature set, so dropping one of these would silently
+/// remove checkout, subscriptions, metered billing, the customer portal, or
+/// payments from a build that asks for nothing in particular.
+const CORE_ESSENTIALS: &[&str] = &[
+    "billing",        // meters, meter events: metered usage
+    "billing_portal", // the customer portal
+    "charges",
+    "checkout", // checkout sessions
+    "common",
+    "confirmation_tokens",
+    "coupons",
+    "credit_notes",
+    "customers",
+    "disputes",
+    "invoiceitems",
+    "invoices",
+    "mandates",
+    "payment_intents",
+    "payment_methods",
+    "prices", // including usage-based prices
+    "products",
+    "promotion_codes",
+    "refunds",
+    "setup_intents",
+    "subscription_items",
+    "subscription_schedules",
+    "subscriptions",
+    "tax_codes",
+    "tax_ids",
+    "tax_rates",
+    "webhook_endpoints",
+];
+
 fn generated_files() -> Vec<PathBuf> {
     let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("api");
     let mut files: Vec<PathBuf> = fs::read_dir(&directory)
@@ -117,4 +152,30 @@ fn every_generated_module_is_referenced_by_the_crate_root() {
             "`{module}` is generated but not declared in stripe.rs"
         );
     }
+}
+
+#[test]
+fn the_core_umbrella_covers_the_documented_essentials() {
+    // `core` is the default feature set and the crate documentation lists what
+    // it covers; this keeps the two in step.
+    let manifest = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")).expect("Cargo.toml");
+    let start = manifest.find("core = [").expect("a `core` feature");
+    let end = start + manifest[start..].find(']').expect("the end of the `core` list");
+    let listed: Vec<&str> = manifest[start..end]
+        .lines()
+        .filter_map(|line| line.split('"').nth(1))
+        .collect();
+
+    for module in CORE_ESSENTIALS {
+        assert!(
+            listed.contains(module),
+            "`core` no longer includes `{module}`; the default build would lose it"
+        );
+    }
+    assert!(
+        listed.len() >= CORE_ESSENTIALS.len(),
+        "`core` lists {} modules, fewer than the {} documented essentials",
+        listed.len(),
+        CORE_ESSENTIALS.len()
+    );
 }

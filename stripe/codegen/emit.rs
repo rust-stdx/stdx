@@ -27,7 +27,7 @@ pub const GATED_MODULES: &[&str] = &["events"];
 
 /// The marker lines that bracket the generated module declarations in the
 /// crate root. Everything between them is rewritten by the generator.
-pub const MODULES_BEGIN: &str = "// region: generated modules (do not edit; `make stripe_codegen`)";
+pub const MODULES_BEGIN: &str = "// region: generated modules (do not edit; `make -C stripe codegen`)";
 /// End marker; see [`MODULES_BEGIN`].
 pub const MODULES_END: &str = "// endregion: generated modules";
 

@@ -60,11 +60,17 @@ fn naming_contract(client: &Client) {
     let _ = stripe::subscription_schedules::cancel_subscription_schedule;
     let _ = stripe::subscription_schedules::release_subscription_schedule;
 
-    // Singleton and collection endpoints.
+    // Singleton and collection endpoints. These belong to optional features, so
+    // they only join the contract when that feature is enabled.
+    #[cfg(feature = "account")]
     let _ = stripe::account::get_account;
+    #[cfg(feature = "accounts")]
     let _ = stripe::accounts::get_account;
+    #[cfg(feature = "balance")]
     let _ = stripe::balance::get_balance;
+    #[cfg(feature = "files")]
     let _ = stripe::files::create_file;
+    #[cfg(feature = "files")]
     let _ = stripe::files::list_files;
 
     let _ = client;

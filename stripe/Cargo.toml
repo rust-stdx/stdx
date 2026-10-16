@@ -18,65 +18,55 @@ test = false
 default = ["reqwest", "core"]
 # The default HTTP transport, backed by reqwest + the stdx rustls provider.
 reqwest = ["dep:reqwest", "dep:crypto_rustls", "dep:tokio"]
-# Umbrella over the resources most integrations need.
+# Umbrella over the resources a SaaS or online store needs: selling (checkout,
+# prices, products), subscriptions including metered usage (the
+# Meters API in `billing`, the customer portal in `billing_portal`), billing and
+# invoices, payments and refunds, discounts, tax, and webhooks.
+#
+# Everything else is available as its own feature: Connect and money movement
+# (`account`, `account_links`, `account_sessions`, `accounts`, `application_fees`,
+# `payouts`, `topups`, `transfers`), in-person and mobile (`apple_pay`,
+# `customer_sessions`, `ephemeral_keys`, `terminal`), the legacy payments
+# plumbing (`sources`, `tokens`, `three_d_secure`), reconciliation and reporting
+# (`balance`, `balance_settings`, `balance_transactions`, `reporting`, `sigma`),
+# reference and file data (`country_specs`, `exchange_rates`, `file_links`,
+# `files`), sales tooling (`plans`, `quotes`, `reviews`, `shipping_rates`,
+# `payment_links`), and
+# the newer payment record APIs (`payment_attempt_records`, `payment_records`,
+# `payment_method_configurations`, `payment_method_domains`). See the crate
+# documentation for what to add for a given product.
 core = [
-    "account",
-    "account_links",
-    "account_sessions",
-    "accounts",
-    "apple_pay",
-    "application_fees",
-    "balance",
-    "balance_settings",
-    "balance_transactions",
-    "charges",
+    # selling, and the customer portal
+    "billing",
+    "billing_portal",
     "checkout",
-    "common",
-    "confirmation_tokens",
-    "country_specs",
-    "coupons",
-    "credit_notes",
-    "customer_sessions",
-    "customers",
-    "disputes",
-    "ephemeral_keys",
-    "exchange_rates",
-    "file_links",
-    "files",
-    "invoice_payments",
-    "invoice_rendering_templates",
-    "invoiceitems",
-    "invoices",
-    "mandates",
-    "payment_attempt_records",
-    "payment_intents",
-    "payment_links",
-    "payment_method_configurations",
-    "payment_method_domains",
-    "payment_methods",
-    "payment_records",
-    "payouts",
-    "plans",
     "prices",
     "products",
+    # subscriptions, including metered usage
+    "coupons",
     "promotion_codes",
-    "quotes",
-    "refunds",
-    "reviews",
-    "setup_attempts",
-    "setup_intents",
-    "shipping_rates",
-    "sources",
     "subscription_items",
     "subscription_schedules",
     "subscriptions",
+    # invoices and tax
+    "credit_notes",
+    "invoiceitems",
+    "invoices",
     "tax_codes",
     "tax_ids",
     "tax_rates",
-    "three_d_secure",
-    "tokens",
-    "topups",
-    "transfers",
+    # payments
+    "charges",
+    "confirmation_tokens",
+    "customers",
+    "disputes",
+    "mandates",
+    "payment_intents",
+    "payment_methods",
+    "refunds",
+    "setup_intents",
+    # shared plumbing and webhooks
+    "common",
     "webhook_endpoints",
 ]
 # One feature per generated module (see `api/`), gating its request builders
@@ -185,3 +175,10 @@ stripe_codegen = { path = "codegen" }
 # Only the runtime pieces the tests need: a current-thread runtime and the
 # `#[tokio::test]` attribute.
 tokio = { version = "1", features = ["macros", "rt", "time"] }
+
+# The integration tests double-check the account mode with `GET /v1/balance`
+# before touching anything, so they are only built when `balance` is enabled.
+# They are also opt-in at runtime (`STRIPE_INTEGRATION_TESTS=1`).
+[[test]]
+name = "integration"
+required-features = ["reqwest", "core", "balance"]

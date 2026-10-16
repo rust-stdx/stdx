@@ -230,6 +230,7 @@ async fn v2_list_query_arrays_repeat_the_key() {
     assert!(!url.contains("types[]="), "v2 arrays must not use bracket notation, got {url}");
 }
 
+#[cfg(feature = "files")]
 #[tokio::test]
 async fn multipart_endpoints_fail_before_sending() {
     let mock = MockClient::new();

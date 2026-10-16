@@ -7,7 +7,7 @@
 //! instead of shipping a client that no longer matches its own generator.
 //!
 //! Emitted files are formatted with the workspace's `rustfmt` configuration,
-//! exactly as `make stripe_codegen` does, and the comparison then ignores
+//! exactly as `make -C stripe codegen` does, and the comparison then ignores
 //! layout: only whitespace and trailing commas may differ. Everything inside a
 //! string literal (documentation text above all) is compared verbatim.
 
@@ -100,7 +100,7 @@ fn committed_generated_code_matches_the_specification() {
     let files = emit::emit(&model);
 
     // Write the emitted tree to a scratch directory and format it the way
-    // `make stripe_codegen` would.
+    // `make -C stripe codegen` would.
     let scratch = std::env::temp_dir().join(format!("stripe_codegen_freshness_{}", std::process::id()));
     let _ = fs::remove_dir_all(&scratch);
     let mut written = Vec::new();
@@ -141,7 +141,7 @@ fn committed_generated_code_matches_the_specification() {
     assert!(
         stale.is_empty(),
         "these files do not match what `stripe_codegen` produces from the vendored specification; \
-         run `make stripe_codegen`:\n  {}",
+         run `make -C stripe codegen`:\n  {}",
         stale.join("\n  ")
     );
 }

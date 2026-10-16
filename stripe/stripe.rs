@@ -14,6 +14,7 @@
 //! customers is in [`customers`]:
 //!
 //! ```no_run
+//! # #[cfg(all(feature = "customers", feature = "checkout"))]
 //! # async fn example(client: &stripe::Client) -> Result<(), stripe::Error> {
 //! use stripe::{checkout, customers};
 //!
@@ -30,6 +31,10 @@
 //! # }
 //! ```
 //!
+//! Examples use the default feature set (`core`), which enables `customers`,
+//! `checkout` and the rest of the resources a SaaS or storefront needs; they
+//! compile to nothing when the features they use are disabled.
+//!
 //! Methods are grouped by path, so sub-resources live with their parent:
 //! `customers::list_customer_sources`, `checkout::list_checkout_session_line_items`,
 //! `invoices::pay_invoice`, `payment_intents::confirm_payment_intent`. Shared
@@ -44,6 +49,7 @@
 //! pager handles both:
 //!
 //! ```no_run
+//! # #[cfg(feature = "customers")]
 //! # async fn example(client: &stripe::Client) -> Result<(), stripe::Error> {
 //! # use stripe::customers::{Customer, ListCustomersParams};
 //! let params = ListCustomersParams { limit: Some(3), ..Default::default() };
@@ -67,6 +73,7 @@
 //! [`RequestOptions`] when you want your *own* retries to be safe too:
 //!
 //! ```no_run
+//! # #[cfg(feature = "customers")]
 //! # async fn example(client: &stripe::Client) -> Result<(), stripe::Error> {
 //! # use stripe::customers::{CreateCustomerParams, Customer};
 //! let options = stripe::RequestOptions::new().with_idempotency_key("order-6735");
@@ -90,10 +97,41 @@
 //! # Cargo features
 //!
 //! Each module has a cargo feature of the same name, and enables the request
-//! builders and methods in that module: enable `issuing`, `terminal`,
-//! `treasury`, and so on to compile the corresponding endpoints. The default set
-//! is `reqwest` (the built-in HTTP transport) plus `core`, an umbrella over the
-//! resources most integrations need.
+//! builders and methods in that module. The default set is `reqwest` (the
+//! built-in HTTP transport) plus `core`, an umbrella over the resources a SaaS
+//! or online store needs. `core` covers:
+//!
+//! * selling and the customer portal: [`checkout`], [`billing_portal`],
+//!   [`prices`], [`products`], invoices with
+//!   [`payment_intents`]/[`payment_methods`]/[`setup_intents`];
+//! * subscriptions, including metered usage: [`subscriptions`],
+//!   [`subscription_items`], [`subscription_schedules`], and the Meters API in
+//!   [`billing`] (`create_billing_meter`, `create_billing_meter_event`, ...).
+//!   Usage-based prices are created through [`prices`] with
+//!   `recurring.usage_type = metered` and `recurring.meter`;
+//! * billing: [`invoices`], [`invoiceitems`], [`credit_notes`], [`tax_rates`],
+//!   [`tax_ids`], [`tax_codes`];
+//! * payments: [`customers`], [`charges`], [`refunds`], [`disputes`],
+//!   [`mandates`], [`confirmation_tokens`], [`coupons`], [`promotion_codes`];
+//! * webhooks: [`webhook_endpoints`].
+//!
+//! Add what your product needs on top of that:
+//!
+//! * **`events`** — typed webhook payloads (`Event`, `customer.subscription.*`,
+//!   `invoice.*`, `checkout.session.*`, ...). This is the largest optional
+//!   feature: it adds roughly 10 seconds to a `cargo check`. If you handle only
+//!   a few event types, decoding them with your own types (or
+//!   [`Webhook::parse_event`] into `serde_json::Value`) is cheaper.
+//! * `entitlements` — plan and feature gating for the account's customers.
+//! * `test_helpers` — Stripe's test-mode helpers (test clocks, funding, ...).
+//! * `v2_billing` — the v2 meter event stream, for usage reported at high volume.
+//! * `shipping_rates` and `tax` — physical goods and Stripe Tax.
+//! * `accounts`, `account_links`, `account_sessions`, `payouts`, `transfers`,
+//!   `application_fees` — Connect platforms and marketplaces.
+//! * `apple_pay`, `customer_sessions`, `ephemeral_keys` — mobile SDK flows.
+//! * `plans`, `quotes`, `payment_links`, `sources`, `tokens`, `three_d_secure`,
+//!   `files`, the `balance*` and `payment_record*` APIs — legacy, sales,
+//!   reconciliation and specialised APIs kept out of `core`.
 //!
 //! Response types are gated by reachability rather than by where they live: a
 //! type is compiled when an enabled module can return it, so enabling
@@ -133,8 +171,8 @@
 //! binary from the vendored specification at `stripe/spec/openapi.spec3.sdk.json`:
 //!
 //! ```text
-//! make stripe_codegen         # regenerate in place
-//! make stripe_codegen_check   # fail if the committed code is stale
+//! make -C stripe codegen         # regenerate in place
+//! make -C stripe codegen_check   # fail if the committed code is stale
 //! ```
 //!
 //! Regeneration needs no network access; pass `--fetch` to `stripe_codegen` to
@@ -171,17 +209,18 @@
 //! Without them every test prints `skipping …` and returns, so `cargo test`
 //! stays offline. If a key is present but is not a test key the tests fail
 //! loudly instead of touching a live account, and the account's mode is
-//! double-checked at runtime with `GET /v1/balance` (`livemode` must be false).
-//! Every object a test creates is deleted afterwards, even when an assertion
-//! fails; a resource left behind by a panic is reported on stderr. A restricted
-//! test key needs read/write access to balance, customers, products, prices,
-//! payment intents and webhook endpoints.
+//! double-checked at runtime with `GET /v1/balance` (`livemode` must be false),
+//! which is why the test target requires the `balance` feature. Every object a
+//! test creates is deleted afterwards, even when an assertion fails; a resource
+//! left behind by a panic is reported on stderr. A restricted test key needs
+//! read/write access to balance, customers, products, prices, payment intents
+//! and webhook endpoints.
 //!
 //! ```text
 //! STRIPE_INTEGRATION_TESTS=1 STRIPE_API_KEY=sk_test_… \
-//!     cargo test -p stripe --test integration -- --nocapture --test-threads=1
+//!     cargo test -p stripe --features balance --test integration -- --nocapture --test-threads=1
 //! # or
-//! STRIPE_INTEGRATION_TESTS=1 STRIPE_API_KEY=sk_test_… make stripe_integration_test
+//! STRIPE_INTEGRATION_TESTS=1 STRIPE_API_KEY=sk_test_… make -C stripe integration_test
 //! ```
 //!
 //! # Security and robustness
@@ -265,7 +304,7 @@ pub use webhooks::{DEFAULT_TOLERANCE_SECONDS, Webhook, verify_signature};
 /// The Stripe API version this crate was generated from.
 pub const SPEC_VERSION: &str = "2026-09-30.endive";
 
-// region: generated modules (do not edit; `make stripe_codegen`)
+// region: generated modules (do not edit; `make -C stripe codegen`)
 //
 // Every module is also a cargo feature of the same name: it gates the request
 // builders and methods for that part of the API. Response types are gated by

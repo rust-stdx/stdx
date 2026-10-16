@@ -11,13 +11,15 @@
 #![cfg(feature = "core")]
 
 use serde_json::{Value, json};
+// The legacy Plans API is an opt-in feature.
+#[cfg(feature = "plans")]
+use stripe::plans::Plan;
 use stripe::{
     charges::Charge,
     coupons::Coupon,
     customers::{Customer, CustomerObject},
     invoiceitems::Invoiceitem,
     invoices::Invoice,
-    plans::Plan,
     prices::Price,
     products::Product,
     subscription_items::SubscriptionItem,
@@ -43,6 +45,7 @@ fn deleted_objects_decode_as_their_live_type() {
     assert!(decode::<Coupon>(&json!({"id": "c_1", "object": "coupon", "deleted": true})).is_ok());
     assert!(decode::<Invoice>(&json!({"id": "in_1", "object": "invoice", "deleted": true})).is_ok());
     assert!(decode::<Invoiceitem>(&json!({"id": "ii_1", "object": "invoiceitem", "deleted": true})).is_ok());
+    #[cfg(feature = "plans")]
     assert!(decode::<Plan>(&json!({"id": "plan_1", "object": "plan", "deleted": true})).is_ok());
     assert!(decode::<Price>(&json!({"id": "price_1", "object": "price", "deleted": true})).is_ok());
     assert!(decode::<Product>(&json!({"id": "prod_1", "object": "product", "deleted": true})).is_ok());
