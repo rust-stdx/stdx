@@ -6,6 +6,7 @@
 // without shit, rustc wants us to wrap the function body into an unsafe block
 #[allow(unsafe_op_in_unsafe_fn)]
 #[target_feature(enable = "sha3")]
+#[inline]
 pub unsafe fn p1600_armv8<const ROUNDS: usize>(state: &mut [u64; 25]) {
     debug_assert!(ROUNDS <= 24, "A round_count greater than 24 is not supported!");
 

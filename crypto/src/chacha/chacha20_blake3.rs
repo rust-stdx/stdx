@@ -1,7 +1,7 @@
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{Aead, AeadError, Hash, Hasher, StreamCipher, Xof, blake3::Blake3, chacha::ChaCha20Djb};
+use crate::{Aead, AeadError, Hash, Hasher, StreamCipher, Xof, blake3::Blake3, chacha::ChaCha20Djb, sha3::Shake256};
 
 /// ChaCha20-BLAKE3 AEAD (encrypt-then-MAC).
 ///
@@ -64,18 +64,19 @@ impl Aead for ChaCha20Blake3 {
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         assert!(nonce.len() == 32, "nonce must be 32 bytes");
 
-        // kdf_out = BLAKE3.keyed(key, nonce)
+        // kdf_out = Shake256(key || nonce)
         let mut kdf_out = [0u8; 72];
-        let mut blake3_kdf = Blake3::new_keyed(&self.key);
-        blake3_kdf.update(nonce);
-        blake3_kdf.finalize_xof().squeeze(&mut kdf_out);
+        let mut shak256_kdf = Shake256::new();
+        shak256_kdf.absorb(&self.key);
+        shak256_kdf.update(nonce);
+        shak256_kdf.squeeze(&mut kdf_out);
 
         // chacha20_key = kdf_out[0..32]
-        // authentication_key = kdf_out[32..64]
-        // chacha20_nonce = kdf_out[64..72]
+        // chacha20_nonce = kdf_out[32..40]
+        // authentication_key = kdf_out[40..72]
         let chacha20_key: &[u8; 32] = &kdf_out[..32].try_into().unwrap();
-        let authentication_key: &[u8; 32] = &kdf_out[32..64].try_into().unwrap();
-        let chacha20_nonce: &[u8; 8] = &kdf_out[64..].try_into().unwrap();
+        let chacha20_nonce: &[u8; 8] = &kdf_out[32..40].try_into().unwrap();
+        let authentication_key: &[u8; 32] = &kdf_out[40..].try_into().unwrap();
 
         ChaCha20Djb::new(chacha20_key, chacha20_nonce).xor_keystream(in_out);
 
@@ -98,18 +99,19 @@ impl Aead for ChaCha20Blake3 {
             return Err(AeadError::InvalidNonce);
         }
 
-        // kdf_out = BLAKE3.keyed(key, nonce)
+        // kdf_out = Shake256(key || nonce)
         let mut kdf_out = [0u8; 72];
-        let mut blake3_kdf = Blake3::new_keyed(&self.key);
-        blake3_kdf.update(nonce);
-        blake3_kdf.finalize_xof().squeeze(&mut kdf_out);
+        let mut shak256_kdf = Shake256::new();
+        shak256_kdf.absorb(&self.key);
+        shak256_kdf.update(nonce);
+        shak256_kdf.squeeze(&mut kdf_out);
 
         // chacha20_key = kdf_out[0..32]
-        // authentication_key = kdf_out[32..64]
-        // chacha20_nonce = kdf_out[64..72]
-        let chacha20_key: &[u8; 32] = kdf_out[..32].try_into().unwrap();
-        let authentication_key: &[u8; 32] = kdf_out[32..64].try_into().unwrap();
-        let chacha20_nonce: &[u8; 8] = kdf_out[64..].try_into().unwrap();
+        // chacha20_nonce = kdf_out[32..40]
+        // authentication_key = kdf_out[40..72]
+        let chacha20_key: &[u8; 32] = &kdf_out[..32].try_into().unwrap();
+        let chacha20_nonce: &[u8; 8] = &kdf_out[32..40].try_into().unwrap();
+        let authentication_key: &[u8; 32] = &kdf_out[40..].try_into().unwrap();
 
         let mut mac_hasher = Blake3::new_keyed(authentication_key);
         mac_hasher.update(aad);
@@ -141,7 +143,7 @@ mod test {
         key: &'static str,
         nonce: &'static str,
         aad: &'static str,
-        ct: &'static str,
+        ciphertext: &'static str,
     }
 
     #[test]
@@ -152,21 +154,21 @@ mod test {
                 key: "0000000000000000000000000000000000000000000000000000000000000000",
                 nonce: "0000000000000000000000000000000000000000000000000000000000000000",
                 aad: "",
-                ct: "e074bcc1f324f0139dea37f8465aa7edf565f968aeae9bfa348c9a9c1c702ad2",
+                ciphertext: "439c8ef3769c727f23377d87a762c27a4558ad29e4cb6f34d874279b1e0f82a2",
             },
             Test {
                 plaintext: "4368614368613230",
                 key: "0100000000000000000000000000000000000000000000000000000000000010",
                 nonce: "1000000000000000000000000000000000000000000000000000000000000001",
                 aad: "424c414b4533",
-                ct: "af4d5f3ac75f3753a764e5af1d3396f9f6f5b5ea94889665372f39a9ae7aa55aa3d77b69680bfe45",
+                ciphertext: "d5d4a0d25eb86f7a3c8f5a93a4d80d5b69a0cd305227c67fdef7897536555ec18381cd0a40386630",
             },
             Test {
                 plaintext: "b8f60975cd7057a003ac84df00d514624fe40cb7855c50dd6594f59b3a2580e5",
                 key: "3eb02a239a2a66de159b9bb5486ccc10a6f63ddf5862ef076650513372353622",
                 nonce: "719d34360dcf03dc7af6a4d1d9fd311b035cbc148241f1419f166537a5552aec",
                 aad: "c8d69ca92da6c5fd22f1805179fcd36cb7a9d45848fa346ba7118c2f34d23a48",
-                ct: "42c948ee385574606ce91ed09f4ef744c69b7101ef682aee8acdd14fd827499eefe6f43193680e3685f3fe0a702a0c19ceb8d7b539a02edec99783fdb9816eb5",
+                ciphertext: "73edac746b207c8bffee644f1e7dc20fb18317ab1acdb86c183a9c384e85c888f18adf1a8419e8ddf48891330a41a45d9707640fb240b7da17b31affb64b9c18",
             },
         ];
 
@@ -175,7 +177,7 @@ mod test {
             let nonce: [u8; 32] = hex::decode(test.nonce).unwrap().try_into().unwrap();
             let pt = hex::decode(test.plaintext).unwrap();
             let aad = hex::decode(test.aad).unwrap();
-            let ct_tag = hex::decode(test.ct).unwrap();
+            let ct_tag = hex::decode(test.ciphertext).unwrap();
 
             let expected_ct = &ct_tag[..ct_tag.len() - 32];
             let expected_tag = &ct_tag[ct_tag.len() - 32..];

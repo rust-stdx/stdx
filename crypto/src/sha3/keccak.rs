@@ -173,7 +173,7 @@ pub fn p1600<const ROUNDS: usize>(state: &mut [u64; 25]) {
 }
 
 /// Portable implementation of the Keccak-p permutation of a 1600-bit state.
-#[inline(always)]
+#[inline]
 fn p1600_soft<const ROUNDS: usize>(state: &mut [u64; 25]) {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf#page=25
     // "the rounds of KECCAK-p[b, nr] match the last rounds of KECCAK-f[b]"

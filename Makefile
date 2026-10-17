@@ -20,6 +20,7 @@ s3_integration_test:
 
 .PHONY: lint
 lint:
+	cargo +nightly fmt -- --check
 	cargo clippy --workspace --all-targets -- -Dwarnings
 
 
