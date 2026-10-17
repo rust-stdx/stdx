@@ -41,7 +41,7 @@ pub unsafe fn accumulate_512(
     secret_off: usize,
 ) {
     unsafe {
-        let acc_ptr = acc.as_mut_ptr() as *mut u64;
+        let acc_ptr = acc.as_mut_ptr();
         let input_ptr = input.as_ptr().add(input_off) as *const u64;
         let secret_ptr = secret.as_ptr().add(secret_off) as *const u64;
 
@@ -67,7 +67,7 @@ pub unsafe fn accumulate_512(
 pub unsafe fn scramble_acc(acc: &mut [u64; ACC_NB], secret: &[u8], secret_off: usize) {
     unsafe {
         let prime32 = _mm256_set1_epi32(PRIME32_1 as i32);
-        let acc_ptr = acc.as_mut_ptr() as *mut u64;
+        let acc_ptr = acc.as_mut_ptr();
         let secret_ptr = secret.as_ptr().add(secret_off) as *const u64;
 
         let mut i = 0;
