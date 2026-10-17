@@ -26,6 +26,7 @@ jobs:
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y clang lld gcc-x86-64-linux-gnu gcc-aarch64-linux-gnu
       - run: rustup update stable
       - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu wasm32-wasip1 riscv32imac-unknown-none-elf thumbv7em-none-eabi aarch64-linux-android aarch64-apple-ios aarch64-apple-darwin
+      - run: rustup toolchain install nightly
       - run: make check
       - run: make check_tier1
       - run: make check_tier2
@@ -50,6 +51,7 @@ jobs:
       # to compile and run `cargo test --workspace`.
       - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
       - run: rustup update stable
+      - run: rustup toolchain install nightly
       - run: make check
       - run: make lint
       - run: cargo test --workspace
