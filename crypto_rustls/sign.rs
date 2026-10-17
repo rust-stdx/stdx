@@ -277,6 +277,7 @@ impl Signer for Ed25519Signer {
 ///
 /// The expanded key material is large, so each variant is boxed; the signing
 /// key wraps it in an [`Arc`] so signers can share it.
+#[allow(clippy::large_enum_variant)]
 enum MlDsaKey {
     Dsa44(MlDsa44SecretKey),
     Dsa65(MlDsa65SecretKey),

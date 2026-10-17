@@ -114,7 +114,6 @@ needless_return = "allow"
 type_complexity = "allow"
 too_many_arguments = "allow"
 new_without_default = "allow"
-# large_enum_variant = "allow"
 needless_range_loop = "allow"
 
 [workspace.dependencies]
