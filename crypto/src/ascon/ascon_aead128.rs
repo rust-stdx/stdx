@@ -409,28 +409,28 @@ mod tests {
                 continue;
             }
 
-            if line.starts_with("Count = ") {
-                count = line["Count = ".len()..].parse().unwrap();
+            if let Some(rest) = line.strip_prefix("Count = ") {
+                count = rest.parse().unwrap();
                 continue;
             }
-            if line.starts_with("Key = ") {
-                key = Some(line[6..].to_string());
+            if let Some(rest) = line.strip_prefix("Key = ") {
+                key = Some(rest.to_string());
                 continue;
             }
-            if line.starts_with("Nonce = ") {
-                nonce = Some(line[8..].to_string());
+            if let Some(rest) = line.strip_prefix("Nonce = ") {
+                nonce = Some(rest.to_string());
                 continue;
             }
-            if line.starts_with("PT = ") {
-                pt_hex = line[5..].to_string();
+            if let Some(rest) = line.strip_prefix("PT = ") {
+                pt_hex = rest.to_string();
                 continue;
             }
-            if line.starts_with("AD = ") {
-                ad_hex = line[5..].to_string();
+            if let Some(rest) = line.strip_prefix("AD = ") {
+                ad_hex = rest.to_string();
                 continue;
             }
-            if line.starts_with("CT = ") {
-                ct_hex = line[5..].to_string();
+            if let Some(rest) = line.strip_prefix("CT = ") {
+                ct_hex = rest.to_string();
                 continue;
             }
         }

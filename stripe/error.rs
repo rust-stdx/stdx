@@ -120,15 +120,7 @@ pub enum Error {
         limit: usize,
     },
     /// Stripe returned a non-2xx response.
-    Api {
-        /// HTTP status and response headers.
-        meta: ApiResponseMeta,
-        /// The parsed `error` object.
-        error: ApiErrorBody,
-        /// The raw response body, retained for errors that do not follow the
-        /// documented error shape (for example a proxy's HTML error page).
-        raw_body: String,
-    },
+    Api(Box<ApiErrorPayload>),
     /// A 2xx response could not be decoded into the expected type.
     Decode {
         /// The HTTP status code of the response.
@@ -142,13 +134,23 @@ pub enum Error {
     Webhook(WebhookError),
 }
 
+/// Stripe returned a non-2xx response.
+#[derive(Debug)]
+pub struct ApiErrorPayload {
+    /// HTTP status and response headers.
+    pub meta: ApiResponseMeta,
+    /// The parsed `error` object.
+    pub error: ApiErrorBody,
+    /// The raw response body, retained for errors that do not follow the
+    /// documented error shape (for example a proxy's HTML error page).
+    pub raw_body: String,
+}
+
 impl Error {
     /// Returns the response metadata for [`Error::Api`] errors.
     pub fn api_meta(&self) -> Option<&ApiResponseMeta> {
         match self {
-            Error::Api {
-                meta, ..
-            } => Some(meta),
+            Error::Api(payload) => Some(&payload.meta),
             _ => None,
         }
     }
@@ -156,9 +158,7 @@ impl Error {
     /// Returns the parsed Stripe error object for [`Error::Api`] errors.
     pub fn api_error(&self) -> Option<&ApiErrorBody> {
         match self {
-            Error::Api {
-                error, ..
-            } => Some(error),
+            Error::Api(payload) => Some(&payload.error),
             _ => None,
         }
     }
@@ -171,16 +171,12 @@ impl Error {
     pub fn is_retryable(&self) -> bool {
         match self {
             Error::Http(_) => true,
-            Error::Api {
-                meta,
-                error,
-                ..
-            } => {
-                if let Some(should_retry) = meta.should_retry {
+            Error::Api(payload) => {
+                if let Some(should_retry) = payload.meta.should_retry {
                     return should_retry;
                 }
-                matches!(meta.status, 409 | 429 | 500 | 502 | 503 | 504)
-                    || error.code.as_deref().is_some_and(|code| code == "lock_timeout")
+                matches!(payload.meta.status, 409 | 429 | 500 | 502 | 503 | 504)
+                    || payload.error.code.as_deref().is_some_and(|code| code == "lock_timeout")
             }
             _ => false,
         }
@@ -203,25 +199,22 @@ impl fmt::Display for Error {
             Error::ResponseTooLarge {
                 limit,
             } => write!(f, "response body exceeded the {limit} byte limit"),
-            Error::Api {
-                meta,
-                error,
-                raw_body,
-            } => {
-                let kind = error.type_.as_deref().unwrap_or("error");
-                let message = error
+            Error::Api(payload) => {
+                let kind = payload.error.type_.as_deref().unwrap_or("error");
+                let message = payload
+                    .error
                     .message
                     .as_deref()
                     .or({
-                        if raw_body.is_empty() {
+                        if payload.raw_body.is_empty() {
                             None
                         } else {
-                            Some(raw_body.as_str())
+                            Some(payload.raw_body.as_str())
                         }
                     })
                     .unwrap_or("no message");
-                write!(f, "stripe api error ({} {}): {}", meta.status, kind, message)?;
-                if let Some(request_id) = &meta.request_id {
+                write!(f, "stripe api error ({} {}): {}", payload.meta.status, kind, message)?;
+                if let Some(request_id) = &payload.meta.request_id {
                     write!(f, " [request_id: {request_id}]")?;
                 }
                 Ok(())

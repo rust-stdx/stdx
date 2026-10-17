@@ -305,13 +305,9 @@ async fn non_json_error_bodies_do_not_panic() {
         .await
         .expect_err("gateway error");
     match error {
-        Error::Api {
-            raw_body,
-            error,
-            ..
-        } => {
-            assert!(raw_body.contains("Bad Gateway"));
-            assert!(error.message.is_none());
+        Error::Api(payload) => {
+            assert!(payload.raw_body.contains("Bad Gateway"));
+            assert!(payload.error.message.is_none());
         }
         other => panic!("unexpected error: {other:?}"),
     }

@@ -215,22 +215,21 @@ mod tests {
             if line.is_empty() {
                 continue;
             }
-            if line.starts_with("Count = ") {
-                count = line["Count = ".len()..].parse().unwrap();
+            if let Some(rest) = line.strip_prefix("Count = ") {
+                count = rest.parse().unwrap();
                 msg_hex.clear();
                 z_hex.clear();
                 continue;
             }
-            if line.starts_with("Msg = ") {
-                msg_hex = line[6..].to_string();
+            if let Some(rest) = line.strip_prefix("Msg = ") {
+                msg_hex = rest.to_string();
                 continue;
             }
-            if line.starts_with("Z = ") {
-                z_hex = line[4..].to_string();
+            if let Some(rest) = line.strip_prefix("Z = ") {
+                z_hex = rest.to_string();
                 continue;
             }
-            if line.starts_with("MD = ") {
-                let expected_md: &str = &line[5..];
+            if let Some(expected_md) = line.strip_prefix("MD = ") {
                 let msg = hex::decode(&msg_hex).unwrap();
                 let z = hex::decode(&z_hex).unwrap();
                 let expected = hex::decode(expected_md).unwrap();

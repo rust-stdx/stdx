@@ -223,6 +223,12 @@ impl Headers {
     }
 }
 
+impl Default for Headers {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PartialEq for Headers {
     fn eq(&self, other: &Self) -> bool {
         self.len() == other.len() && self.iter().zip(other.iter()).all(|(a, b)| a == b)

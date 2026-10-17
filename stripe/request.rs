@@ -9,7 +9,7 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     client::Client,
-    error::{ApiErrorBody, ApiResponseMeta, Error},
+    error::{ApiErrorBody, ApiErrorPayload, ApiResponseMeta, Error},
     http::{ByteStream, HttpMethod, HttpRequest},
     params::{FormBuilder, FormEncode},
 };
@@ -389,11 +389,11 @@ impl Client {
         } else {
             let error = parse_error_body(&body);
             let raw_body = retained_body(&body);
-            Err(Error::Api {
+            Err(Error::Api(Box::new(ApiErrorPayload {
                 meta,
                 error,
                 raw_body,
-            })
+            })))
         }
     }
 }
