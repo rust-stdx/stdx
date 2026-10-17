@@ -616,7 +616,7 @@ mod tests {
         unsafe {
             let mut vecs: [__m256i; DEGREE] = core::mem::transmute(matrix);
             transpose_wrapper(&mut vecs);
-            matrix = core::mem::transmute(vecs);
+            matrix = core::mem::transmute::<[__m256i; 8], [[u32; 8]; 8]>(vecs);
         }
 
         for (i, row) in matrix.iter().enumerate() {

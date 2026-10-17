@@ -799,12 +799,12 @@ impl ops::Add<Value> for Value {
         match (self, rhs) {
             (Value::Int(l), Value::Int(r)) => l
                 .checked_add(r)
-                .ok_or(ExecutionError::Overflow("add", l.into(), r.into()))
+                .ok_or(ExecutionError::Overflow("add", Box::new(l.into()), Box::new(r.into())))
                 .map(Value::Int),
 
             // (Value::UInt(l), Value::UInt(r)) => l
             //     .checked_add(r)
-            //     .ok_or(ExecutionError::Overflow("add", l.into(), r.into()))
+            //     .ok_or(ExecutionError::Overflow("add", Box::new(l.into()), Box::new(r.into())))
             //     .map(Value::UInt),
             (Value::Float(l), Value::Float(r)) => Value::Float(l + r).into(),
 
@@ -833,13 +833,17 @@ impl ops::Add<Value> for Value {
             #[cfg(feature = "time")]
             (Value::Duration(l), Value::Duration(r)) => l
                 .checked_add(r)
-                .ok_or(ExecutionError::Overflow("add", l.into(), r.into()))
+                .ok_or(ExecutionError::Overflow("add", Box::new(l.into()), Box::new(r.into())))
                 .map(Value::Duration),
             #[cfg(feature = "time")]
             (Value::Timestamp(l), Value::Duration(r)) => checked_op(TsOp::Add, &l, &r),
             #[cfg(feature = "time")]
             (Value::Duration(l), Value::Timestamp(r)) => checked_op(TsOp::Add, &r, &l),
-            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("add", left, right)),
+            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator(
+                "add",
+                Box::new(left),
+                Box::new(right),
+            )),
         }
     }
 }
@@ -852,19 +856,19 @@ impl ops::Sub<Value> for Value {
         match (self, rhs) {
             (Value::Int(l), Value::Int(r)) => l
                 .checked_sub(r)
-                .ok_or(ExecutionError::Overflow("sub", l.into(), r.into()))
+                .ok_or(ExecutionError::Overflow("sub", Box::new(l.into()), Box::new(r.into())))
                 .map(Value::Int),
 
             // (Value::UInt(l), Value::UInt(r)) => l
             //     .checked_sub(r)
-            //     .ok_or(ExecutionError::Overflow("sub", l.into(), r.into()))
+            //     .ok_or(ExecutionError::Overflow("sub", Box::new(l.into()), Box::new(r.into())))
             //     .map(Value::UInt),
             (Value::Float(l), Value::Float(r)) => Value::Float(l - r).into(),
 
             #[cfg(feature = "time")]
             (Value::Duration(l), Value::Duration(r)) => l
                 .checked_sub(r)
-                .ok_or(ExecutionError::Overflow("sub", l.into(), r.into()))
+                .ok_or(ExecutionError::Overflow("sub", Box::new(l.into()), Box::new(r.into())))
                 .map(Value::Duration),
             #[cfg(feature = "time")]
             (Value::Timestamp(l), Value::Duration(r)) => checked_op(TsOp::Sub, &l, &r),
@@ -872,7 +876,11 @@ impl ops::Sub<Value> for Value {
             (Value::Timestamp(l), Value::Timestamp(r)) => {
                 Value::Duration(crate::duration::Duration::from_nanos(l.unix_nanos() - r.unix_nanos())).into()
             }
-            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("sub", left, right)),
+            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator(
+                "sub",
+                Box::new(left),
+                Box::new(right),
+            )),
         }
     }
 }
@@ -888,7 +896,7 @@ impl ops::Div<Value> for Value {
                     Err(ExecutionError::DivisionByZero(l.into()))
                 } else {
                     l.checked_div(r)
-                        .ok_or(ExecutionError::Overflow("div", l.into(), r.into()))
+                        .ok_or(ExecutionError::Overflow("div", Box::new(l.into()), Box::new(r.into())))
                         .map(Value::Int)
                 }
             }
@@ -899,7 +907,11 @@ impl ops::Div<Value> for Value {
             //     .map(Value::UInt),
             (Value::Float(l), Value::Float(r)) => Value::Float(l / r).into(),
 
-            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("div", left, right)),
+            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator(
+                "div",
+                Box::new(left),
+                Box::new(right),
+            )),
         }
     }
 }
@@ -912,16 +924,20 @@ impl ops::Mul<Value> for Value {
         match (self, rhs) {
             (Value::Int(l), Value::Int(r)) => l
                 .checked_mul(r)
-                .ok_or(ExecutionError::Overflow("mul", l.into(), r.into()))
+                .ok_or(ExecutionError::Overflow("mul", Box::new(l.into()), Box::new(r.into())))
                 .map(Value::Int),
 
             // (Value::UInt(l), Value::UInt(r)) => l
             //     .checked_mul(r)
-            //     .ok_or(ExecutionError::Overflow("mul", l.into(), r.into()))
+            //     .ok_or(ExecutionError::Overflow("mul", Box::new(l.into()), Box::new(r.into())))
             //     .map(Value::UInt),
             (Value::Float(l), Value::Float(r)) => Value::Float(l * r).into(),
 
-            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("mul", left, right)),
+            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator(
+                "mul",
+                Box::new(left),
+                Box::new(right),
+            )),
         }
     }
 }
@@ -937,7 +953,7 @@ impl ops::Rem<Value> for Value {
                     Err(ExecutionError::RemainderByZero(l.into()))
                 } else {
                     l.checked_rem(r)
-                        .ok_or(ExecutionError::Overflow("rem", l.into(), r.into()))
+                        .ok_or(ExecutionError::Overflow("rem", Box::new(l.into()), Box::new(r.into())))
                         .map(Value::Int)
                 }
             }
@@ -946,7 +962,11 @@ impl ops::Rem<Value> for Value {
             //     .checked_rem(r)
             //     .ok_or(ExecutionError::RemainderByZero(l.into()))
             //     .map(Value::UInt),
-            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator("rem", left, right)),
+            (left, right) => Err(ExecutionError::UnsupportedBinaryOperator(
+                "rem",
+                Box::new(left),
+                Box::new(right),
+            )),
         }
     }
 }
@@ -980,14 +1000,22 @@ fn checked_op(op: TsOp, lhs: &DateTime, rhs: &crate::duration::Duration) -> Reso
         TsOp::Add => lhs.unix_nanos().checked_add(delta),
         TsOp::Sub => lhs.unix_nanos().checked_sub(delta),
     }
-    .ok_or(ExecutionError::Overflow(op.str(), (*lhs).into(), (*rhs).into()))?;
+    .ok_or(ExecutionError::Overflow(
+        op.str(),
+        Box::new((*lhs).into()),
+        Box::new((*rhs).into()),
+    ))?;
 
     let result = DateTime::from_unix_nanos(nanos)
-        .map_err(|_| ExecutionError::Overflow(op.str(), (*lhs).into(), (*rhs).into()))?;
+        .map_err(|_| ExecutionError::Overflow(op.str(), Box::new((*lhs).into()), Box::new((*rhs).into())))?;
 
     // Check for cel-spec limits.
     if result > *MAX_TIMESTAMP || result < *MIN_TIMESTAMP {
-        Err(ExecutionError::Overflow(op.str(), (*lhs).into(), (*rhs).into()))
+        Err(ExecutionError::Overflow(
+            op.str(),
+            Box::new((*lhs).into()),
+            Box::new((*rhs).into()),
+        ))
     } else {
         Value::Timestamp(result).into()
     }
@@ -1092,7 +1120,7 @@ mod tests {
     fn test_invalid_sub() {
         test_execution_error(
             r#""foo" - 10"#,
-            ExecutionError::UnsupportedBinaryOperator("sub", "foo".into(), Value::Int(10)),
+            ExecutionError::UnsupportedBinaryOperator("sub", Box::new("foo".into()), Box::new(Value::Int(10))),
         );
     }
 
@@ -1100,7 +1128,7 @@ mod tests {
     fn test_invalid_add() {
         test_execution_error(
             r#""foo" + 10"#,
-            ExecutionError::UnsupportedBinaryOperator("add", "foo".into(), Value::Int(10)),
+            ExecutionError::UnsupportedBinaryOperator("add", Box::new("foo".into()), Box::new(Value::Int(10))),
         );
     }
 
@@ -1108,7 +1136,7 @@ mod tests {
     fn test_invalid_div() {
         test_execution_error(
             r#""foo" / 10"#,
-            ExecutionError::UnsupportedBinaryOperator("div", "foo".into(), Value::Int(10)),
+            ExecutionError::UnsupportedBinaryOperator("div", Box::new("foo".into()), Box::new(Value::Int(10))),
         );
     }
 
@@ -1116,7 +1144,7 @@ mod tests {
     fn test_invalid_rem() {
         test_execution_error(
             r#""foo" % 10"#,
-            ExecutionError::UnsupportedBinaryOperator("rem", "foo".into(), Value::Int(10)),
+            ExecutionError::UnsupportedBinaryOperator("rem", Box::new("foo".into()), Box::new(Value::Int(10))),
         );
     }
 
@@ -1162,11 +1190,26 @@ mod tests {
         let cases = [
             ("1 / 0", DivisionByZero(1.into())),
             ("1 % 0", RemainderByZero(1.into())),
-            (&format!("{} + 1", i64::MAX), Overflow("add", i64::MAX.into(), 1.into())),
-            (&format!("{} - 1", i64::MIN), Overflow("sub", i64::MIN.into(), 1.into())),
-            (&format!("{} * 2", i64::MAX), Overflow("mul", i64::MAX.into(), 2.into())),
-            (&format!("{} / -1", i64::MIN), Overflow("div", i64::MIN.into(), (-1).into())),
-            (&format!("{} % -1", i64::MIN), Overflow("rem", i64::MIN.into(), (-1).into())),
+            (
+                &format!("{} + 1", i64::MAX),
+                Overflow("add", Box::new(i64::MAX.into()), Box::new(1.into())),
+            ),
+            (
+                &format!("{} - 1", i64::MIN),
+                Overflow("sub", Box::new(i64::MIN.into()), Box::new(1.into())),
+            ),
+            (
+                &format!("{} * 2", i64::MAX),
+                Overflow("mul", Box::new(i64::MAX.into()), Box::new(2.into())),
+            ),
+            (
+                &format!("{} / -1", i64::MIN),
+                Overflow("div", Box::new(i64::MIN.into()), Box::new((-1).into())),
+            ),
+            (
+                &format!("{} % -1", i64::MIN),
+                Overflow("rem", Box::new(i64::MIN.into()), Box::new((-1).into())),
+            ),
         ];
 
         for (expr, err) in cases {
@@ -1183,12 +1226,12 @@ mod tests {
     //         ("1u % 0u", RemainderByZero(1u64.into())),
     //         (
     //             &format!("{}u + 1u", u64::MAX),
-    //             Overflow("add", u64::MAX.into(), 1u64.into()),
+    //             Overflow("add", Box::new(u64::MAX.into()), Box::new(1u64.into())),
     //         ),
-    //         ("0u - 1u", Overflow("sub", 0u64.into(), 1u64.into())),
+    //         ("0u - 1u", Overflow("sub", Box::new(0u64.into()), Box::new(1u64.into()))),
     //         (
     //             &format!("{}u * 2u", u64::MAX),
-    //             Overflow("mul", u64::MAX.into(), 2u64.into()),
+    //             Overflow("mul", Box::new(u64::MAX.into()), Box::new(2u64.into())),
     //         ),
     //     ];
 

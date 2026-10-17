@@ -239,11 +239,7 @@ mod test {
                 let mut offset_bytes = [0u8; 1];
                 rng.try_fill_bytes(&mut offset_bytes).unwrap();
                 let offset = (offset_bytes[0] & 0xF) as usize;
-                let slice = if chunk.len() <= offset {
-                    &chunk[..]
-                } else {
-                    &chunk[offset..]
-                };
+                let slice = if chunk.len() <= offset { chunk } else { &chunk[offset..] };
 
                 baseline.update(slice);
                 pclmulqdq.update(slice);

@@ -113,7 +113,7 @@ pub enum ExecutionError {
     /// Indicates that an unsupported binary operator was applied on two values
     /// where it's unsupported, for example list + map.
     #[error("Unsupported binary operator '{0}': {1:?}, {2:?}")]
-    UnsupportedBinaryOperator(&'static str, Value, Value),
+    UnsupportedBinaryOperator(&'static str, Box<Value>, Box<Value>),
     /// Indicates that an unsupported type was used to index a map
     #[error("Cannot use value as map index: {0:?}")]
     UnsupportedMapIndex(Value),
@@ -139,7 +139,7 @@ pub enum ExecutionError {
     #[error("Remainder by zero of {0:?}")]
     RemainderByZero(Value),
     #[error("Overflow from binary operator '{0}': {1:?}, {2:?}")]
-    Overflow(&'static str, Value, Value),
+    Overflow(&'static str, Box<Value>, Box<Value>),
 }
 
 impl ExecutionError {
