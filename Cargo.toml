@@ -8,7 +8,7 @@ members = [
     "base32",
     "base64",
     "bel",
-    "bel/benchmarks",
+    # "bel/benchmarks",
     "bel/examples",
     # "bel/fuzz",
     "big_number",
@@ -119,7 +119,6 @@ let_unit_value = "allow"
 result_large_err = "allow"
 large_enum_variant = "allow"
 empty_line_after_doc_comments = "allow"
-needless_range_loop = "allow"
 
 [workspace.dependencies]
 anyerr = { path = "anyerr" }

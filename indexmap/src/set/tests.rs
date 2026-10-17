@@ -912,14 +912,8 @@ fn test_binary_search_by() {
     assert_eq!(b.binary_search_by(|x| x.cmp(&1)), Ok(0));
     assert_eq!(b.binary_search_by(|x| x.cmp(&2)), Err(1));
     // diff from std as set merges the duplicate keys
-    assert!(match b.binary_search_by(|x| x.cmp(&3)) {
-        Ok(1..=2) => true,
-        _ => false,
-    });
-    assert!(match b.binary_search_by(|x| x.cmp(&3)) {
-        Ok(1..=2) => true,
-        _ => false,
-    });
+    assert!(matches!(b.binary_search_by(|x| x.cmp(&3)), Ok(1..=2)));
+    assert!(matches!(b.binary_search_by(|x| x.cmp(&3)), Ok(1..=2)));
     assert_eq!(b.binary_search_by(|x| x.cmp(&4)), Err(2));
     assert_eq!(b.binary_search_by(|x| x.cmp(&5)), Err(2));
     assert_eq!(b.binary_search_by(|x| x.cmp(&6)), Err(2));
@@ -961,14 +955,8 @@ fn test_binary_search_by_key() {
     assert_eq!(b.binary_search_by_key(&1, |&x| x), Ok(0));
     assert_eq!(b.binary_search_by_key(&2, |&x| x), Err(1));
     // diff from std as set merges the duplicate keys
-    assert!(match b.binary_search_by_key(&3, |&x| x) {
-        Ok(1..=2) => true,
-        _ => false,
-    });
-    assert!(match b.binary_search_by_key(&3, |&x| x) {
-        Ok(1..=2) => true,
-        _ => false,
-    });
+    assert!(matches!(b.binary_search_by_key(&3, |&x| x), Ok(1..=2)));
+    assert!(matches!(b.binary_search_by_key(&3, |&x| x), Ok(1..=2)));
     assert_eq!(b.binary_search_by_key(&4, |&x| x), Err(2));
     assert_eq!(b.binary_search_by_key(&5, |&x| x), Err(2));
     assert_eq!(b.binary_search_by_key(&6, |&x| x), Err(2));

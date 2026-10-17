@@ -20,7 +20,7 @@ s3_integration_test:
 
 .PHONY: lint
 lint:
-	cargo clippy --workspace --all-targets
+	cargo clippy --workspace --all-targets -- -Dwarnings
 
 
 # Check the workspace against the host target.

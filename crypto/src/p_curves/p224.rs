@@ -588,20 +588,18 @@ mod tests {
         if inner_offset != inner.len() {
             return None;
         }
-        let r_valid = if rval.len() == 28 && rval[0] >= 0x80 {
-            false
-        } else if rval.len() == 29 && rval[0] != 0 {
-            false
-        } else if rval.len() == 29 && rval[0] == 0 && rval[1] < 0x80 {
+        let r_valid = if (rval.len() == 28 && rval[0] >= 0x80)
+            || (rval.len() == 29 && rval[0] != 0)
+            || (rval.len() == 29 && rval[0] == 0 && rval[1] < 0x80)
+        {
             false
         } else {
             rval.len() <= 29
         };
-        let s_valid = if sval.len() == 28 && sval[0] >= 0x80 {
-            false
-        } else if sval.len() == 29 && sval[0] != 0 {
-            false
-        } else if sval.len() == 29 && sval[0] == 0 && sval[1] < 0x80 {
+        let s_valid = if (sval.len() == 28 && sval[0] >= 0x80)
+            || (sval.len() == 29 && sval[0] != 0)
+            || (sval.len() == 29 && sval[0] == 0 && sval[1] < 0x80)
+        {
             false
         } else {
             sval.len() <= 29

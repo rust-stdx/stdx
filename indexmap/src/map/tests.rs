@@ -844,14 +844,8 @@ fn test_binary_search_by() {
     assert_eq!(b.binary_search_by(|_, x| x.cmp(&0)), Err(0));
     assert_eq!(b.binary_search_by(|_, x| x.cmp(&1)), Ok(0));
     assert_eq!(b.binary_search_by(|_, x| x.cmp(&2)), Err(1));
-    assert!(match b.binary_search_by(|_, x| x.cmp(&3)) {
-        Ok(1..=3) => true,
-        _ => false,
-    });
-    assert!(match b.binary_search_by(|_, x| x.cmp(&3)) {
-        Ok(1..=3) => true,
-        _ => false,
-    });
+    assert!(matches!(b.binary_search_by(|_, x| x.cmp(&3)), Ok(1..=3)));
+    assert!(matches!(b.binary_search_by(|_, x| x.cmp(&3)), Ok(1..=3)));
     assert_eq!(b.binary_search_by(|_, x| x.cmp(&4)), Err(4));
     assert_eq!(b.binary_search_by(|_, x| x.cmp(&5)), Err(4));
     assert_eq!(b.binary_search_by(|_, x| x.cmp(&6)), Err(4));
@@ -912,14 +906,8 @@ fn test_binary_search_by_key() {
     assert_eq!(b.binary_search_by_key(&0, |_, &x| x), Err(0));
     assert_eq!(b.binary_search_by_key(&1, |_, &x| x), Ok(0));
     assert_eq!(b.binary_search_by_key(&2, |_, &x| x), Err(1));
-    assert!(match b.binary_search_by_key(&3, |_, &x| x) {
-        Ok(1..=3) => true,
-        _ => false,
-    });
-    assert!(match b.binary_search_by_key(&3, |_, &x| x) {
-        Ok(1..=3) => true,
-        _ => false,
-    });
+    assert!(matches!(b.binary_search_by_key(&3, |_, &x| x), Ok(1..=3)));
+    assert!(matches!(b.binary_search_by_key(&3, |_, &x| x), Ok(1..=3)));
     assert_eq!(b.binary_search_by_key(&4, |_, &x| x), Err(4));
     assert_eq!(b.binary_search_by_key(&5, |_, &x| x), Err(4));
     assert_eq!(b.binary_search_by_key(&6, |_, &x| x), Err(4));

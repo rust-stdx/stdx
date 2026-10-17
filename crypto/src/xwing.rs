@@ -250,6 +250,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn constants() {
         assert!(PUBLIC_KEY_SIZE == 1216);
         assert!(CIPHERTEXT_SIZE == 1120);

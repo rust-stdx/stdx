@@ -32,7 +32,7 @@ fn bench_decode(c: &mut Criterion) {
         let mut data = vec![0xABu8; size];
         let mut encoded = vec![0u8; size * 2];
 
-        encode_into(black_box(&mut encoded), black_box(&data), Alphabet::Lower);
+        encode_into(black_box(&mut encoded), black_box(&data), Alphabet::Lower).unwrap();
 
         group.bench_with_input(BenchmarkId::from_parameter("scalar (constant time)"), &encoded, |b, encoded| {
             b.iter(|| decode_into_constant_time(black_box(&mut data), black_box(encoded)));

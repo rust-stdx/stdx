@@ -530,7 +530,7 @@ mod tests {
         unsafe {
             let mut vecs: [uint32x4_t; DEGREE] = core::mem::transmute(matrix);
             transpose_wrapper(&mut vecs);
-            matrix = core::mem::transmute(vecs);
+            matrix = core::mem::transmute::<[std::arch::aarch64::uint32x4_t; 4], [[u32; 4]; 4]>(vecs);
         }
 
         for (i, row) in matrix.iter().enumerate() {

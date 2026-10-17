@@ -598,20 +598,18 @@ mod tests {
         if inner_offset != inner.len() {
             return None;
         }
-        let r_valid = if rval.len() == 66 && rval[0] >= 0x80 {
-            false
-        } else if rval.len() == 67 && rval[0] != 0 {
-            false
-        } else if rval.len() == 67 && rval[0] == 0 && rval[1] < 0x80 {
+        let r_valid = if (rval.len() == 66 && rval[0] >= 0x80)
+            || (rval.len() == 67 && rval[0] != 0)
+            || (rval.len() == 67 && rval[0] == 0 && rval[1] < 0x80)
+        {
             false
         } else {
             rval.len() <= 67
         };
-        let s_valid = if sval.len() == 66 && sval[0] >= 0x80 {
-            false
-        } else if sval.len() == 67 && sval[0] != 0 {
-            false
-        } else if sval.len() == 67 && sval[0] == 0 && sval[1] < 0x80 {
+        let s_valid = if (sval.len() == 66 && sval[0] >= 0x80)
+            || (sval.len() == 67 && sval[0] != 0)
+            || (sval.len() == 67 && sval[0] == 0 && sval[1] < 0x80)
+        {
             false
         } else {
             sval.len() <= 67
@@ -937,7 +935,7 @@ mod tests {
                 for bi in (0..1152).rev() {
                     let li = bi / 64;
                     let pi = bi % 64;
-                    let bit = ((p[li] >> pi) & 1);
+                    let bit = (p[li] >> pi) & 1;
                     let mut shifted = [0u64; 9];
                     let mut carry = bit;
                     for j in 0..9 {

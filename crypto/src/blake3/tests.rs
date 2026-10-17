@@ -928,7 +928,7 @@ fn differential_fuzz_xof() {
     for trial in 0..200 {
         let total = (rng() as usize) % (data.len() + 1);
         let input = &data[..total];
-        let position = (rng() % (1 << 20));
+        let position = rng() % (1 << 20);
 
         let mut hasher = super::hasher::Hasher::new();
         hasher.update(input);
@@ -1320,6 +1320,7 @@ fn zeroize_clears_state() {
     all(target_arch = "aarch64", target_feature = "neon"),
     all(target_arch = "wasm32", target_feature = "simd128"),
 ))]
+#[allow(clippy::vec_init_then_push)]
 fn available_simd_platforms() -> Vec<super::platform::Platform> {
     #[allow(unused_mut)]
     let mut platforms = Vec::new();

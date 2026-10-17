@@ -204,14 +204,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bel_benchmarks"
-version = "0.11.0"
-dependencies = [
- "bel",
- "criterion",
-]
-
-[[package]]
 name = "bel_examples"
 version = "0.1.0"
 dependencies = [

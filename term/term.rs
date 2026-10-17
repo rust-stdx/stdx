@@ -161,9 +161,8 @@ mod tests {
     #[test]
     fn read_line_non_utf8() {
         let raw = b"\xff\xfe".to_vec();
-        match String::from_utf8(raw) {
-            Ok(_) => panic!("expected 'string from bytes' to be invalid"),
-            Err(_) => {} // expected
+        if String::from_utf8(raw).is_ok() {
+            panic!("expected 'string from bytes' to be invalid");
         }
     }
 

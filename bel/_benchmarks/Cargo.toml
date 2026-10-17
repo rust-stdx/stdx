@@ -8,6 +8,12 @@ license = "MIT"
 [lints]
 workspace = true
 
+# [lints.rust.unexpected_cfgs]
+# level = "warn"
+# check-cfg = ['cfg(feature, values("dhat-heap"))']
+
+
+
 [dev-dependencies]
 bel = { path = ".." }
 
