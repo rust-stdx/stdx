@@ -158,7 +158,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
     /// [`CHACHA20_IETF_MAX_LEN`] bytes under one key/nonce, or after
     /// [`set_counter`](ChaCha::set_counter) jumps near the end of the counter space.
     fn xor_keystream(&mut self, mut in_out: &mut [u8]) {
-        if in_out.len() == 0 {
+        if in_out.is_empty() {
             return;
         }
 

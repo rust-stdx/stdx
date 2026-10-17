@@ -155,7 +155,7 @@ where
         // Scoped map access so the MutexGuard is dropped before any await.
         let existing = {
             let map = self.inner.lock().unwrap();
-            map.get(&key).map(|e| e.clone())
+            map.get(&key).cloned()
         };
 
         if let Some(entry) = existing {
@@ -237,14 +237,14 @@ mod test {
             let started = started.clone();
             handles.push(tokio::spawn(async move {
                 barrier.wait().await;
-                let call = group
+
+                group
                     .call_async("key".to_string(), || async {
                         started.fetch_add(1, Ordering::SeqCst);
                         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                         "hello".to_string()
                     })
-                    .await;
-                call
+                    .await
             }));
         }
 
@@ -293,7 +293,7 @@ mod test {
         }
 
         assert_eq!(results.len(), 2);
-        for (_, shareds) in &results {
+        for shareds in results.values() {
             assert_eq!(shareds.len(), 1);
             assert!(!shareds[0]); // each was the original for its key
         }
@@ -377,14 +377,14 @@ mod test {
             let started = started.clone();
             handles.push(tokio::spawn(async move {
                 let key = (i % 10).to_string();
-                let call = group
+
+                group
                     .call_async(key, || async {
                         started.fetch_add(1, Ordering::SeqCst);
                         tokio::time::sleep(std::time::Duration::from_micros(100)).await;
                         i
                     })
-                    .await;
-                call
+                    .await
             }));
         }
 
@@ -412,15 +412,14 @@ mod test {
 
         let group_for_spawn = group.clone();
         let h1 = tokio::spawn(async move {
-            let call = group_for_spawn
+            group_for_spawn
                 .call_async("k", || async {
                     r1.fetch_add(1, Ordering::SeqCst);
                     let _ = tx.send(());
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                     42
                 })
-                .await;
-            call
+                .await
         });
 
         // Wait until the first caller has started but not finished.
@@ -436,14 +435,13 @@ mod test {
         let r2 = run_count.clone();
         let group_for_spawn2 = group.clone();
         let h2 = tokio::spawn(async move {
-            let call = group_for_spawn2
+            group_for_spawn2
                 .call_async("k", || async {
                     r2.fetch_add(1, Ordering::SeqCst);
                     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                     99
                 })
-                .await;
-            call
+                .await
         });
 
         let c1 = h1.await.unwrap();

@@ -1449,7 +1449,7 @@ mod tests {
         }
 
         let tests = to_value([IpType {
-            ip_addr: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)).into(),
+            ip_addr: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             ip: ipnetwork::IpNetwork::from(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2))).into(),
         }])
         .unwrap();

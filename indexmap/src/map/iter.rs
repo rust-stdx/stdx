@@ -789,7 +789,7 @@ where
 
         // Now insert all the new items. If a key matches an existing entry, it
         // keeps the original position and only replaces the value, like `insert`.
-        while let Some((key, value)) = self.replace_with.next() {
+        for (key, value) in self.replace_with.by_ref() {
             // Since the tail is disjoint, we can try to update it first,
             // or else insert (update or append) the primary map.
             let hash = self.map.hash(&key);

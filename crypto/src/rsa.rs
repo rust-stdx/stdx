@@ -247,10 +247,8 @@ impl PublicKey {
         write_uint_be(&m, &mut em, em_len);
 
         let leftmost_bits = 8 * em_len - em_bits;
-        if leftmost_bits > 0 && leftmost_bits < 8 {
-            if em[0] >> (8 - leftmost_bits) != 0 {
-                return Err(RsaError::Unspecified);
-            }
+        if leftmost_bits > 0 && leftmost_bits < 8 && em[0] >> (8 - leftmost_bits) != 0 {
+            return Err(RsaError::Unspecified);
         }
 
         if em_len < hash_len + salt_len + 2 {

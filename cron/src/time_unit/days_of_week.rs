@@ -6,7 +6,7 @@ use crate::{
     time_unit::TimeUnitField,
 };
 
-static ALL: LazyLock<OrdinalSet> = LazyLock::new(|| DaysOfWeek::supported_ordinals());
+static ALL: LazyLock<OrdinalSet> = LazyLock::new(DaysOfWeek::supported_ordinals);
 
 #[derive(Clone, Debug, Eq)]
 pub struct DaysOfWeek {
@@ -45,7 +45,7 @@ impl TimeUnitField for DaysOfWeek {
     fn ordinals(&self) -> &OrdinalSet {
         match &self.ordinals {
             Some(ordinal_set) => ordinal_set,
-            None => &*ALL,
+            None => &ALL,
         }
     }
 }

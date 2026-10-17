@@ -5,12 +5,12 @@ use super::*;
 #[test]
 fn it_works() {
     let mut set = IndexSet::new();
-    assert_eq!(set.is_empty(), true);
+    assert!(set.is_empty());
     set.insert(1);
     set.insert(1);
     assert_eq!(set.len(), 1);
     assert!(set.get(&1).is_some());
-    assert_eq!(set.is_empty(), false);
+    assert!(!set.is_empty());
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn new() {
     println!("{:?}", set);
     assert_eq!(set.capacity(), 0);
     assert_eq!(set.len(), 0);
-    assert_eq!(set.is_empty(), true);
+    assert!(set.is_empty());
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn insert_dup() {
         let inserted = set.insert(0);
         let (i, v) = set.get_full(&0).unwrap();
         assert_eq!(set.len(), 5);
-        assert_eq!(inserted, false);
+        assert!(!inserted);
         assert_eq!(i, 0);
         assert_eq!(*v, 0);
     }

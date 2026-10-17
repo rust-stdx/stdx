@@ -261,10 +261,10 @@ impl ErrorImpl {
             ErrorImpl::Shared(err) => err.display(f),
             _ => {
                 self.message_no_mark(f)?;
-                if let Some(mark) = self.mark() {
-                    if mark.line() != 0 || mark.column() != 0 {
-                        write!(f, " at {}", mark)?;
-                    }
+                if let Some(mark) = self.mark()
+                    && (mark.line() != 0 || mark.column() != 0)
+                {
+                    write!(f, " at {}", mark)?;
                 }
                 Ok(())
             }

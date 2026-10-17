@@ -456,7 +456,7 @@ impl From<&RsaPublicKey> for Jwk {
             algorithm: key.alg,
             crypto: JwkCrypto::Rsa {
                 n: key.key.n_bytes().into(),
-                e: key.key.e_bytes().into(),
+                e: key.key.e_bytes(),
             },
         }
     }

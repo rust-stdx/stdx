@@ -492,15 +492,15 @@ fn embedded_nearby(zone: &'static tzdb::ZoneData, local: i64) -> Option<(i32, i3
 /// answer as evaluating the original TZif bytes (the legacy path).
 #[cfg(all(test, feature = "timezone-db"))]
 fn parity_check(name: &'static str, secs: i64, evaluated: &ZoneInfo<'static>) {
-    if let Some((_, data)) = tzdb::lookup_legacy(name) {
-        if let Some(expected) = crate::tzif::Tzif::parse(data).and_then(|tz| tz.lookup(secs)) {
-            assert!(
-                expected.offset == evaluated.offset
-                    && expected.is_dst == evaluated.is_dst
-                    && expected.abbrev == evaluated.abbrev,
-                "zone engine mismatch for {name} at {secs}: {expected:?} != {evaluated:?}",
-            );
-        }
+    if let Some((_, data)) = tzdb::lookup_legacy(name)
+        && let Some(expected) = crate::tzif::Tzif::parse(data).and_then(|tz| tz.lookup(secs))
+    {
+        assert!(
+            expected.offset == evaluated.offset
+                && expected.is_dst == evaluated.is_dst
+                && expected.abbrev == evaluated.abbrev,
+            "zone engine mismatch for {name} at {secs}: {expected:?} != {evaluated:?}",
+        );
     }
 }
 

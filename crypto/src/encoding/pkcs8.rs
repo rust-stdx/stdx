@@ -275,10 +275,10 @@ fn parse_sec1(der: &[u8]) -> Result<(Option<Curve>, &[u8]), Pkcs8Error> {
                 let oid = params.read_oid()?;
                 params.finish()?;
                 let parsed = curve_from_oid(oid)?;
-                if let Some(previous) = curve {
-                    if previous != parsed {
-                        return Err(Pkcs8Error::InvalidAlgorithmIdentifier);
-                    }
+                if let Some(previous) = curve
+                    && previous != parsed
+                {
+                    return Err(Pkcs8Error::InvalidAlgorithmIdentifier);
                 }
                 curve = Some(parsed);
             }
@@ -347,10 +347,10 @@ pub fn decode_ec_pkcs8_der(der: &[u8]) -> Result<EcPrivateKey, Pkcs8Error> {
     }
 
     let (inner_curve, scalar) = parse_sec1(private_key)?;
-    if let Some(inner_curve) = inner_curve {
-        if inner_curve != outer_curve {
-            return Err(Pkcs8Error::InvalidAlgorithmIdentifier);
-        }
+    if let Some(inner_curve) = inner_curve
+        && inner_curve != outer_curve
+    {
+        return Err(Pkcs8Error::InvalidAlgorithmIdentifier);
     }
     build_ec_key(outer_curve, scalar)
 }

@@ -457,21 +457,17 @@ impl ExprParser {
             if matches!(self.peek_token(), Some(Token::LParen)) {
                 self.advance();
                 if !matches!(self.peek_token(), Some(Token::RParen)) {
-                    loop {
-                        match self.peek_token() {
-                            Some(Token::Ident(_))
-                            | Some(Token::Str(_))
-                            | Some(Token::Int(_))
-                            | Some(Token::Float(_))
-                            | Some(Token::Bool(_))
-                            | Some(Token::Null)
-                            | Some(Token::Minus)
-                            | Some(Token::KeywordNot)
-                            | Some(Token::LParen) => {
-                                args.push(self.parse_or()?);
-                            }
-                            _ => break,
-                        }
+                    while let Some(Token::Ident(_))
+                    | Some(Token::Str(_))
+                    | Some(Token::Int(_))
+                    | Some(Token::Float(_))
+                    | Some(Token::Bool(_))
+                    | Some(Token::Null)
+                    | Some(Token::Minus)
+                    | Some(Token::KeywordNot)
+                    | Some(Token::LParen) = self.peek_token()
+                    {
+                        args.push(self.parse_or()?);
                         if matches!(self.peek_token(), Some(Token::Comma)) {
                             self.advance();
                         } else {

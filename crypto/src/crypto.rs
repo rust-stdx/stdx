@@ -4,7 +4,7 @@
 //! # ⚠️ Warning
 //!
 //! This crate has **not** undergone a third-party security audit yet. Use at your own risk.
-
+#![allow(clippy::wrong_self_convention, clippy::module_inception)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]

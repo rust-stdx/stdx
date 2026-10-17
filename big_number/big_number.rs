@@ -549,7 +549,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
             bit_index -= 1;
             let limb_idx = bit_index / 64;
             let bit_pos = bit_index % 64;
-            let bit = ((product[limb_idx] >> bit_pos) & 1) as u64;
+            let bit = (product[limb_idx] >> bit_pos) & 1;
 
             let mut shifted = [0u64; LIMBS];
             let mut carry = bit;
@@ -615,7 +615,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
 
     fn compute_mu_for_barrett_eff(&self, eff_limbs: usize) -> [u64; MAX_LIMBS] {
         const {
-            assert!(LIMBS + 1 <= MAX_LIMBS);
+            assert!(LIMBS < MAX_LIMBS);
         }
         assert!(eff_limbs >= 1 && eff_limbs <= LIMBS, "modulus must be nonzero");
 
@@ -695,7 +695,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     }
 
     fn modpow_barrett_impl<const W: usize>(&self, exp: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
-        assert!(eff_limbs >= 1 && eff_limbs <= MAX_BARRETT_LIMBS, "eff_limbs out of range");
+        assert!((1..=MAX_BARRETT_LIMBS).contains(&eff_limbs), "eff_limbs out of range");
         assert!(2 * (eff_limbs + 1) <= W, "working width W is too small for the modulus");
         let mut base = self.mul_mod_barrett_impl::<W>(&Self::ONE, modulus, mu, eff_limbs);
         let mut result = Self::ONE;
@@ -751,7 +751,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
     }
 
     fn mul_mod_barrett_impl<const W: usize>(&self, rhs: &Self, modulus: &Self, mu: &[u64], eff_limbs: usize) -> Self {
-        assert!(eff_limbs >= 1 && eff_limbs <= MAX_BARRETT_LIMBS, "eff_limbs out of range");
+        assert!((1..=MAX_BARRETT_LIMBS).contains(&eff_limbs), "eff_limbs out of range");
         assert!(2 * (eff_limbs + 1) <= W, "working width W is too small for the modulus");
         debug_assert!(
             self.bit_len() <= eff_limbs * 64 && rhs.bit_len() <= eff_limbs * 64,
@@ -793,7 +793,7 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         );
         assert!(2 * (eff_limbs + 1) <= W, "working width W is too small for the modulus");
         assert!(product.len() >= 2 * eff_limbs, "product slice is too short");
-        assert!(mu.len() >= eff_limbs + 1, "mu is too short for the effective limb count");
+        assert!(mu.len() > eff_limbs, "mu is too short for the effective limb count");
 
         let k = eff_limbs;
         let k1 = k + 1;

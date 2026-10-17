@@ -32,7 +32,7 @@ impl Client {
         let socket_path = PathBuf::from(socket_path);
 
         return Client {
-            socket_path: socket_path,
+            socket_path,
             socket: Mutex::new(None),
         };
     }

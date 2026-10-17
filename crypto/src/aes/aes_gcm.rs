@@ -334,7 +334,7 @@ mod tests_128 {
         let pt = hex::decode_array::<16>(b"3243f6a8885a308d313198a2e0370734").unwrap();
         let rk: [[u8; 16]; 11] = expand_key::<11>(&key);
 
-        let rk_hex: Vec<String> = rk.iter().map(|rk_i| hex::encode(rk_i)).collect();
+        let rk_hex: Vec<String> = rk.iter().map(hex::encode).collect();
         assert_eq!(rk_hex[0], "2b7e151628aed2a6abf7158809cf4f3c", "rk0");
         assert_eq!(rk_hex[1], "a0fafe1788542cb123a339392a6c7605", "rk1");
         assert_eq!(rk_hex[2], "f2c295f27a96b9435935807a7359f67f", "rk2");

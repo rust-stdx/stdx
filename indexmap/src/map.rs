@@ -1007,10 +1007,7 @@ where
     where
         Q: ?Sized + Hash + Equivalent<K>,
     {
-        match self.swap_remove_full(key) {
-            Some((_, key, value)) => Some((key, value)),
-            None => None,
-        }
+        self.swap_remove_full(key).map(|(_, key, value)| (key, value))
     }
 
     /// Remove the key-value pair equivalent to `key` and return it and
@@ -1070,10 +1067,7 @@ where
     where
         Q: ?Sized + Hash + Equivalent<K>,
     {
-        match self.shift_remove_full(key) {
-            Some((_, key, value)) => Some((key, value)),
-            None => None,
-        }
+        self.shift_remove_full(key).map(|(_, key, value)| (key, value))
     }
 
     /// Remove the key-value pair equivalent to `key` and return it and
@@ -1841,7 +1835,7 @@ where
         }
 
         self.iter()
-            .all(|(key, value)| other.get(key).map_or(false, |v| *value == *v))
+            .all(|(key, value)| other.get(key).is_some_and(|v| *value == *v))
     }
 }
 

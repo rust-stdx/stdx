@@ -72,9 +72,9 @@ pub(crate) const MAX_SIMD_DEGREE: usize = {
         16
     } else if cfg!(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2"))) {
         8
-    } else if cfg!(all(target_arch = "aarch64", target_feature = "neon")) {
-        4
-    } else if cfg!(all(target_arch = "wasm32", target_feature = "simd128")) {
+    } else if cfg!(all(target_arch = "aarch64", target_feature = "neon"))
+        || cfg!(all(target_arch = "wasm32", target_feature = "simd128"))
+    {
         4
     } else {
         1

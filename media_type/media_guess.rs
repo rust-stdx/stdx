@@ -210,7 +210,7 @@ impl IntoIterator for MediaTypeGuess {
 }
 
 #[cfg(feature = "alloc")]
-impl<'a> IntoIterator for &'a MediaTypeGuess {
+impl IntoIterator for &MediaTypeGuess {
     type Item = MediaType;
     type IntoIter = Iter;
 

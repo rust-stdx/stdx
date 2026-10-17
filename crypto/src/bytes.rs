@@ -39,7 +39,7 @@ impl<const N: usize> Bytes<N> {
 
     #[inline]
     pub(crate) fn push(&mut self, byte: u8) {
-        assert!(self.length as usize + 1 <= N);
+        assert!((self.length as usize) < N);
         self.bytes[self.length as usize] = byte;
         self.length += 1;
     }
@@ -122,6 +122,7 @@ macro_rules! impl_bytes {
     ($name:ident($inner:ty)) => {
         impl $name {
             #[inline]
+            #[allow(clippy::len_without_is_empty)]
             pub fn len(&self) -> usize {
                 self.0.len()
             }

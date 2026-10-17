@@ -52,7 +52,8 @@
     clippy::too_many_lines,
     clippy::unreadable_literal,
     clippy::unseparated_literal_suffix,
-    clippy::wildcard_imports
+    clippy::wildcard_imports,
+    clippy::non_canonical_clone_impl, // false positive https://github.com/rust-lang/rust-clippy/issues/11072
 )]
 
 mod buffer;

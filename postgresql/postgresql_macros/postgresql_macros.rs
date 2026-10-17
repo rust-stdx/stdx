@@ -88,19 +88,19 @@ pub fn query_as(input: TokenStream) -> TokenStream {
 }
 
 fn checking_enabled() -> Option<String> {
-    if let Ok(flag) = std::env::var("STDX_POSTGRESQL_CHECK") {
-        if flag.eq_ignore_ascii_case("false") {
-            return None;
-        }
+    if let Ok(flag) = std::env::var("STDX_POSTGRESQL_CHECK")
+        && flag.eq_ignore_ascii_case("false")
+    {
+        return None;
     }
     std::env::var("DATABASE_URL").ok().filter(|url| !url.is_empty())
 }
 
 fn sql_literal(sql: &Expr) -> Option<String> {
-    if let Expr::Lit(lit) = sql {
-        if let Lit::Str(s) = &lit.lit {
-            return Some(s.value());
-        }
+    if let Expr::Lit(lit) = sql
+        && let Lit::Str(s) = &lit.lit
+    {
+        return Some(s.value());
     }
     None
 }
@@ -113,17 +113,17 @@ fn expand(sql: Expr, args: Punctuated<Expr, Token![,]>, target: Option<Type>) ->
         _ => None,
     };
 
-    if let Some(described) = &described {
-        if described.param_oids.len() != args.len() {
-            return Err(syn::Error::new_spanned(
-                &sql,
-                format!(
-                    "postgresql: query expects {} parameter(s) but {} were provided",
-                    described.param_oids.len(),
-                    args.len()
-                ),
-            ));
-        }
+    if let Some(described) = &described
+        && described.param_oids.len() != args.len()
+    {
+        return Err(syn::Error::new_spanned(
+            &sql,
+            format!(
+                "postgresql: query expects {} parameter(s) but {} were provided",
+                described.param_oids.len(),
+                args.len()
+            ),
+        ));
     }
 
     let params: Vec<proc_macro2::TokenStream> = args

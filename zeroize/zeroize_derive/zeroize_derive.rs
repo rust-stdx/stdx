@@ -124,14 +124,15 @@ struct BoundAccumulator<'a> {
 
 impl<'ast> Visit<'ast> for BoundAccumulator<'ast> {
     fn visit_path(&mut self, path: &'ast syn::Path) {
-        if path.segments.len() == 1 {
-            if let Some(segment) = path.segments.first() {
-                for param in &self.generics.params {
-                    if let syn::GenericParam::Type(type_param) = param {
-                        if type_param.ident == segment.ident && !self.params.contains(&segment.ident) {
-                            self.params.push(type_param.ident.clone());
-                        }
-                    }
+        if path.segments.len() == 1
+            && let Some(segment) = path.segments.first()
+        {
+            for param in &self.generics.params {
+                if let syn::GenericParam::Type(type_param) = param
+                    && type_param.ident == segment.ident
+                    && !self.params.contains(&segment.ident)
+                {
+                    self.params.push(type_param.ident.clone());
                 }
             }
         }
@@ -234,22 +235,21 @@ impl ZeroizeAttrs {
                     "Use it on the containing enum instead.",
                 )),
                 (None, None) => {
-                    if let Meta::NameValue(meta_name_value) = meta {
-                        if let Expr::Lit(ExprLit {
+                    if let Meta::NameValue(meta_name_value) = meta
+                        && let Expr::Lit(ExprLit {
                             lit: Lit::Str(lit), ..
                         }) = &meta_name_value.value
-                        {
-                            if lit.value().is_empty() {
-                                self.bound = Some(Bounds(Punctuated::new()));
-                            } else {
-                                self.bound = Some(
-                                    lit.parse()
-                                        .unwrap_or_else(|e| panic!("error parsing bounds: {lit:?} ({e})")),
-                                );
-                            }
-
-                            return;
+                    {
+                        if lit.value().is_empty() {
+                            self.bound = Some(Bounds(Punctuated::new()));
+                        } else {
+                            self.bound = Some(
+                                lit.parse()
+                                    .unwrap_or_else(|e| panic!("error parsing bounds: {lit:?} ({e})")),
+                            );
                         }
+
+                        return;
                     }
 
                     panic!(concat!(
@@ -346,18 +346,18 @@ fn generate_fields(input: &DeriveInput, method: TokenStream) -> TokenStream {
 fn attr_skip(attrs: &[Attribute]) -> bool {
     let mut result = false;
     for attr in attrs.iter().map(|attr| &attr.meta) {
-        if let Meta::List(list) = attr {
-            if list.path.is_ident(ZEROIZE_ATTR) {
-                for meta in list
-                    .parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)
-                    .unwrap_or_else(|e| panic!("error parsing attribute: {list:?} ({e})"))
+        if let Meta::List(list) = attr
+            && list.path.is_ident(ZEROIZE_ATTR)
+        {
+            for meta in list
+                .parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)
+                .unwrap_or_else(|e| panic!("error parsing attribute: {list:?} ({e})"))
+            {
+                if let Meta::Path(path) = meta
+                    && path.is_ident("skip")
                 {
-                    if let Meta::Path(path) = meta {
-                        if path.is_ident("skip") {
-                            assert!(!result, "duplicate #[zeroize] skip flags");
-                            result = true;
-                        }
-                    }
+                    assert!(!result, "duplicate #[zeroize] skip flags");
+                    result = true;
                 }
             }
         }

@@ -11,7 +11,7 @@ pub type FilterFn = fn(&Value, &[Value]) -> Result<Value, crate::error::Error>;
 
 // Must stay sorted alphabetically for binary_search_by_key in vm.rs
 pub const fn builtin_filters() -> &'static [(&'static str, FilterFn)] {
-    const FILTERS: &[(&'static str, FilterFn)] = &[
+    const FILTERS: &[(&str, FilterFn)] = &[
         ("capitalize", filter_capitalize),
         ("default", filter_default),
         ("escape", filter_escape),

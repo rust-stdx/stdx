@@ -15,7 +15,7 @@ impl<T> Owned<T> {
         // FIXME: use Box::new_uninit when stable
         let boxed = Box::new(MaybeUninit::<T>::uninit());
         Owned {
-            ptr: unsafe { NonNull::new_unchecked(Box::into_raw(boxed)) },
+            ptr: Box::into_non_null(boxed),
             marker: PhantomData,
         }
     }

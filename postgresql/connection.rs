@@ -1871,12 +1871,12 @@ async fn authenticate(stream: &mut PgStream, read_buf: &mut BytesMut, config: &C
         }
     }
 
-    if let Some(setting) = integer_datetimes {
-        if setting != "on" {
-            return Err(Error::Config(
-                "the server reports integer_datetimes=off, which is not supported".into(),
-            ));
-        }
+    if let Some(setting) = integer_datetimes
+        && setting != "on"
+    {
+        return Err(Error::Config(
+            "the server reports integer_datetimes=off, which is not supported".into(),
+        ));
     }
 
     Ok(backend_key.unwrap_or((0, 0)))
@@ -1905,27 +1905,23 @@ async fn read_backend(
 impl crate::query::sealed::Sealed for Connection {}
 
 impl crate::query::Capable for Connection {
-    fn execute<'a>(
-        &'a self,
-        sql: &'a str,
-        params: &'a [&'a dyn ToSql],
-    ) -> impl std::future::Future<Output = Result<u64, Error>> + Send + 'a {
-        async move { Connection::execute(self, sql, params).await }
+    async fn execute<'a>(&'a self, sql: &'a str, params: &'a [&'a dyn ToSql]) -> Result<u64, Error> {
+        Connection::execute(self, sql, params).await
     }
 
-    fn fetch_rows<'a>(
+    async fn fetch_rows<'a>(
         &'a self,
         sql: &'a str,
         params: &'a [&'a dyn ToSql],
         max_rows: i32,
-    ) -> impl std::future::Future<Output = Result<RowStream, Error>> + Send + 'a {
-        async move { Connection::fetch_rows(self, sql, params, max_rows).await }
+    ) -> Result<RowStream, Error> {
+        Connection::fetch_rows(self, sql, params, max_rows).await
     }
 }
 
 impl crate::query::ScriptExecutor for Connection {
-    fn execute_script<'a>(&'a self, sql: &'a str) -> impl std::future::Future<Output = Result<u64, Error>> + Send + 'a {
-        async move { Connection::execute_script(self, sql).await }
+    async fn execute_script<'a>(&'a self, sql: &'a str) -> Result<u64, Error> {
+        Connection::execute_script(self, sql).await
     }
 }
 

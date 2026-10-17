@@ -316,10 +316,10 @@ impl Builder {
         let mut best: Option<(&str, &str)> = None;
         let roots = self.schema_roots();
         for (root, module) in &roots {
-            if name == root || name.starts_with(&format!("{root}_")) {
-                if best.is_none_or(|(current, _)| root.len() > current.len()) {
-                    best = Some((root.as_str(), module.as_str()));
-                }
+            if (name == root || name.starts_with(&format!("{root}_")))
+                && best.is_none_or(|(current, _)| root.len() > current.len())
+            {
+                best = Some((root.as_str(), module.as_str()));
             }
         }
         best.map_or_else(|| "common".to_string(), |(_, module)| module.to_string())
@@ -412,10 +412,10 @@ impl Builder {
                 continue;
             };
             for field in fields {
-                if let Some(target) = direct_struct_target(&field.ty) {
-                    if let Some(target_position) = node_of(target) {
-                        adjacency[position].push(target_position);
-                    }
+                if let Some(target) = direct_struct_target(&field.ty)
+                    && let Some(target_position) = node_of(target)
+                {
+                    adjacency[position].push(target_position);
                 }
             }
         }
@@ -670,10 +670,10 @@ impl Builder {
                 refs.insert(params.clone());
             }
             for reference in refs {
-                if let Some(&position) = index.get(reference.as_str()) {
-                    if needed[position].insert(method.module.clone()) {
-                        queue.push(position);
-                    }
+                if let Some(&position) = index.get(reference.as_str())
+                    && needed[position].insert(method.module.clone())
+                {
+                    queue.push(position);
                 }
             }
         }

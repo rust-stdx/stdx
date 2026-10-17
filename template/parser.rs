@@ -345,15 +345,15 @@ impl TemplateParser {
                                 self.advance(); // {
                                 self.advance(); // %
                                 self.skip_whitespace();
-                                if let Ok(kw) = self.read_ident() {
-                                    if kw == "endraw" {
-                                        self.skip_whitespace();
-                                        if self.peek() == Some('%') {
+                                if let Ok(kw) = self.read_ident()
+                                    && kw == "endraw"
+                                {
+                                    self.skip_whitespace();
+                                    if self.peek() == Some('%') {
+                                        self.advance();
+                                        if self.peek() == Some('}') {
                                             self.advance();
-                                            if self.peek() == Some('}') {
-                                                self.advance();
-                                                break;
-                                            }
+                                            break;
                                         }
                                     }
                                 }

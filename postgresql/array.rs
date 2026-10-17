@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn second_encode_errors() {
-        let values = vec![1i32];
+        let values = [1i32];
         let adapter = array(values.iter());
         let mut buf = BytesMut::new();
         adapter.encode(&mut buf).unwrap();

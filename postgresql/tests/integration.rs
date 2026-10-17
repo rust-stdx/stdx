@@ -209,7 +209,7 @@ async fn unnest_insert() {
         .unwrap();
 
     let ids = vec![10i32, 20, 30];
-    let names = vec!["a", "b", "c"];
+    let names = ["a", "b", "c"];
     let affected = query!(
         &format!("INSERT INTO {table} (id, name) SELECT * FROM unnest($1::int4[], $2::text[])"),
         ids,

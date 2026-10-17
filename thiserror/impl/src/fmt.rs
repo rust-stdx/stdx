@@ -62,13 +62,11 @@ impl Display<'_> {
             let member = match next {
                 '0'..='9' => {
                     let int = take_int(&mut read);
-                    if !extra_positional_arguments_allowed {
-                        if let Some(first_unnamed) = &first_unnamed {
-                            let msg = format!(
-                                "ambiguous reference to positional arguments by number in a {container}; change this to a named argument"
-                            );
-                            return Err(Error::new_spanned(first_unnamed, msg));
-                        }
+                    if !extra_positional_arguments_allowed && let Some(first_unnamed) = &first_unnamed {
+                        let msg = format!(
+                            "ambiguous reference to positional arguments by number in a {container}; change this to a named argument"
+                        );
+                        return Err(Error::new_spanned(first_unnamed, msg));
                     }
                     match int.parse::<u32>() {
                         Ok(index) => MemberUnraw::Unnamed(Index {
@@ -230,10 +228,10 @@ fn try_explicit_named_args(input: ParseStream) -> Result<FmtArguments> {
             scan_expr(input)?;
         }
 
-        if let Some(begin_unnamed) = begin_unnamed {
-            if args.first_unnamed.is_none() {
-                args.first_unnamed = Some(between(&begin_unnamed, input));
-            }
+        if let Some(begin_unnamed) = begin_unnamed
+            && args.first_unnamed.is_none()
+        {
+            args.first_unnamed = Some(between(&begin_unnamed, input));
         }
     }
 

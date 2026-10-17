@@ -3,6 +3,7 @@
 //! This crate is an implementation detail and should not be used directly.
 #![recursion_limit = "1024"]
 #![forbid(unsafe_code)]
+#![allow(clippy::too_many_arguments)]
 #[macro_use]
 extern crate quote;
 extern crate proc_macro;

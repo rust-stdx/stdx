@@ -842,7 +842,7 @@ const fn count_trailing_padding(data: &[u8]) -> usize {
         let is_pad = if data[idx] == PAD { 0xFFu8 } else { 0x00u8 };
         all_pad = all_pad & is_pad;
         let all_pad_ext = (all_pad as i8 >> 7) as usize;
-        count = ((k + 1) as usize) & all_pad_ext | count & !all_pad_ext;
+        count = (k + 1) & all_pad_ext | count & !all_pad_ext;
         k += 1;
     }
 

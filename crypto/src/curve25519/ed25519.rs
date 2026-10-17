@@ -231,7 +231,7 @@ impl PublicKey {
     /// point (which has a torsion component that can be used to forge
     /// signatures).
     pub fn from_bytes(key: &[u8; PUBLIC_KEY_SIZE]) -> Result<PublicKey, EllipticCurveError> {
-        let point = EdwardsPoint::from_bytes(key.try_into().unwrap()).ok_or(EllipticCurveError::InvalidKey)?;
+        let point = EdwardsPoint::from_bytes(key).ok_or(EllipticCurveError::InvalidKey)?;
         if point.is_small_order() {
             return Err(EllipticCurveError::InvalidKey);
         }
@@ -287,8 +287,8 @@ impl Scalar {
     /// - <= 32 bytes: parse as U256 and repeatedly conditionally subtract L (at most 16 times,
     ///   since a 256-bit value is < 16·L). Constant-time via ct_select.
     /// - > 32 bytes: Horner evaluation in base 2^256. Split into 32-byte chunks processed
-    ///   from most significant to least, using the precomputed R = 2^256 mod L for shifting
-    ///   and the Barrett constant µ for fast modular multiplication of the accumulator by R.
+    ///   > from most significant to least, using the precomputed R = 2^256 mod L for shifting
+    ///   > and the Barrett constant µ for fast modular multiplication of the accumulator by R.
     fn reduce_bytes_mod_l(bytes: &[u8]) -> Self {
         let len = bytes.len();
         if len <= 32 {

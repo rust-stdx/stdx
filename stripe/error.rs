@@ -212,7 +212,7 @@ impl fmt::Display for Error {
                 let message = error
                     .message
                     .as_deref()
-                    .or_else(|| {
+                    .or({
                         if raw_body.is_empty() {
                             None
                         } else {

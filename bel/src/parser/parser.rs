@@ -87,11 +87,11 @@ pub struct ParseError {
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ERROR: <input>:{}:{}: {}", self.pos.0, self.pos.1, self.msg)?;
-        if let Some(info) = &self.source_info {
-            if let Some(line) = info.snippet(self.pos.0 - 1) {
-                write!(f, "\n| {line}")?;
-                write!(f, "\n| {:.>width$}", "^", width = self.pos.1 as usize)?;
-            }
+        if let Some(info) = &self.source_info
+            && let Some(line) = info.snippet(self.pos.0 - 1)
+        {
+            write!(f, "\n| {line}")?;
+            write!(f, "\n| {:.>width$}", "^", width = self.pos.1 as usize)?;
         }
         Ok(())
     }
@@ -209,7 +209,7 @@ impl Parser {
 
         let mut errors = parse_errors.take();
         errors.extend(self.errors);
-        errors.sort_by(|a, b| a.pos.cmp(&b.pos));
+        errors.sort_by_key(|a| a.pos);
 
         if errors.is_empty() {
             r.map_err(|e| ParseErrors {

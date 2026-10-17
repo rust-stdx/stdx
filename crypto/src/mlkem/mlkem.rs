@@ -686,7 +686,7 @@ fn poly_decompress<const K: usize>(params: &MlKemParams<K>, input: &[u8]) -> Pol
         160 => {
             let mut offset = 0usize;
             for i in 0..(N / 8) {
-                let t0 = input[offset] >> 0;
+                let t0 = input[offset];
                 let t1 = (input[offset] >> 5) | (input[offset + 1] << 3);
                 let t2 = input[offset + 1] >> 2;
                 let t3 = (input[offset + 1] >> 7) | (input[offset + 2] << 1);
@@ -732,7 +732,7 @@ fn poly_frombytes(input: &[u8]) -> Poly {
 #[inline]
 pub(crate) fn poly_frommsg(msg: &[u8]) -> Poly {
     let mut out = Poly::default();
-    let half_q: i16 = ((Q + 1) / 2) as i16;
+    let half_q: i16 = (Q + 1) / 2;
     for i in 0..(N / 8) {
         for j in 0..8 {
             let bit = ((msg[i] >> j) & 1) as i16;
@@ -1067,7 +1067,7 @@ mod tests {
 
     #[test]
     fn poly_frommsg_constant_time_produces_expected_values() {
-        let half_q = ((Q + 1) / 2) as i16;
+        let half_q = ((Q + 1) / 2);
         let mut msg = [0u8; 32];
         msg[0] = 0b1010_1010;
         msg[1] = 0b0101_0101;
@@ -1398,9 +1398,9 @@ mod tests {
         // Test boundary values for poly_compress (4-bit)
         let mut poly = Poly::default();
         poly.coeffs[0] = 0;
-        poly.coeffs[1] = (Q - 1) as i16;
-        poly.coeffs[2] = (Q / 2) as i16;
-        poly.coeffs[3] = (Q / 2 + 1) as i16;
+        poly.coeffs[1] = (Q - 1);
+        poly.coeffs[2] = (Q / 2);
+        poly.coeffs[3] = (Q / 2 + 1);
         let mut buf4 = [0u8; 128];
         poly_compress::<3>(params_768, &mut buf4, &poly);
         let dec = poly_decompress::<3>(params_768, &buf4);
@@ -1421,9 +1421,9 @@ mod tests {
         // Value 0 should produce bit 0
         poly.coeffs[0] = 0;
         // Value Q/2 (1665) should produce bit 1
-        poly.coeffs[1] = (Q / 2) as i16;
+        poly.coeffs[1] = (Q / 2);
         // Value Q/4 (832) is at the boundary
-        poly.coeffs[2] = (Q / 4) as i16;
+        poly.coeffs[2] = (Q / 4);
         // Value 3Q/4 (2497) is at the other boundary
         poly.coeffs[3] = (3 * Q as i32 / 4) as i16;
 

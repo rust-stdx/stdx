@@ -389,7 +389,7 @@ impl Reader {
     }
 
     fn u8(&mut self) -> Result<u8, Error> {
-        if self.buf.len() < 1 {
+        if self.buf.is_empty() {
             return Err(Error::Decode("unexpected end of message".into()));
         }
         Ok(self.buf.get_u8())
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn decode_ready_for_query() {
-        let mut buf = message(b'Z', &[b'I']);
+        let mut buf = message(b'Z', b"I");
         match decode(&mut buf).unwrap().unwrap() {
             BackendMessage::ReadyForQuery(s) => assert_eq!(s, b'I'),
             other => panic!("unexpected {other:?}"),
@@ -562,7 +562,7 @@ mod tests {
 
     #[test]
     fn negative_counts_are_rejected_not_panicking() {
-        for tag in [b'T', b't'] {
+        for tag in *b"Tt" {
             let mut p = Vec::new();
             p.extend_from_slice(&(-1i16).to_be_bytes());
             let mut buf = message(tag, &p);
@@ -574,7 +574,7 @@ mod tests {
         let mut p = Vec::new();
         p.push(1u8);
         p.extend_from_slice(&(-3i16).to_be_bytes());
-        for tag in [b'G', b'W', b'H'] {
+        for tag in *b"GWH" {
             let mut buf = message(tag, &p);
             assert!(decode(&mut buf).is_err());
         }
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn oversized_message_length_is_rejected() {
         let mut buf = BytesMut::new();
-        buf.extend_from_slice(&[b'D']);
+        buf.extend_from_slice(b"D");
         buf.extend_from_slice(&i32::MAX.to_be_bytes());
         match decode(&mut buf) {
             Err(Error::Decode(msg)) => assert!(msg.contains("exceeds"), "{msg}"),
@@ -632,11 +632,11 @@ mod tests {
         assert_eq!(buf.len(), 1 + 4 + payload.len());
 
         // A limit at least as large as the message accepts it.
-        let mut buf = message(b'Z', &[b'I']);
+        let mut buf = message(b'Z', b"I");
         assert!(decode_with_limit(&mut buf, 5).unwrap().is_some());
 
         // A zero limit rejects every message rather than silently accepting.
-        let mut buf = message(b'Z', &[b'I']);
+        let mut buf = message(b'Z', b"I");
         assert!(decode_with_limit(&mut buf, 0).is_err());
     }
 

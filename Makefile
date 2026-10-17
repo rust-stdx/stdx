@@ -18,6 +18,11 @@ s3_integration_test:
 	$(MAKE) -C s3 integration-test
 
 
+.PHONY: lint
+lint:
+	cargo clippy --workspace --all-targets
+
+
 # Check the workspace against the host target.
 .PHONY: check
 check:

@@ -928,7 +928,7 @@ fn differential_fuzz_xof() {
     for trial in 0..200 {
         let total = (rng() as usize) % (data.len() + 1);
         let input = &data[..total];
-        let position = (rng() % (1 << 20)) as u64;
+        let position = (rng() % (1 << 20));
 
         let mut hasher = super::hasher::Hasher::new();
         hasher.update(input);
@@ -1482,7 +1482,7 @@ fn simd_kernels_match_portable() {
                         let block: [u8; 64] = block_bytes.as_slice().try_into().unwrap();
 
                         let mut out_ref = vec![0u8; blocks * BLOCK_LEN];
-                        for (i, out_block) in out_ref.chunks_exact_mut(BLOCK_LEN).enumerate() {
+                        for (i, out_block) in out_ref.as_chunks_mut::<BLOCK_LEN>().0.iter_mut().enumerate() {
                             out_block.copy_from_slice(&Platform::Portable.compress_xof(
                                 &cv,
                                 &block,

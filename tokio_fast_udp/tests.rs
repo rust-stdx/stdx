@@ -36,7 +36,7 @@ async fn test_send_many_receive_many() {
     let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
     let messages: Vec<&[u8]> = vec![b"one", b"two", b"three", b"four"];
-    let items: Vec<SendItem> = messages.iter().map(|m| SendItem::new(raddr, *m)).collect();
+    let items: Vec<SendItem> = messages.iter().map(|m| SendItem::new(raddr, m)).collect();
     sender.send_many(&items).await.unwrap();
 
     let mut bufs: Vec<Vec<u8>> = (0..8).map(|_| vec![0u8; 1500]).collect();
@@ -108,7 +108,7 @@ async fn test_sendmmsg_batch() {
     }
 
     let messages: Vec<&[u8]> = vec![b"one", b"two", b"three", b"four"];
-    let items: Vec<SendItem> = messages.iter().map(|m| SendItem::new(raddr, *m)).collect();
+    let items: Vec<SendItem> = messages.iter().map(|m| SendItem::new(raddr, m)).collect();
     sender.send_many(&items).await.unwrap();
 
     let mut bufs: Vec<Vec<u8>> = (0..8).map(|_| vec![0u8; 1500]).collect();

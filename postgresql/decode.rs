@@ -475,12 +475,11 @@ mod tests {
         buf.extend_from_slice(&4i32.to_be_bytes());
         buf.extend_from_slice(&3i32.to_be_bytes());
 
-        assert_eq!(
+        assert!(
             Vec::<i32>::from_sql(1007, &buf)
                 .unwrap_err()
                 .to_string()
-                .contains("NULL"),
-            true
+                .contains("NULL")
         );
         assert_eq!(Vec::<Option<i32>>::from_sql(1007, &buf).unwrap(), vec![Some(1), None, Some(3)]);
     }
@@ -536,7 +535,7 @@ mod tests {
             assert!(Vec::<Option<i32>>::from_sql(1007, &buf).is_err(), "len {len} must be rejected");
         }
         // Exactly 12 zero bytes is a valid empty array (ndim = 0).
-        assert!(Vec::<Option<i32>>::from_sql(1007, &vec![0u8; 12]).unwrap().is_empty());
+        assert!(Vec::<Option<i32>>::from_sql(1007, &[0u8; 12]).unwrap().is_empty());
     }
 
     #[test]

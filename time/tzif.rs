@@ -298,10 +298,10 @@ impl<'a> Tzif<'a> {
         }
 
         // On or after the last transition, the footer describes the future.
-        if low == self.timecnt - 1 {
-            if let Some(dst) = footer_dst {
-                return Some(dst.lookup(secs));
-            }
+        if low == self.timecnt - 1
+            && let Some(dst) = footer_dst
+        {
+            return Some(dst.lookup(secs));
         }
 
         let type_index = *self.transition_types.get(low)? as usize;

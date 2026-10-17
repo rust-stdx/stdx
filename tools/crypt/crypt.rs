@@ -114,7 +114,7 @@ fn encrypt_with_params(password: &[u8], plaintext: &[u8], params: &crypto::argon
     aes_buf.extend_from_slice(tag.as_ref());
 
     // Encrypt outer layer with ChaCha20-BLAKE3
-    let cipher = ChaCha20Blake3::new(&*chacha20_key);
+    let cipher = ChaCha20Blake3::new(&chacha20_key);
     let outer_ciphertext = cipher.encrypt(&aes_buf, &*chacha20_nonce, &[]);
 
     let mut result = Vec::with_capacity(NONCE_SEED_LENGTH + outer_ciphertext.len());
@@ -147,7 +147,7 @@ fn decrypt_with_params(password: &[u8], ciphertext: &[u8], params: &crypto::argo
     let chacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_CHACHA20_BLAKE3_KEY);
 
     // Decrypt outer layer with ChaCha20-BLAKE3
-    let cipher = ChaCha20Blake3::new(&*chacha20_key);
+    let cipher = ChaCha20Blake3::new(&chacha20_key);
     let aes_ciphertext = cipher
         .decrypt(ciphertext, &*chacha20_nonce, &[])
         .map_err(|e| format!("error decrypting data with ChaCha20-BLAKE3: {e}"))?;

@@ -1039,10 +1039,10 @@ pub(crate) fn parse_f64(scalar: &str) -> Option<f64> {
     if let ".nan" | ".NaN" | ".NAN" = scalar {
         return Some(f64::NAN.copysign(1.0));
     }
-    if let Ok(float) = unpositive.parse::<f64>() {
-        if float.is_finite() {
-            return Some(float);
-        }
+    if let Ok(float) = unpositive.parse::<f64>()
+        && float.is_finite()
+    {
+        return Some(float);
     }
     None
 }
@@ -1092,10 +1092,10 @@ where
         Ok(result) => return result,
         Err(visitor) => visitor,
     };
-    if !digits_but_not_number(v) {
-        if let Some(float) = parse_f64(v) {
-            return visitor.visit_f64(float);
-        }
+    if !digits_but_not_number(v)
+        && let Some(float) = parse_f64(v)
+    {
+        return visitor.visit_f64(float);
     }
     if let Some(borrowed) = parse_borrowed_str(v, repr, style) {
         visitor.visit_borrowed_str(borrowed)
@@ -1229,10 +1229,10 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
             match next {
                 &Event::Alias(mut pos) => break self.jump(&mut pos)?.deserialize_bool(visitor),
                 Event::Scalar(scalar) if is_plain_or_tagged_literal_scalar(Tag::BOOL, scalar, tagged_already) => {
-                    if let Ok(value) = str::from_utf8(&scalar.value) {
-                        if let Some(boolean) = parse_bool(value) {
-                            break visitor.visit_bool(boolean);
-                        }
+                    if let Ok(value) = str::from_utf8(&scalar.value)
+                        && let Some(boolean) = parse_bool(value)
+                    {
+                        break visitor.visit_bool(boolean);
                     }
                 }
                 _ => {}
@@ -1273,10 +1273,10 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
             match next {
                 &Event::Alias(mut pos) => break self.jump(&mut pos)?.deserialize_i64(visitor),
                 Event::Scalar(scalar) if is_plain_or_tagged_literal_scalar(Tag::INT, scalar, tagged_already) => {
-                    if let Ok(value) = str::from_utf8(&scalar.value) {
-                        if let Some(int) = parse_signed_int(value, i64::from_str_radix) {
-                            break visitor.visit_i64(int);
-                        }
+                    if let Ok(value) = str::from_utf8(&scalar.value)
+                        && let Some(int) = parse_signed_int(value, i64::from_str_radix)
+                    {
+                        break visitor.visit_i64(int);
                     }
                 }
                 _ => {}
@@ -1296,10 +1296,10 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
             match next {
                 &Event::Alias(mut pos) => break self.jump(&mut pos)?.deserialize_i128(visitor),
                 Event::Scalar(scalar) if is_plain_or_tagged_literal_scalar(Tag::INT, scalar, tagged_already) => {
-                    if let Ok(value) = str::from_utf8(&scalar.value) {
-                        if let Some(int) = parse_signed_int(value, i128::from_str_radix) {
-                            break visitor.visit_i128(int);
-                        }
+                    if let Ok(value) = str::from_utf8(&scalar.value)
+                        && let Some(int) = parse_signed_int(value, i128::from_str_radix)
+                    {
+                        break visitor.visit_i128(int);
                     }
                 }
                 _ => {}
@@ -1340,10 +1340,10 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
             match next {
                 &Event::Alias(mut pos) => break self.jump(&mut pos)?.deserialize_u64(visitor),
                 Event::Scalar(scalar) if is_plain_or_tagged_literal_scalar(Tag::INT, scalar, tagged_already) => {
-                    if let Ok(value) = str::from_utf8(&scalar.value) {
-                        if let Some(int) = parse_unsigned_int(value, u64::from_str_radix) {
-                            break visitor.visit_u64(int);
-                        }
+                    if let Ok(value) = str::from_utf8(&scalar.value)
+                        && let Some(int) = parse_unsigned_int(value, u64::from_str_radix)
+                    {
+                        break visitor.visit_u64(int);
                     }
                 }
                 _ => {}
@@ -1363,10 +1363,10 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
             match next {
                 &Event::Alias(mut pos) => break self.jump(&mut pos)?.deserialize_u128(visitor),
                 Event::Scalar(scalar) if is_plain_or_tagged_literal_scalar(Tag::INT, scalar, tagged_already) => {
-                    if let Ok(value) = str::from_utf8(&scalar.value) {
-                        if let Some(int) = parse_unsigned_int(value, u128::from_str_radix) {
-                            break visitor.visit_u128(int);
-                        }
+                    if let Ok(value) = str::from_utf8(&scalar.value)
+                        && let Some(int) = parse_unsigned_int(value, u128::from_str_radix)
+                    {
+                        break visitor.visit_u128(int);
                     }
                 }
                 _ => {}
@@ -1393,10 +1393,10 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
             match next {
                 &Event::Alias(mut pos) => break self.jump(&mut pos)?.deserialize_f64(visitor),
                 Event::Scalar(scalar) if is_plain_or_tagged_literal_scalar(Tag::FLOAT, scalar, tagged_already) => {
-                    if let Ok(value) = str::from_utf8(&scalar.value) {
-                        if let Some(float) = parse_f64(value) {
-                            break visitor.visit_f64(float);
-                        }
+                    if let Ok(value) = str::from_utf8(&scalar.value)
+                        && let Some(float) = parse_f64(value)
+                    {
+                        break visitor.visit_f64(float);
                     }
                 }
                 _ => {}
@@ -1638,12 +1638,12 @@ impl<'de, 'document> de::Deserializer<'de> for &mut DeserializerFromEvents<'de, 
         let (next, mark) = self.peek_event_mark()?;
         loop {
             if let Some(current_enum) = self.current_enum {
-                if let Event::Scalar(scalar) = next {
-                    if !scalar.value.is_empty() {
-                        break visitor.visit_enum(UnitVariantAccess {
-                            de: self,
-                        });
-                    }
+                if let Event::Scalar(scalar) = next
+                    && !scalar.value.is_empty()
+                {
+                    break visitor.visit_enum(UnitVariantAccess {
+                        de: self,
+                    });
                 }
                 let message = if let Some(name) = current_enum.name {
                     format!(

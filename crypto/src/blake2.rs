@@ -136,21 +136,21 @@ fn compress(h: &mut [u64; 8], total_len: u128, block: &[u8; 128], last: bool) {
 
 impl Blake2b {
     pub fn new_keyed(key: &[u8], outlen: usize) -> Self {
-        assert!(outlen >= 1 && outlen <= 64);
+        assert!((1..=64).contains(&outlen));
         assert!(key.len() <= 64);
 
         let mut state = Blake2b {
             h: IV,
             buffer: [0u8; 128],
-            buffer_len: if key.len() > 0 { 128 } else { 0 },
+            buffer_len: if !key.is_empty() { 128 } else { 0 },
             total_len: 0,
             outlen,
-            key_pending: key.len() > 0,
+            key_pending: !key.is_empty(),
         };
 
         state.h[0] ^= 0x01010000 ^ ((key.len() as u64) << 8) ^ (outlen as u64);
 
-        if key.len() > 0 {
+        if !key.is_empty() {
             state.buffer[..key.len()].copy_from_slice(key);
         }
 

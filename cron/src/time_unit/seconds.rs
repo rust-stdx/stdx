@@ -5,7 +5,7 @@ use crate::{
     time_unit::TimeUnitField,
 };
 
-static ALL: LazyLock<OrdinalSet> = LazyLock::new(|| Seconds::supported_ordinals());
+static ALL: LazyLock<OrdinalSet> = LazyLock::new(Seconds::supported_ordinals);
 
 #[derive(Clone, Debug, Eq)]
 pub struct Seconds {
@@ -30,7 +30,7 @@ impl TimeUnitField for Seconds {
     fn ordinals(&self) -> &OrdinalSet {
         match &self.ordinals {
             Some(ordinal_set) => ordinal_set,
-            None => &*ALL,
+            None => &ALL,
         }
     }
 }

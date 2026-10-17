@@ -189,7 +189,7 @@ fn aes256_gcm_bidirectional_various_sizes() {
         let mut buf2 = ciphertext.clone();
         cipher
             .decrypt_in_place(&mut buf2, &nonce[..], aad, &node_tag[..])
-            .expect(&format!("Rust decrypt failed for size {}", size));
+            .unwrap_or_else(|_| panic!("Rust decrypt failed for size {}", size));
         assert_eq!(buf2, plaintext, "Failed for size {}", size);
     }
 }

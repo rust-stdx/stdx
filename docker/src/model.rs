@@ -155,9 +155,9 @@ impl ::std::fmt::Display for PortTypeEnum {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         match *self {
             PortTypeEnum::EMPTY => write!(f, ""),
-            PortTypeEnum::TCP => write!(f, "{}", "tcp"),
-            PortTypeEnum::UDP => write!(f, "{}", "udp"),
-            PortTypeEnum::SCTP => write!(f, "{}", "sctp"),
+            PortTypeEnum::TCP => write!(f, "tcp"),
+            PortTypeEnum::UDP => write!(f, "udp"),
+            PortTypeEnum::SCTP => write!(f, "sctp"),
         }
     }
 }
@@ -322,11 +322,11 @@ impl ::std::fmt::Display for MountPointTypeEnum {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         match *self {
             MountPointTypeEnum::EMPTY => write!(f, ""),
-            MountPointTypeEnum::BIND => write!(f, "{}", "bind"),
-            MountPointTypeEnum::VOLUME => write!(f, "{}", "volume"),
-            MountPointTypeEnum::TMPFS => write!(f, "{}", "tmpfs"),
-            MountPointTypeEnum::NPIPE => write!(f, "{}", "npipe"),
-            MountPointTypeEnum::CLUSTER => write!(f, "{}", "cluster"),
+            MountPointTypeEnum::BIND => write!(f, "bind"),
+            MountPointTypeEnum::VOLUME => write!(f, "volume"),
+            MountPointTypeEnum::TMPFS => write!(f, "tmpfs"),
+            MountPointTypeEnum::NPIPE => write!(f, "npipe"),
+            MountPointTypeEnum::CLUSTER => write!(f, "cluster"),
         }
     }
 }

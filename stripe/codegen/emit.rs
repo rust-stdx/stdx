@@ -571,9 +571,7 @@ impl Emitter<'_> {
             out.push_str(&format!("#[doc = \"{}\"]\n", method.docs));
         }
         if method.multipart {
-            out.push_str(&format!(
-                "///\n/// # Unsupported encoding\n///\n/// This endpoint takes a `multipart/form-data` body, which `stripe` cannot encode\n/// yet, so this method always returns [`Error::UnsupportedEncoding`](crate::Error::UnsupportedEncoding)\n/// without sending a request.\n"
-            ));
+            out.push_str("///\n/// # Unsupported encoding\n///\n/// This endpoint takes a `multipart/form-data` body, which `stripe` cannot encode\n/// yet, so this method always returns [`Error::UnsupportedEncoding`](crate::Error::UnsupportedEncoding)\n/// without sending a request.\n");
         }
         out.push_str(&format!(
             "pub async fn {function}({args}) -> Result<{response}, crate::Error> {{\n",

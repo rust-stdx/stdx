@@ -989,9 +989,9 @@ mod tests {
         tag_length: u32,
     ) -> Vec<u8> {
         let params = Params {
-            iterations: iterations,
-            memory: memory,
-            parallelism: parallelism,
+            iterations,
+            memory,
+            parallelism,
         };
         let mut out = vec![0u8; tag_length as usize];
         argon2_core(argon_type, password, salt, secret, ad, &params, &mut out).unwrap();

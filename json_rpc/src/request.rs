@@ -14,7 +14,7 @@ use crate::Id;
 /// - **Absent**: the field was not present in the JSON → notification
 /// - **Null**: the field was `null` → request with a null id (discouraged)
 /// - **Present**: the field was a string or number → normal request
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct RequestId(pub Option<Id>);
 
 impl RequestId {
@@ -31,12 +31,6 @@ impl RequestId {
     /// Consumes `self` and returns the inner `Option<Id>`.
     pub fn into_id(self) -> Option<Id> {
         self.0
-    }
-}
-
-impl Default for RequestId {
-    fn default() -> Self {
-        Self(None)
     }
 }
 

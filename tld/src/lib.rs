@@ -93,7 +93,7 @@ impl List {
             #[cfg(feature = "anycase")]
             let key = UniCase::new(Cow::from(label.to_string()));
 
-            current = current.children.entry(key).or_insert_with(Default::default);
+            current = current.children.entry(key).or_default();
         }
 
         current.leaf = Some(Leaf {
@@ -179,15 +179,15 @@ impl Psl for List {
                 }
             }
             let label_plus_dot = label.len() + 1;
-            if let Some(leaf) = rules.leaf {
-                if self.typ.is_none() || self.typ == Some(leaf.typ) {
-                    info.typ = Some(leaf.typ);
-                    if leaf.is_exception {
-                        info.len = len_so_far;
-                        break;
-                    }
-                    info.len = len_so_far + label_plus_dot;
+            if let Some(leaf) = rules.leaf
+                && (self.typ.is_none() || self.typ == Some(leaf.typ))
+            {
+                info.typ = Some(leaf.typ);
+                if leaf.is_exception {
+                    info.len = len_so_far;
+                    break;
                 }
+                info.len = len_so_far + label_plus_dot;
             }
             len_so_far += label_plus_dot;
         }

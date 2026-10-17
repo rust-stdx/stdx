@@ -216,12 +216,10 @@ where
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.iter.next() {
-            if !self.other.contains(item) {
-                return Some(item);
-            }
-        }
-        None
+        self.iter
+            .by_ref()
+            .find(|&item| !self.other.contains(item))
+            .map(|v| v as _)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -296,12 +294,10 @@ where
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.iter.next() {
-            if self.other.contains(item) {
-                return Some(item);
-            }
-        }
-        None
+        self.iter
+            .by_ref()
+            .find(|&item| self.other.contains(item))
+            .map(|v| v as _)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

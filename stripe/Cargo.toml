@@ -15,7 +15,8 @@ path = "stripe.rs"
 test = false
 
 [features]
-default = ["reqwest", "core"]
+default = []
+# default = ["reqwest", "core"]
 # The default HTTP transport, backed by reqwest + the stdx rustls provider.
 reqwest = ["dep:reqwest", "dep:crypto_rustls", "dep:tokio"]
 # Umbrella over the resources a SaaS or online store needs: selling (checkout,

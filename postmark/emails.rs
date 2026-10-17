@@ -132,18 +132,13 @@ pub struct Attachment {
 }
 
 /// Whether to activate link tracking for links in the HTML or Text bodies of the emails.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub enum TrackLink {
+    #[default]
     None,
     HtmlAndText,
     HtmlOnly,
     TextOnly,
-}
-
-impl Default for TrackLink {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

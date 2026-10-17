@@ -46,7 +46,7 @@ impl core::ops::Deref for Signature {
 
     #[inline]
     fn deref(&self) -> &[u8] {
-        &self.value[..self.length as usize]
+        &self.value[..self.length]
     }
 }
 

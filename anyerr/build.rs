@@ -106,11 +106,11 @@ fn compile_probe(rustc_bootstrap: bool) -> bool {
     }
 
     // If Cargo wants to set RUSTFLAGS, use that.
-    if let Ok(rustflags) = env::var("CARGO_ENCODED_RUSTFLAGS") {
-        if !rustflags.is_empty() {
-            for arg in rustflags.split('\x1f') {
-                cmd.arg(arg);
-            }
+    if let Ok(rustflags) = env::var("CARGO_ENCODED_RUSTFLAGS")
+        && !rustflags.is_empty()
+    {
+        for arg in rustflags.split('\x1f') {
+            cmd.arg(arg);
         }
     }
 

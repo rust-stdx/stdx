@@ -111,6 +111,15 @@ opt-level = 3
 
 [workspace.lints.clippy]
 needless_return = "allow"
+type_complexity = "allow"
+manual_strip = "allow"
+too_many_arguments = "allow"
+new_without_default = "allow"
+let_unit_value = "allow"
+result_large_err = "allow"
+large_enum_variant = "allow"
+empty_line_after_doc_comments = "allow"
+needless_range_loop = "allow"
 
 [workspace.dependencies]
 anyerr = { path = "anyerr" }

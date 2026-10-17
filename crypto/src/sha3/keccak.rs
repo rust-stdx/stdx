@@ -311,12 +311,12 @@ mod tests {
     #[test]
     fn keccak_f1600() {
         let (state_first, state_second) = keccak_f1600_vectors();
-        keccak_f(|state| p1600::<24>(state), state_first, state_second);
+        keccak_f(p1600::<24>, state_first, state_second);
     }
 
     #[test]
     fn keccak_f1600_soft() {
         let (state_first, state_second) = keccak_f1600_vectors();
-        keccak_f(|state| p1600_soft::<24>(state), state_first, state_second);
+        keccak_f(p1600_soft::<24>, state_first, state_second);
     }
 }

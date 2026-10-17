@@ -487,7 +487,7 @@ mod tests {
     #[test]
     fn empty_content() {
         let blocks = [Block {
-            r#type: "CERTIFICATE".into(),
+            r#type: "CERTIFICATE",
             headers: Headers::new(),
             contents: Vec::new(),
         }];
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn simple_certificate() {
         let blocks = [Block {
-            r#type: "CERTIFICATE".into(),
+            r#type: "CERTIFICATE",
             headers: Headers::new(),
             contents: b"hello world".to_vec(),
         }];
@@ -508,7 +508,7 @@ mod tests {
     fn binary_content() {
         let contents: Vec<u8> = (0u8..255).collect();
         let blocks = [Block {
-            r#type: "PRIVATE KEY".into(),
+            r#type: "PRIVATE KEY",
             headers: Headers::new(),
             contents,
         }];
@@ -519,7 +519,7 @@ mod tests {
     fn exact_48_bytes() {
         let contents = b"1234567890abcdef1234567890abcdef1234567890abcdef"; // 48 bytes
         let blocks = [Block {
-            r#type: "CERTIFICATE".into(),
+            r#type: "CERTIFICATE",
             headers: Headers::new(),
             contents: contents.to_vec(),
         }];
@@ -530,12 +530,12 @@ mod tests {
     fn multiple_blocks() {
         let blocks = [
             Block {
-                r#type: "CERTIFICATE".into(),
+                r#type: "CERTIFICATE",
                 headers: Headers::new(),
                 contents: b"first certificate data".to_vec(),
             },
             Block {
-                r#type: "CERTIFICATE".into(),
+                r#type: "CERTIFICATE",
                 headers: Headers::new(),
                 contents: b"second certificate data".to_vec(),
             },
@@ -547,17 +547,17 @@ mod tests {
     fn different_labels() {
         let blocks = [
             Block {
-                r#type: "CERTIFICATE".into(),
+                r#type: "CERTIFICATE",
                 headers: Headers::new(),
                 contents: b"cert data".to_vec(),
             },
             Block {
-                r#type: "PRIVATE KEY".into(),
+                r#type: "PRIVATE KEY",
                 headers: Headers::new(),
                 contents: b"key data".to_vec(),
             },
             Block {
-                r#type: "PUBLIC KEY".into(),
+                r#type: "PUBLIC KEY",
                 headers: Headers::new(),
                 contents: b"pubkey data".to_vec(),
             },
@@ -568,7 +568,7 @@ mod tests {
     #[test]
     fn with_rfc1421_headers() {
         let blocks = [Block {
-            r#type: "PRIVACY-ENHANCED MESSAGE".into(),
+            r#type: "PRIVACY-ENHANCED MESSAGE",
             headers: Headers::from_pairs(&[
                 ("Proc-Type", "4,ENCRYPTED"),
                 ("Content-Domain", "RFC822"),
@@ -592,7 +592,7 @@ SGVsbG8gV29ybGQ=\n\
         assert_eq!(decoded.len(), 1);
         let block = decoded[0].as_ref().unwrap();
         assert_eq!(block.r#type, "PRIVACY-ENHANCED MESSAGE");
-        assert!(block.headers.len() >= 1);
+        assert!(!block.headers.is_empty());
 
         let proc_type = block.headers.iter().find(|&(k, _)| k == "Proc-Type");
         assert!(proc_type.is_some(), "Proc-Type not found. Headers: {:?}", block.headers);
@@ -761,7 +761,7 @@ SGVsbG8gV29ybGQ=\n\
     fn decode_multiline_base64() {
         let contents = b"This is a test message that is long enough to span multiple lines when base64 encoded with 64 character line width";
         let blocks = [Block {
-            r#type: "MESSAGE".into(),
+            r#type: "MESSAGE",
             headers: Headers::new(),
             contents: contents.to_vec(),
         }];
@@ -774,7 +774,7 @@ SGVsbG8gV29ybGQ=\n\
     #[test]
     fn encode_produces_valid_pem() {
         let block = Block {
-            r#type: "TEST".into(),
+            r#type: "TEST",
             headers: Headers::new(),
             contents: b"data".to_vec(),
         };
@@ -788,7 +788,7 @@ SGVsbG8gV29ybGQ=\n\
     fn encode_line_wrapping() {
         let contents = vec![b'A'; 200];
         let block = Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents,
         };
@@ -929,7 +929,7 @@ SGVsbG8gV29ybGQ=\n\
     #[test]
     fn label_with_spaces() {
         let blocks = [Block {
-            r#type: "CERTIFICATE REQUEST".into(),
+            r#type: "CERTIFICATE REQUEST",
             headers: Headers::new(),
             contents: b"csr data".to_vec(),
         }];
@@ -950,7 +950,7 @@ SGVsbG8gV29ybGQ=\n\
     fn large_content() {
         let contents = vec![0xABu8; 10000];
         let blocks = [Block {
-            r#type: "LARGE DATA".into(),
+            r#type: "LARGE DATA",
             headers: Headers::new(),
             contents,
         }];
@@ -973,7 +973,7 @@ SGVsbG8gV29ybGQ=\n\
     fn roundtrip_rfc7468_certificate() {
         let der: Vec<u8> = (0u8..128).collect();
         let original = Block {
-            r#type: "CERTIFICATE".into(),
+            r#type: "CERTIFICATE",
             headers: Headers::new(),
             contents: der,
         };
@@ -983,7 +983,7 @@ SGVsbG8gV29ybGQ=\n\
     #[test]
     fn roundtrip_rfc1421_encrypted_message() {
         let original = Block {
-            r#type: "PRIVACY-ENHANCED MESSAGE".into(),
+            r#type: "PRIVACY-ENHANCED MESSAGE",
             headers: Headers::from_pairs(&[
                 ("Proc-Type", "4,ENCRYPTED"),
                 ("Content-Domain", "RFC822"),
@@ -997,7 +997,7 @@ SGVsbG8gV29ybGQ=\n\
     #[test]
     fn encode_skip_headers_when_empty() {
         let block = Block {
-            r#type: "TEST".into(),
+            r#type: "TEST",
             headers: Headers::new(),
             contents: b"data".to_vec(),
         };
@@ -1012,7 +1012,7 @@ SGVsbG8gV29ybGQ=\n\
     #[test]
     fn encode_include_headers() {
         let block = Block {
-            r#type: "MESSAGE".into(),
+            r#type: "MESSAGE",
             headers: Headers::from_pairs(&[("X-Custom", "value123")]),
             contents: b"data".to_vec(),
         };
@@ -1102,7 +1102,7 @@ SGVsbG8gV29ybGQ=\n\
             assert_eq!(block.r#type, "CERTIFICATE");
             assert!(!block.contents.is_empty());
 
-            let reencoded = encode(&[block.clone()]);
+            let reencoded = encode(std::slice::from_ref(block));
             let re_decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&reencoded).collect();
             assert_eq!(re_decoded.len(), 1);
             assert_eq!(re_decoded[0].as_ref().unwrap().contents, block.contents);
@@ -1158,11 +1158,11 @@ print(pem, end='')
             let pem_bytes = output.stdout;
 
             let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&pem_bytes).collect();
-            assert!(decoded.len() >= 1);
+            assert!(!decoded.is_empty());
             let first_block = decoded[0].as_ref().unwrap();
             assert!(!first_block.contents.is_empty());
 
-            let reencoded = encode(&[first_block.clone()]);
+            let reencoded = encode(std::slice::from_ref(first_block));
             let re_decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&reencoded).collect();
             assert_eq!(re_decoded.len(), 1);
             assert_eq!(re_decoded[0].as_ref().unwrap().contents, first_block.contents);
@@ -1177,7 +1177,7 @@ print(pem, end='')
             headers: Headers::new(),
             contents: b"data".to_vec(),
         };
-        let pem = encode(&[block.clone()]);
+        let pem = encode(std::slice::from_ref(&block));
         assert!(pem.starts_with(b"-----BEGIN X.509 CERTIFICATE-----\n"));
         let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&pem).collect();
         assert_eq!(decoded.len(), 1);
@@ -1620,7 +1620,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_0_bytes() {
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents: Vec::new(),
         }];
@@ -1630,7 +1630,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_1_byte() {
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents: vec![0x00],
         }];
@@ -1640,7 +1640,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_2_bytes() {
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents: vec![0x00, 0x01],
         }];
@@ -1650,7 +1650,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_3_bytes() {
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents: vec![0x00, 0x01, 0x02],
         }];
@@ -1661,7 +1661,7 @@ print(pem, end='')
     fn roundtrip_64_bytes() {
         let contents: Vec<u8> = (0u8..64).collect();
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents,
         }];
@@ -1672,7 +1672,7 @@ print(pem, end='')
     fn roundtrip_65_bytes() {
         let contents: Vec<u8> = (0u8..65).collect();
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents,
         }];
@@ -1683,7 +1683,7 @@ print(pem, end='')
     fn roundtrip_128_bytes() {
         let contents: Vec<u8> = (0u8..128).collect();
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents,
         }];
@@ -1694,7 +1694,7 @@ print(pem, end='')
     fn roundtrip_255_bytes() {
         let contents: Vec<u8> = (0u8..255).collect();
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents,
         }];
@@ -1705,7 +1705,7 @@ print(pem, end='')
     fn roundtrip_256_bytes() {
         let contents: Vec<u8> = (0u8..=255).collect();
         let blocks = [Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::new(),
             contents,
         }];
@@ -1718,7 +1718,7 @@ print(pem, end='')
     fn encode_line_wrapping_exact_multiple_of_64() {
         let contents = vec![b'x'; 48];
         let blocks = [Block {
-            r#type: "TEST".into(),
+            r#type: "TEST",
             headers: Headers::new(),
             contents,
         }];
@@ -1737,7 +1737,7 @@ print(pem, end='')
     fn encode_line_wrapping_exactly_64_per_line() {
         let contents = vec![0u8; 64];
         let blocks = [Block {
-            r#type: "TEST".into(),
+            r#type: "TEST",
             headers: Headers::new(),
             contents,
         }];
@@ -1756,7 +1756,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_label_with_hyphen() {
         let blocks = [Block {
-            r#type: "TEST-DATA".into(),
+            r#type: "TEST-DATA",
             headers: Headers::new(),
             contents: b"hyphen test".to_vec(),
         }];
@@ -1766,7 +1766,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_label_with_numbers() {
         let blocks = [Block {
-            r#type: "AES-256-CBC".into(),
+            r#type: "AES-256-CBC",
             headers: Headers::new(),
             contents: b"number test".to_vec(),
         }];
@@ -1776,7 +1776,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_label_with_underscores() {
         let blocks = [Block {
-            r#type: "MY_CUSTOM_LABEL".into(),
+            r#type: "MY_CUSTOM_LABEL",
             headers: Headers::new(),
             contents: b"underscore test".to_vec(),
         }];
@@ -1786,7 +1786,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_label_with_at_sign() {
         let blocks = [Block {
-            r#type: "KEY@DOMAIN.COM".into(),
+            r#type: "KEY@DOMAIN.COM",
             headers: Headers::new(),
             contents: b"at sign test".to_vec(),
         }];
@@ -1796,7 +1796,7 @@ print(pem, end='')
     #[test]
     fn roundtrip_single_char_label() {
         let blocks = [Block {
-            r#type: "X".into(),
+            r#type: "X",
             headers: Headers::new(),
             contents: b"single char".to_vec(),
         }];
@@ -1852,11 +1852,11 @@ print(pem, end='')
     #[test]
     fn encode_multiple_header_pairs() {
         let block = Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::from_pairs(&[("Key1", "val1"), ("Key2", "val2"), ("Key3", "val3")]),
             contents: b"multi header".to_vec(),
         };
-        let pem = encode(&[block.clone()]);
+        let pem = encode(std::slice::from_ref(&block));
         let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&pem).collect();
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0].as_ref().unwrap().headers, block.headers);
@@ -1866,11 +1866,11 @@ print(pem, end='')
     #[test]
     fn encode_header_with_empty_value() {
         let block = Block {
-            r#type: "DATA".into(),
+            r#type: "DATA",
             headers: Headers::from_pairs(&[("Empty-Key", "")]),
             contents: b"empty value".to_vec(),
         };
-        let pem = encode(&[block.clone()]);
+        let pem = encode(std::slice::from_ref(&block));
         let decoded: Vec<Result<Block<'_>, PemError<'_>>> = decode(&pem).collect();
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0].as_ref().unwrap().headers.iter().next().unwrap().1, "");

@@ -127,6 +127,7 @@
 //! }
 //! ```
 #![forbid(unsafe_code)]
+#![allow(clippy::too_many_arguments)]
 pub use embed_utils::{EmbeddedFile, Metadata};
 #[cfg(feature = "compression")]
 #[cfg_attr(feature = "compression", doc(hidden))]

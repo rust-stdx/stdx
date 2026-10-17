@@ -569,7 +569,7 @@ mod tests {
         } else {
             (len_byte as usize, 1)
         };
-        if (*offset).checked_add(len).map_or(true, |sum| sum > data.len()) {
+        if (*offset).checked_add(len).is_none_or(|sum| sum > data.len()) {
             return None;
         }
         let value = &data[*offset..*offset + len];
@@ -937,7 +937,7 @@ mod tests {
                 for bi in (0..1152).rev() {
                     let li = bi / 64;
                     let pi = bi % 64;
-                    let bit = ((p[li] >> pi) & 1) as u64;
+                    let bit = ((p[li] >> pi) & 1);
                     let mut shifted = [0u64; 9];
                     let mut carry = bit;
                     for j in 0..9 {

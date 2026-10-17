@@ -556,10 +556,10 @@ fn columns_not_null(conn: &mut Connection, refs: &[(u32, i16)]) -> Result<Vec<bo
     let rows = simple_query_rows(conn, &sql)?;
     let mut out = vec![false; refs.len()];
     for (index, row) in rows.iter().enumerate() {
-        if let Some(value) = row.first().and_then(|v| v.as_deref()) {
-            if let Some(slot) = out.get_mut(index) {
-                *slot = value == "t";
-            }
+        if let Some(value) = row.first().and_then(|v| v.as_deref())
+            && let Some(slot) = out.get_mut(index)
+        {
+            *slot = value == "t";
         }
     }
     Ok(out)

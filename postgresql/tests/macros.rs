@@ -76,7 +76,7 @@ async fn macro_struct_and_array() {
         .unwrap();
 
     let ids = vec![1i32, 2, 3];
-    let names = vec!["a", "b", "c"];
+    let names = ["a", "b", "c"];
     let affected = query!(
         "INSERT INTO pg_macro_placeholder (id, name) SELECT * FROM unnest($1::int4[], $2::text[])"
             .replace("pg_macro_placeholder", &table)

@@ -400,10 +400,8 @@ fn write_iso(f: &mut fmt::Formatter<'_>, dt: &DateTime, z_suffix: bool, zone: bo
     } else {
         write_offset(f, offset)?;
     }
-    if zone {
-        if let Some(name) = dt.timezone_name() {
-            write!(f, "[{name}]")?;
-        }
+    if zone && let Some(name) = dt.timezone_name() {
+        write!(f, "[{name}]")?;
     }
     Ok(())
 }

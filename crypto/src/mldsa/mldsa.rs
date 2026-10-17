@@ -220,7 +220,7 @@ fn field_centered_mod(r: FieldElement) -> i32 {
     let x = field_from_montgomery(r);
     let x = x as i32;
     let half_q = (Q / 2) as i32;
-    let mask = ((half_q - x) >> 31) as i32;
+    let mask = (half_q - x) >> 31;
     (mask & (x - Q as i32)) | (!mask & x)
 }
 
@@ -259,7 +259,7 @@ fn decompose32(r: FieldElement) -> (u8, i32) {
     let r1 = highbits32(x as u32);
     let r0 = x - (r1 as i32) * 2 * (Q as i32 - 1) / 32;
     let half_q = (Q / 2) as i32;
-    let mask = ((half_q - r0) >> 31) as i32;
+    let mask = (half_q - r0) >> 31;
     let r0 = (mask & (r0 - Q as i32)) | (!mask & r0);
     (r1, r0)
 }
@@ -269,7 +269,7 @@ fn decompose88(r: FieldElement) -> (u8, i32) {
     let r1 = highbits88(x as u32);
     let r0 = x - (r1 as i32) * 2 * (Q as i32 - 1) / 88;
     let half_q = (Q / 2) as i32;
-    let mask = ((half_q - r0) >> 31) as i32;
+    let mask = (half_q - r0) >> 31;
     let r0 = (mask & (r0 - Q as i32)) | (!mask & r0);
     (r1, r0)
 }

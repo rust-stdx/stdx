@@ -25,11 +25,11 @@ where
     assert_eq!(expected, result.unwrap_err().to_string());
 
     let mut deserializer = Deserializer::from_str(yaml);
-    if let Some(first_document) = deserializer.next() {
-        if deserializer.next().is_none() {
-            let result = T::deserialize(first_document);
-            assert_eq!(expected, result.unwrap_err().to_string());
-        }
+    if let Some(first_document) = deserializer.next()
+        && deserializer.next().is_none()
+    {
+        let result = T::deserialize(first_document);
+        assert_eq!(expected, result.unwrap_err().to_string());
     }
 }
 

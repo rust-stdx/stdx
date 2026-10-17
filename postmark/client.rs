@@ -61,7 +61,7 @@ impl Client {
             );
         }
 
-        let url = format!("{}{}", &self.api_base_url, input.url);
+        let url = format!("{}{}", self.api_base_url, input.url);
         let res = self
             .http_client
             .request(input.method, url)

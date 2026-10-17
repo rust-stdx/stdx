@@ -70,7 +70,7 @@ mod pkcs8_serde {
     where
         S: Serializer,
     {
-        let encoded = base64::encode(key_pkcs8.as_ref(), base64::Alphabet::UrlNoPadding);
+        let encoded = base64::encode(key_pkcs8, base64::Alphabet::UrlNoPadding);
         serializer.serialize_str(&encoded)
     }
 

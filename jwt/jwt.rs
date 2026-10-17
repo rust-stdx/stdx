@@ -589,7 +589,7 @@ pub fn parse_and_verify<C: DeserializeOwned>(
     )
     .map_err(|_| Error::InvalidSignature)?;
 
-    let signed_message = &token[..header_base64.len() + 1 + claims_base64.len()].as_bytes();
+    let signed_message = &token.as_bytes()[..header_base64.len() + 1 + claims_base64.len()];
     key.verify(signed_message, &signature_buffer[..signature_size])
         .map_err(|_| Error::InvalidSignature)?;
 

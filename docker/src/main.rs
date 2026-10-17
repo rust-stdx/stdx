@@ -10,7 +10,7 @@ async fn main() {
     filters.insert("label".to_string(), vec!["my.service=test".to_string()]);
     let containers = client
         .list_containers(Some(ListContainersOptions {
-            filters: filters,
+            filters,
             ..Default::default()
         }))
         .await

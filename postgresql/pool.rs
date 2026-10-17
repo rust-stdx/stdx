@@ -1,7 +1,6 @@
 //! A bounded connection pool.
 
 use std::{
-    future::Future,
     ops::Deref,
     sync::{
         Arc, Mutex, Weak,
@@ -364,39 +363,29 @@ impl Pool {
 impl crate::query::sealed::Sealed for Pool {}
 
 impl crate::query::Capable for Pool {
-    fn execute<'a>(
-        &'a self,
-        sql: &'a str,
-        params: &'a [&'a dyn ToSql],
-    ) -> impl Future<Output = Result<u64, Error>> + Send + 'a {
-        async move {
-            let conn = self.get().await?;
-            conn.execute(sql, params).await
-        }
+    async fn execute<'a>(&'a self, sql: &'a str, params: &'a [&'a dyn ToSql]) -> Result<u64, Error> {
+        let conn = self.get().await?;
+        conn.execute(sql, params).await
     }
 
-    fn fetch_rows<'a>(
+    async fn fetch_rows<'a>(
         &'a self,
         sql: &'a str,
         params: &'a [&'a dyn ToSql],
         max_rows: i32,
-    ) -> impl Future<Output = Result<RowStream, Error>> + Send + 'a {
-        async move {
-            // The checkout is held until the stream is finished or dropped:
-            // handing it back while rows are still streaming would let another
-            // query block behind, or interleave with, this one.
-            let conn = self.get().await?;
-            conn.fetch_rows(sql, params, max_rows).await
-        }
+    ) -> Result<RowStream, Error> {
+        // The checkout is held until the stream is finished or dropped:
+        // handing it back while rows are still streaming would let another
+        // query block behind, or interleave with, this one.
+        let conn = self.get().await?;
+        conn.fetch_rows(sql, params, max_rows).await
     }
 }
 
 impl crate::query::ScriptExecutor for Pool {
-    fn execute_script<'a>(&'a self, sql: &'a str) -> impl Future<Output = Result<u64, Error>> + Send + 'a {
-        async move {
-            let conn = self.get().await?;
-            conn.execute_script(sql).await
-        }
+    async fn execute_script<'a>(&'a self, sql: &'a str) -> Result<u64, Error> {
+        let conn = self.get().await?;
+        conn.execute_script(sql).await
     }
 }
 
@@ -441,32 +430,26 @@ impl Drop for PooledConnection {
 impl crate::query::sealed::Sealed for PooledConnection {}
 
 impl crate::query::Capable for PooledConnection {
-    fn execute<'a>(
-        &'a self,
-        sql: &'a str,
-        params: &'a [&'a dyn ToSql],
-    ) -> impl Future<Output = Result<u64, Error>> + Send + 'a {
-        async move { self.checkout().connection().execute(sql, params).await }
+    async fn execute<'a>(&'a self, sql: &'a str, params: &'a [&'a dyn ToSql]) -> Result<u64, Error> {
+        self.checkout().connection().execute(sql, params).await
     }
 
-    fn fetch_rows<'a>(
+    async fn fetch_rows<'a>(
         &'a self,
         sql: &'a str,
         params: &'a [&'a dyn ToSql],
         max_rows: i32,
-    ) -> impl Future<Output = Result<RowStream, Error>> + Send + 'a {
-        async move {
-            // Tie a clone of the checkout to the stream: the connection is only
-            // returned once both this handle and the stream are gone.
-            let checkout = self.checkout.as_ref().expect("connection already taken").clone();
-            let stream = checkout.connection().fetch_rows(sql, params, max_rows).await?;
-            Ok(stream.with_keepalive(checkout))
-        }
+    ) -> Result<RowStream, Error> {
+        // Tie a clone of the checkout to the stream: the connection is only
+        // returned once both this handle and the stream are gone.
+        let checkout = self.checkout.as_ref().expect("connection already taken").clone();
+        let stream = checkout.connection().fetch_rows(sql, params, max_rows).await?;
+        Ok(stream.with_keepalive(checkout))
     }
 }
 
 impl crate::query::ScriptExecutor for PooledConnection {
-    fn execute_script<'a>(&'a self, sql: &'a str) -> impl Future<Output = Result<u64, Error>> + Send + 'a {
-        async move { self.checkout().connection().execute_script(sql).await }
+    async fn execute_script<'a>(&'a self, sql: &'a str) -> Result<u64, Error> {
+        self.checkout().connection().execute_script(sql).await
     }
 }

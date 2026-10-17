@@ -1,4 +1,6 @@
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use std::hint::black_box;
+
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use hex::{Alphabet, decode_into, decode_into_constant_time, encode_into, encode_into_constant_time};
 
 const DATA_SIZES: &[usize] = &[32, 256, 4096, 64 * 1024];

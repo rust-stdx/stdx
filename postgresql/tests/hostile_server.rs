@@ -284,7 +284,7 @@ fn cstr(value: &str) -> Vec<u8> {
 }
 
 fn ready() -> Vec<u8> {
-    frame(b'Z', &[b'I'])
+    frame(b'Z', b"I")
 }
 
 fn authenticate() -> Vec<u8> {
@@ -508,7 +508,7 @@ async fn handle(mut sock: TcpStream, config: Arc<ServerConfig>, case: Case) -> s
     // Answer `SSLRequest` with `S` and take the connection over TLS.
     let mut head = [0u8; 8];
     sock.read_exact(&mut head).await?;
-    sock.write_all(&[b'S']).await?;
+    sock.write_all(b"S").await?;
     sock.flush().await?;
     let mut sock = tokio_rustls::TlsAcceptor::from(config).accept(sock).await?;
 

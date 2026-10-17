@@ -1,6 +1,6 @@
 //! Transactions.
 
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     connection::{Connection, RowStream},
@@ -99,32 +99,26 @@ impl Drop for Transaction {
 impl crate::query::sealed::Sealed for Transaction {}
 
 impl crate::query::Capable for Transaction {
-    fn execute<'a>(
-        &'a self,
-        sql: &'a str,
-        params: &'a [&'a dyn ToSql],
-    ) -> impl Future<Output = Result<u64, Error>> + Send + 'a {
-        async move { self.connection().execute(sql, params).await }
+    async fn execute<'a>(&'a self, sql: &'a str, params: &'a [&'a dyn ToSql]) -> Result<u64, Error> {
+        self.connection().execute(sql, params).await
     }
 
-    fn fetch_rows<'a>(
+    async fn fetch_rows<'a>(
         &'a self,
         sql: &'a str,
         params: &'a [&'a dyn ToSql],
         max_rows: i32,
-    ) -> impl Future<Output = Result<RowStream, Error>> + Send + 'a {
-        async move {
-            // Tie a clone of the checkout to the stream: the connection (and the
-            // rollback-on-drop) is only settled once the stream is gone.
-            let checkout = self.checkout.as_ref().expect("transaction already completed").clone();
-            let stream = checkout.connection().fetch_rows(sql, params, max_rows).await?;
-            Ok(stream.with_keepalive(checkout))
-        }
+    ) -> Result<RowStream, Error> {
+        // Tie a clone of the checkout to the stream: the connection (and the
+        // rollback-on-drop) is only settled once the stream is gone.
+        let checkout = self.checkout.as_ref().expect("transaction already completed").clone();
+        let stream = checkout.connection().fetch_rows(sql, params, max_rows).await?;
+        Ok(stream.with_keepalive(checkout))
     }
 }
 
 impl crate::query::ScriptExecutor for Transaction {
-    fn execute_script<'a>(&'a self, sql: &'a str) -> impl Future<Output = Result<u64, Error>> + Send + 'a {
-        async move { self.connection().execute_script(sql).await }
+    async fn execute_script<'a>(&'a self, sql: &'a str) -> Result<u64, Error> {
+        self.connection().execute_script(sql).await
     }
 }

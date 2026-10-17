@@ -183,10 +183,7 @@ impl Serializer for ValueSerializer {
         Ok(Value::Null)
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Value, SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_some<T: Serialize + ?Sized>(self, value: &T) -> Result<Value, SerdeError> {
         value.serialize(self)
     }
 
@@ -207,23 +204,21 @@ impl Serializer for ValueSerializer {
         Ok(Value::Str(variant.into()))
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Value, SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_newtype_struct<T: Serialize + ?Sized>(
+        self,
+        _name: &'static str,
+        value: &T,
+    ) -> Result<Value, SerdeError> {
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T: Serialize + ?Sized>(
         self,
         _name: &'static str,
         _variant_index: u32,
         _variant: &'static str,
         value: &T,
-    ) -> Result<Value, SerdeError>
-    where
-        T: Serialize,
-    {
+    ) -> Result<Value, SerdeError> {
         value.serialize(self)
     }
 
@@ -276,10 +271,7 @@ impl ser::SerializeSeq for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
         self.0.push(value.serialize(ValueSerializer)?);
         Ok(())
     }
@@ -294,10 +286,7 @@ impl ser::SerializeTuple for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
         ser::SerializeSeq::serialize_element(self, value)
     }
 
@@ -311,10 +300,7 @@ impl ser::SerializeTupleStruct for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
         ser::SerializeSeq::serialize_element(self, value)
     }
 
@@ -328,10 +314,7 @@ impl ser::SerializeTupleVariant for ValueSeqSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
         ser::SerializeSeq::serialize_element(self, value)
     }
 
@@ -348,19 +331,13 @@ impl ser::SerializeMap for ValueMapSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<(), SerdeError> {
         let k = key.serialize(MapKeySerializer)?;
         self.1 = Some(k);
         Ok(())
     }
 
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
         let key = self
             .1
             .take()
@@ -370,11 +347,11 @@ impl ser::SerializeMap for ValueMapSerializer {
         Ok(())
     }
 
-    fn serialize_entry<K: ?Sized, V: ?Sized>(&mut self, key: &K, value: &V) -> Result<(), SerdeError>
-    where
-        K: Serialize,
-        V: Serialize,
-    {
+    fn serialize_entry<K: ?Sized + Serialize, V: ?Sized + Serialize>(
+        &mut self,
+        key: &K,
+        value: &V,
+    ) -> Result<(), SerdeError> {
         let k = key.serialize(MapKeySerializer)?;
         let v = value.serialize(ValueSerializer)?;
         self.0.insert(k, v);
@@ -391,10 +368,7 @@ impl ser::SerializeStruct for ValueMapSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<(), SerdeError> {
         let v = value.serialize(ValueSerializer)?;
         self.0.insert(key.to_string(), v);
         Ok(())
@@ -410,10 +384,7 @@ impl ser::SerializeStructVariant for ValueMapSerializer {
     type Ok = Value;
     type Error = SerdeError;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<(), SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<(), SerdeError> {
         ser::SerializeStruct::serialize_field(self, key, value)
     }
 
@@ -485,10 +456,7 @@ impl Serializer for MapKeySerializer {
     fn serialize_none(self) -> Result<String, SerdeError> {
         Err(SerdeError("none not supported as map key".into()))
     }
-    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<String, SerdeError>
-    where
-        T: Serialize,
-    {
+    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<String, SerdeError> {
         Err(SerdeError("some not supported as map key".into()))
     }
     fn serialize_unit(self) -> Result<String, SerdeError> {

@@ -119,10 +119,10 @@ pub fn singular(word: &str) -> String {
 
 /// The English plural of a resource word (`customer` -> `customers`).
 pub fn plural(word: &str) -> String {
-    if let Some(stem) = word.strip_suffix('y') {
-        if !stem.ends_with(['a', 'e', 'o', 'u']) {
-            return format!("{stem}ies");
-        }
+    if let Some(stem) = word.strip_suffix('y')
+        && !stem.ends_with(['a', 'e', 'o', 'u'])
+    {
+        return format!("{stem}ies");
     }
     if word.ends_with(['s', 'x', 'z']) || word.ends_with("ch") || word.ends_with("sh") {
         return format!("{word}es");

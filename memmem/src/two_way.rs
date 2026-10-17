@@ -136,7 +136,7 @@ impl<'a> TwoWaySearcher<'a> {
     pub fn new<'b>(needle: &'b [u8]) -> TwoWaySearcher<'b> {
         if needle.is_empty() {
             return TwoWaySearcher {
-                needle: needle,
+                needle,
                 crit_pos: 0,
                 period: 0,
                 byteset: 0,
@@ -162,7 +162,7 @@ impl<'a> TwoWaySearcher<'a> {
         // &v[..period]. If it is, we use "Algorithm CP1". Otherwise we use
         // "Algorithm CP2", which is optimized for when the period of the needle
         // is large.
-        if &needle[..crit_pos] == &needle[period..period + crit_pos] {
+        if needle[..crit_pos] == needle[period..period + crit_pos] {
             // short period case -- the period is exact
             // compute a separate critical factorization for the reversed needle
             // x = u' v' where |v'| < period(x).
@@ -170,9 +170,9 @@ impl<'a> TwoWaySearcher<'a> {
             // This is sped up by the period being known already.
 
             TwoWaySearcher {
-                needle: needle,
-                crit_pos: crit_pos,
-                period: period,
+                needle,
+                crit_pos,
+                period,
                 byteset: Self::byteset_create(&needle[..period]),
                 is_long: false,
             }
@@ -183,8 +183,8 @@ impl<'a> TwoWaySearcher<'a> {
             // Approximate the period by lower bound max(|u|, |v|) + 1.
 
             TwoWaySearcher {
-                needle: needle,
-                crit_pos: crit_pos,
+                needle,
+                crit_pos,
                 period: cmp::max(crit_pos, needle.len() - crit_pos) + 1,
                 byteset: Self::byteset_create(needle),
                 is_long: true,

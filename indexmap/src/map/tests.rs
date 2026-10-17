@@ -5,12 +5,12 @@ use super::*;
 #[test]
 fn it_works() {
     let mut map = IndexMap::new();
-    assert_eq!(map.is_empty(), true);
+    assert!(map.is_empty());
     map.insert(1, ());
     map.insert(1, ());
     assert_eq!(map.len(), 1);
     assert!(map.get(&1).is_some());
-    assert_eq!(map.is_empty(), false);
+    assert!(!map.is_empty());
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn new() {
     println!("{:?}", map);
     assert_eq!(map.capacity(), 0);
     assert_eq!(map.len(), 0);
-    assert_eq!(map.is_empty(), true);
+    assert!(map.is_empty());
 }
 
 #[test]

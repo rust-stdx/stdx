@@ -59,7 +59,7 @@ impl ErrorAfterReader {
 impl Read for ErrorAfterReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.pos >= self.limit {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "simulated IO error"));
+            return Err(std::io::Error::other("simulated IO error"));
         }
         let to_read = self
             .limit
@@ -2129,12 +2129,12 @@ fn test_io_error_at_newline() {
     let mut rows = reader.rows();
     // first row might succeed
     let row1 = rows.next();
-    if let Some(r) = row1 {
-        if r.error().is_none() {
-            // second row should have the error
-            let row2 = rows.next().unwrap();
-            assert!(matches!(row2.error().unwrap().kind(), ReadErrorKind::Io));
-        }
+    if let Some(r) = row1
+        && r.error().is_none()
+    {
+        // second row should have the error
+        let row2 = rows.next().unwrap();
+        assert!(matches!(row2.error().unwrap().kind(), ReadErrorKind::Io));
     }
 }
 

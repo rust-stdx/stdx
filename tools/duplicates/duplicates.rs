@@ -56,7 +56,7 @@ async fn main() {
         .filter(|(_, (_, paths))| paths.len() > 1)
         .map(|(hash, (size, paths))| (size * paths.len() as u64, hash))
         .collect();
-    groups.sort_by(|a, b| b.0.cmp(&a.0));
+    groups.sort_by_key(|a| std::cmp::Reverse(a.0));
 
     for (total, hash) in groups {
         let (_, paths) = &map[hash];
@@ -77,7 +77,7 @@ async fn process_directory(
     let mut handles = vec![];
 
     for entry in WalkDir::new(dir).follow_links(false) {
-        let entry = entry.map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let entry = entry.map_err(io::Error::other)?;
         if entry.file_type().is_file() && !entry.file_type().is_symlink() {
             let path = entry.into_path();
             let results = Arc::clone(results);

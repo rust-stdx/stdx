@@ -105,8 +105,7 @@ mod tests {
         let schedule = Schedule::from_str(expression).unwrap();
         let prev = schedule
             .upcoming(TimeZone::UTC)
-            .rev()
-            .next()
+            .next_back()
             .expect("There was no previous upcoming fire time.");
         println!("Previous fire time: {}", prev);
     }
@@ -198,8 +197,8 @@ mod tests {
         let schedule = Schedule::from_str(expression).expect("Failed to parse expression.");
 
         // Membership
-        assert_eq!(true, schedule.years().includes(2031));
-        assert_eq!(false, schedule.years().includes(1969));
+        assert!(schedule.years().includes(2031));
+        assert!(!schedule.years().includes(1969));
 
         // Number of years specified
         assert_eq!(30, schedule.years().count());
@@ -226,8 +225,8 @@ mod tests {
         let schedule = Schedule::from_str(expression).expect("Failed to parse expression.");
 
         // Membership
-        assert_eq!(false, schedule.months().includes(4));
-        assert_eq!(true, schedule.months().includes(6));
+        assert!(!schedule.months().includes(4));
+        assert!(schedule.months().includes(6));
 
         // Iterator
         let mut summer = schedule.months().iter();
@@ -252,8 +251,8 @@ mod tests {
         let expression = "* * * 1,15 * * *";
         let schedule = Schedule::from_str(expression).expect("Failed to parse expression.");
         // Membership
-        assert_eq!(true, schedule.days_of_month().includes(1));
-        assert_eq!(false, schedule.days_of_month().includes(7));
+        assert!(schedule.days_of_month().includes(1));
+        assert!(!schedule.days_of_month().includes(7));
 
         // Iterator
         let mut paydays = schedule.days_of_month().iter();
@@ -316,7 +315,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 1, 1, 0, 0, 17, schedule_tz),
             in_tz(2020, 1, 1, 0, 0, 34, schedule_tz),
             in_tz(2020, 1, 1, 0, 0, 51, schedule_tz),
@@ -335,7 +334,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 3, 1, 0, 0, 0, schedule_tz),
             in_tz(2021, 1, 1, 0, 0, 0, schedule_tz),
             in_tz(2021, 3, 1, 0, 0, 0, schedule_tz),
@@ -352,7 +351,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 1, 1, 10, 0, 0, schedule_tz),
             in_tz(2020, 1, 1, 12, 0, 0, schedule_tz),
             in_tz(2020, 1, 2, 10, 0, 0, schedule_tz),
@@ -369,7 +368,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 1, 11, 0, 0, 0, schedule_tz),
             in_tz(2020, 1, 21, 0, 0, 0, schedule_tz),
             in_tz(2020, 1, 31, 0, 0, 0, schedule_tz),
@@ -389,7 +388,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 2, 1, 0, 0, 0, schedule_tz),
             in_tz(2020, 3, 1, 0, 0, 0, schedule_tz),
             in_tz(2020, 4, 1, 0, 0, 0, schedule_tz),
@@ -408,7 +407,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2030, 1, 1, 0, 0, 0, schedule_tz),
             in_tz(2040, 1, 1, 0, 0, 0, schedule_tz),
         ];
@@ -423,7 +422,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 1, 1, 0, 21, 0, schedule_tz),
             in_tz(2020, 1, 1, 0, 42, 0, schedule_tz),
             in_tz(2020, 1, 1, 1, 0, 0, schedule_tz),
@@ -444,7 +443,7 @@ mod tests {
         let schedule_tz = TimeZone::named("Europe/London").unwrap();
         let dt = in_tz(2020, 1, 1, 0, 0, 0, schedule_tz);
         let mut schedule_iter = schedule.after(&dt);
-        let expected_values = vec![
+        let expected_values = [
             in_tz(2020, 3, 1, 0, 0, 0, schedule_tz),
             in_tz(2021, 1, 1, 0, 0, 0, schedule_tz),
             in_tz(2021, 3, 1, 0, 0, 0, schedule_tz),
