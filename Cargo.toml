@@ -115,6 +115,7 @@ type_complexity = "allow"
 too_many_arguments = "allow"
 new_without_default = "allow"
 needless_range_loop = "allow"
+manual_c_str_literals = "allow"
 
 [workspace.dependencies]
 anyerr = { path = "anyerr" }

@@ -156,9 +156,7 @@ impl Cleanup {
             };
             match result {
                 Ok(()) => {}
-                Err(Error::Api {
-                    meta, ..
-                }) if meta.status == 404 => {}
+                Err(Error::Api(payload)) if payload.meta.status == 404 => {}
                 Err(err) => {
                     eprintln!("integration cleanup failed for {action:?}: {err}");
                     if first_error.is_none() {

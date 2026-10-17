@@ -74,7 +74,7 @@ unsafe fn extract_quintets_8blocks(inp: *const u8, out: &mut [u8; 64]) {
     for block in 0..8 {
         let off = block * 5;
         let qoff = block * 8;
-        out[qoff + 0] = b(off) >> 3;
+        out[qoff] = b(off) >> 3;
         out[qoff + 1] = ((b(off) & 0x07) << 2) | (b(off + 1) >> 6);
         out[qoff + 2] = (b(off + 1) >> 1) & 0x1F;
         out[qoff + 3] = ((b(off + 1) & 0x01) << 4) | (b(off + 2) >> 4);

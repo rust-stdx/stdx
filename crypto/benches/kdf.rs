@@ -2,9 +2,10 @@ use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use crypto::{
-    Hasher, Xof,
+    Hasher, StreamCipher, Xof,
     blake2::Blake2b,
     blake3::Blake3,
+    chacha::ChaCha20Djb,
     hkdf,
     sha2::{Sha256, Sha512},
     sha3::Shake256,
@@ -16,25 +17,11 @@ const KEY: &[u8; 32] = b"rust-stdx-kdf-benchmark-key-0000";
 /// Context / info string mixed into the derivation.
 const INFO: &str = "rust-stdx crypto kdf benchmark";
 
-/// Derives a 32-byte subkey from `key` and `info` using SHAKE256 with
-/// length-prefixed domain separation.
-fn derive_key<const N: usize>(key: &[u8], info: &str) -> [u8; N] {
-    let mut kdf = Shake256::new();
-    kdf.absorb(info.as_bytes());
-    kdf.absorb(&(info.len() as u64).to_le_bytes());
-    kdf.absorb(key);
-    kdf.absorb(&(key.len() as u64).to_le_bytes());
-
-    let mut subkey = [0u8; N];
-    kdf.squeeze(&mut subkey);
-    subkey
-}
-
 fn bench_kdfs(c: &mut Criterion) {
     let mut group = c.benchmark_group("KDF");
 
     group.bench_function("SHAKE256", |b| {
-        b.iter(|| black_box(derive_key::<32>(black_box(KEY), black_box(INFO))));
+        b.iter(|| black_box(shake256_derive_key::<32>(black_box(KEY), black_box(INFO))));
     });
 
     group.bench_function("HKDF-SHA256", |b| {
@@ -61,7 +48,31 @@ fn bench_kdfs(c: &mut Criterion) {
         });
     });
 
+    group.bench_function("ChaCha20", |b| {
+        let mut block = [0u8; 32];
+        const CHACHA20_NONCE: &[u8; 8] = &[0u8; 8];
+        b.iter(|| {
+            let mut cipher = ChaCha20Djb::new(KEY, CHACHA20_NONCE);
+            cipher.xor_keystream(&mut block);
+        });
+    });
+
     group.finish();
+}
+
+/// Derives a 32-byte subkey from `key` and `info` using SHAKE256 with
+/// length-prefixed domain separation.
+#[inline(always)]
+fn shake256_derive_key<const N: usize>(key: &[u8], info: &str) -> [u8; N] {
+    let mut kdf = Shake256::new();
+    kdf.absorb(info.as_bytes());
+    kdf.absorb(&(info.len() as u64).to_le_bytes());
+    kdf.absorb(key);
+    kdf.absorb(&(key.len() as u64).to_le_bytes());
+
+    let mut subkey = [0u8; N];
+    kdf.squeeze(&mut subkey);
+    subkey
 }
 
 criterion_group!(benches, bench_kdfs);

@@ -263,14 +263,14 @@ unsafe fn transpose_vecs(vecs: &mut [__m256i; DEGREE]) {
 unsafe fn transpose_msg_vecs(inputs: &[*const u8; DEGREE], block_offset: usize) -> [__m256i; 16] {
     unsafe {
         let mut vecs = [
-            loadu(inputs[0].add(block_offset + 0)),
-            loadu(inputs[1].add(block_offset + 0)),
-            loadu(inputs[2].add(block_offset + 0)),
-            loadu(inputs[3].add(block_offset + 0)),
-            loadu(inputs[4].add(block_offset + 0)),
-            loadu(inputs[5].add(block_offset + 0)),
-            loadu(inputs[6].add(block_offset + 0)),
-            loadu(inputs[7].add(block_offset + 0)),
+            loadu(inputs[0].add(block_offset)),
+            loadu(inputs[1].add(block_offset)),
+            loadu(inputs[2].add(block_offset)),
+            loadu(inputs[3].add(block_offset)),
+            loadu(inputs[4].add(block_offset)),
+            loadu(inputs[5].add(block_offset)),
+            loadu(inputs[6].add(block_offset)),
+            loadu(inputs[7].add(block_offset)),
             loadu(inputs[0].add(block_offset + 32)),
             loadu(inputs[1].add(block_offset + 32)),
             loadu(inputs[2].add(block_offset + 32)),
