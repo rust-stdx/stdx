@@ -29,7 +29,7 @@ fn ml_kem_does_not_allocate() {
 
     assert_no_alloc("ml-kem-768 keygen", || SecretKey768::generate_derand(&[7u8; 64]));
     assert_no_alloc("ml-kem-768 encapsulate", || pk768.encapsulate_derand(&[9u8; 32]));
-    let _ = assert_no_alloc("ml-kem-768 decapsulate", || sk768.decapsulate(&ct768));
+    assert_no_alloc("ml-kem-768 decapsulate", || sk768.decapsulate(&ct768));
 
     let (sk1024, pk1024) = SecretKey1024::generate_derand(&[7u8; 64]);
     let (ss1024, ct1024) = pk1024.encapsulate_derand(&[9u8; 32]);
@@ -37,7 +37,7 @@ fn ml_kem_does_not_allocate() {
 
     assert_no_alloc("ml-kem-1024 keygen", || SecretKey1024::generate_derand(&[7u8; 64]));
     assert_no_alloc("ml-kem-1024 encapsulate", || pk1024.encapsulate_derand(&[9u8; 32]));
-    let _ = assert_no_alloc("ml-kem-1024 decapsulate", || sk1024.decapsulate(&ct1024));
+    assert_no_alloc("ml-kem-1024 decapsulate", || sk1024.decapsulate(&ct1024));
 }
 
 #[test]
@@ -51,21 +51,21 @@ fn ml_dsa_does_not_allocate() {
     assert!(k44.public_key().verify(msg, &sig44, b"").is_ok());
     assert_no_alloc("ml-dsa-44 keygen", || MlDsa44SecretKey::new(&seed));
     assert_no_alloc("ml-dsa-44 sign", || k44.sign_derand(msg, b"", &rnd));
-    let _ = assert_no_alloc("ml-dsa-44 verify", || k44.public_key().verify(msg, &sig44, b""));
+    assert_no_alloc("ml-dsa-44 verify", || k44.public_key().verify(msg, &sig44, b""));
 
     let k65 = MlDsa65SecretKey::new(&seed);
     let sig65 = k65.sign_derand(msg, b"", &rnd).unwrap();
     assert!(k65.public_key().verify(msg, &sig65, b"").is_ok());
     assert_no_alloc("ml-dsa-65 keygen", || MlDsa65SecretKey::new(&seed));
     assert_no_alloc("ml-dsa-65 sign", || k65.sign_derand(msg, b"", &rnd));
-    let _ = assert_no_alloc("ml-dsa-65 verify", || k65.public_key().verify(msg, &sig65, b""));
+    assert_no_alloc("ml-dsa-65 verify", || k65.public_key().verify(msg, &sig65, b""));
 
     let k87 = MlDsa87SecretKey::new(&seed);
     let sig87 = k87.sign_derand(msg, b"", &rnd).unwrap();
     assert!(k87.public_key().verify(msg, &sig87, b"").is_ok());
     assert_no_alloc("ml-dsa-87 keygen", || MlDsa87SecretKey::new(&seed));
     assert_no_alloc("ml-dsa-87 sign", || k87.sign_derand(msg, b"", &rnd));
-    let _ = assert_no_alloc("ml-dsa-87 verify", || k87.public_key().verify(msg, &sig87, b""));
+    assert_no_alloc("ml-dsa-87 verify", || k87.public_key().verify(msg, &sig87, b""));
 }
 
 #[test]

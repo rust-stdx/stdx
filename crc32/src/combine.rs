@@ -32,8 +32,8 @@ pub(crate) fn combine(mut crc1: u32, crc2: u32, mut len2: u64) -> u32 {
     /* put operator for one zero bit in odd */
     odd[0] = 0xedb88320; /* CRC-32 polynomial */
     row = 1;
-    for n in 1..GF2_DIM {
-        odd[n] = row;
+    for slot in odd.iter_mut().skip(1) {
+        *slot = row;
         row <<= 1;
     }
 

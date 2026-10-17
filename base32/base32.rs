@@ -200,7 +200,7 @@ pub const fn encoded_length(bytes_len: usize, padding: bool) -> Option<usize> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Encode
+// Encode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Encodes bytes to a base32 string using the given [`Alphabet`].
@@ -523,7 +523,7 @@ const fn quintet_to_crockford(v: u8) -> u8 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Decode
+// Decode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #[inline]
@@ -1444,8 +1444,8 @@ mod tests {
         let mut remainders = [0u8; 80];
         let mut output = [0u8; 80];
         for len in 1..=80 {
-            for i in 0..len {
-                remainders[i] = (i * 7 + 3) as u8;
+            for (i, remainder) in remainders[..len].iter_mut().enumerate() {
+                *remainder = (i * 7 + 3) as u8;
             }
             let encoded = encode(&remainders[..len], Alphabet::Rfc4648);
             let expected_output_len = len;

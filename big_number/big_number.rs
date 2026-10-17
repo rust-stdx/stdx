@@ -626,10 +626,9 @@ impl<const BITS: usize, const LIMBS: usize> Uint<BITS, LIMBS> {
         for bit_pos in (0..=total_bits).rev() {
             let mut shifted_limbs = [0u64; LIMBS];
             let mut carry = 0u64;
-            for i in 0..LIMBS {
-                let next = rem.limbs[i] >> 63;
-                shifted_limbs[i] = (rem.limbs[i] << 1) | carry;
-                carry = next;
+            for (shifted, &limb) in shifted_limbs.iter_mut().zip(rem.limbs.iter()) {
+                *shifted = (limb << 1) | carry;
+                carry = limb >> 63;
             }
 
             let bit = if bit_pos == total_bits { 1u64 } else { 0u64 };

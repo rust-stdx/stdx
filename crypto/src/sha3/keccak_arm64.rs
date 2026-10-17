@@ -4,7 +4,6 @@
 /// Adapted from the Keccak-f1600 implementation in the XKCP/K12.
 /// see <https://github.com/XKCP/K12/blob/df6a21e6d1f34c1aa36e8d702540899c97dba5a0/lib/ARMv8Asha3/KeccakP-1600-ARMv8Asha3.S#L69>
 // without shit, rustc wants us to wrap the function body into an unsafe block
-
 #[allow(unsafe_op_in_unsafe_fn)]
 #[target_feature(enable = "sha3")]
 pub unsafe fn p1600_armv8<const ROUNDS: usize>(state: &mut [u64; 25]) {

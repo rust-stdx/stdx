@@ -155,9 +155,9 @@ async fn test_gso_send() {
     }
 
     assert_eq!(total, count);
-    for i in 0..count {
-        assert_eq!(recv_items[i].len(), seg);
-        assert_eq!(&recv_items[i].data()[..seg], &payload[..seg]);
+    for item in recv_items.iter().take(count) {
+        assert_eq!(item.len(), seg);
+        assert_eq!(&item.data()[..seg], &payload[..seg]);
     }
 }
 

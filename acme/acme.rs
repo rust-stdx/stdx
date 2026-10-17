@@ -230,10 +230,10 @@ impl Account {
         })
     }
 
-    /// Create a new account on the `server_url` with the information in [`NewAccount`]
-    ///
-    /// The returned [`AccountCredentials`] can be serialized and stored for later use.
-    /// Use [`Account::from_credentials()`] to restore the account from the credentials.
+    // /// Create a new account on the `server_url` with the information in [`NewAccount`]
+    // ///
+    // /// The returned [`AccountCredentials`] can be serialized and stored for later use.
+    // /// Use [`Account::from_credentials()`] to restore the account from the credentials.
     // #[cfg(feature = "hyper-rustls")]
     // pub async fn create(
     //     account: &NewAccount<'_>,
