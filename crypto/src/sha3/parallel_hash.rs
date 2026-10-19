@@ -383,6 +383,35 @@ mod avx2 {
             s[0] = _mm256_xor_si256(s[0], _mm256_set1_epi64x(rc as i64));
         }
     }
+
+    /// AVX2 counterpart of [`super::avx512::xor_lanes`]: a 4x4 transpose of
+    /// 64-bit words for four messages.
+    ///
+    /// # Safety
+    /// `dst` must be 32-byte aligned and hold at least 16 words, and every
+    /// `msgs[w]` must have at least `off + 32` bytes.
+    #[target_feature(enable = "avx2")]
+    pub(super) unsafe fn xor_lanes(dst: &mut [u64], msgs: &[&[u8]; 4], off: usize) {
+        // SAFETY: `dst` is aligned and long enough, as documented above.
+        let dst: &mut [__m256i; 4] = unsafe { &mut *(dst.as_mut_ptr().cast()) };
+
+        // SAFETY: every message has at least `off + 32` bytes.
+        let r0 = unsafe { _mm256_loadu_si256(msgs[0].as_ptr().add(off).cast()) };
+        let r1 = unsafe { _mm256_loadu_si256(msgs[1].as_ptr().add(off).cast()) };
+        let r2 = unsafe { _mm256_loadu_si256(msgs[2].as_ptr().add(off).cast()) };
+        let r3 = unsafe { _mm256_loadu_si256(msgs[3].as_ptr().add(off).cast()) };
+
+        // 4x4 transpose of 64-bit words.
+        let t0 = _mm256_unpacklo_epi64(r0, r1);
+        let t1 = _mm256_unpackhi_epi64(r0, r1);
+        let t2 = _mm256_unpacklo_epi64(r2, r3);
+        let t3 = _mm256_unpackhi_epi64(r2, r3);
+
+        dst[0] = _mm256_xor_si256(dst[0], _mm256_permute2x128_si256::<0x20>(t0, t2));
+        dst[1] = _mm256_xor_si256(dst[1], _mm256_permute2x128_si256::<0x20>(t1, t3));
+        dst[2] = _mm256_xor_si256(dst[2], _mm256_permute2x128_si256::<0x31>(t0, t2));
+        dst[3] = _mm256_xor_si256(dst[3], _mm256_permute2x128_si256::<0x31>(t1, t3));
+    }
 }
 
 /// AVX-512F 8-way Keccak-p[1600].
@@ -433,183 +462,227 @@ mod avx512 {
         };
     }
 
+    /// One Keccak-p[1600] round.
+    ///
+    /// The state goes in and comes out by value so that [`keccak_p1600_x8`]
+    /// expands the 24 rounds into straight-line code. With a `for` loop over
+    /// [`ROUND_CONSTANTS`] the backend keeps the array in memory and re-loads
+    /// all 25 lanes every round, which costs about 30% more instructions.
+    /// Chi writes a fresh set of names instead of overwriting its inputs, so
+    /// the round needs no register-to-register copies.
+    #[inline(always)]
+    unsafe fn round(s: [__m512i; 25], rc: u64) -> [__m512i; 25] {
+        let [
+            s0,
+            s1,
+            s2,
+            s3,
+            s4,
+            s5,
+            s6,
+            s7,
+            s8,
+            s9,
+            s10,
+            s11,
+            s12,
+            s13,
+            s14,
+            s15,
+            s16,
+            s17,
+            s18,
+            s19,
+            s20,
+            s21,
+            s22,
+            s23,
+            s24,
+        ] = s;
+        let rc = _mm512_set1_epi64(rc as i64);
+
+        let c0 = xor4!(s0, s5, s10, s15, s20);
+        let c1 = xor4!(s1, s6, s11, s16, s21);
+        let c2 = xor4!(s2, s7, s12, s17, s22);
+        let c3 = xor4!(s3, s8, s13, s18, s23);
+        let c4 = xor4!(s4, s9, s14, s19, s24);
+        let d0 = xor!(c4, rotl!(c1, 1));
+        let d1 = xor!(c0, rotl!(c2, 1));
+        let d2 = xor!(c1, rotl!(c3, 1));
+        let d3 = xor!(c2, rotl!(c4, 1));
+        let d4 = xor!(c3, rotl!(c0, 1));
+        let t0 = xor!(s0, d0);
+        let t1 = xor!(s1, d1);
+        let t2 = xor!(s2, d2);
+        let t3 = xor!(s3, d3);
+        let t4 = xor!(s4, d4);
+        let t5 = xor!(s5, d0);
+        let t6 = xor!(s6, d1);
+        let t7 = xor!(s7, d2);
+        let t8 = xor!(s8, d3);
+        let t9 = xor!(s9, d4);
+        let t10 = xor!(s10, d0);
+        let t11 = xor!(s11, d1);
+        let t12 = xor!(s12, d2);
+        let t13 = xor!(s13, d3);
+        let t14 = xor!(s14, d4);
+        let t15 = xor!(s15, d0);
+        let t16 = xor!(s16, d1);
+        let t17 = xor!(s17, d2);
+        let t18 = xor!(s18, d3);
+        let t19 = xor!(s19, d4);
+        let t20 = xor!(s20, d0);
+        let t21 = xor!(s21, d1);
+        let t22 = xor!(s22, d2);
+        let t23 = xor!(s23, d3);
+        let t24 = xor!(s24, d4);
+        let n10 = rotl!(t1, 1);
+        let n7 = rotl!(t10, 3);
+        let n11 = rotl!(t7, 6);
+        let n17 = rotl!(t11, 10);
+        let n18 = rotl!(t17, 15);
+        let n3 = rotl!(t18, 21);
+        let n5 = rotl!(t3, 28);
+        let n16 = rotl!(t5, 36);
+        let n8 = rotl!(t16, 45);
+        let n21 = rotl!(t8, 55);
+        let n24 = rotl!(t21, 2);
+        let n4 = rotl!(t24, 14);
+        let n15 = rotl!(t4, 27);
+        let n23 = rotl!(t15, 41);
+        let n19 = rotl!(t23, 56);
+        let n13 = rotl!(t19, 8);
+        let n12 = rotl!(t13, 25);
+        let n2 = rotl!(t12, 43);
+        let n20 = rotl!(t2, 62);
+        let n14 = rotl!(t20, 18);
+        let n22 = rotl!(t14, 39);
+        let n9 = rotl!(t22, 61);
+        let n6 = rotl!(t9, 20);
+        let n1 = rotl!(t6, 44);
+        let (p0, p1, p2, p3, p4) = (t0, n1, n2, n3, n4);
+        let o0 = xor!(p0, andnot!(p1, p2));
+        let o1 = xor!(p1, andnot!(p2, p3));
+        let o2 = xor!(p2, andnot!(p3, p4));
+        let o3 = xor!(p3, andnot!(p4, p0));
+        let o4 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n5, n6, n7, n8, n9);
+        let o5 = xor!(p0, andnot!(p1, p2));
+        let o6 = xor!(p1, andnot!(p2, p3));
+        let o7 = xor!(p2, andnot!(p3, p4));
+        let o8 = xor!(p3, andnot!(p4, p0));
+        let o9 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n10, n11, n12, n13, n14);
+        let o10 = xor!(p0, andnot!(p1, p2));
+        let o11 = xor!(p1, andnot!(p2, p3));
+        let o12 = xor!(p2, andnot!(p3, p4));
+        let o13 = xor!(p3, andnot!(p4, p0));
+        let o14 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n15, n16, n17, n18, n19);
+        let o15 = xor!(p0, andnot!(p1, p2));
+        let o16 = xor!(p1, andnot!(p2, p3));
+        let o17 = xor!(p2, andnot!(p3, p4));
+        let o18 = xor!(p3, andnot!(p4, p0));
+        let o19 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n20, n21, n22, n23, n24);
+        let o20 = xor!(p0, andnot!(p1, p2));
+        let o21 = xor!(p1, andnot!(p2, p3));
+        let o22 = xor!(p2, andnot!(p3, p4));
+        let o23 = xor!(p3, andnot!(p4, p0));
+        let o24 = xor!(p4, andnot!(p0, p1));
+        let o0 = xor!(o0, rc);
+
+        return [
+            o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16, o17, o18, o19, o20, o21, o22,
+            o23, o24,
+        ];
+    }
+
     /// # Safety
     /// AVX-512F must be available.
     #[target_feature(enable = "avx512f")]
     unsafe fn keccak_p1600_x8(st: &mut [__m512i; 25]) {
-        let (mut s0, mut s1, mut s2, mut s3, mut s4) = (st[0], st[1], st[2], st[3], st[4]);
-        let (mut s5, mut s6, mut s7, mut s8, mut s9) = (st[5], st[6], st[7], st[8], st[9]);
-        let (mut s10, mut s11, mut s12, mut s13, mut s14) = (st[10], st[11], st[12], st[13], st[14]);
-        let (mut s15, mut s16, mut s17, mut s18, mut s19) = (st[15], st[16], st[17], st[18], st[19]);
-        let (mut s20, mut s21, mut s22, mut s23, mut s24) = (st[20], st[21], st[22], st[23], st[24]);
+        let mut s = *st;
+        s = round(s, ROUND_CONSTANTS[0]);
+        s = round(s, ROUND_CONSTANTS[1]);
+        s = round(s, ROUND_CONSTANTS[2]);
+        s = round(s, ROUND_CONSTANTS[3]);
+        s = round(s, ROUND_CONSTANTS[4]);
+        s = round(s, ROUND_CONSTANTS[5]);
+        s = round(s, ROUND_CONSTANTS[6]);
+        s = round(s, ROUND_CONSTANTS[7]);
+        s = round(s, ROUND_CONSTANTS[8]);
+        s = round(s, ROUND_CONSTANTS[9]);
+        s = round(s, ROUND_CONSTANTS[10]);
+        s = round(s, ROUND_CONSTANTS[11]);
+        s = round(s, ROUND_CONSTANTS[12]);
+        s = round(s, ROUND_CONSTANTS[13]);
+        s = round(s, ROUND_CONSTANTS[14]);
+        s = round(s, ROUND_CONSTANTS[15]);
+        s = round(s, ROUND_CONSTANTS[16]);
+        s = round(s, ROUND_CONSTANTS[17]);
+        s = round(s, ROUND_CONSTANTS[18]);
+        s = round(s, ROUND_CONSTANTS[19]);
+        s = round(s, ROUND_CONSTANTS[20]);
+        s = round(s, ROUND_CONSTANTS[21]);
+        s = round(s, ROUND_CONSTANTS[22]);
+        s = round(s, ROUND_CONSTANTS[23]);
+        *st = s;
+    }
 
-        for &rc in ROUND_CONSTANTS.iter() {
-            let rc = _mm512_set1_epi64(rc as i64);
+    /// XORs eight whole lanes of eight messages into the state.
+    ///
+    /// Lane `L` of the state holds the same lane of each of the eight
+    /// messages, so absorbing `W` lanes at a time turns into an 8x8 transpose
+    /// of 64-bit words followed by one XOR per lane. The transpose is what
+    /// makes this worthwhile: the scalar alternative loads and stores one
+    /// 64-bit word at a time, eight times per lane.
+    ///
+    /// # Safety
+    /// `dst` must be 64-byte aligned and hold at least 64 words, and every
+    /// `msgs[w]` must have at least `off + 64` bytes.
+    #[target_feature(enable = "avx512f")]
+    pub(super) unsafe fn xor_lanes(dst: &mut [u64], msgs: &[&[u8]; 8], off: usize) {
+        // SAFETY: `dst` is aligned and long enough, as documented above.
+        let dst: &mut [__m512i; 8] = unsafe { &mut *(dst.as_mut_ptr().cast()) };
 
-            let c0 = xor4!(s0, s5, s10, s15, s20);
-            let c1 = xor4!(s1, s6, s11, s16, s21);
-            let c2 = xor4!(s2, s7, s12, s17, s22);
-            let c3 = xor4!(s3, s8, s13, s18, s23);
-            let c4 = xor4!(s4, s9, s14, s19, s24);
-            let d0 = xor!(c4, rotl!(c1, 1));
-            let d1 = xor!(c0, rotl!(c2, 1));
-            let d2 = xor!(c1, rotl!(c3, 1));
-            let d3 = xor!(c2, rotl!(c4, 1));
-            let d4 = xor!(c3, rotl!(c0, 1));
-            s0 = xor!(s0, d0);
-            s1 = xor!(s1, d1);
-            s2 = xor!(s2, d2);
-            s3 = xor!(s3, d3);
-            s4 = xor!(s4, d4);
-            s5 = xor!(s5, d0);
-            s6 = xor!(s6, d1);
-            s7 = xor!(s7, d2);
-            s8 = xor!(s8, d3);
-            s9 = xor!(s9, d4);
-            s10 = xor!(s10, d0);
-            s11 = xor!(s11, d1);
-            s12 = xor!(s12, d2);
-            s13 = xor!(s13, d3);
-            s14 = xor!(s14, d4);
-            s15 = xor!(s15, d0);
-            s16 = xor!(s16, d1);
-            s17 = xor!(s17, d2);
-            s18 = xor!(s18, d3);
-            s19 = xor!(s19, d4);
-            s20 = xor!(s20, d0);
-            s21 = xor!(s21, d1);
-            s22 = xor!(s22, d2);
-            s23 = xor!(s23, d3);
-            s24 = xor!(s24, d4);
-            let mut last = s1;
-            let t0 = s10;
-            s10 = rotl!(last, 1);
-            last = t0;
-            let t1 = s7;
-            s7 = rotl!(last, 3);
-            last = t1;
-            let t2 = s11;
-            s11 = rotl!(last, 6);
-            last = t2;
-            let t3 = s17;
-            s17 = rotl!(last, 10);
-            last = t3;
-            let t4 = s18;
-            s18 = rotl!(last, 15);
-            last = t4;
-            let t5 = s3;
-            s3 = rotl!(last, 21);
-            last = t5;
-            let t6 = s5;
-            s5 = rotl!(last, 28);
-            last = t6;
-            let t7 = s16;
-            s16 = rotl!(last, 36);
-            last = t7;
-            let t8 = s8;
-            s8 = rotl!(last, 45);
-            last = t8;
-            let t9 = s21;
-            s21 = rotl!(last, 55);
-            last = t9;
-            let t10 = s24;
-            s24 = rotl!(last, 2);
-            last = t10;
-            let t11 = s4;
-            s4 = rotl!(last, 14);
-            last = t11;
-            let t12 = s15;
-            s15 = rotl!(last, 27);
-            last = t12;
-            let t13 = s23;
-            s23 = rotl!(last, 41);
-            last = t13;
-            let t14 = s19;
-            s19 = rotl!(last, 56);
-            last = t14;
-            let t15 = s13;
-            s13 = rotl!(last, 8);
-            last = t15;
-            let t16 = s12;
-            s12 = rotl!(last, 25);
-            last = t16;
-            let t17 = s2;
-            s2 = rotl!(last, 43);
-            last = t17;
-            let t18 = s20;
-            s20 = rotl!(last, 62);
-            last = t18;
-            let t19 = s14;
-            s14 = rotl!(last, 18);
-            last = t19;
-            let t20 = s22;
-            s22 = rotl!(last, 39);
-            last = t20;
-            let t21 = s9;
-            s9 = rotl!(last, 61);
-            last = t21;
-            let t22 = s6;
-            s6 = rotl!(last, 20);
-            last = t22;
-            s1 = rotl!(last, 44);
-            let (b0, b1, b2, b3, b4) = (s0, s1, s2, s3, s4);
-            s0 = xor!(b0, andnot!(b1, b2));
-            s1 = xor!(b1, andnot!(b2, b3));
-            s2 = xor!(b2, andnot!(b3, b4));
-            s3 = xor!(b3, andnot!(b4, b0));
-            s4 = xor!(b4, andnot!(b0, b1));
-            let (b0, b1, b2, b3, b4) = (s5, s6, s7, s8, s9);
-            s5 = xor!(b0, andnot!(b1, b2));
-            s6 = xor!(b1, andnot!(b2, b3));
-            s7 = xor!(b2, andnot!(b3, b4));
-            s8 = xor!(b3, andnot!(b4, b0));
-            s9 = xor!(b4, andnot!(b0, b1));
-            let (b0, b1, b2, b3, b4) = (s10, s11, s12, s13, s14);
-            s10 = xor!(b0, andnot!(b1, b2));
-            s11 = xor!(b1, andnot!(b2, b3));
-            s12 = xor!(b2, andnot!(b3, b4));
-            s13 = xor!(b3, andnot!(b4, b0));
-            s14 = xor!(b4, andnot!(b0, b1));
-            let (b0, b1, b2, b3, b4) = (s15, s16, s17, s18, s19);
-            s15 = xor!(b0, andnot!(b1, b2));
-            s16 = xor!(b1, andnot!(b2, b3));
-            s17 = xor!(b2, andnot!(b3, b4));
-            s18 = xor!(b3, andnot!(b4, b0));
-            s19 = xor!(b4, andnot!(b0, b1));
-            let (b0, b1, b2, b3, b4) = (s20, s21, s22, s23, s24);
-            s20 = xor!(b0, andnot!(b1, b2));
-            s21 = xor!(b1, andnot!(b2, b3));
-            s22 = xor!(b2, andnot!(b3, b4));
-            s23 = xor!(b3, andnot!(b4, b0));
-            s24 = xor!(b4, andnot!(b0, b1));
-            s0 = xor!(s0, rc);
-        }
+        // SAFETY: every message has at least `off + 64` bytes.
+        let r0 = unsafe { _mm512_loadu_si512(msgs[0].as_ptr().add(off).cast()) };
+        let r1 = unsafe { _mm512_loadu_si512(msgs[1].as_ptr().add(off).cast()) };
+        let r2 = unsafe { _mm512_loadu_si512(msgs[2].as_ptr().add(off).cast()) };
+        let r3 = unsafe { _mm512_loadu_si512(msgs[3].as_ptr().add(off).cast()) };
+        let r4 = unsafe { _mm512_loadu_si512(msgs[4].as_ptr().add(off).cast()) };
+        let r5 = unsafe { _mm512_loadu_si512(msgs[5].as_ptr().add(off).cast()) };
+        let r6 = unsafe { _mm512_loadu_si512(msgs[6].as_ptr().add(off).cast()) };
+        let r7 = unsafe { _mm512_loadu_si512(msgs[7].as_ptr().add(off).cast()) };
 
-        st[0] = s0;
-        st[1] = s1;
-        st[2] = s2;
-        st[3] = s3;
-        st[4] = s4;
-        st[5] = s5;
-        st[6] = s6;
-        st[7] = s7;
-        st[8] = s8;
-        st[9] = s9;
-        st[10] = s10;
-        st[11] = s11;
-        st[12] = s12;
-        st[13] = s13;
-        st[14] = s14;
-        st[15] = s15;
-        st[16] = s16;
-        st[17] = s17;
-        st[18] = s18;
-        st[19] = s19;
-        st[20] = s20;
-        st[21] = s21;
-        st[22] = s22;
-        st[23] = s23;
-        st[24] = s24;
+        // 8x8 transpose of 64-bit words, three shuffle stages.
+        let t0 = _mm512_unpacklo_epi64(r0, r1);
+        let t1 = _mm512_unpackhi_epi64(r0, r1);
+        let t2 = _mm512_unpacklo_epi64(r2, r3);
+        let t3 = _mm512_unpackhi_epi64(r2, r3);
+        let t4 = _mm512_unpacklo_epi64(r4, r5);
+        let t5 = _mm512_unpackhi_epi64(r4, r5);
+        let t6 = _mm512_unpacklo_epi64(r6, r7);
+        let t7 = _mm512_unpackhi_epi64(r6, r7);
+
+        let u0 = _mm512_shuffle_i64x2::<0x88>(t0, t2);
+        let u1 = _mm512_shuffle_i64x2::<0xdd>(t0, t2);
+        let u2 = _mm512_shuffle_i64x2::<0x88>(t1, t3);
+        let u3 = _mm512_shuffle_i64x2::<0xdd>(t1, t3);
+        let u4 = _mm512_shuffle_i64x2::<0x88>(t4, t6);
+        let u5 = _mm512_shuffle_i64x2::<0xdd>(t4, t6);
+        let u6 = _mm512_shuffle_i64x2::<0x88>(t5, t7);
+        let u7 = _mm512_shuffle_i64x2::<0xdd>(t5, t7);
+
+        dst[0] = _mm512_xor_si512(dst[0], _mm512_shuffle_i64x2::<0x88>(u0, u4));
+        dst[1] = _mm512_xor_si512(dst[1], _mm512_shuffle_i64x2::<0xdd>(u0, u4));
+        dst[2] = _mm512_xor_si512(dst[2], _mm512_shuffle_i64x2::<0x88>(u1, u5));
+        dst[3] = _mm512_xor_si512(dst[3], _mm512_shuffle_i64x2::<0xdd>(u1, u5));
+        dst[4] = _mm512_xor_si512(dst[4], _mm512_shuffle_i64x2::<0x88>(u2, u6));
+        dst[5] = _mm512_xor_si512(dst[5], _mm512_shuffle_i64x2::<0xdd>(u2, u6));
+        dst[6] = _mm512_xor_si512(dst[6], _mm512_shuffle_i64x2::<0x88>(u3, u7));
+        dst[7] = _mm512_xor_si512(dst[7], _mm512_shuffle_i64x2::<0xdd>(u3, u7));
     }
 }
 
@@ -835,6 +908,24 @@ mod neon {
         st[22] = s22;
         st[23] = s23;
         st[24] = s24;
+    }
+
+    /// NEON counterpart of [`super::avx512::xor_lanes`]: interleaves the two
+    /// messages into the two state lanes.
+    ///
+    /// # Safety
+    /// `dst` must be 16-byte aligned and hold at least 4 words, and every
+    /// `msgs[w]` must have at least `off + 16` bytes.
+    #[inline]
+    pub(super) unsafe fn xor_lanes(dst: &mut [u64], msgs: &[&[u8]; 2], off: usize) {
+        // SAFETY: `dst` is aligned and long enough, as documented above.
+        let dst: &mut [uint64x2_t; 2] = unsafe { &mut *(dst.as_mut_ptr().cast()) };
+        // SAFETY: every message has at least `off + 16` bytes.
+        let a = unsafe { vld1q_u64(msgs[0].as_ptr().add(off).cast()) };
+        let b = unsafe { vld1q_u64(msgs[1].as_ptr().add(off).cast()) };
+
+        dst[0] = veorq_u64(dst[0], vzip1q_u64(a, b));
+        dst[1] = veorq_u64(dst[1], vzip2q_u64(a, b));
     }
 }
 
@@ -1062,6 +1153,16 @@ impl<const W: usize> SpongeX<W> {
             i += 1;
         }
 
+        // Whole groups: `W` lanes of every message in one vector op, when the
+        // backend has a transpose for this width.
+        while i + W * 8 <= len {
+            let lane = (self.pos + i) / 8;
+            if !self.xor_wide(lane, msgs, i) {
+                break;
+            }
+            i += W * 8;
+        }
+
         // Whole 64-bit lanes.
         while i + 8 <= len {
             let lane = (self.pos + i) / 8;
@@ -1077,6 +1178,46 @@ impl<const W: usize> SpongeX<W> {
             self.xor_byte(self.pos + i, msgs, i);
             i += 1;
         }
+    }
+
+    /// Absorbs `W` whole lanes of each message with a vector transpose.
+    ///
+    /// Returns `false` when this width has no vector kernel, leaving the work
+    /// to the scalar loop in [`Self::xor_batch`].
+    ///
+    /// The caller guarantees that `off + W * 8 <= msgs[w].len()` and that
+    /// `lane + W` lanes fit in the rate, so the slice below is in bounds.
+    #[inline]
+    fn xor_wide(&mut self, lane: usize, msgs: &[&[u8]; W], off: usize) -> bool {
+        let dst = &mut self.state.lanes[W * lane..];
+
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+        if W == 8 && self.backend == Backend::Avx512 {
+            // SAFETY: the backend was detected at construction; `dst` holds at
+            // least `W * W` words and is 64-byte aligned.
+            unsafe { avx512::xor_lanes(dst, msgs.as_slice().try_into().unwrap(), off) };
+            return true;
+        }
+
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+        if W == 4 && self.backend == Backend::Avx2 {
+            // SAFETY: the backend was detected at construction; `dst` holds at
+            // least `W * W` words and is 32-byte aligned.
+            unsafe { avx2::xor_lanes(dst, msgs.as_slice().try_into().unwrap(), off) };
+            return true;
+        }
+
+        // NEON is baseline on aarch64, so the bare-NEON and the SHA-3 backends
+        // absorb through the same kernel.
+        #[cfg(target_arch = "aarch64")]
+        if W == 2 {
+            // SAFETY: `dst` holds at least `W * W` words and is 16-byte
+            // aligned.
+            unsafe { neon::xor_lanes(dst, msgs.as_slice().try_into().unwrap(), off) };
+            return true;
+        }
+
+        false
     }
 
     #[inline]
