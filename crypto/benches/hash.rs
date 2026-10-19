@@ -7,12 +7,17 @@ use crypto::{
     blake2::Blake2b,
     blake3::Blake3,
     sha2::{Sha256, Sha512},
-    sha3::{ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256},
+    sha3::{ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256, parallel_hash_backend_name},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
 
 fn bench_hashes(c: &mut Criterion) {
+    // Printed once so CI logs record which leaf kernel the numbers measure.
+    // `ParallelHash` at B=8192 should land near `width` times the SHAKE256
+    // throughput; if it does not, the batched backend is not doing its job.
+    eprintln!("ParallelHash backend: {}", parallel_hash_backend_name());
+
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
         group.throughput(Throughput::Bytes(size as u64));

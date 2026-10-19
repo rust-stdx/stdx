@@ -4,17 +4,33 @@
 //! independently with SHAKE, and feeds the resulting chaining values to a final
 //! cSHAKE invocation. The blocks are independent, so this module hashes several
 //! blocks at a time with a batched Keccak-p[1600] core that keeps one state per
-//! SIMD lane (the batch width is [`BATCH`]):
+//! SIMD lane. The batch width follows the widest backend the CPU supports:
 //!
-//! * `x86_64`: four blocks per [`__m256i`] when AVX2 is available at run time;
-//!   otherwise the batch is still four blocks but each permutation falls back to
-//!   the portable scalar code.
-//! * `aarch64`: two blocks per 128-bit NEON register. When the running CPU
-//!   implements Armv8.4-A SHA-3 the permutation uses the `EOR3`, `RAX1`, `XAR`
-//!   and `BCAX` instructions; otherwise it uses plain NEON.
-//! * other targets: two blocks per batch using the portable scalar code.
+//! | Target        | Backend              | Blocks per permutation |
+//! |---------------|----------------------|------------------------|
+//! | `x86_64`      | AVX-512F (runtime)   | 8                      |
+//! | `x86_64`      | AVX2 (runtime)       | 4                      |
+//! | `aarch64`     | Armv8.4-A SHA-3      | 2                      |
+//! | `aarch64`     | NEON                 | 2                      |
+//! | anything else | portable scalar      | 2                      |
 //!
-//! [`__m256i`]: https://doc.rust-lang.org/core/arch/x86_64/struct.__m256i.html
+//! On `x86_64`, runtime detection requires the `std` feature; without it the
+//! backend is chosen at compile time from `target_feature`. A backend that is
+//! narrower than the requested batch width falls back to the portable code.
+//!
+//! # Throughput
+//!
+//! Both the width and the cost of the permutation bound this module: it
+//! absorbs 136 bytes per permutation (the SHAKE256 rate), so with a healthy
+//! backend the leaf phase runs at roughly `width` times the single-stream
+//! SHAKE256 throughput, minus the per-block finalization.
+//!
+//! That ceiling is worth keeping in mind when comparing against other hashes:
+//! BLAKE3 compresses 64 bytes with 7 rounds and runs 16 chunks in parallel on
+//! AVX-512, while Keccak-p[1600] needs 24 rounds for 136 bytes. A parallel
+//! SHAKE construction is therefore expected to trail BLAKE3 on wide SIMD
+//! machines even when both are well implemented; the useful reference is
+//! "a multiple of SHAKE256", not parity with BLAKE3.
 //!
 //! # Allocation-free, no staging buffer
 //!
@@ -29,8 +45,9 @@
 //! cost of falling back to sequential hashing when the caller feeds small
 //! chunks.
 //!
-//! The permutation backend (AVX2, Armv8.4-A SHA-3 or plain NEON) is detected
-//! once, when the hasher is created.
+//! The permutation backend (AVX-512, AVX2, Armv8.4-A SHA-3 or plain NEON) is
+//! detected once, when the hasher is created; [`backend_name`] reports which
+//! one this CPU uses.
 //!
 //! # Block size
 //!
@@ -70,17 +87,6 @@ const CSHAKE_PAD: u8 = 0x04;
 /// Fixed function name absorbed by the final cSHAKE node.
 const PARALLEL_HASH_NAME: &[u8] = b"ParallelHash";
 
-/// Number of blocks hashed per batched permutation.
-///
-/// Chosen so that one batch fills a single SIMD register on the target: four
-/// 64-bit lanes for AVX2 on `x86_64`, two for NEON on `aarch64`. On other
-/// targets the batch still runs but every permutation falls back to scalar
-/// code, so the width is only a constant there.
-#[cfg(target_arch = "x86_64")]
-const BATCH: usize = 4;
-#[cfg(not(target_arch = "x86_64"))]
-const BATCH: usize = 2;
-
 /// The batched permutation backend, detected once when a hasher is created.
 ///
 /// Detecting here (instead of inside the permutation) keeps the hot loop free
@@ -95,18 +101,43 @@ pub(crate) enum Backend {
     Sha3,
     #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
     Avx2,
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    Avx512,
 }
 
 impl Backend {
     /// Detect the widest batched backend available.
+    ///
+    /// A statically enabled `target_feature` wins over the runtime probe: a
+    /// binary built with `-C target-cpu=native` already requires the feature
+    /// everywhere, and the probe can be masked by a hypervisor or an old
+    /// kernel even when the CPU supports the instructions.
     #[allow(unreachable_code)]
     #[inline]
     fn detect() -> Backend {
         #[cfg(all(target_arch = "x86_64", feature = "std"))]
         {
+            #[cfg(target_feature = "avx512f")]
+            {
+                return Backend::Avx512;
+            }
+
+            #[cfg(target_feature = "avx2")]
+            {
+                return Backend::Avx2;
+            }
+
+            if std::arch::is_x86_feature_detected!("avx512f") {
+                return Backend::Avx512;
+            }
             if std::arch::is_x86_feature_detected!("avx2") {
                 return Backend::Avx2;
             }
+        }
+
+        #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+        {
+            return Backend::Avx512;
         }
 
         #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
@@ -116,13 +147,13 @@ impl Backend {
 
         #[cfg(target_arch = "aarch64")]
         {
-            #[cfg(feature = "std")]
-            if std::arch::is_aarch64_feature_detected!("sha3") {
+            #[cfg(target_feature = "sha3")]
+            {
                 return Backend::Sha3;
             }
 
-            #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
-            {
+            #[cfg(feature = "std")]
+            if std::arch::is_aarch64_feature_detected!("sha3") {
                 return Backend::Sha3;
             }
 
@@ -131,6 +162,35 @@ impl Backend {
 
         Backend::Scalar
     }
+
+    /// Human-readable name of this backend, for diagnostics.
+    const fn name(self) -> &'static str {
+        match self {
+            Backend::Scalar => "scalar",
+            #[cfg(target_arch = "aarch64")]
+            Backend::Neon => "neon",
+            #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
+            Backend::Sha3 => "armv8.4-sha3",
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            Backend::Avx2 => "avx2",
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Backend::Avx512 => "avx512",
+        }
+    }
+}
+
+/// Returns the name of the batched Keccak backend currently in use.
+///
+/// Useful in benchmarks and CI logs to tell which code path
+/// [`ParallelHash256`] takes. The value is detected once per call; the standard
+/// library caches the underlying CPU probe, so this is cheap.
+///
+/// ```
+/// use crypto::sha3::parallel_hash_backend_name;
+/// println!("ParallelHash backend: {}", parallel_hash_backend_name());
+/// ```
+pub fn backend_name() -> &'static str {
+    Backend::detect().name()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,21 +202,24 @@ impl Backend {
 /// The backing array is sized for this so the struct type does not depend on
 /// `W` through an arithmetic expression (which stable Rust does not allow in
 /// array lengths). Narrower batches simply leave the tail of the array unused.
+///
+/// `x86_64` needs eight slots for the AVX-512 kernel; other targets top out at
+/// four, which is what the `SpongeX<4>` tests instantiate.
+#[cfg(target_arch = "x86_64")]
+const MAX_BATCH: usize = 8;
+#[cfg(not(target_arch = "x86_64"))]
 const MAX_BATCH: usize = 4;
 /// Number of 64-bit lanes in a `MAX_BATCH`-wide state.
 const MAX_LANES: usize = 25 * MAX_BATCH;
-
-// The per-target batch width must fit in the fixed backing array.
-const _: () = assert!(BATCH <= MAX_BATCH, "BATCH must fit in the KeccakX backing array");
 
 /// `W` Keccak-p[1600] states processed in lockstep.
 ///
 /// The state is stored lane-interleaved: `lanes[W * i + w]` is lane `i` of
 /// state `w`. With `W = 2` that is exactly what a 128-bit NEON register wants
-/// (states 0 and 1 in the low and high half), and with `W = 4` it is exactly
-/// what a 256-bit AVX2 register wants. The array is 32-byte aligned so the AVX2
-/// path can load it with aligned accesses.
-#[repr(align(32))]
+/// (states 0 and 1 in the low and high half), with `W = 4` a 256-bit AVX2
+/// register, and with `W = 8` a 512-bit AVX-512 register. The array is 64-byte
+/// aligned so every backend can load it with aligned accesses.
+#[repr(align(64))]
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub(crate) struct KeccakX<const W: usize> {
@@ -173,17 +236,27 @@ impl<const W: usize> KeccakX<W> {
 
     /// Apply Keccak-p[1600, 24] to all `W` states using the cached `backend`.
     ///
-    /// If `backend` is wider than `W` (for example a four-wide backend on a
+    /// If `backend` is wider than `W` (for example an eight-wide backend on a
     /// two-wide sponge, which only happens in tests), this falls back to scalar
     /// code for the active states.
     #[inline]
     fn permute(&mut self, backend: Backend) {
         match backend {
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Backend::Avx512 => {
+                if W == 8 {
+                    // SAFETY: AVX-512F was confirmed at construction;
+                    // `KeccakX` is 64-byte aligned and the array is
+                    // `MAX_LANES` words.
+                    unsafe { avx512::permute(&mut self.lanes) };
+                    return;
+                }
+            }
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
             Backend::Avx2 => {
                 if W == 4 {
                     // SAFETY: AVX2 was confirmed at construction; `KeccakX` is
-                    // 32-byte aligned and the array is `MAX_LANES` words.
+                    // 64-byte aligned and the array is `MAX_LANES` words.
                     unsafe { avx2::permute(&mut self.lanes) };
                     return;
                 }
@@ -247,7 +320,8 @@ mod avx2 {
 
     /// # Safety
     /// The caller must have verified that the CPU implements AVX2, and `state`
-    /// must be 32-byte aligned and exactly `MAX_LANES` words.
+    /// must be 32-byte aligned (guaranteed by `KeccakX`'s `repr(align(64))`) and
+    /// exactly `MAX_LANES` words.
     #[inline]
     pub(super) unsafe fn permute(state: &mut [u64; MAX_LANES]) {
         // SAFETY: invariant documented on the function.
@@ -311,6 +385,234 @@ mod avx2 {
     }
 }
 
+/// AVX-512F 8-way Keccak-p[1600].
+///
+/// One `zmm` register holds the same lane of eight states, so a single
+/// permutation absorbs eight blocks at once. AVX-512F provides 32 vector
+/// registers, which is enough to keep the whole 25-lane state resident, and
+/// `vprolq` rotates a lane in one instruction (AVX2 needs two shifts and an
+/// `or`). `vpternlogq` folds the three-input boolean steps of theta and chi
+/// into one instruction as well. The kernel uses only the AVX-512 Foundation
+/// subset (`vprolq`, `vpternlogq`, `vpandnq`, `vpxorq`) so it runs on every
+/// CPU that advertises `avx512f`.
+#[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+mod avx512 {
+    use core::arch::x86_64::*;
+
+    use super::MAX_LANES;
+    use crate::sha3::keccak::ROUND_CONSTANTS;
+
+    /// # Safety
+    /// The caller must have verified that the CPU implements AVX-512F, and
+    /// `state` must be 64-byte aligned and exactly `MAX_LANES` words.
+    #[inline]
+    pub(super) unsafe fn permute(state: &mut [u64; MAX_LANES]) {
+        // SAFETY: invariant documented on the function.
+        let s: &mut [__m512i; 25] = unsafe { &mut *(state.as_mut_ptr().cast()) };
+        keccak_p1600_x8(s);
+    }
+
+    macro_rules! rotl {
+        ($a:expr, $n:literal) => {
+            _mm512_rol_epi64::<$n>($a)
+        };
+    }
+    macro_rules! xor {
+        ($a:expr, $b:expr) => {
+            _mm512_xor_si512($a, $b)
+        };
+    }
+    macro_rules! andnot {
+        ($a:expr, $b:expr) => {
+            _mm512_andnot_si512($a, $b)
+        };
+    }
+    macro_rules! xor4 {
+        ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr) => {
+            _mm512_xor_si512(_mm512_xor_si512(_mm512_xor_si512($a, $b), _mm512_xor_si512($c, $d)), $e)
+        };
+    }
+
+    /// # Safety
+    /// AVX-512F must be available.
+    #[target_feature(enable = "avx512f")]
+    unsafe fn keccak_p1600_x8(st: &mut [__m512i; 25]) {
+        let (mut s0, mut s1, mut s2, mut s3, mut s4) = (st[0], st[1], st[2], st[3], st[4]);
+        let (mut s5, mut s6, mut s7, mut s8, mut s9) = (st[5], st[6], st[7], st[8], st[9]);
+        let (mut s10, mut s11, mut s12, mut s13, mut s14) = (st[10], st[11], st[12], st[13], st[14]);
+        let (mut s15, mut s16, mut s17, mut s18, mut s19) = (st[15], st[16], st[17], st[18], st[19]);
+        let (mut s20, mut s21, mut s22, mut s23, mut s24) = (st[20], st[21], st[22], st[23], st[24]);
+
+        for &rc in ROUND_CONSTANTS.iter() {
+            let rc = _mm512_set1_epi64(rc as i64);
+
+            let c0 = xor4!(s0, s5, s10, s15, s20);
+            let c1 = xor4!(s1, s6, s11, s16, s21);
+            let c2 = xor4!(s2, s7, s12, s17, s22);
+            let c3 = xor4!(s3, s8, s13, s18, s23);
+            let c4 = xor4!(s4, s9, s14, s19, s24);
+            let d0 = xor!(c4, rotl!(c1, 1));
+            let d1 = xor!(c0, rotl!(c2, 1));
+            let d2 = xor!(c1, rotl!(c3, 1));
+            let d3 = xor!(c2, rotl!(c4, 1));
+            let d4 = xor!(c3, rotl!(c0, 1));
+            s0 = xor!(s0, d0);
+            s1 = xor!(s1, d1);
+            s2 = xor!(s2, d2);
+            s3 = xor!(s3, d3);
+            s4 = xor!(s4, d4);
+            s5 = xor!(s5, d0);
+            s6 = xor!(s6, d1);
+            s7 = xor!(s7, d2);
+            s8 = xor!(s8, d3);
+            s9 = xor!(s9, d4);
+            s10 = xor!(s10, d0);
+            s11 = xor!(s11, d1);
+            s12 = xor!(s12, d2);
+            s13 = xor!(s13, d3);
+            s14 = xor!(s14, d4);
+            s15 = xor!(s15, d0);
+            s16 = xor!(s16, d1);
+            s17 = xor!(s17, d2);
+            s18 = xor!(s18, d3);
+            s19 = xor!(s19, d4);
+            s20 = xor!(s20, d0);
+            s21 = xor!(s21, d1);
+            s22 = xor!(s22, d2);
+            s23 = xor!(s23, d3);
+            s24 = xor!(s24, d4);
+            let mut last = s1;
+            let t0 = s10;
+            s10 = rotl!(last, 1);
+            last = t0;
+            let t1 = s7;
+            s7 = rotl!(last, 3);
+            last = t1;
+            let t2 = s11;
+            s11 = rotl!(last, 6);
+            last = t2;
+            let t3 = s17;
+            s17 = rotl!(last, 10);
+            last = t3;
+            let t4 = s18;
+            s18 = rotl!(last, 15);
+            last = t4;
+            let t5 = s3;
+            s3 = rotl!(last, 21);
+            last = t5;
+            let t6 = s5;
+            s5 = rotl!(last, 28);
+            last = t6;
+            let t7 = s16;
+            s16 = rotl!(last, 36);
+            last = t7;
+            let t8 = s8;
+            s8 = rotl!(last, 45);
+            last = t8;
+            let t9 = s21;
+            s21 = rotl!(last, 55);
+            last = t9;
+            let t10 = s24;
+            s24 = rotl!(last, 2);
+            last = t10;
+            let t11 = s4;
+            s4 = rotl!(last, 14);
+            last = t11;
+            let t12 = s15;
+            s15 = rotl!(last, 27);
+            last = t12;
+            let t13 = s23;
+            s23 = rotl!(last, 41);
+            last = t13;
+            let t14 = s19;
+            s19 = rotl!(last, 56);
+            last = t14;
+            let t15 = s13;
+            s13 = rotl!(last, 8);
+            last = t15;
+            let t16 = s12;
+            s12 = rotl!(last, 25);
+            last = t16;
+            let t17 = s2;
+            s2 = rotl!(last, 43);
+            last = t17;
+            let t18 = s20;
+            s20 = rotl!(last, 62);
+            last = t18;
+            let t19 = s14;
+            s14 = rotl!(last, 18);
+            last = t19;
+            let t20 = s22;
+            s22 = rotl!(last, 39);
+            last = t20;
+            let t21 = s9;
+            s9 = rotl!(last, 61);
+            last = t21;
+            let t22 = s6;
+            s6 = rotl!(last, 20);
+            last = t22;
+            s1 = rotl!(last, 44);
+            let (b0, b1, b2, b3, b4) = (s0, s1, s2, s3, s4);
+            s0 = xor!(b0, andnot!(b1, b2));
+            s1 = xor!(b1, andnot!(b2, b3));
+            s2 = xor!(b2, andnot!(b3, b4));
+            s3 = xor!(b3, andnot!(b4, b0));
+            s4 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s5, s6, s7, s8, s9);
+            s5 = xor!(b0, andnot!(b1, b2));
+            s6 = xor!(b1, andnot!(b2, b3));
+            s7 = xor!(b2, andnot!(b3, b4));
+            s8 = xor!(b3, andnot!(b4, b0));
+            s9 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s10, s11, s12, s13, s14);
+            s10 = xor!(b0, andnot!(b1, b2));
+            s11 = xor!(b1, andnot!(b2, b3));
+            s12 = xor!(b2, andnot!(b3, b4));
+            s13 = xor!(b3, andnot!(b4, b0));
+            s14 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s15, s16, s17, s18, s19);
+            s15 = xor!(b0, andnot!(b1, b2));
+            s16 = xor!(b1, andnot!(b2, b3));
+            s17 = xor!(b2, andnot!(b3, b4));
+            s18 = xor!(b3, andnot!(b4, b0));
+            s19 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s20, s21, s22, s23, s24);
+            s20 = xor!(b0, andnot!(b1, b2));
+            s21 = xor!(b1, andnot!(b2, b3));
+            s22 = xor!(b2, andnot!(b3, b4));
+            s23 = xor!(b3, andnot!(b4, b0));
+            s24 = xor!(b4, andnot!(b0, b1));
+            s0 = xor!(s0, rc);
+        }
+
+        st[0] = s0;
+        st[1] = s1;
+        st[2] = s2;
+        st[3] = s3;
+        st[4] = s4;
+        st[5] = s5;
+        st[6] = s6;
+        st[7] = s7;
+        st[8] = s8;
+        st[9] = s9;
+        st[10] = s10;
+        st[11] = s11;
+        st[12] = s12;
+        st[13] = s13;
+        st[14] = s14;
+        st[15] = s15;
+        st[16] = s16;
+        st[17] = s17;
+        st[18] = s18;
+        st[19] = s19;
+        st[20] = s20;
+        st[21] = s21;
+        st[22] = s22;
+        st[23] = s23;
+        st[24] = s24;
+    }
+}
+
 #[cfg(target_arch = "aarch64")]
 mod neon {
     use core::arch::aarch64::*;
@@ -319,9 +621,14 @@ mod neon {
 
     /// Plain-NEON 2-way permutation.
     ///
+    /// The Rho/Pi step is fully unrolled with constant lane indices and
+    /// immediate shifts. Keeping it as a loop over the `PI`/`RHO` tables makes
+    /// the state live in memory and turns every rotation into a variable shift,
+    /// which costs about twice as much as this form.
+    ///
     /// # Safety
     /// Caller must guarantee that `lanes` is 16-byte aligned (guaranteed by
-    /// `KeccakX`'s `repr(align(32))`) and exactly 50 words.
+    /// `KeccakX`'s `repr(align(64))`) and exactly 50 words.
     #[inline]
     pub(super) unsafe fn permute(lanes: &mut [u64; 50]) {
         // SAFETY: invariant documented on the function.
@@ -329,57 +636,205 @@ mod neon {
         keccak_p1600_x2(state);
     }
 
-    #[inline(always)]
-    unsafe fn rotl(a: uint64x2_t, n: u32) -> uint64x2_t {
-        // Base NEON has no vector rotate: a left shift plus a right shift.
-        // Negative shift amounts make `vshlq_u64` shift right.
-        let l = vshlq_u64(a, vdupq_n_s64(n as i64));
-        let r = vshlq_u64(a, vdupq_n_s64(n as i64 - 64));
-        return vorrq_u64(l, r);
+    macro_rules! rotl {
+        ($a:expr, $n:literal) => {
+            vorrq_u64(vshlq_n_u64::<$n>($a), vshrq_n_u64::<{ 64 - $n }>($a))
+        };
+    }
+    macro_rules! xor {
+        ($a:expr, $b:expr) => {
+            veorq_u64($a, $b)
+        };
+    }
+    macro_rules! andnot {
+        // `vbicq(a, b)` is `a & !b`, i.e. the same operand order as
+        // `_mm256_andnot_si256(a, b)` flipped: chi needs `!b & c`.
+        ($a:expr, $b:expr) => {
+            vbicq_u64($b, $a)
+        };
+    }
+    macro_rules! xor4 {
+        ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr) => {
+            veorq_u64(veorq_u64(veorq_u64($a, $b), veorq_u64($c, $d)), $e)
+        };
     }
 
     /// # Safety
     /// NEON is baseline on aarch64.
-    unsafe fn keccak_p1600_x2(s: &mut [uint64x2_t; 25]) {
+    unsafe fn keccak_p1600_x2(st: &mut [uint64x2_t; 25]) {
+        let (mut s0, mut s1, mut s2, mut s3, mut s4) = (st[0], st[1], st[2], st[3], st[4]);
+        let (mut s5, mut s6, mut s7, mut s8, mut s9) = (st[5], st[6], st[7], st[8], st[9]);
+        let (mut s10, mut s11, mut s12, mut s13, mut s14) = (st[10], st[11], st[12], st[13], st[14]);
+        let (mut s15, mut s16, mut s17, mut s18, mut s19) = (st[15], st[16], st[17], st[18], st[19]);
+        let (mut s20, mut s21, mut s22, mut s23, mut s24) = (st[20], st[21], st[22], st[23], st[24]);
+
         for &rc in ROUND_CONSTANTS.iter() {
-            // theta
-            let mut c = [vdupq_n_u64(0); 5];
-            for x in 0..5 {
-                c[x] = veorq_u64(veorq_u64(veorq_u64(veorq_u64(s[x], s[5 + x]), s[10 + x]), s[15 + x]), s[20 + x]);
-            }
-            let mut d = [vdupq_n_u64(0); 5];
-            for x in 0..5 {
-                d[x] = veorq_u64(c[(x + 4) % 5], rotl(c[(x + 1) % 5], 1));
-            }
-            for y in 0..5 {
-                for x in 0..5 {
-                    s[5 * y + x] = veorq_u64(s[5 * y + x], d[x]);
-                }
-            }
+            let rc = vdupq_n_u64(rc);
 
-            // rho and pi
-            let mut last = s[1];
-            for i in 0..24 {
-                let j = super::super::keccak::PI[i];
-                let tmp = s[j];
-                s[j] = rotl(last, super::super::keccak::RHO[i]);
-                last = tmp;
-            }
-
-            // chi
-            for y in 0..5 {
-                let b = [s[5 * y], s[5 * y + 1], s[5 * y + 2], s[5 * y + 3], s[5 * y + 4]];
-                // b[x] ^ (!b[x + 1] & b[x + 2]); `vbicq(a, b)` is `a & !b`.
-                s[5 * y] = veorq_u64(b[0], vbicq_u64(b[2], b[1]));
-                s[5 * y + 1] = veorq_u64(b[1], vbicq_u64(b[3], b[2]));
-                s[5 * y + 2] = veorq_u64(b[2], vbicq_u64(b[4], b[3]));
-                s[5 * y + 3] = veorq_u64(b[3], vbicq_u64(b[0], b[4]));
-                s[5 * y + 4] = veorq_u64(b[4], vbicq_u64(b[1], b[0]));
-            }
-
-            // iota
-            s[0] = veorq_u64(s[0], vdupq_n_u64(rc));
+            let c0 = xor4!(s0, s5, s10, s15, s20);
+            let c1 = xor4!(s1, s6, s11, s16, s21);
+            let c2 = xor4!(s2, s7, s12, s17, s22);
+            let c3 = xor4!(s3, s8, s13, s18, s23);
+            let c4 = xor4!(s4, s9, s14, s19, s24);
+            let d0 = xor!(c4, rotl!(c1, 1));
+            let d1 = xor!(c0, rotl!(c2, 1));
+            let d2 = xor!(c1, rotl!(c3, 1));
+            let d3 = xor!(c2, rotl!(c4, 1));
+            let d4 = xor!(c3, rotl!(c0, 1));
+            s0 = xor!(s0, d0);
+            s1 = xor!(s1, d1);
+            s2 = xor!(s2, d2);
+            s3 = xor!(s3, d3);
+            s4 = xor!(s4, d4);
+            s5 = xor!(s5, d0);
+            s6 = xor!(s6, d1);
+            s7 = xor!(s7, d2);
+            s8 = xor!(s8, d3);
+            s9 = xor!(s9, d4);
+            s10 = xor!(s10, d0);
+            s11 = xor!(s11, d1);
+            s12 = xor!(s12, d2);
+            s13 = xor!(s13, d3);
+            s14 = xor!(s14, d4);
+            s15 = xor!(s15, d0);
+            s16 = xor!(s16, d1);
+            s17 = xor!(s17, d2);
+            s18 = xor!(s18, d3);
+            s19 = xor!(s19, d4);
+            s20 = xor!(s20, d0);
+            s21 = xor!(s21, d1);
+            s22 = xor!(s22, d2);
+            s23 = xor!(s23, d3);
+            s24 = xor!(s24, d4);
+            let mut last = s1;
+            let t0 = s10;
+            s10 = rotl!(last, 1);
+            last = t0;
+            let t1 = s7;
+            s7 = rotl!(last, 3);
+            last = t1;
+            let t2 = s11;
+            s11 = rotl!(last, 6);
+            last = t2;
+            let t3 = s17;
+            s17 = rotl!(last, 10);
+            last = t3;
+            let t4 = s18;
+            s18 = rotl!(last, 15);
+            last = t4;
+            let t5 = s3;
+            s3 = rotl!(last, 21);
+            last = t5;
+            let t6 = s5;
+            s5 = rotl!(last, 28);
+            last = t6;
+            let t7 = s16;
+            s16 = rotl!(last, 36);
+            last = t7;
+            let t8 = s8;
+            s8 = rotl!(last, 45);
+            last = t8;
+            let t9 = s21;
+            s21 = rotl!(last, 55);
+            last = t9;
+            let t10 = s24;
+            s24 = rotl!(last, 2);
+            last = t10;
+            let t11 = s4;
+            s4 = rotl!(last, 14);
+            last = t11;
+            let t12 = s15;
+            s15 = rotl!(last, 27);
+            last = t12;
+            let t13 = s23;
+            s23 = rotl!(last, 41);
+            last = t13;
+            let t14 = s19;
+            s19 = rotl!(last, 56);
+            last = t14;
+            let t15 = s13;
+            s13 = rotl!(last, 8);
+            last = t15;
+            let t16 = s12;
+            s12 = rotl!(last, 25);
+            last = t16;
+            let t17 = s2;
+            s2 = rotl!(last, 43);
+            last = t17;
+            let t18 = s20;
+            s20 = rotl!(last, 62);
+            last = t18;
+            let t19 = s14;
+            s14 = rotl!(last, 18);
+            last = t19;
+            let t20 = s22;
+            s22 = rotl!(last, 39);
+            last = t20;
+            let t21 = s9;
+            s9 = rotl!(last, 61);
+            last = t21;
+            let t22 = s6;
+            s6 = rotl!(last, 20);
+            last = t22;
+            s1 = rotl!(last, 44);
+            let (b0, b1, b2, b3, b4) = (s0, s1, s2, s3, s4);
+            s0 = xor!(b0, andnot!(b1, b2));
+            s1 = xor!(b1, andnot!(b2, b3));
+            s2 = xor!(b2, andnot!(b3, b4));
+            s3 = xor!(b3, andnot!(b4, b0));
+            s4 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s5, s6, s7, s8, s9);
+            s5 = xor!(b0, andnot!(b1, b2));
+            s6 = xor!(b1, andnot!(b2, b3));
+            s7 = xor!(b2, andnot!(b3, b4));
+            s8 = xor!(b3, andnot!(b4, b0));
+            s9 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s10, s11, s12, s13, s14);
+            s10 = xor!(b0, andnot!(b1, b2));
+            s11 = xor!(b1, andnot!(b2, b3));
+            s12 = xor!(b2, andnot!(b3, b4));
+            s13 = xor!(b3, andnot!(b4, b0));
+            s14 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s15, s16, s17, s18, s19);
+            s15 = xor!(b0, andnot!(b1, b2));
+            s16 = xor!(b1, andnot!(b2, b3));
+            s17 = xor!(b2, andnot!(b3, b4));
+            s18 = xor!(b3, andnot!(b4, b0));
+            s19 = xor!(b4, andnot!(b0, b1));
+            let (b0, b1, b2, b3, b4) = (s20, s21, s22, s23, s24);
+            s20 = xor!(b0, andnot!(b1, b2));
+            s21 = xor!(b1, andnot!(b2, b3));
+            s22 = xor!(b2, andnot!(b3, b4));
+            s23 = xor!(b3, andnot!(b4, b0));
+            s24 = xor!(b4, andnot!(b0, b1));
+            s0 = xor!(s0, rc);
         }
+
+        st[0] = s0;
+        st[1] = s1;
+        st[2] = s2;
+        st[3] = s3;
+        st[4] = s4;
+        st[5] = s5;
+        st[6] = s6;
+        st[7] = s7;
+        st[8] = s8;
+        st[9] = s9;
+        st[10] = s10;
+        st[11] = s11;
+        st[12] = s12;
+        st[13] = s13;
+        st[14] = s14;
+        st[15] = s15;
+        st[16] = s16;
+        st[17] = s17;
+        st[18] = s18;
+        st[19] = s19;
+        st[20] = s20;
+        st[21] = s21;
+        st[22] = s22;
+        st[23] = s23;
+        st[24] = s24;
     }
 }
 
@@ -671,6 +1126,87 @@ impl<const W: usize> SpongeX<W> {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
+// Runtime-selected leaf width
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// The batched leaf sponge, whose width follows the detected [`Backend`].
+///
+/// Exactly one variant is constructed at run time; the others exist so the
+/// compiler can emit the matching kernel. The widest variant determines the
+/// size of a [`ParallelHash256`], which stays on the stack and never allocates.
+#[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+enum Leaves {
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    X8(SpongeX<8>),
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+    X4(SpongeX<4>),
+    X2(SpongeX<2>),
+}
+
+impl Leaves {
+    /// Picks the widest sponge the backend can permute.
+    fn new(backend: Backend) -> Self {
+        match backend {
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Backend::Avx512 => return Leaves::X8(SpongeX::new(PH256_RATE, SHAKE_PAD, backend)),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            Backend::Avx2 => return Leaves::X4(SpongeX::new(PH256_RATE, SHAKE_PAD, backend)),
+            _ => {}
+        }
+
+        Leaves::X2(SpongeX::new(PH256_RATE, SHAKE_PAD, backend))
+    }
+
+    /// Number of blocks hashed per permutation.
+    #[inline]
+    fn width(&self) -> usize {
+        match self {
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Leaves::X8(_) => 8,
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            Leaves::X4(_) => 4,
+            Leaves::X2(_) => 2,
+        }
+    }
+
+    #[inline]
+    fn reset(&mut self) {
+        match self {
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Leaves::X8(sponge) => sponge.reset(),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            Leaves::X4(sponge) => sponge.reset(),
+            Leaves::X2(sponge) => sponge.reset(),
+        }
+    }
+
+    fn absorb_batch(&mut self, msgs: &[&[u8]]) {
+        debug_assert_eq!(msgs.len(), self.width());
+
+        match self {
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Leaves::X8(sponge) => sponge.absorb_batch(msgs.try_into().unwrap()),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            Leaves::X4(sponge) => sponge.absorb_batch(msgs.try_into().unwrap()),
+            Leaves::X2(sponge) => sponge.absorb_batch(msgs.try_into().unwrap()),
+        }
+    }
+
+    fn squeeze_cvs(&mut self, out: &mut [[u8; PH256_CV_LEN]]) {
+        debug_assert_eq!(out.len(), self.width());
+
+        match self {
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            Leaves::X8(sponge) => sponge.squeeze_cvs((&mut out[..8]).try_into().unwrap()),
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            Leaves::X4(sponge) => sponge.squeeze_cvs((&mut out[..4]).try_into().unwrap()),
+            Leaves::X2(sponge) => sponge.squeeze_cvs((&mut out[..2]).try_into().unwrap()),
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
 // ParallelHash
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -728,14 +1264,15 @@ impl ParallelHashReader {
 /// buffer. A single [`update`](Self::update) call spanning at least two whole
 /// blocks hashes them in batched permutations (see the module-level
 /// documentation); a lone block or a partial block falls back to sequential
-/// SHAKE.
+/// SHAKE. How many blocks share one permutation depends on the CPU, see
+/// [`backend_name`].
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct ParallelHash256 {
     outer: KeccakSponge<24>,
     queue: Shake256,
     queue_len: usize,
-    leaves: SpongeX<BATCH>,
+    leaves: Leaves,
     block_size: usize,
     blocks: usize,
 }
@@ -756,7 +1293,7 @@ impl ParallelHash256 {
             outer,
             queue: Shake256::new(),
             queue_len: 0,
-            leaves: SpongeX::new(PH256_RATE, SHAKE_PAD, Backend::detect()),
+            leaves: Leaves::new(Backend::detect()),
             block_size,
             blocks: 0,
         };
@@ -779,34 +1316,35 @@ impl ParallelHash256 {
             }
         }
 
-        // 2. Full batches: `BATCH` whole blocks at a time, straight from the
+        // 2. Full batches: `width` whole blocks at a time, straight from the
         //    caller's slice. `saturating_mul` keeps a huge `block_size` from
         //    wrapping the threshold around to a tiny value.
-        while data.len() >= self.block_size.saturating_mul(BATCH) {
-            let mut blocks: [&[u8]; BATCH] = [&[]; BATCH];
+        let width = self.leaves.width();
+        while data.len() >= self.block_size.saturating_mul(width) {
+            let mut blocks: [&[u8]; MAX_BATCH] = [&[]; MAX_BATCH];
             let mut rest = data;
-            for slot in blocks.iter_mut() {
+            for slot in blocks[..width].iter_mut() {
                 let (block, tail) = rest.split_at(self.block_size);
                 *slot = block;
                 rest = tail;
             }
-            self.hash_batch(&blocks, BATCH);
+            self.hash_batch(&blocks[..width], width);
             data = rest;
         }
 
-        // 3. Fill a partial batch of `2..BATCH` whole blocks with the unused
+        // 3. Fill a partial batch of `2..width` whole blocks with the unused
         //    lanes aliased to a real block. Only the first `whole` chaining
         //    values are absorbed, so the dummy lanes cannot affect the output,
         //    and no staging buffer is needed. A single leftover block is hashed
         //    sequentially (a wide permutation would not be cheaper).
         let whole = data.len() / self.block_size;
         if whole >= 2 {
-            let mut blocks: [&[u8]; BATCH] = [&[]; BATCH];
-            for (j, slot) in blocks.iter_mut().enumerate() {
+            let mut blocks: [&[u8]; MAX_BATCH] = [&[]; MAX_BATCH];
+            for (j, slot) in blocks[..width].iter_mut().enumerate() {
                 let idx = j.min(whole - 1);
                 *slot = &data[idx * self.block_size..(idx + 1) * self.block_size];
             }
-            self.hash_batch(&blocks, whole);
+            self.hash_batch(&blocks[..width], whole);
             data = &data[whole * self.block_size..];
         }
 
@@ -896,14 +1434,15 @@ impl ParallelHash256 {
         self.blocks += 1;
     }
 
-    fn hash_batch(&mut self, blocks: &[&[u8]; BATCH], active: usize) {
-        debug_assert!((1..=BATCH).contains(&active));
+    fn hash_batch(&mut self, blocks: &[&[u8]], active: usize) {
+        debug_assert_eq!(blocks.len(), self.leaves.width());
+        debug_assert!((1..=blocks.len()).contains(&active));
 
-        let mut cvs = [[0u8; PH256_CV_LEN]; BATCH];
+        let mut cvs = [[0u8; PH256_CV_LEN]; MAX_BATCH];
 
         self.leaves.reset();
         self.leaves.absorb_batch(blocks);
-        self.leaves.squeeze_cvs(&mut cvs);
+        self.leaves.squeeze_cvs(&mut cvs[..blocks.len()]);
 
         for cv in &cvs[..active] {
             self.outer.absorb(cv);
@@ -1017,6 +1556,29 @@ mod tests {
             x.permute(Backend::detect());
             assert_packed(&x, &expected);
         }
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+        if avx512_available() {
+            for _ in 0..64 {
+                let states = random_states::<8>(&mut rng);
+                let expected = expected_permuted(&states);
+                let mut x = pack(&states);
+                x.permute(Backend::Avx512);
+                assert_packed(&x, &expected);
+            }
+        }
+    }
+
+    /// Whether the AVX-512 kernel may be executed on this CPU.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    fn avx512_available() -> bool {
+        #[cfg(feature = "std")]
+        {
+            return std::arch::is_x86_feature_detected!("avx512f");
+        }
+        #[cfg(all(not(feature = "std"), target_feature = "avx512f"))]
+        {
+            return true;
+        }
     }
 
     #[cfg(target_arch = "aarch64")]
@@ -1065,9 +1627,28 @@ mod tests {
             let states = random_states::<4>(&mut rng);
             let expected = expected_permuted(&states);
             let mut x = pack(&states);
-            // SAFETY: AVX2 was detected above, and `KeccakX<4>` is 32-byte
-            // aligned with exactly 100 lanes.
+            // SAFETY: AVX2 was detected above, and `KeccakX<4>` is 64-byte
+            // aligned with at least 100 lanes.
             unsafe { avx2::permute(&mut x.lanes) };
+            assert_packed(&x, &expected);
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    #[test]
+    fn avx512_permutation_matches_reference() {
+        if !avx512_available() {
+            return;
+        }
+
+        let mut rng = 0x5d2c_9f81_7a63_e40bu64;
+        for _ in 0..64 {
+            let states = random_states::<8>(&mut rng);
+            let expected = expected_permuted(&states);
+            let mut x = pack(&states);
+            // SAFETY: AVX-512F was detected above, and `KeccakX<8>` is 64-byte
+            // aligned with exactly `MAX_LANES` lanes.
+            unsafe { avx512::permute(&mut x.lanes) };
             assert_packed(&x, &expected);
         }
     }
@@ -1080,44 +1661,52 @@ mod tests {
         return out;
     }
 
+    fn check_batch<const W: usize>(
+        msgs: &[std::vec::Vec<u8>],
+        expected: &[std::vec::Vec<u8>],
+        backend: Backend,
+        len: usize,
+    ) {
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &msgs[w][..]);
+        let mut sponge = SpongeX::<W>::new(PH256_RATE, SHAKE_PAD, backend);
+        let mut cvs = [[0u8; PH256_CV_LEN]; W];
+        sponge.absorb_batch(&refs);
+        sponge.squeeze_cvs(&mut cvs);
+        for w in 0..W {
+            assert_eq!(cvs[w][..], expected[w][..], "width {W}, len {len}, lane {w}");
+        }
+    }
+
     #[test]
     fn batched_shake_matches_one_way_shake() {
         let mut rng = 0x4528_21e6_38d0_1377u64;
         for len in [0usize, 1, 7, 8, 135, 136, 137, 168, 169, 272, 1024, 4097] {
-            let msgs: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(len, &mut rng));
+            let base: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(len, &mut rng));
+            let msgs: [std::vec::Vec<u8>; 8] = core::array::from_fn(|w| base[w % 4].clone());
 
-            let expected: [std::vec::Vec<u8>; 4] = core::array::from_fn(|w| {
+            let expected: [std::vec::Vec<u8>; 8] = core::array::from_fn(|w| {
                 let mut out = std::vec![0u8; PH256_CV_LEN];
                 Shake256::hash(&msgs[w], &mut out);
                 out
             });
 
-            // `SpongeX<W>` for both widths: two-way (all targets) and four-way
-            // (the AVX2/scalar path on x86_64).
-            for w in [2usize, 4] {
-                let mut got = [[0u8; PH256_CV_LEN]; 4];
-                if w == 2 {
-                    let refs: [&[u8]; 2] = [&msgs[0], &msgs[1]];
-                    let mut x = SpongeX::<2>::new(PH256_RATE, SHAKE_PAD, Backend::detect());
-                    let mut cvs = [[0u8; PH256_CV_LEN]; 2];
-                    x.absorb_batch(&refs);
-                    x.squeeze_cvs(&mut cvs);
-                    got[0] = cvs[0];
-                    got[1] = cvs[1];
+            // Two-way: the SHA-3 or NEON kernel on aarch64, scalar elsewhere.
+            check_batch::<2>(&msgs, &expected, Backend::detect(), len);
+
+            // Wider batches only exist on `x86_64`.
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            {
+                let backend = if std::arch::is_x86_feature_detected!("avx2") {
+                    Backend::Avx2
                 } else {
-                    let refs: [&[u8]; 4] = [&msgs[0], &msgs[1], &msgs[2], &msgs[3]];
-                    let mut x = SpongeX::<4>::new(PH256_RATE, SHAKE_PAD, Backend::detect());
-                    let mut cvs = [[0u8; PH256_CV_LEN]; 4];
-                    x.absorb_batch(&refs);
-                    x.squeeze_cvs(&mut cvs);
-                    got = cvs;
-                }
-                assert_eq!(got[0][..], expected[0][..], "width {w}, len {len}, lane 0");
-                assert_eq!(got[1][..], expected[1][..], "width {w}, len {len}, lane 1");
-                if w == 4 {
-                    assert_eq!(got[2][..], expected[2][..], "width {w}, len {len}, lane 2");
-                    assert_eq!(got[3][..], expected[3][..], "width {w}, len {len}, lane 3");
-                }
+                    Backend::Scalar
+                };
+                check_batch::<4>(&msgs, &expected, backend, len);
+            }
+
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            if avx512_available() {
+                check_batch::<8>(&msgs, &expected, Backend::Avx512, len);
             }
         }
     }
@@ -1288,8 +1877,14 @@ mod tests {
         assert_eq!(one_shot, chunked);
     }
 
+    /// Width of the leaf sponge selected on this CPU.
+    fn batch_width() -> usize {
+        Leaves::new(Backend::detect()).width()
+    }
+
     #[test]
     fn streaming_matches_one_shot() {
+        let batch = batch_width();
         for &block_size in &[1usize, 8, 12, 136, 168, 1024] {
             for &len in &[
                 0usize,
@@ -1301,8 +1896,8 @@ mod tests {
                 2 * block_size + 1,
                 3 * block_size,
                 5 * block_size + 5,
-                BATCH * block_size,
-                BATCH * block_size + 1,
+                batch * block_size,
+                batch * block_size + 1,
             ] {
                 let data = pattern_data(len);
 
@@ -1310,9 +1905,9 @@ mod tests {
                 ParallelHash256::hash(&data, block_size, b"stream", &mut one_shot);
 
                 // Feed awkward chunk sizes: `1` and `block_size` force the
-                // serial path, `BATCH * block_size + 1` the batched path, and
+                // serial path, `batch * block_size + 1` the batched path, and
                 // the final chunk exercises the queue.
-                for &chunk_size in &[1usize, 3, 7, block_size, 2 * block_size + 1, BATCH * block_size + 1] {
+                for &chunk_size in &[1usize, 3, 7, block_size, 2 * block_size + 1, batch * block_size + 1] {
                     let mut h = ParallelHash256::new(block_size, b"stream");
                     for chunk in data.chunks(chunk_size) {
                         h.update(chunk);
@@ -1333,6 +1928,7 @@ mod tests {
     #[test]
     fn batched_path_matches_sequential_reference() {
         let mut rng = 0x6f4a_11e2_9d38_b705u64;
+        let batch = batch_width();
         for &block_size in &[1usize, 8, 63, 136, 137, 1024] {
             for &len in &[
                 0usize,
@@ -1342,8 +1938,8 @@ mod tests {
                 2 * block_size,
                 3 * block_size,
                 3 * block_size + 5,
-                BATCH * block_size,
-                BATCH * block_size + 7,
+                batch * block_size,
+                batch * block_size + 7,
             ] {
                 let data = random_bytes(len, &mut rng);
 

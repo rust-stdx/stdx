@@ -14,7 +14,7 @@ mod turboshake;
 mod keccak_arm64;
 
 pub use kmac::Kmac256;
-pub use parallel_hash::{ParallelHash256, ParallelHashReader};
+pub use parallel_hash::{ParallelHash256, ParallelHashReader, backend_name as parallel_hash_backend_name};
 pub use sha3_256::Sha3_256;
 pub use sha3_512::Sha3_512;
 pub use shake128::Shake128;
