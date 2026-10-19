@@ -627,13 +627,15 @@ mod avx512 {
         let u6 = _mm512_shuffle_i64x2::<0x88>(t5, t7);
         let u7 = _mm512_shuffle_i64x2::<0xdd>(t5, t7);
 
+        // The three shuffle stages leave the columns in bit-reversed order
+        // (0, 4, 2, 6, 1, 5, 3, 7); write them back in natural order.
         dst[0] = _mm512_xor_si512(dst[0], _mm512_shuffle_i64x2::<0x88>(u0, u4));
-        dst[1] = _mm512_xor_si512(dst[1], _mm512_shuffle_i64x2::<0xdd>(u0, u4));
+        dst[1] = _mm512_xor_si512(dst[1], _mm512_shuffle_i64x2::<0x88>(u2, u6));
         dst[2] = _mm512_xor_si512(dst[2], _mm512_shuffle_i64x2::<0x88>(u1, u5));
-        dst[3] = _mm512_xor_si512(dst[3], _mm512_shuffle_i64x2::<0xdd>(u1, u5));
-        dst[4] = _mm512_xor_si512(dst[4], _mm512_shuffle_i64x2::<0x88>(u2, u6));
+        dst[3] = _mm512_xor_si512(dst[3], _mm512_shuffle_i64x2::<0x88>(u3, u7));
+        dst[4] = _mm512_xor_si512(dst[4], _mm512_shuffle_i64x2::<0xdd>(u0, u4));
         dst[5] = _mm512_xor_si512(dst[5], _mm512_shuffle_i64x2::<0xdd>(u2, u6));
-        dst[6] = _mm512_xor_si512(dst[6], _mm512_shuffle_i64x2::<0x88>(u3, u7));
+        dst[6] = _mm512_xor_si512(dst[6], _mm512_shuffle_i64x2::<0xdd>(u1, u5));
         dst[7] = _mm512_xor_si512(dst[7], _mm512_shuffle_i64x2::<0xdd>(u3, u7));
     }
 }
@@ -1525,6 +1527,47 @@ mod tests {
             // 64-byte aligned with exactly `MAX_LANES` lanes.
             unsafe { avx512::permute::<24>(&mut x.lanes) };
             assert_packed(&x, &expected);
+        }
+    }
+
+    /// Directly checks the AVX-512 8x8 transpose that turns eight consecutive
+    /// 64-byte message slices into eight interleaved state lanes. This isolates
+    /// the transpose from the permutation and from finalization.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    #[test]
+    fn avx512_xor_lanes_matches_scalar_transpose() {
+        if !avx512_available() {
+            return;
+        }
+
+        let mut rng = 0x9e37_79b9_7f4a_7c15u64;
+        let msgs: [std::vec::Vec<u8>; 8] = core::array::from_fn(|_| random_bytes(192, &mut rng));
+        let refs: [&[u8]; 8] = core::array::from_fn(|w| &msgs[w][..]);
+
+        for &off in &[0usize, 8, 64] {
+            let mut x = KeccakX::<8, 12>::zero();
+            for value in &mut x.lanes[..64] {
+                *value = next_u64(&mut rng);
+            }
+            let before = x.lanes;
+
+            // SAFETY: AVX-512F was detected above, `x` is 64-byte aligned and
+            // holds `MAX_LANES` words.
+            unsafe { avx512::xor_lanes(&mut x.lanes, &refs, off) };
+
+            for lane in 0..8 {
+                for w in 0..8 {
+                    let bytes = &msgs[w][off + lane * 8..off + lane * 8 + 8];
+                    let word = u64::from_le_bytes(bytes.try_into().unwrap());
+                    assert_eq!(
+                        x.lanes[8 * lane + w],
+                        before[8 * lane + w] ^ word,
+                        "off {off}, lane {lane}, state {w}"
+                    );
+                }
+            }
+
+            assert_eq!(&x.lanes[64..], &before[64..], "off {off} wrote past the transpose");
         }
     }
 
