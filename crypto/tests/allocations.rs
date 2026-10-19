@@ -159,3 +159,124 @@ fn blake3_does_not_leak() {
         "blake3 leaked allocations"
     );
 }
+
+#[test]
+fn parallel_hash_does_not_allocate() {
+    use crypto::sha3::ParallelHash256;
+
+    // Built outside the measured closures so the input buffer itself is not
+    // counted.
+    let data = vec![0x5au8; 64 * 1024];
+
+    assert_no_alloc("parallel-hash one-shot", || {
+        let mut out = [0u8; 64];
+        ParallelHash256::hash(&data, 1024, b"alloc", &mut out);
+        out[0]
+    });
+
+    assert_no_alloc("parallel-hash streaming", || {
+        let mut hasher = ParallelHash256::new(1024, b"alloc");
+        for chunk in data.chunks(7) {
+            hasher.update(chunk);
+        }
+        let mut out = [0u8; 64];
+        hasher.finalize_into(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("parallel-hash xof", || {
+        let mut hasher = ParallelHash256::new(1024, b"alloc");
+        hasher.update(&data);
+        let mut reader = hasher.finalize_xof();
+        let mut out = [0u8; 512];
+        reader.squeeze(&mut out);
+        out[0]
+    });
+}
+
+#[test]
+fn turboshake_does_not_allocate() {
+    use crypto::{Hasher, Xof, sha3::TurboShake256};
+
+    // Built outside the measured closures so the input buffer itself is not
+    // counted.
+    let data = vec![0x5au8; 64 * 1024];
+
+    assert_no_alloc("turboshake one-shot", || {
+        let mut out = [0u8; 64];
+        TurboShake256::hash(&data, &mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turboshake incremental", || {
+        let mut xof = TurboShake256::new(0x07);
+        for chunk in data.chunks(7) {
+            xof.absorb(chunk);
+        }
+        let mut out = [0u8; 512];
+        xof.squeeze(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turboshake hasher", || {
+        let mut hasher = <TurboShake256 as Hasher>::new();
+        hasher.update(&data);
+        hasher.sum()
+    });
+}
+
+#[test]
+fn turboshake_does_not_leak() {
+    use crypto::{Xof, sha3::TurboShake256};
+
+    let data = vec![0x33u8; 4096];
+
+    let before_bytes = alloc_counter::counters().live_bytes;
+    let before_allocs = alloc_counter::counters().live_allocations;
+
+    for i in 0..1000usize {
+        // Vary the domain separator too: it must not be retained anywhere.
+        let mut xof = TurboShake256::new(0x01 + (i % 0x7f) as u8);
+        xof.absorb(&data);
+        let mut out = [0u8; 128];
+        xof.squeeze(&mut out);
+    }
+
+    assert_eq!(
+        before_bytes,
+        alloc_counter::counters().live_bytes,
+        "turboshake retained heap memory"
+    );
+    assert_eq!(
+        before_allocs,
+        alloc_counter::counters().live_allocations,
+        "turboshake leaked allocations"
+    );
+}
+
+#[test]
+fn parallel_hash_does_not_leak() {
+    use crypto::sha3::ParallelHash256;
+
+    let data = vec![0x33u8; 4096];
+
+    let before_bytes = alloc_counter::counters().live_bytes;
+    let before_allocs = alloc_counter::counters().live_allocations;
+
+    for i in 0..1000usize {
+        // Vary the block size too: it must not be retained anywhere.
+        let mut out = [0u8; 64];
+        ParallelHash256::hash(&data, 136 + (i % 7), b"leak", &mut out);
+    }
+
+    assert_eq!(
+        before_bytes,
+        alloc_counter::counters().live_bytes,
+        "parallel-hash retained heap memory"
+    );
+    assert_eq!(
+        before_allocs,
+        alloc_counter::counters().live_allocations,
+        "parallel-hash leaked allocations"
+    );
+}

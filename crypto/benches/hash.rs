@@ -7,7 +7,7 @@ use crypto::{
     blake2::Blake2b,
     blake3::Blake3,
     sha2::{Sha256, Sha512},
-    sha3::{Sha3_256, Sha3_512, Shake256},
+    sha3::{ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
@@ -48,6 +48,27 @@ fn bench_hashes(c: &mut Criterion) {
                 let _ = <Shake256 as Hasher>::hash(black_box(data.as_slice()));
             });
         });
+
+        group.bench_with_input(BenchmarkId::from_parameter("TurboSHAKE256-64"), &data, |b, data| {
+            b.iter(|| {
+                let _ = <TurboShake256 as Hasher>::hash(black_box(data.as_slice()));
+            });
+        });
+
+        // ParallelHash256 with the most common block sizes.
+        for (label, block_size) in [("B1024", 1024usize), ("B8192", 8192)] {
+            group.bench_with_input(
+                BenchmarkId::from_parameter(format!("ParallelHash256-{label}")),
+                &data,
+                |b, data| {
+                    b.iter(|| {
+                        let mut out = [0u8; 32];
+                        ParallelHash256::hash(black_box(data.as_slice()), black_box(block_size), b"", &mut out);
+                        black_box(out);
+                    });
+                },
+            );
+        }
 
         group.bench_with_input(BenchmarkId::from_parameter("BLAKE3"), &data, |b, data| {
             b.iter(|| {
@@ -149,11 +170,35 @@ fn bench_blake3_xof_oneshot(c: &mut Criterion) {
     group.finish();
 }
 
+/// Extended-output throughput for TurboSHAKE256: a fixed short input, but a
+/// long squeezed stream, to show the cost of the squeeze phase on its own.
+fn bench_turboshake_xof(c: &mut Criterion) {
+    const OUT_SIZES: &[usize] = &[64, 1024, 16 * 1024, 1024 * 1024];
+
+    let input = vec![0xA5_u8; 1024];
+    let mut group = c.benchmark_group("turboshake256-xof");
+
+    for &size in OUT_SIZES {
+        let mut out = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
+            b.iter(|| {
+                let mut xof = TurboShake256::default();
+                xof.absorb(black_box(input.as_slice()));
+                xof.squeeze(black_box(&mut out));
+            });
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_hashes,
     bench_blake3_xof,
     bench_blake3_xof_chunked,
-    bench_blake3_xof_oneshot
+    bench_blake3_xof_oneshot,
+    bench_turboshake_xof
 );
 criterion_main!(benches);
