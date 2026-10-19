@@ -90,6 +90,25 @@ impl TurboShake256 {
         };
     }
 
+    /// Changes the domain-separation byte before the output is produced.
+    ///
+    /// This is an internal building block for constructions such as
+    /// KangarooTwelve, which absorb a prefix before they know whether it
+    /// belongs to a single node or the final tree node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `domain_separator` is outside `0x01..=0x7f`, or if squeezing
+    /// has already started.
+    #[inline]
+    pub(crate) fn set_domain_separator(&mut self, domain_separator: u8) {
+        assert!(
+            (0x01..=0x7f).contains(&domain_separator),
+            "the domain separator byte must be in the 0x01..=0x7f range"
+        );
+        self.keccak.set_delimiter(domain_separator);
+    }
+
     /// Hashes `data` with the default domain-separation byte (`0x1f`), filling
     /// `output`.
     ///

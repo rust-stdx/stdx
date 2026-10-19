@@ -7,7 +7,10 @@ use crypto::{
     blake2::Blake2b,
     blake3::Blake3,
     sha2::{Sha256, Sha512},
-    sha3::{ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256, parallel_hash_backend_name},
+    sha3::{
+        Kt256, ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256, kt256_backend_name,
+        parallel_hash_backend_name,
+    },
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
@@ -17,6 +20,7 @@ fn bench_hashes(c: &mut Criterion) {
     // `ParallelHash` at B=8192 should land near `width` times the SHAKE256
     // throughput; if it does not, the batched backend is not doing its job.
     eprintln!("ParallelHash backend: {}", parallel_hash_backend_name());
+    eprintln!("KT256 backend: {}", kt256_backend_name());
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
@@ -57,6 +61,14 @@ fn bench_hashes(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("TurboSHAKE256-64"), &data, |b, data| {
             b.iter(|| {
                 let _ = <TurboShake256 as Hasher>::hash(black_box(data.as_slice()));
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("KT256-64"), &data, |b, data| {
+            b.iter(|| {
+                let mut out = [0u8; 64];
+                Kt256::hash(black_box(data.as_slice()), b"", &mut out);
+                black_box(out);
             });
         });
 
@@ -198,12 +210,37 @@ fn bench_turboshake_xof(c: &mut Criterion) {
     group.finish();
 }
 
+/// Extended-output throughput for KT256: a fixed long input and a long squeezed
+/// stream, so the numbers include at least one leaf and the final node.
+fn bench_kt256_xof(c: &mut Criterion) {
+    const OUT_SIZES: &[usize] = &[64, 1024, 16 * 1024, 1024 * 1024];
+
+    let input = vec![0xA5_u8; 64 * 1024];
+    let mut group = c.benchmark_group("kt256-xof");
+
+    for &size in OUT_SIZES {
+        let mut out = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
+            b.iter(|| {
+                let mut hasher = Kt256::new(b"");
+                hasher.update(black_box(input.as_slice()));
+                let mut reader = hasher.finalize_xof();
+                reader.squeeze(black_box(&mut out));
+            });
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_hashes,
     bench_blake3_xof,
     bench_blake3_xof_chunked,
     bench_blake3_xof_oneshot,
-    bench_turboshake_xof
+    bench_turboshake_xof,
+    bench_kt256_xof
 );
 criterion_main!(benches);

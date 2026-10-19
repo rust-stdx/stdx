@@ -280,3 +280,62 @@ fn parallel_hash_does_not_leak() {
         "parallel-hash leaked allocations"
     );
 }
+
+#[test]
+fn kt256_does_not_allocate() {
+    use crypto::sha3::Kt256;
+
+    // Built outside the measured closures so the input buffers themselves are
+    // not counted.
+    let data = vec![0x5au8; 64 * 1024];
+    let customization = b"alloc";
+
+    assert_no_alloc("kt256 one-shot", || {
+        let mut out = [0u8; 64];
+        Kt256::hash(&data, customization, &mut out);
+        out[0]
+    });
+
+    assert_no_alloc("kt256 streaming", || {
+        let mut hasher = Kt256::new(customization);
+        for chunk in data.chunks(7) {
+            hasher.update(chunk);
+        }
+        let mut out = [0u8; 64];
+        hasher.finalize_into(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("kt256 xof", || {
+        let mut hasher = Kt256::new(customization);
+        hasher.update(&data);
+        let mut reader = hasher.finalize_xof();
+        let mut out = [0u8; 512];
+        reader.squeeze(&mut out);
+        out[0]
+    });
+}
+
+#[test]
+fn kt256_does_not_leak() {
+    use crypto::sha3::Kt256;
+
+    let data = vec![0x33u8; 2 * 8192 + 17];
+
+    let before_bytes = alloc_counter::counters().live_bytes;
+    let before_allocs = alloc_counter::counters().live_allocations;
+
+    for i in 0..1000usize {
+        // Vary the customization length too: it must not be retained anywhere.
+        let customization = vec![0xa5u8; i % 41];
+        let mut out = [0u8; 64];
+        Kt256::hash(&data, &customization, &mut out);
+    }
+
+    assert_eq!(before_bytes, alloc_counter::counters().live_bytes, "kt256 retained heap memory");
+    assert_eq!(
+        before_allocs,
+        alloc_counter::counters().live_allocations,
+        "kt256 leaked allocations"
+    );
+}

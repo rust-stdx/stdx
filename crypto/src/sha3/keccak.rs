@@ -73,6 +73,25 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
         };
     }
 
+    /// Replaces the domain-separation byte used by the next padding step.
+    ///
+    /// This is only valid while the sponge is absorbing. It lets a caller
+    /// that has already absorbed a prefix decide the final domain separator
+    /// afterwards, without buffering the prefix.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the sponge has already started squeezing.
+    #[inline]
+    pub(crate) fn set_delimiter(&mut self, delimiter: u8) {
+        assert_eq!(
+            self.mode,
+            SpongeMode::Absorbing,
+            "the delimiter can only be changed while absorbing"
+        );
+        self.padding = delimiter;
+    }
+
     #[inline]
     pub fn absorb(&mut self, data: &[u8]) {
         assert_eq!(self.mode, SpongeMode::Absorbing, "absorb can't be called after squeezing");
