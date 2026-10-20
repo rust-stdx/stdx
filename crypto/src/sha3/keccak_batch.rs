@@ -57,14 +57,10 @@ impl Backend {
         #[cfg(all(target_arch = "x86_64", feature = "std"))]
         {
             #[cfg(target_feature = "avx512f")]
-            {
-                return Backend::Avx512;
-            }
+            return Backend::Avx512;
 
             #[cfg(target_feature = "avx2")]
-            {
-                return Backend::Avx2;
-            }
+            return Backend::Avx2;
 
             if std::arch::is_x86_feature_detected!("avx512f") {
                 return Backend::Avx512;
@@ -75,14 +71,10 @@ impl Backend {
         }
 
         #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
-        {
-            return Backend::Avx512;
-        }
+        return Backend::Avx512;
 
         #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
-        {
-            return Backend::Avx2;
-        }
+        return Backend::Avx2;
 
         #[cfg(target_arch = "aarch64")]
         {
@@ -885,11 +877,12 @@ mod neon {
 
 #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
 mod sha3_ext {
-    use core::arch::aarch64::*;
-
-    use super::ROUND_CONSTANTS;
+    use core::arch::aarch64::uint64x2_t;
 
     /// Armv8.4-A SHA-3 (FEAT_SHA3) 2-way permutation.
+    ///
+    /// The round is shared with the single-state permutation used by the
+    /// SHA-3/SHAKE sponges; see [`crate::sha3::keccak_arm64::permute_lanes`].
     ///
     /// # Safety
     /// The caller must have verified that the CPU implements FEAT_SHA3, and
@@ -898,147 +891,8 @@ mod sha3_ext {
     pub(super) unsafe fn permute<const ROUNDS: usize>(lanes: &mut [u64; 50]) {
         // SAFETY: invariant documented on the function.
         let state: &mut [uint64x2_t; 25] = unsafe { &mut *(lanes.as_mut_ptr().cast()) };
-        keccak_p1600_x2_sha3::<ROUNDS>(state);
-    }
-
-    /// This is the round of `keccak_arm64::p1600_armv8`, expressed with the
-    /// Rust intrinsics for `EOR3`, `RAX1`, `XAR` and `BCAX`. Those instructions
-    /// are 128-bit operations, so they naturally process both batched states.
-    #[target_feature(enable = "sha3")]
-    unsafe fn keccak_p1600_x2_sha3<const ROUNDS: usize>(s: &mut [uint64x2_t; 25]) {
-        for r in (24 - ROUNDS)..24 {
-            let rc = ROUND_CONSTANTS[r];
-
-            let mut v0 = s[0];
-            let mut v1 = s[1];
-            let mut v2 = s[2];
-            let mut v3 = s[3];
-            let mut v4 = s[4];
-            let mut v5 = s[5];
-            let mut v6 = s[6];
-            let mut v7 = s[7];
-            let mut v8 = s[8];
-            let mut v9 = s[9];
-            let mut v10 = s[10];
-            let mut v11 = s[11];
-            let mut v12 = s[12];
-            let mut v13 = s[13];
-            let mut v14 = s[14];
-            let mut v15 = s[15];
-            let mut v16 = s[16];
-            let mut v17 = s[17];
-            let mut v18 = s[18];
-            let mut v19 = s[19];
-            let mut v20 = s[20];
-            let mut v21 = s[21];
-            let mut v22 = s[22];
-            let mut v23 = s[23];
-            let mut v24 = s[24];
-
-            // theta
-            let mut v25 = veor3q_u64(v20, v15, v10);
-            let mut v26 = veor3q_u64(v21, v16, v11);
-            let mut v27 = veor3q_u64(v22, v17, v12);
-            let mut v28 = veor3q_u64(v23, v18, v13);
-            let mut v29 = veor3q_u64(v24, v19, v14);
-            v25 = veor3q_u64(v25, v5, v0);
-            v26 = veor3q_u64(v26, v6, v1);
-            v27 = veor3q_u64(v27, v7, v2);
-            v28 = veor3q_u64(v28, v8, v3);
-            v29 = veor3q_u64(v29, v9, v4);
-            let mut v30 = vrax1q_u64(v25, v27);
-            let mut v31 = vrax1q_u64(v26, v28);
-            v27 = vrax1q_u64(v27, v29);
-            v28 = vrax1q_u64(v28, v25);
-            v29 = vrax1q_u64(v29, v26);
-
-            // rho and pi (theta's D is folded into each XAR)
-            v0 = veorq_u64(v0, v29);
-            v25 = vxarq_u64::<{ 64 - 1 }>(v1, v30);
-            v1 = vxarq_u64::<{ 64 - 44 }>(v6, v30);
-            v6 = vxarq_u64::<{ 64 - 20 }>(v9, v28);
-            v9 = vxarq_u64::<{ 64 - 61 }>(v22, v31);
-            v22 = vxarq_u64::<{ 64 - 39 }>(v14, v28);
-            v14 = vxarq_u64::<{ 64 - 18 }>(v20, v29);
-            v26 = vxarq_u64::<{ 64 - 62 }>(v2, v31);
-            v2 = vxarq_u64::<{ 64 - 43 }>(v12, v31);
-            v12 = vxarq_u64::<{ 64 - 25 }>(v13, v27);
-            v13 = vxarq_u64::<{ 64 - 8 }>(v19, v28);
-            v19 = vxarq_u64::<{ 64 - 56 }>(v23, v27);
-            v23 = vxarq_u64::<{ 64 - 41 }>(v15, v29);
-            v15 = vxarq_u64::<{ 64 - 27 }>(v4, v28);
-            v28 = vxarq_u64::<{ 64 - 14 }>(v24, v28);
-            v24 = vxarq_u64::<{ 64 - 2 }>(v21, v30);
-            v8 = vxarq_u64::<{ 64 - 55 }>(v8, v27);
-            v4 = vxarq_u64::<{ 64 - 45 }>(v16, v30);
-            v16 = vxarq_u64::<{ 64 - 36 }>(v5, v29);
-            v5 = vxarq_u64::<{ 64 - 28 }>(v3, v27);
-            v27 = vxarq_u64::<{ 64 - 21 }>(v18, v27);
-            v3 = vxarq_u64::<{ 64 - 15 }>(v17, v31);
-            v30 = vxarq_u64::<{ 64 - 10 }>(v11, v30);
-            v31 = vxarq_u64::<{ 64 - 6 }>(v7, v31);
-            v29 = vxarq_u64::<{ 64 - 3 }>(v10, v29);
-
-            // chi
-            v20 = vbcaxq_u64(v26, v22, v8);
-            v21 = vbcaxq_u64(v8, v23, v22);
-            v22 = vbcaxq_u64(v22, v24, v23);
-            v23 = vbcaxq_u64(v23, v26, v24);
-            v24 = vbcaxq_u64(v24, v8, v26);
-
-            v17 = vbcaxq_u64(v30, v19, v3);
-            v18 = vbcaxq_u64(v3, v15, v19);
-            v19 = vbcaxq_u64(v19, v16, v15);
-            v15 = vbcaxq_u64(v15, v30, v16);
-            v16 = vbcaxq_u64(v16, v3, v30);
-
-            v10 = vbcaxq_u64(v25, v12, v31);
-            v11 = vbcaxq_u64(v31, v13, v12);
-            v12 = vbcaxq_u64(v12, v14, v13);
-            v13 = vbcaxq_u64(v13, v25, v14);
-            v14 = vbcaxq_u64(v14, v31, v25);
-
-            v7 = vbcaxq_u64(v29, v9, v4);
-            v8 = vbcaxq_u64(v4, v5, v9);
-            v9 = vbcaxq_u64(v9, v6, v5);
-            v5 = vbcaxq_u64(v5, v29, v6);
-            v6 = vbcaxq_u64(v6, v4, v29);
-
-            v3 = vbcaxq_u64(v27, v0, v28);
-            v4 = vbcaxq_u64(v28, v1, v0);
-            v0 = vbcaxq_u64(v0, v2, v1);
-            v1 = vbcaxq_u64(v1, v27, v2);
-            v2 = vbcaxq_u64(v2, v28, v27);
-
-            // iota
-            v0 = veorq_u64(v0, vdupq_n_u64(rc));
-
-            s[0] = v0;
-            s[1] = v1;
-            s[2] = v2;
-            s[3] = v3;
-            s[4] = v4;
-            s[5] = v5;
-            s[6] = v6;
-            s[7] = v7;
-            s[8] = v8;
-            s[9] = v9;
-            s[10] = v10;
-            s[11] = v11;
-            s[12] = v12;
-            s[13] = v13;
-            s[14] = v14;
-            s[15] = v15;
-            s[16] = v16;
-            s[17] = v17;
-            s[18] = v18;
-            s[19] = v19;
-            s[20] = v20;
-            s[21] = v21;
-            s[22] = v22;
-            s[23] = v23;
-            s[24] = v24;
-        }
+        // SAFETY: the backend was detected at construction.
+        unsafe { crate::sha3::keccak_arm64::permute_lanes::<ROUNDS>(state) };
     }
 }
 

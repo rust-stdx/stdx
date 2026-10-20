@@ -13,7 +13,9 @@ mod shake128;
 mod shake256;
 mod turboshake;
 
-#[cfg(target_arch = "aarch64")]
+// The module only exists when a caller can reach it: with `std` the CPU is
+// probed at run time, without it FEAT_SHA3 must be enabled at compile time.
+#[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
 mod keccak_arm64;
 
 pub use kangaroo_twelve::{KT256_CHUNK_SIZE, Kt256, Kt256Reader, kt256_backend_name};

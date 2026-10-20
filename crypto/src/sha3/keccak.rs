@@ -338,4 +338,42 @@ mod tests {
         let (state_first, state_second) = keccak_f1600_vectors();
         keccak_f(p1600_soft::<24>, state_first, state_second);
     }
+
+    /// The FEAT_SHA3 permutation must agree with the portable one for every
+    /// round count, not just for the 24 rounds covered by the XKCP vectors.
+    #[cfg(all(target_arch = "aarch64", feature = "std"))]
+    #[test]
+    fn keccak_f1600_armv8_matches_soft() {
+        use crate::sha3::keccak_arm64::p1600_armv8;
+
+        if !std::arch::is_aarch64_feature_detected!("sha3") {
+            return;
+        }
+
+        let mut rng = 0x0123_4567_89ab_cdef_u64;
+        let mut state = [0u64; 25];
+        for word in state.iter_mut() {
+            rng ^= rng >> 12;
+            rng ^= rng << 25;
+            rng ^= rng >> 27;
+            *word = rng.wrapping_mul(0x2545_f491_4f6c_dd1d);
+        }
+
+        macro_rules! check {
+            ($($rounds:literal),* $(,)?) => {
+                $({
+                    let mut hardware = state;
+                    let mut portable = state;
+                    // SAFETY: FEAT_SHA3 was detected above.
+                    unsafe { p1600_armv8::<$rounds>(&mut hardware) };
+                    p1600_soft::<$rounds>(&mut portable);
+                    assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
+                })*
+            };
+        }
+
+        check!(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        );
+    }
 }
