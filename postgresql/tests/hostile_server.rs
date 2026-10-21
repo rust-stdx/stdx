@@ -31,6 +31,7 @@ enum Case {
     DataRowNegativeCount,
     DataRowCountMismatch,
     DataRowTruncated,
+    EmptyResult,
     RowDescriptionNegativeCount,
     ParameterDescriptionNegativeCount,
     OversizedMessageLength,
@@ -353,6 +354,9 @@ fn case_response(case: Case) -> Vec<u8> {
             out.extend_from_slice(&frame(b'D', &payload));
             out.extend_from_slice(&command_complete("SELECT 1"));
         }
+        Case::EmptyResult => {
+            out.extend_from_slice(&command_complete("SELECT 0"));
+        }
         Case::RowDescriptionNegativeCount => {
             out.extend_from_slice(&frame(b'T', &(-1i16).to_be_bytes()));
         }
@@ -562,10 +566,13 @@ async fn handle(mut sock: TcpStream, config: Arc<ServerConfig>, case: Case) -> s
                     if saw_parse {
                         response.extend_from_slice(&prepare_prefix());
                     }
+                    let mut ended = false;
                     if saw_bind && !sent_case {
                         sent_case = true;
                         response.extend_from_slice(&case_response(case));
-                    } else if !response.is_empty() || !saw_bind {
+                        ended = true;
+                    }
+                    if !ended {
                         response.extend_from_slice(&ready());
                     }
                     saw_parse = false;
@@ -614,4 +621,60 @@ async fn ipv6_literal_hosts_connect() {
         .await
         .expect("query over IPv6");
     assert_eq!(value, 1);
+}
+
+/// The single-row path reports an empty result as `RowNotFound` (and
+/// `fetch_optional` as `None`), not as a hang or a decode error.
+#[tokio::test]
+async fn fetch_one_reports_an_empty_result_as_row_not_found() {
+    run(Case::EmptyResult, |conn| async move {
+        let err = tokio::time::timeout(
+            Duration::from_secs(2),
+            postgresql::Query::new("SELECT 1", &[]).fetch_one::<_, postgresql::Row>(&conn),
+        )
+        .await
+        .expect("fetch_one timed out")
+        .expect_err("an empty result is not a row");
+        assert!(matches!(err, postgresql::Error::RowNotFound), "{err}");
+        let none = tokio::time::timeout(
+            Duration::from_secs(2),
+            postgresql::Query::new("SELECT 1", &[]).fetch_optional::<_, postgresql::Row>(&conn),
+        )
+        .await
+        .expect("fetch_optional timed out")
+        .expect("optional query");
+        assert!(none.is_none());
+    })
+    .await;
+}
+
+/// Malformed rows are errors through the single-row path too.
+#[tokio::test]
+async fn fetch_one_rejects_malformed_rows() {
+    for case in [
+        Case::DataRowNegativeCount,
+        Case::DataRowCountMismatch,
+        Case::DataRowTruncated,
+    ] {
+        run(case, |conn| async move {
+            let result = postgresql::Query::new("SELECT 1", &[])
+                .fetch_one::<_, postgresql::Row>(&conn)
+                .await;
+            assert!(result.is_err(), "a malformed row must be an error");
+        })
+        .await;
+    }
+}
+
+/// A server error before the row is delivered through the one-shot.
+#[tokio::test]
+async fn fetch_one_reports_server_errors() {
+    run(Case::ErrorNonAsciiCode, |conn| async move {
+        let err = postgresql::Query::new("SELECT 1", &[])
+            .fetch_one::<_, postgresql::Row>(&conn)
+            .await
+            .expect_err("the server reports an error");
+        assert!(matches!(err, postgresql::Error::Server(_)), "{err}");
+    })
+    .await;
 }

@@ -3,6 +3,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     fmt,
+    future::Future,
     pin::Pin,
     sync::{
         Arc, Mutex,
@@ -323,7 +324,18 @@ pub(crate) struct RowItem {
     pub(crate) size: usize,
 }
 
-type RowSender = mpsc::Sender<Result<RowItem, Error>>;
+pub(crate) enum RowSink {
+    Channel {
+        tx: mpsc::Sender<Result<RowItem, Error>>,
+        budget: Option<Arc<BufferBudget>>,
+    },
+    One(Option<oneshot::Sender<Result<Option<Row>, Error>>>),
+}
+
+pub(crate) enum RowReceiver {
+    Channel(mpsc::Receiver<Result<RowItem, Error>>),
+    One(oneshot::Receiver<Result<Option<Row>, Error>>),
+}
 
 /// A byte budget shared between the actor (producer) and a stream (consumer).
 ///
@@ -406,8 +418,7 @@ impl BufferBudget {
 pub(crate) struct QueryRequest {
     sql: Arc<str>,
     params: EncodedParams,
-    rows: Option<RowSender>,
-    budget: Option<Arc<BufferBudget>>,
+    rows: Option<RowSink>,
     done: oneshot::Sender<Result<u64, Error>>,
     max_rows: i32,
     completed: Arc<AtomicBool>,
@@ -720,10 +731,21 @@ impl Connection {
     pub(crate) async fn fetch_rows(&self, sql: &str, params: &[&dyn ToSql], max_rows: i32) -> Result<RowStream, Error> {
         let sql = self.intern(sql);
         let encoded = encode_params(params)?;
-        let (rows, rx) = mpsc::channel(ROW_CHANNEL_CAPACITY);
-        // Only an unbounded stream can queue more than one row, so only it
-        // needs a byte budget (and the allocation that comes with it).
-        let budget = (max_rows == 0).then(|| BufferBudget::new(self.config.max_buffered_bytes));
+        let (rows, receiver, budget) = if max_rows == 1 {
+            let (tx, rx) = oneshot::channel();
+            (RowSink::One(Some(tx)), RowReceiver::One(rx), None)
+        } else {
+            let (tx, rx) = mpsc::channel(ROW_CHANNEL_CAPACITY);
+            let budget = (max_rows == 0).then(|| BufferBudget::new(self.config.max_buffered_bytes));
+            (
+                RowSink::Channel {
+                    tx,
+                    budget: budget.clone(),
+                },
+                RowReceiver::Channel(rx),
+                budget,
+            )
+        };
         let (done, _done_rx) = oneshot::channel();
         let completed = Arc::new(AtomicBool::new(false));
         self.tx
@@ -731,19 +753,15 @@ impl Connection {
                 sql,
                 params: encoded,
                 rows: Some(rows),
-                budget: budget.clone(),
                 done,
                 max_rows,
                 completed: completed.clone(),
             }))
             .map_err(|_| Error::Closed)?;
         Ok(RowStream::new(
-            rx,
+            receiver,
             budget,
             completed,
-            // A limited query (`fetch_one`/`fetch_optional`) stops itself, so it
-            // never needs a cancel request; only an abandoned unbounded stream
-            // does.
             if max_rows == 0 { Some(self.cancel_token()) } else { None },
         ))
     }
@@ -766,7 +784,6 @@ impl Connection {
                 sql,
                 params: encoded,
                 rows: None,
-                budget: None,
                 done,
                 max_rows: 0,
                 completed: completed.clone(),
@@ -835,7 +852,6 @@ impl Connection {
             sql,
             params,
             rows: None,
-            budget: None,
             done,
             max_rows: 0,
             completed,
@@ -1067,7 +1083,7 @@ impl Drop for CopyOutStream {
 /// started on a [`crate::Pool`] cannot be interleaved with another checkout of
 /// the same connection.
 pub struct RowStream {
-    rx: mpsc::Receiver<Result<RowItem, Error>>,
+    rx: RowReceiver,
     budget: Option<Arc<BufferBudget>>,
     completed: Arc<AtomicBool>,
     cancel: Option<CancelToken>,
@@ -1077,7 +1093,7 @@ pub struct RowStream {
 
 impl RowStream {
     pub(crate) fn new(
-        rx: mpsc::Receiver<Result<RowItem, Error>>,
+        rx: RowReceiver,
         budget: Option<Arc<BufferBudget>>,
         completed: Arc<AtomicBool>,
         cancel: Option<CancelToken>,
@@ -1105,34 +1121,60 @@ impl Stream for RowStream {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        match this.rx.poll_recv(cx) {
-            Poll::Ready(Some(Ok(item))) => {
-                // The row left the queue: the actor may buffer more.
-                if let Some(budget) = &this.budget {
-                    budget.release(item.size);
+        match &mut this.rx {
+            RowReceiver::Channel(rx) => match rx.poll_recv(cx) {
+                Poll::Ready(Some(Ok(item))) => {
+                    if let Some(budget) = &this.budget {
+                        budget.release(item.size);
+                    }
+                    Poll::Ready(Some(Ok(item.row)))
                 }
-                Poll::Ready(Some(Ok(item.row)))
+                Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
+                Poll::Ready(None) => {
+                    this.keepalive.take();
+                    if let Some(budget) = &this.budget {
+                        budget.close();
+                    }
+                    if !this.completed.load(Ordering::Acquire) && !this.terminated {
+                        this.terminated = true;
+                        return Poll::Ready(Some(Err(Error::Closed)));
+                    }
+                    Poll::Ready(None)
+                }
+                Poll::Pending => Poll::Pending,
+            },
+            RowReceiver::One(rx) => {
+                if this.terminated {
+                    return Poll::Ready(None);
+                }
+                match Pin::new(rx).poll(cx) {
+                    Poll::Ready(Ok(Ok(Some(row)))) => {
+                        this.terminated = true;
+                        this.keepalive.take();
+                        Poll::Ready(Some(Ok(row)))
+                    }
+                    Poll::Ready(Ok(Ok(None))) => {
+                        this.terminated = true;
+                        this.keepalive.take();
+                        Poll::Ready(None)
+                    }
+                    Poll::Ready(Ok(Err(err))) => {
+                        this.terminated = true;
+                        this.keepalive.take();
+                        Poll::Ready(Some(Err(err)))
+                    }
+                    Poll::Ready(Err(_)) => {
+                        this.terminated = true;
+                        this.keepalive.take();
+                        if this.completed.load(Ordering::Acquire) {
+                            Poll::Ready(None)
+                        } else {
+                            Poll::Ready(Some(Err(Error::Closed)))
+                        }
+                    }
+                    Poll::Pending => Poll::Pending,
+                }
             }
-            Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
-            // The query is over: release whatever is keeping the connection
-            // (a pooled checkout) now instead of waiting for `Drop`.
-            Poll::Ready(None) => {
-                this.keepalive.take();
-                if let Some(budget) = &this.budget {
-                    budget.close();
-                }
-                // A closed channel is a clean end only when the actor marked
-                // the query complete. If the actor disappeared (runtime
-                // shutdown, panic), the absence of `completed` means the result
-                // is truncated; reporting `None` would silently turn a partial
-                // result into a successful one.
-                if !this.completed.load(Ordering::Acquire) && !this.terminated {
-                    this.terminated = true;
-                    return Poll::Ready(Some(Err(Error::Closed)));
-                }
-                Poll::Ready(None)
-            }
-            Poll::Pending => Poll::Pending,
         }
     }
 }
@@ -1563,7 +1605,7 @@ impl Actor {
         }
     }
 
-    async fn handle_query(&mut self, query: QueryRequest) {
+    async fn handle_query(&mut self, mut query: QueryRequest) {
         tracing::debug!(
             sql = %query.sql,
             params = query.params.oids.len(),
@@ -1573,14 +1615,12 @@ impl Actor {
         let mut attempts = 0u8;
         let result = loop {
             attempts += 1;
-            match self.attempt_query(&query).await {
+            match self.attempt_query(&mut query).await {
                 Ok(affected) => break Ok(affected),
                 Err(AttemptError {
                     error,
                     rows_sent,
                 }) => {
-                    // A stale plan can only be retried when no row was already
-                    // delivered: re-running the query would send them twice.
                     let retryable = should_retry(attempts, rows_sent, &error);
                     if retryable {
                         let hash = statement_key(&query.sql, query.params.oids.as_slice());
@@ -1595,26 +1635,34 @@ impl Actor {
             }
         };
 
-        // Mark complete first so a dropped `RowStream` does not cancel a query
-        // that has already finished.
         query.completed.store(true, Ordering::Release);
         match result {
             Ok(affected) => {
+                if let Some(RowSink::One(tx)) = &mut query.rows
+                    && let Some(tx) = tx.take()
+                {
+                    let _ = tx.send(Ok(None));
+                }
                 let _ = query.done.send(Ok(affected));
             }
             Err(err) => {
-                if let Some(rows) = &query.rows
-                    && !rows.is_closed()
-                {
-                    // The row stream is what the caller reads; `done` is only
-                    // awaited by `execute`, which has no row channel. Both want
-                    // the error, so the rows get a description of it.
-                    let for_rows = match &err {
-                        Error::Server(db) => Error::Server(db.clone()),
-                        Error::Closed => Error::Closed,
-                        other => Error::ConnectionFailed(other.to_string()),
-                    };
-                    let _ = rows.send(Err(for_rows)).await;
+                let for_rows = match &err {
+                    Error::Server(db) => Error::Server(db.clone()),
+                    Error::Closed => Error::Closed,
+                    other => Error::ConnectionFailed(other.to_string()),
+                };
+                match &mut query.rows {
+                    Some(RowSink::Channel {
+                        tx, ..
+                    }) if !tx.is_closed() => {
+                        let _ = tx.send(Err(for_rows)).await;
+                    }
+                    Some(RowSink::One(tx)) => {
+                        if let Some(tx) = tx.take() {
+                            let _ = tx.send(Err(for_rows));
+                        }
+                    }
+                    _ => {}
                 }
                 let _ = query.done.send(Err(err));
             }
@@ -1631,7 +1679,7 @@ impl Actor {
     /// execute and read the result. Rows are streamed to `query.rows`; an error
     /// carries whether any row was already delivered, so a stale plan can only
     /// be retried when the caller's stream has seen nothing yet.
-    async fn attempt_query(&mut self, query: &QueryRequest) -> Result<u64, AttemptError> {
+    async fn attempt_query(&mut self, query: &mut QueryRequest) -> Result<u64, AttemptError> {
         let hash = statement_key(&query.sql, query.params.oids.as_slice());
         let param_count = query.params.oids.len();
 
@@ -1715,35 +1763,51 @@ impl Actor {
                             rows_sent,
                         });
                     };
-                    if let Some(rows) = &query.rows
-                        && !rows.is_closed()
-                    {
-                        match Row::parse(fields.clone(), &payload, self.zone) {
-                            Ok(row) => {
-                                let size = payload.len();
-                                // Both the channel capacity and the byte
-                                // budget apply backpressure.
-                                let admitted = match &query.budget {
-                                    Some(budget) => budget.reserve(size).await,
-                                    None => true,
-                                };
-                                if admitted
-                                    && rows
-                                        .send(Ok(RowItem {
-                                            row,
-                                            size,
-                                        }))
-                                        .await
-                                        .is_err()
-                                    && let Some(budget) = &query.budget
-                                {
-                                    budget.release(size);
+                    match query.rows.as_mut() {
+                        Some(RowSink::Channel {
+                            tx,
+                            budget,
+                        }) => {
+                            if !tx.is_closed() {
+                                match Row::parse(fields.clone(), &payload, self.zone) {
+                                    Ok(row) => {
+                                        let size = payload.len();
+                                        let admitted = match budget.as_ref() {
+                                            Some(budget) => budget.reserve(size).await,
+                                            None => true,
+                                        };
+                                        if admitted
+                                            && tx
+                                                .send(Ok(RowItem {
+                                                    row,
+                                                    size,
+                                                }))
+                                                .await
+                                                .is_err()
+                                            && let Some(budget) = budget.as_ref()
+                                        {
+                                            budget.release(size);
+                                        }
+                                    }
+                                    Err(err) => {
+                                        let _ = tx.send(Err(err)).await;
+                                    }
                                 }
                             }
-                            Err(err) => {
-                                let _ = rows.send(Err(err)).await;
+                        }
+                        Some(RowSink::One(tx)) => {
+                            if let Some(tx) = tx.take() {
+                                match Row::parse(fields.clone(), &payload, self.zone) {
+                                    Ok(row) => {
+                                        let _ = tx.send(Ok(Some(row)));
+                                    }
+                                    Err(err) => {
+                                        let _ = tx.send(Err(err));
+                                    }
+                                }
                             }
                         }
+                        None => {}
                     }
                 }
                 Ok(BackendMessage::CommandComplete(tag)) => match parse_command_tag(&tag) {
@@ -2232,12 +2296,71 @@ mod tests {
 
     use super::*;
 
+    fn one_int4_row() -> Row {
+        let columns = crate::__private::bench_columns(&[23]);
+        let mut payload = BytesMut::new();
+        bytes::BufMut::put_i16(&mut payload, 1);
+        bytes::BufMut::put_i32(&mut payload, 4);
+        bytes::BufMut::put_i32(&mut payload, 7);
+        Row::parse(columns, &payload.freeze(), time::TimeZone::UTC).unwrap()
+    }
+
+    #[tokio::test]
+    async fn one_shot_stream_yields_the_row_then_ends() {
+        let (tx, rx) = oneshot::channel();
+        tx.send(Ok(Some(one_int4_row()))).unwrap();
+        let mut stream = RowStream::new(RowReceiver::One(rx), None, Arc::new(AtomicBool::new(false)), None);
+        let row = stream.next().await.unwrap().unwrap();
+        assert_eq!(row.try_get_by_index::<i32>(0).unwrap(), 7);
+        assert!(stream.next().await.is_none());
+        assert!(stream.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn one_shot_stream_reports_zero_rows_as_a_clean_end() {
+        let (tx, rx) = oneshot::channel();
+        tx.send(Ok(None)).unwrap();
+        let mut stream = RowStream::new(RowReceiver::One(rx), None, Arc::new(AtomicBool::new(true)), None);
+        assert!(stream.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn one_shot_stream_reports_errors() {
+        let (tx, rx) = oneshot::channel();
+        tx.send(Err(Error::RowNotFound)).unwrap();
+        let mut stream = RowStream::new(RowReceiver::One(rx), None, Arc::new(AtomicBool::new(true)), None);
+        assert!(matches!(stream.next().await, Some(Err(Error::RowNotFound))));
+        assert!(stream.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn one_shot_stream_reports_a_disappeared_actor() {
+        // The sender is dropped before sending anything, and the query was
+        // never marked complete: the missing row is an error, not an empty
+        // result.
+        let (tx, rx) = oneshot::channel::<Result<Option<Row>, Error>>();
+        drop(tx);
+        let mut stream = RowStream::new(RowReceiver::One(rx), None, Arc::new(AtomicBool::new(false)), None);
+        assert!(matches!(stream.next().await, Some(Err(Error::Closed))));
+        assert!(stream.next().await.is_none());
+
+        // A completed query that produced no row is a clean end.
+        let (tx, rx) = oneshot::channel::<Result<Option<Row>, Error>>();
+        drop(tx);
+        let mut stream = RowStream::new(RowReceiver::One(rx), None, Arc::new(AtomicBool::new(true)), None);
+        assert!(stream.next().await.is_none());
+    }
+
     #[tokio::test]
     async fn a_closed_row_channel_is_an_error_until_completed() {
         let (tx, rx) = mpsc::channel(1);
         drop(tx);
-        let mut stream =
-            RowStream::new(rx, Some(BufferBudget::new(usize::MAX)), Arc::new(AtomicBool::new(false)), None);
+        let mut stream = RowStream::new(
+            RowReceiver::Channel(rx),
+            Some(BufferBudget::new(usize::MAX)),
+            Arc::new(AtomicBool::new(false)),
+            None,
+        );
         // The actor vanished before marking the query complete: the missing
         // rows are an error, not a clean end.
         assert!(matches!(stream.next().await, Some(Err(Error::Closed))));
@@ -2245,7 +2368,12 @@ mod tests {
 
         let (tx, rx) = mpsc::channel(1);
         drop(tx);
-        let mut stream = RowStream::new(rx, Some(BufferBudget::new(usize::MAX)), Arc::new(AtomicBool::new(true)), None);
+        let mut stream = RowStream::new(
+            RowReceiver::Channel(rx),
+            Some(BufferBudget::new(usize::MAX)),
+            Arc::new(AtomicBool::new(true)),
+            None,
+        );
         assert!(stream.next().await.is_none());
     }
 

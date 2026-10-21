@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use postgresql_protocol::{backend::FieldDescription, oid::Oid};
+use small_collections::SmallVec;
 
 use crate::{decode::FromSql, error::Error, json::Json};
 
@@ -73,27 +74,26 @@ impl Columns {
     }
 }
 
+/// Number of column offsets stored inline in a [`Row`].
+const INLINE_FIELDS: usize = 4;
+
 /// One result row.
 ///
-/// Column values are borrowed slices of the received frame, so cloning a row
-/// shares the column bytes (only the small value table is reallocated) and a
-/// row can be kept beyond its originating query.
+/// The row retains the received frame and keeps one `(start, end)` offset per
+/// column inline (spilling to the heap for rows with more than
+/// `INLINE_FIELDS` columns). Parsing and cloning a narrow row therefore does
+/// not allocate, and every accessor still borrows from the frame. A row can be
+/// kept beyond its originating query.
 #[derive(Debug, Clone)]
 pub struct Row {
     columns: Arc<Columns>,
-    values: Box<[Option<Bytes>]>,
+    frame: Bytes,
+    /// `(start, end)` byte offsets into `frame`; `end == u32::MAX` is NULL.
+    fields: SmallVec<(u32, u32), INLINE_FIELDS>,
     zone: time::TimeZone,
 }
 
 impl Row {
-    pub(crate) fn new(columns: Arc<Columns>, values: Box<[Option<Bytes>]>, zone: time::TimeZone) -> Self {
-        Row {
-            columns,
-            values,
-            zone,
-        }
-    }
-
     /// Parses a `DataRow` payload (starting with the column count).
     ///
     /// The payload comes straight from the server and is validated before it
@@ -115,7 +115,13 @@ impl Row {
         }
         let mut pos = 2usize;
 
-        let mut values = Vec::with_capacity(count);
+        // A `DataRow` is bounded by `max_message_len` (at most i32::MAX), so
+        // byte offsets fit in u32. Check anyway: a future caller passing a
+        // larger buffer must not get truncated offsets.
+        if payload.len() > u32::MAX as usize {
+            return Err(Error::Decode("data row is too large to address".into()));
+        }
+        let mut fields: SmallVec<(u32, u32), INLINE_FIELDS> = SmallVec::with_capacity(count);
         for _ in 0..count {
             if pos + 4 > payload.len() {
                 return Err(Error::Decode("data row is truncated".into()));
@@ -123,15 +129,19 @@ impl Row {
             let raw_len = i32::from_be_bytes(payload[pos..pos + 4].try_into().unwrap());
             pos += 4;
             if raw_len == -1 {
-                values.push(None);
+                fields.push((0, u32::MAX));
             } else {
                 let len = usize::try_from(raw_len)
                     .map_err(|_| Error::Decode(format!("data row column has an invalid length {raw_len}")))?;
-                if pos + len > payload.len() {
+                let end = pos
+                    .checked_add(len)
+                    .ok_or_else(|| Error::Decode("data row column length overflows".into()))?;
+                if end > payload.len() {
                     return Err(Error::Decode("data row column exceeds frame".into()));
                 }
-                values.push(Some(payload.slice(pos..pos + len)));
-                pos += len;
+                let start = pos as u32;
+                pos = end;
+                fields.push((start, pos as u32));
             }
         }
         if pos != payload.len() {
@@ -140,7 +150,12 @@ impl Row {
                 payload.len() - pos
             )));
         }
-        Ok(Row::new(columns, values.into_boxed_slice(), zone))
+        Ok(Row {
+            columns,
+            frame: payload.clone(),
+            fields,
+            zone,
+        })
     }
 
     /// The column metadata.
@@ -150,12 +165,12 @@ impl Row {
 
     /// The number of columns.
     pub fn len(&self) -> usize {
-        self.values.len()
+        self.fields.len()
     }
 
     /// `true` if the row has no columns.
     pub fn is_empty(&self) -> bool {
-        self.values.is_empty()
+        self.fields.is_empty()
     }
 
     /// Returns `true` if the column at `index` is `NULL`.
@@ -163,7 +178,7 @@ impl Row {
     /// An out-of-range index also reports `true`; use [`Row::try_get_by_index`]
     /// when the index comes from outside the result description.
     pub fn is_null(&self, index: usize) -> bool {
-        self.values.get(index).map(|v| v.is_none()).unwrap_or(true)
+        self.fields.get(index).map(|&(_, end)| end == u32::MAX).unwrap_or(true)
     }
 
     /// Decodes the column named `name`.
@@ -201,18 +216,23 @@ impl Row {
                 column.name, column.type_oid
             )));
         }
-        match self.values.get(index).and_then(|v| v.as_ref()) {
-            None => T::from_sql_null().map_err(|_| Error::UnexpectedNull(column.name.clone())),
-            Some(bytes) => T::from_sql_zoned(column.type_oid, bytes, self.zone),
+        match self.fields.get(index) {
+            None | Some(&(_, u32::MAX)) => T::from_sql_null().map_err(|_| Error::UnexpectedNull(column.name.clone())),
+            Some(&(start, end)) => {
+                T::from_sql_zoned(column.type_oid, &self.frame[start as usize..end as usize], self.zone)
+            }
         }
     }
 
-    fn value(&self, name: &str) -> Result<Option<&Bytes>, Error> {
+    fn value(&self, name: &str) -> Result<Option<&[u8]>, Error> {
         let index = self
             .columns
             .index_of(name)
             .ok_or_else(|| Error::ColumnNotFound(name.to_string()))?;
-        Ok(self.values.get(index).and_then(|v| v.as_ref()))
+        match self.fields.get(index) {
+            None | Some(&(_, u32::MAX)) => Ok(None),
+            Some(&(start, end)) => Ok(Some(&self.frame[start as usize..end as usize])),
+        }
     }
 
     /// Returns the named column as a borrowed UTF-8 string, without allocating.
@@ -237,7 +257,7 @@ impl Row {
     ///
     /// Returns [`Error::ColumnNotFound`] if the name is unknown.
     pub fn get_bytes<'a>(&'a self, name: &str) -> Result<Option<&'a [u8]>, Error> {
-        Ok(self.value(name)?.map(|bytes| bytes.as_ref()))
+        self.value(name)
     }
 }
 
@@ -433,6 +453,17 @@ mod tests {
     }
 
     #[test]
+    fn an_impossible_column_length_is_rejected() {
+        let cols = columns(&[("a", 25)]);
+        let mut payload = BytesMut::new();
+        payload.extend_from_slice(&1i16.to_be_bytes());
+        payload.extend_from_slice(&i32::MAX.to_be_bytes());
+        payload.extend_from_slice(b"x");
+        let err = Row::parse(cols, &payload.freeze(), time::TimeZone::UTC).unwrap_err();
+        assert!(matches!(err, Error::Decode(_)), "{err}");
+    }
+
+    #[test]
     fn values_are_zero_copy_slices_of_the_frame() {
         let cols = columns(&[("a", 25)]);
         let payload = frame(&[Some(b"hello")]);
@@ -483,5 +514,110 @@ mod tests {
         assert!(row.try_get::<bool>("n").is_err());
         assert!(row.try_get::<String>("n").is_err());
         assert_eq!(row.try_get::<i32>("n").unwrap(), 1);
+    }
+
+    #[test]
+    fn empty_value_is_not_null() {
+        let cols = columns(&[("a", 25)]);
+        let payload = frame(&[Some(b"")]);
+        let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+        assert!(!row.is_null(0));
+        assert_eq!(row.get_str("a").unwrap(), "");
+        assert_eq!(row.get_bytes("a").unwrap(), Some(&[][..]));
+    }
+
+    #[test]
+    fn null_and_empty_bytea_are_distinct() {
+        let cols = columns(&[("a", 17), ("b", 17)]);
+        let payload = frame(&[None, Some(b"")]);
+        let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+        assert!(row.is_null(0));
+        assert!(!row.is_null(1));
+        assert_eq!(row.get_bytes("a").unwrap(), None);
+        assert_eq!(row.get_bytes("b").unwrap(), Some(&[][..]));
+        assert_eq!(row.try_get::<Option<Vec<u8>>>("a").unwrap(), None);
+        assert_eq!(row.try_get::<Vec<u8>>("b").unwrap(), Vec::<u8>::new());
+        assert!(row.get_str("a").is_err());
+        assert_eq!(row.get_str("b").unwrap(), "");
+    }
+
+    #[test]
+    fn wide_rows_spill_their_offsets_and_decode() {
+        // 5, 8 and 16 columns exercise the SmallVec spill path; column 2 is
+        // NULL so the sentinel is tested across the spill boundary too.
+        for count in [5usize, 8, 16] {
+            let cols = columns(&vec![("", 23u32); count]);
+            let value = 1i32.to_be_bytes();
+            let parts: Vec<Option<&[u8]>> = (0..count)
+                .map(|index| if index == 2 { None } else { Some(&value[..]) })
+                .collect();
+            let payload = frame(&parts);
+            let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+            assert_eq!(row.len(), count);
+            for index in 0..count {
+                if index == 2 {
+                    assert!(row.is_null(index));
+                    assert!(matches!(row.try_get_by_index::<i32>(index), Err(Error::UnexpectedNull(_))));
+                } else {
+                    assert!(!row.is_null(index));
+                    assert_eq!(row.try_get_by_index::<i32>(index).unwrap(), 1);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn row_survives_the_original_payload() {
+        let cols = columns(&[("a", 25)]);
+        let row = {
+            let payload = frame(&[Some(b"hello")]);
+            Row::parse(cols, &payload, time::TimeZone::UTC).unwrap()
+        };
+        assert_eq!(row.get_str("a").unwrap(), "hello");
+    }
+
+    #[test]
+    fn a_clone_is_independent_of_the_original() {
+        let cols = columns(&[("a", 25)]);
+        let payload = frame(&[Some(b"hello")]);
+        let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+        let copy = row.clone();
+        drop(row);
+        drop(payload);
+        assert_eq!(copy.get_str("a").unwrap(), "hello");
+    }
+
+    #[test]
+    fn a_zero_column_row_is_empty() {
+        let cols = columns(&[]);
+        let payload = frame(&[]);
+        let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+        assert_eq!(row.len(), 0);
+        assert!(row.is_empty());
+        assert!(row.is_null(0));
+        assert!(matches!(row.try_get_by_index::<i32>(0), Err(Error::ColumnNotFound(_))));
+        assert!(matches!(row.get_bytes("x"), Err(Error::ColumnNotFound(_))));
+    }
+
+    #[test]
+    fn out_of_range_accessors_are_reported() {
+        let cols = columns(&[("a", 23)]);
+        let payload = frame(&[Some(&1i32.to_be_bytes())]);
+        let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+        assert!(row.is_null(1));
+        assert!(matches!(row.try_get_by_index::<i32>(1), Err(Error::ColumnNotFound(_))));
+        assert!(matches!(row.get_str("missing"), Err(Error::ColumnNotFound(_))));
+    }
+
+    #[test]
+    fn large_values_are_sliced_correctly() {
+        let cols = columns(&[("a", 17), ("b", 17)]);
+        let first = vec![0xAAu8; 64 * 1024];
+        let second = vec![0xBBu8; 1024];
+        let payload = frame(&[Some(&first), Some(&second)]);
+        let row = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap();
+        assert_eq!(row.get_bytes("a").unwrap().unwrap().len(), first.len());
+        assert!(row.get_bytes("a").unwrap().unwrap().iter().all(|&byte| byte == 0xAA));
+        assert_eq!(row.get_bytes("b").unwrap(), Some(&second[..]));
     }
 }

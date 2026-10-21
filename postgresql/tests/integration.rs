@@ -1588,3 +1588,131 @@ async fn dropping_a_copy_out_stream_keeps_the_connection_usable() {
     .unwrap();
     assert_eq!(value, 1);
 }
+
+/// `fetch_one` / `fetch_optional` use the single-row path; zero rows, NULL and
+/// errors must all be reported correctly.
+#[tokio::test]
+async fn single_row_path_handles_rows_nulls_and_errors() {
+    let conn = connect_or_skip!();
+
+    let value: i64 = query_as!(i64, "SELECT 7::int8").fetch_one(&conn).await.unwrap();
+    assert_eq!(value, 7);
+
+    // Zero rows: `fetch_one` is RowNotFound, `fetch_optional` is None.
+    let err = query_as!(i64, "SELECT 7::int8 WHERE false")
+        .fetch_one(&conn)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, postgresql::Error::RowNotFound), "{err}");
+    let none: Option<i64> = query_as!(i64, "SELECT 7::int8 WHERE false")
+        .fetch_optional(&conn)
+        .await
+        .unwrap();
+    assert!(none.is_none());
+
+    // A NULL column into Option.
+    let null: Option<i64> = query_as!(Option<i64>, "SELECT NULL::int8")
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+    assert!(null.is_none());
+
+    // A server error is returned through the single-row path and the
+    // connection stays usable.
+    let err = query_as!(i64, "SELECT (1 / 0)::int8")
+        .fetch_one(&conn)
+        .await
+        .unwrap_err();
+    match err {
+        postgresql::Error::Server(db) => assert_eq!(db.code, "22012"),
+        other => panic!("expected a server error, got {other:?}"),
+    }
+    let value: i64 = query_as!(i64, "SELECT 8::int8").fetch_one(&conn).await.unwrap();
+    assert_eq!(value, 8);
+}
+
+/// The single-row path must retry a stale plan just like the streaming path.
+#[tokio::test]
+async fn single_row_path_re_prepares_after_deallocate_all() {
+    let conn = connect_or_skip!();
+    let table = unique("pg_one_dealloc");
+    query!(&format!("CREATE TABLE {table} (id INT)"))
+        .execute(&conn)
+        .await
+        .unwrap();
+    query!(&format!("INSERT INTO {table} VALUES (1)"))
+        .execute(&conn)
+        .await
+        .unwrap();
+
+    let sql = format!("SELECT id FROM {table}");
+    let id: i32 = query_as!(i32, &sql).fetch_one(&conn).await.unwrap();
+    assert_eq!(id, 1);
+
+    query!("DEALLOCATE ALL").execute(&conn).await.unwrap();
+    let id: i32 = query_as!(i32, &sql).fetch_one(&conn).await.unwrap();
+    assert_eq!(id, 1);
+
+    query!(&format!("DROP TABLE {table}")).execute(&conn).await.unwrap();
+}
+
+/// `INSERT ... RETURNING` through the single-row path inserts every row even
+/// though only the first result is consumed.
+#[tokio::test]
+async fn single_row_path_on_insert_returning() {
+    let conn = connect_or_skip!();
+    let table = unique("pg_one_returning");
+    query!(&format!("CREATE TABLE {table} (id INT)"))
+        .execute(&conn)
+        .await
+        .unwrap();
+
+    let first: i32 = query_as!(i32, &format!("INSERT INTO {table} SELECT generate_series(1, 10) RETURNING id"))
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+    assert_eq!(first, 1);
+
+    let count: i64 = query_as!(i64, &format!("SELECT count(*)::int8 FROM {table}"))
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+    assert_eq!(count, 10);
+
+    query!(&format!("DROP TABLE {table}")).execute(&conn).await.unwrap();
+}
+
+/// A COPY statement through the single-row path is an error, and the
+/// connection remains usable.
+#[tokio::test]
+async fn single_row_path_on_copy_errors_and_recovers() {
+    let conn = connect_or_skip!();
+    let table = unique("pg_one_copy");
+    query!(&format!("CREATE TABLE {table} (id INT)"))
+        .execute(&conn)
+        .await
+        .unwrap();
+
+    let sql = format!("COPY {table} (id) FROM STDIN");
+    let result: Result<postgresql::Row, _> = query!(&sql).fetch_one(&conn).await;
+    assert!(result.is_err(), "COPY FROM STDIN cannot run through fetch_one");
+
+    let value: i32 = query_as!(i32, "SELECT 1").fetch_one(&conn).await.unwrap();
+    assert_eq!(value, 1);
+
+    query!(&format!("DROP TABLE {table}")).execute(&conn).await.unwrap();
+}
+
+/// A wide result through the single-row path exercises the offsets spill.
+#[tokio::test]
+async fn single_row_path_on_a_wide_result() {
+    let conn = connect_or_skip!();
+    let row: postgresql::Row = query!("SELECT 1::int8, 2::int8, 3::int8, 4::int8, 5::int8, 6::int8, 7::int8, 8::int8")
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+    assert_eq!(row.len(), 8);
+    for index in 0..8 {
+        assert_eq!(row.try_get_by_index::<i64>(index).unwrap(), index as i64 + 1);
+    }
+}
