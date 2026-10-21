@@ -1380,3 +1380,211 @@ async fn max_message_len_is_enforced() {
         .await;
     assert!(result.is_err(), "a message over max_message_len must be rejected");
 }
+
+/// `fetch_one` returns the first row and discards the rest (documented
+/// behaviour; it is not an error to return several rows).
+#[tokio::test]
+async fn fetch_one_returns_the_first_of_several_rows() {
+    let conn = connect_or_skip!();
+    let value: i64 = query_as!(i64, "SELECT g::int8 FROM generate_series(1, 3) g")
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+    assert_eq!(value, 1);
+}
+
+/// A NUL in SQL is rejected before anything is written to the server, and the
+/// connection stays usable.
+#[tokio::test]
+async fn sql_with_a_nul_byte_is_rejected_client_side() {
+    let conn = connect_or_skip!();
+    let sql = "SELECT 1\0; SELECT 2".to_string();
+
+    let err = query!(&sql).execute(&conn).await.unwrap_err();
+    assert!(err.to_string().contains("NUL"), "{err}");
+
+    let err = conn.execute_script(&sql).await.unwrap_err();
+    assert!(err.to_string().contains("NUL"), "{err}");
+
+    let value: i32 = query_as!(i32, "SELECT 1").fetch_one(&conn).await.unwrap();
+    assert_eq!(value, 1);
+}
+
+/// When the actor task disappears (runtime shutdown, abort), an in-flight
+/// stream must report an error instead of a clean, truncated end.
+#[test]
+fn a_stream_errors_when_its_actor_disappears() {
+    let Some(url) = database_url() else {
+        eprintln!("skipping test: DATABASE_URL is not set");
+        return;
+    };
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let conn = rt.block_on(postgresql::Connection::connect(&url)).unwrap();
+    let mut stream = rt
+        .block_on(query!("SELECT pg_sleep(10), 1::int8").fetch_rows(&conn))
+        .unwrap();
+    // Let the actor start the query, then drop the only runtime it can run on.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    drop(rt);
+
+    let rt2 = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let item = rt2.block_on(futures_util::StreamExt::next(&mut stream));
+    assert!(
+        matches!(item, Some(Err(postgresql::Error::Closed))),
+        "a disappeared actor must surface as an error, got {item:?}"
+    );
+}
+
+/// An impossible pool configuration is a configuration error, not a hang.
+#[tokio::test]
+async fn impossible_pool_configuration_is_rejected_quickly() {
+    let url = url_or_skip!();
+    let start = std::time::Instant::now();
+    let err = match Pool::connect(
+        &url,
+        Some(PoolConfig {
+            pool_size: 1,
+            min_connections: 2,
+            ..PoolConfig::default()
+        }),
+    )
+    .await
+    {
+        Ok(_) => panic!("an impossible pool configuration was accepted"),
+        Err(err) => err,
+    };
+    assert!(err.to_string().contains("min_connections"), "{err}");
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(1),
+        "the invalid configuration took {:?}",
+        start.elapsed()
+    );
+}
+
+/// Passing a `PoolConfig` for unrelated settings must not raise a
+/// `max_message_len` that the URL deliberately lowered.
+#[tokio::test]
+async fn pool_config_keeps_the_url_message_limit() {
+    let url = url_or_skip!();
+    let sep = if url.contains('?') { '&' } else { '?' };
+    let url = format!("{url}{sep}max_message_len=65536");
+    let pool = Pool::connect(
+        &url,
+        Some(PoolConfig {
+            pool_size: 2,
+            ..PoolConfig::default()
+        }),
+    )
+    .await
+    .unwrap();
+    let result: Result<String, _> = query_as!(String, "SELECT repeat('a', 262144)").fetch_one(&pool).await;
+    assert!(result.is_err(), "the URL's max_message_len was raised by PoolConfig");
+    pool.close();
+}
+
+/// The reaper replaces connections that reached `max_lifetime` instead of
+/// keeping them forever to satisfy `min_connections`.
+#[tokio::test]
+async fn the_reaper_replaces_expired_connections() {
+    let url = url_or_skip!();
+    let pool = Pool::connect(
+        &url,
+        Some(PoolConfig {
+            pool_size: 2,
+            min_connections: 1,
+            idle_timeout: std::time::Duration::from_secs(3600),
+            max_lifetime: std::time::Duration::from_millis(50),
+            reap_interval: std::time::Duration::from_millis(20),
+            ..PoolConfig::default()
+        }),
+    )
+    .await
+    .unwrap();
+
+    let first: i32 = {
+        let conn = pool.get().await.unwrap();
+        query_as!(i32, "SELECT pg_backend_pid()")
+            .fetch_one(&*conn)
+            .await
+            .unwrap()
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    let second: i32 = {
+        let conn = pool.get().await.unwrap();
+        query_as!(i32, "SELECT pg_backend_pid()")
+            .fetch_one(&*conn)
+            .await
+            .unwrap()
+    };
+    assert_ne!(first, second, "an expired connection must be replaced");
+    pool.close();
+}
+
+/// `test_on_checkout` validates idle connections and discards dead ones.
+#[tokio::test]
+async fn test_on_checkout_replaces_a_terminated_connection() {
+    let url = url_or_skip!();
+    let admin = postgresql::Connection::connect(&url).await.unwrap();
+    let pool = Pool::connect(
+        &url,
+        Some(PoolConfig {
+            pool_size: 1,
+            test_on_checkout: true,
+            test_on_checkout_after: std::time::Duration::ZERO,
+            ..PoolConfig::default()
+        }),
+    )
+    .await
+    .unwrap();
+
+    let pid: i32 = {
+        let conn = pool.get().await.unwrap();
+        query_as!(i32, "SELECT pg_backend_pid()")
+            .fetch_one(&*conn)
+            .await
+            .unwrap()
+    };
+    // Terminate it while it sits idle in the pool.
+    query!("SELECT pg_terminate_backend($1)", pid)
+        .execute(&admin)
+        .await
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    let pid2: i32 = {
+        let conn = pool.get().await.unwrap();
+        query_as!(i32, "SELECT pg_backend_pid()")
+            .fetch_one(&*conn)
+            .await
+            .unwrap()
+    };
+    assert_ne!(pid, pid2, "a terminated idle connection must not be handed out");
+    pool.close();
+}
+
+/// Dropping an unread `COPY ... TO STDOUT` stream must leave the connection
+/// usable: the actor drains the transfer (or cancels it when it is long).
+#[tokio::test]
+async fn dropping_a_copy_out_stream_keeps_the_connection_usable() {
+    let conn = connect_or_skip!();
+    let sql =
+        "COPY (SELECT g::int8, repeat('x', 100)::text FROM generate_series(1, 200000) g) TO STDOUT BINARY".to_string();
+    let out = postgresql::copy_out!(conn, (i64, String), &sql).await.unwrap();
+    drop(out);
+
+    let value = tokio::time::timeout(std::time::Duration::from_secs(20), async {
+        query_as!(i32, "SELECT 1").fetch_one(&conn).await
+    })
+    .await
+    .expect("the connection must recover after an abandoned COPY")
+    .unwrap();
+    assert_eq!(value, 1);
+}

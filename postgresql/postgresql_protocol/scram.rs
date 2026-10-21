@@ -10,11 +10,12 @@
 //! runs.
 //!
 //! The password is prepared with SASLprep (RFC 4013) before key derivation, so
-//! it matches the form PostgreSQL stored the verifier for. See [`saslprep`]
-//! for the implemented profile.
+//! it matches the form PostgreSQL stored the verifier for. See the
+//! `saslprep` function for the implemented profile.
 
 use base64::{Alphabet, decode as b64_decode, encode as b64_encode};
 use crypto::{Hasher, hmac::Hmac, random, sha2::Sha256};
+use zeroize::Zeroize;
 
 use crate::error::Error;
 
@@ -318,6 +319,19 @@ impl ScramClient {
             return Err(Error::Auth("server signature mismatch".into()));
         }
         Ok(())
+    }
+}
+
+impl Drop for ScramClient {
+    /// Zeroizes the cleartext password and the derived salted password.
+    ///
+    /// This is best-effort: copies made by the caller or by the allocator are
+    /// outside the client's control.
+    fn drop(&mut self) {
+        self.password.zeroize();
+        if let Some(salted_password) = self.salted_password.as_mut() {
+            salted_password.zeroize();
+        }
     }
 }
 

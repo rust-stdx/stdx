@@ -1,19 +1,21 @@
 //! `#[derive(FromRow)]` for the `postgresql` crate.
 //!
-//! Decodes a [`postgresql::Row`] into a struct by looking up each field's
-//! column by name. Column names default to the field name, and can be changed
-//! with `#[postgresql(rename = "...")]` or transformed with a container-level
+//! Decodes a `postgresql::Row` into a struct by looking up each field's
+//! column by name. Column names default to the snake_case form of the field
+//! name (`userName` → `user_name`), and can be changed with
+//! `#[postgresql(rename = "...")]` or transformed with a container-level
 //! `#[postgresql(rename_all = "...")]` (`snake_case`, `camelCase`,
 //! `PascalCase`, `SCREAMING_SNAKE_CASE`, `lowercase`, `UPPERCASE`).
 //!
 //! `#[postgresql(default)]` makes a missing or `NULL` column fall back to the
-//! field type's `Default` instead of erroring.
+//! field type's `Default` instead of erroring; any other error (for example a
+//! column whose type cannot be decoded as the field type) is still reported.
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, WherePredicate, parse_macro_input};
 
-/// Derives [`postgresql::FromRow`] for a struct with named fields.
+/// Derives `postgresql::FromRow` for a struct with named fields.
 #[proc_macro_derive(FromRow, attributes(postgresql, pg))]
 pub fn derive_from_row(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -112,8 +114,21 @@ fn expand(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
         if default {
             assignments.push(quote! {
-                #ident: ::postgresql::Row::try_get::<#ty>(row, #column)
-                    .or_else(|_| ::core::result::Result::Ok(::core::default::Default::default()))?,
+                #ident: ::postgresql::__private::default_on_missing(
+                    ::postgresql::Row::try_get::<#ty>(row, #column),
+                )?,
+            });
+            // A defaulted field may be absent from the SQL (checked at runtime
+            // when the SQL is not a literal), and may be NULL: its
+            // nullability is unknown, so only the type is checked.
+            shape_bounds.push(syn::parse_quote!(#ty: ::postgresql::StaticType));
+            shape_entries.push(quote! {
+                ::postgresql::ColumnSpec {
+                    name: #column,
+                    type_oid: <#ty as ::postgresql::StaticType>::OID,
+                    nullable: <#ty as ::postgresql::StaticType>::NULLABLE,
+                    known: false,
+                },
             });
         } else {
             assignments.push(quote! {
@@ -160,7 +175,8 @@ fn expand(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         }
 
         impl #impl_generics ::postgresql::RowShape for #name #ty_generics #row_shape_where {
-            const SHAPE: &'static [::postgresql::ColumnSpec] = &[ #(#shape_entries)* ];
+            const SHAPE: &'static [::postgresql::ColumnSpec] =
+                &[ #(#shape_entries)* ] as &'static [::postgresql::ColumnSpec];
         }
     };
     Ok(expanded)
@@ -213,7 +229,7 @@ fn to_snake_case(s: &str) -> String {
     out
 }
 
-/// Derives [`postgresql::ToRow`] for a struct with named fields.
+/// Derives `postgresql::ToRow` for a struct with named fields.
 ///
 /// Fields are encoded in declaration order, matching a binary `COPY` column
 /// list.

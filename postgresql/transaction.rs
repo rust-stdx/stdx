@@ -76,7 +76,8 @@ impl Transaction {
         self.checkout.as_deref().expect("transaction already completed")
     }
 
-    fn connection(&self) -> &Connection {
+    /// The underlying connection (crate-internal).
+    pub(crate) fn connection(&self) -> &Connection {
         self.checkout().connection()
     }
 }

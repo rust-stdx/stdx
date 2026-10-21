@@ -11,10 +11,16 @@ workspace = true
 [lib]
 path = "postgresql.rs"
 
+[features]
+default = ["embed"]
+embed = ["dep:embed"]
+
 [dependencies]
 base64 = { path = "../base64" }
 bytes = { workspace = true }
+crypto = { path = "../crypto" }
 crypto_rustls = { path = "../crypto_rustls" }
+embed = { path = "../embed", optional = true }
 futures-util = { workspace = true }
 indexmap = { workspace = true }
 ipnetwork = { path = "../ipnetwork" }
@@ -35,8 +41,10 @@ tracing = { workspace = true }
 url = { workspace = true }
 uuid = { path = "../uuid" }
 xxhash = { path = "../xxhash" }
+zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
 bytes = { workspace = true }
 criterion = { workspace = true }
 crypto = { path = "../crypto" }

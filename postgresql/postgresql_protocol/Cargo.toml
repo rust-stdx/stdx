@@ -19,3 +19,4 @@ crypto = { path = "../../crypto" }
 hex = { path = "../../hex" }
 small_collections = { path = "../../small_collections" }
 thiserror = { path = "../../thiserror" }
+zeroize = { workspace = true, features = ["alloc"] }

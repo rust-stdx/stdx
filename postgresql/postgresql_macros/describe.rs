@@ -5,6 +5,7 @@
 //! and result columns. Nothing is executed.
 
 use std::{
+    collections::HashMap,
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
     sync::Arc,
@@ -63,11 +64,12 @@ fn decode(input: &str) -> Result<String, String> {
 
 fn parse_config(url: &str) -> Result<Config, String> {
     let parsed = url::Url::parse(url).map_err(|e| format!("invalid DATABASE_URL: {e}"))?;
-    let host = parsed
-        .host_str()
-        .filter(|h| !h.is_empty())
-        .unwrap_or("localhost")
-        .to_string();
+    let host = match parsed.host() {
+        Some(url::Host::Ipv6(ip)) => ip.to_string(),
+        Some(url::Host::Ipv4(ip)) => ip.to_string(),
+        Some(url::Host::Domain(domain)) => domain.to_string(),
+        None => "localhost".to_string(),
+    };
     let port = parsed.port().unwrap_or(5432);
     let user = decode(parsed.username())?;
     let password = parsed.password().map(decode).transpose()?;
@@ -81,12 +83,23 @@ fn parse_config(url: &str) -> Result<Config, String> {
     let mut max_scram_iterations = postgresql_protocol::scram::DEFAULT_MAX_SCRAM_ITERATIONS;
     for (key, value) in parsed.query_pairs() {
         match key.as_ref() {
-            "sslmode" => sslmode = value.into_owned(),
+            "sslmode" => {
+                sslmode = match value.as_ref() {
+                    "require" | "verify-ca" | "verify-full" => value.into_owned(),
+                    "disable" | "prefer" | "allow" => {
+                        return Err(format!("sslmode `{value}` is not supported: the client always requires TLS"));
+                    }
+                    other => return Err(format!("unsupported sslmode `{other}`")),
+                };
+            }
             "sslrootcert" => sslrootcert = Some(value.into_owned()),
             // A stalled database must not hang the build forever.
             "connect_timeout" => {
-                connect_timeout =
-                    Duration::from_secs(value.parse().map_err(|_| "invalid `connect_timeout`".to_string())?);
+                let secs: u64 = value.parse().map_err(|_| "invalid `connect_timeout`".to_string())?;
+                if secs == 0 {
+                    return Err("`connect_timeout` must be greater than zero".to_string());
+                }
+                connect_timeout = Duration::from_secs(secs);
             }
             "max_scram_iterations" => {
                 max_scram_iterations = value
@@ -513,15 +526,18 @@ fn describe_statement(conn: &mut Connection, sql: &str) -> Result<Describe, Stri
         .filter(|f| f.table_oid != 0 && f.column_attr > 0)
         .map(|f| (f.table_oid, f.column_attr))
         .collect();
-    let not_null = columns_not_null(conn, &refs)?;
+    let attributes = column_attributes(conn, &refs)?;
 
     let mut columns = Vec::with_capacity(fields.len());
-    let mut next = 0usize;
     for field in fields {
         let (nullable, nullable_known) = if field.table_oid != 0 && field.column_attr > 0 {
-            let known = not_null.get(next).copied().unwrap_or(false);
-            next += 1;
-            (!known, true)
+            match attributes.get(&(field.table_oid, field.column_attr)) {
+                // Only regular, partitioned and foreign tables carry NOT NULL
+                // constraints. Views and materialized views cannot, so their
+                // attributes do not prove anything about nullability.
+                Some((not_null, true)) => (!*not_null, true),
+                _ => (false, false),
+            }
         } else {
             // An expression column: its nullability cannot be derived.
             (false, false)
@@ -540,27 +556,40 @@ fn describe_statement(conn: &mut Connection, sql: &str) -> Result<Describe, Stri
     })
 }
 
-/// Returns `pg_attribute.attnotnull` for each `(attrelid, attnum)` pair, in
-/// one round trip. Missing attributes report `false`.
-fn columns_not_null(conn: &mut Connection, refs: &[(u32, i16)]) -> Result<Vec<bool>, String> {
+/// Returns `(attnotnull, known)` for each `(attrelid, attnum)` pair, keyed by
+/// the pair itself.
+///
+/// Keying is essential: the result columns are not necessarily in
+/// `(attrelid, attnum)` order, and matching them by position used to swap the
+/// nullability of columns selected out of order.
+fn column_attributes(conn: &mut Connection, refs: &[(u32, i16)]) -> Result<HashMap<(u32, i16), (bool, bool)>, String> {
     if refs.is_empty() {
-        return Ok(Vec::new());
+        return Ok(HashMap::new());
     }
     // The values are numbers taken from the server's own `RowDescription`, so
     // they cannot contain SQL.
     let list: Vec<String> = refs.iter().map(|(oid, attnum)| format!("({oid},{attnum})")).collect();
     let sql = format!(
-        "SELECT a.attnotnull FROM pg_catalog.pg_attribute a          WHERE (a.attrelid, a.attnum) IN ({}) ORDER BY a.attrelid, a.attnum",
+        "SELECT a.attrelid, a.attnum, a.attnotnull, c.relkind::text \
+         FROM pg_catalog.pg_attribute a \
+         JOIN pg_catalog.pg_class c ON c.oid = a.attrelid \
+         WHERE (a.attrelid, a.attnum) IN ({})",
         list.join(", ")
     );
     let rows = simple_query_rows(conn, &sql)?;
-    let mut out = vec![false; refs.len()];
-    for (index, row) in rows.iter().enumerate() {
-        if let Some(value) = row.first().and_then(|v| v.as_deref())
-            && let Some(slot) = out.get_mut(index)
-        {
-            *slot = value == "t";
+    let mut out = HashMap::with_capacity(refs.len());
+    for row in rows {
+        if row.len() < 4 {
+            continue;
         }
+        let attrelid = row[0].as_deref().and_then(|value| value.parse::<u32>().ok());
+        let attnum = row[1].as_deref().and_then(|value| value.parse::<i16>().ok());
+        let (Some(attrelid), Some(attnum)) = (attrelid, attnum) else {
+            continue;
+        };
+        let not_null = row[2].as_deref() == Some("t");
+        let known = matches!(row[3].as_deref(), Some("r" | "p" | "f"));
+        out.insert((attrelid, attnum), (not_null, known));
     }
     Ok(out)
 }
@@ -772,5 +801,18 @@ mod tests {
         assert_eq!(strip_prefix_ci("copy t to stdout binary", "COPY"), Some(" t to stdout binary"));
         assert_eq!(strip_prefix_ci("COPY", "COPY"), Some(""));
         assert_eq!(strip_prefix_ci("COP", "COPY"), None);
+    }
+
+    #[test]
+    fn config_parser_rejects_what_the_runtime_rejects() {
+        assert!(parse_config("postgres://u@localhost/db?connect_timeout=0").is_err());
+        assert!(parse_config("postgres://u@localhost/db?sslmode=verify-ful").is_err());
+        assert!(parse_config("postgres://u@localhost/db?sslmode=disable").is_err());
+        assert!(parse_config("postgres://u@localhost/db?sslmode=prefer").is_err());
+
+        let config = parse_config("postgres://u@[::1]:5432/db?sslmode=verify-full").unwrap();
+        assert_eq!(config.host, "::1");
+        assert_eq!(config.port, 5432);
+        assert_eq!(config.sslmode, "verify-full");
     }
 }

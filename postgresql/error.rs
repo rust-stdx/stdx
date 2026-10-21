@@ -28,6 +28,10 @@ pub enum Error {
     #[error("configuration error: {0}")]
     Config(String),
 
+    /// A migration failed, or the migration history is invalid.
+    #[error("migration error: {0}")]
+    Migration(String),
+
     /// The connection or pool has been closed.
     #[error("connection closed")]
     Closed,

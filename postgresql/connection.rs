@@ -6,7 +6,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     task::{Context, Poll},
 };
@@ -26,7 +26,7 @@ use small_collections::SmallVec;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
-    sync::{broadcast, mpsc, oneshot},
+    sync::{Notify, broadcast, mpsc, oneshot},
 };
 use xxhash::{Checksum, Xxh3_128};
 
@@ -123,8 +123,7 @@ impl CancelToken {
     /// Like [`CancelToken::cancel`], but gives up after `timeout`.
     pub(crate) async fn cancel_with_timeout(&self, timeout: std::time::Duration) -> Result<(), Error> {
         tokio::time::timeout(timeout, async {
-            let address = format!("{}:{}", self.config.host, self.config.port);
-            let tcp = TcpStream::connect(&address).await.map_err(Error::Io)?;
+            let tcp = connect_tcp(&self.config).await.map_err(Error::Io)?;
             let _ = tcp.set_nodelay(true);
             let mut stream = negotiate_tls(tcp, &self.config).await?;
             let mut buf = BytesMut::with_capacity(16);
@@ -317,18 +316,117 @@ pub(crate) fn encode_params(params: &[&dyn ToSql]) -> Result<EncodedParams, Erro
     })
 }
 
+/// A row handed from the actor to a [`RowStream`], with the number of bytes it
+/// accounts for in the stream's [`BufferBudget`].
+pub(crate) struct RowItem {
+    pub(crate) row: Row,
+    pub(crate) size: usize,
+}
+
+type RowSender = mpsc::Sender<Result<RowItem, Error>>;
+
+/// A byte budget shared between the actor (producer) and a stream (consumer).
+///
+/// It bounds how many decoded bytes are buffered for a reader that is not
+/// keeping up, independently of the message count. A single item of any size is
+/// always allowed when nothing is queued, so an oversized row cannot deadlock
+/// the reader.
+pub(crate) struct BufferBudget {
+    limit: usize,
+    used: AtomicUsize,
+    closed: AtomicBool,
+    notify: Notify,
+}
+
+impl BufferBudget {
+    pub(crate) fn new(limit: usize) -> Arc<Self> {
+        Arc::new(BufferBudget {
+            limit,
+            used: AtomicUsize::new(0),
+            closed: AtomicBool::new(false),
+            notify: Notify::new(),
+        })
+    }
+
+    /// Releases the bytes of an item that left the queue.
+    pub(crate) fn release(&self, size: usize) {
+        let _ = self
+            .used
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |used| used.checked_sub(size));
+        // Exactly one producer waits on a budget, so `notify_one` is both
+        // sufficient and race-free: unlike `notify_waiters`, it stores a permit
+        // when the producer has not registered its `Notified` future yet.
+        self.notify.notify_one();
+    }
+
+    /// Wakes (and stops) any producer waiting for capacity.
+    pub(crate) fn close(&self) {
+        self.closed.store(true, Ordering::Release);
+        self.notify.notify_one();
+    }
+
+    fn try_reserve(&self, size: usize) -> bool {
+        let mut used = self.used.load(Ordering::Acquire);
+        loop {
+            let next = used.saturating_add(size);
+            if used != 0 && next > self.limit {
+                return false;
+            }
+            match self
+                .used
+                .compare_exchange_weak(used, next, Ordering::AcqRel, Ordering::Acquire)
+            {
+                Ok(_) => return true,
+                Err(actual) => used = actual,
+            }
+        }
+    }
+
+    /// Waits until `size` bytes fit, or returns `false` when the reader is gone.
+    pub(crate) async fn reserve(&self, size: usize) -> bool {
+        loop {
+            if self.try_reserve(size) {
+                return true;
+            }
+            if self.closed.load(Ordering::Acquire) {
+                return false;
+            }
+            let notified = self.notify.notified();
+            if self.try_reserve(size) {
+                return true;
+            }
+            if self.closed.load(Ordering::Acquire) {
+                return false;
+            }
+            notified.await;
+        }
+    }
+}
+
 pub(crate) struct QueryRequest {
     sql: Arc<str>,
     params: EncodedParams,
-    rows: mpsc::Sender<Result<Row, Error>>,
+    rows: Option<RowSender>,
+    budget: Option<Arc<BufferBudget>>,
     done: oneshot::Sender<Result<u64, Error>>,
     max_rows: i32,
     completed: Arc<AtomicBool>,
 }
 
+/// The outcome of a script run.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ScriptOutcome {
+    /// Affected-row count of the last command.
+    pub(crate) affected: u64,
+    /// The transaction status byte from the final `ReadyForQuery` (`I`, `T` or
+    /// `E`).
+    pub(crate) transaction_status: u8,
+}
+
 pub(crate) struct ScriptRequest {
     sql: String,
-    done: oneshot::Sender<Result<u64, Error>>,
+    done: oneshot::Sender<Result<ScriptOutcome, Error>>,
+    completed: Arc<AtomicBool>,
 }
 
 pub(crate) enum CopyInChunk {
@@ -346,7 +444,9 @@ pub(crate) struct CopyInRequest {
 pub(crate) struct CopyOutRequest {
     sql: String,
     chunks: mpsc::Sender<Result<Bytes, Error>>,
+    budget: Arc<BufferBudget>,
     done: oneshot::Sender<Result<u64, Error>>,
+    completed: Arc<AtomicBool>,
 }
 
 pub(crate) enum Request {
@@ -398,6 +498,13 @@ impl From<ProtocolError> for AttemptError {
 /// connection is best treated as "one in-flight query at a time": spawning
 /// many queries against a single connection without awaiting them queues their
 /// encoded parameters in memory. Use a [`Pool`](crate::Pool) for concurrency.
+///
+/// A row stream that is kept alive but not polled applies backpressure: the
+/// connection (and, for a pooled connection, its checkout) stays busy until
+/// the stream is consumed or dropped. Consume or drop streams promptly.
+///
+/// The background task runs on the runtime that created the connection; see
+/// the [crate documentation](crate#runtime-affinity).
 #[derive(Clone)]
 pub struct Connection {
     tx: mpsc::UnboundedSender<Request>,
@@ -614,13 +721,17 @@ impl Connection {
         let sql = self.intern(sql);
         let encoded = encode_params(params)?;
         let (rows, rx) = mpsc::channel(ROW_CHANNEL_CAPACITY);
+        // Only an unbounded stream can queue more than one row, so only it
+        // needs a byte budget (and the allocation that comes with it).
+        let budget = (max_rows == 0).then(|| BufferBudget::new(self.config.max_buffered_bytes));
         let (done, _done_rx) = oneshot::channel();
         let completed = Arc::new(AtomicBool::new(false));
         self.tx
             .send(Request::Query(QueryRequest {
                 sql,
                 params: encoded,
-                rows,
+                rows: Some(rows),
+                budget: budget.clone(),
                 done,
                 max_rows,
                 completed: completed.clone(),
@@ -628,6 +739,7 @@ impl Connection {
             .map_err(|_| Error::Closed)?;
         Ok(RowStream::new(
             rx,
+            budget,
             completed,
             // A limited query (`fetch_one`/`fetch_optional`) stops itself, so it
             // never needs a cancel request; only an abandoned unbounded stream
@@ -639,12 +751,10 @@ impl Connection {
     pub(crate) async fn execute(&self, sql: &str, params: &[&dyn ToSql]) -> Result<u64, Error> {
         let sql = self.intern(sql);
         let encoded = encode_params(params)?;
-        // `execute` does not return rows: drop the receiver up front so the
-        // actor can skip them instead of blocking on an unread channel. Rows
-        // produced by the statement are discarded; the affected-row count is
-        // taken from the command tag.
-        let (rows, rx) = mpsc::channel(1);
-        drop(rx);
+        // `execute` does not return rows: no row channel is allocated at all,
+        // and the actor skips rows instead of blocking on an unread channel.
+        // Rows produced by the statement are discarded; the affected-row count
+        // is taken from the command tag.
         let (done, done_rx) = oneshot::channel();
         let completed = Arc::new(AtomicBool::new(false));
         let guard = QueryGuard {
@@ -655,7 +765,8 @@ impl Connection {
             .send(Request::Query(QueryRequest {
                 sql,
                 params: encoded,
-                rows,
+                rows: None,
+                budget: None,
                 done,
                 max_rows: 0,
                 completed: completed.clone(),
@@ -677,17 +788,36 @@ impl Connection {
     /// Returns an error if the connection is closed or the server rejects a
     /// statement.
     pub(crate) async fn execute_script(&self, sql: &str) -> Result<u64, Error> {
+        Ok(self.execute_script_status(sql).await?.affected)
+    }
+
+    /// Runs a script and reports its transaction status.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the connection is closed or the server rejects a
+    /// statement.
+    pub(crate) async fn execute_script_status(&self, sql: &str) -> Result<ScriptOutcome, Error> {
         let (done, done_rx) = oneshot::channel();
+        let completed = Arc::new(AtomicBool::new(false));
+        let guard = QueryGuard {
+            completed: completed.clone(),
+            cancel: Some(self.cancel_token()),
+        };
         self.tx
             .send(Request::Script(ScriptRequest {
                 sql: sql.to_string(),
                 done,
+                completed: completed.clone(),
             }))
             .map_err(|_| Error::Closed)?;
-        match done_rx.await {
+        let result = match done_rx.await {
             Ok(result) => result,
             Err(_) => Err(Error::Closed),
-        }
+        };
+        completed.store(true, Ordering::Release);
+        drop(guard);
+        result
     }
 
     /// Enqueues a statement without waiting for its result.
@@ -699,14 +829,13 @@ impl Connection {
         let Ok(params) = encode_params(&[]) else {
             return;
         };
-        let (rows, rx) = mpsc::channel(1);
-        drop(rx);
         let (done, _done_rx) = oneshot::channel();
         let completed = Arc::new(AtomicBool::new(false));
         let _ = self.tx.send(Request::Query(QueryRequest {
             sql,
             params,
-            rows,
+            rows: None,
+            budget: None,
             done,
             max_rows: 0,
             completed,
@@ -750,16 +879,24 @@ impl Connection {
     /// Returns an error if the connection is closed.
     pub(crate) async fn copy_out(&self, sql: &str) -> Result<CopyOutStream, Error> {
         let (chunks, rx) = mpsc::channel(COPY_CHANNEL_CAPACITY);
+        let budget = BufferBudget::new(self.config.max_buffered_bytes);
+        let completed = Arc::new(AtomicBool::new(false));
         let (done, _done_rx) = oneshot::channel();
         self.tx
             .send(Request::CopyOut(CopyOutRequest {
                 sql: sql.to_string(),
                 chunks,
+                budget: budget.clone(),
                 done,
+                completed: completed.clone(),
             }))
             .map_err(|_| Error::Closed)?;
         Ok(CopyOutStream {
             rx,
+            budget,
+            completed,
+            cancel: Some(self.cancel_token()),
+            terminated: false,
         })
     }
 }
@@ -801,12 +938,12 @@ impl CopyInWriter {
     /// Encodes one value into the pending `CopyData` buffer, flushing it once
     /// it is large enough (at least 8 KiB). Small values are coalesced into
     /// larger `CopyData` messages, so a bulk load of short rows does not cost
-    /// one syscall and one TLS record per row.
+    /// one syscall and one TLS record per row. Used by
+    /// [`crate::copy::CopyIn`] to avoid one allocation per row.
     ///
     /// # Errors
     ///
     /// Returns an error if the connection is closed.
-    /// Used by [`crate::copy::CopyIn`] to avoid one allocation per row.
     pub(crate) async fn append(&self, encode: impl FnOnce(&mut BytesMut) -> Result<(), Error>) -> Result<(), Error> {
         let chunk = {
             let mut buf = self.buf.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -868,13 +1005,59 @@ impl Drop for CopyInWriter {
 /// A stream of raw `CopyData` payloads from a binary `COPY ... TO STDOUT`.
 pub(crate) struct CopyOutStream {
     pub(crate) rx: mpsc::Receiver<Result<Bytes, Error>>,
+    budget: Arc<BufferBudget>,
+    completed: Arc<AtomicBool>,
+    cancel: Option<CancelToken>,
+    terminated: bool,
+}
+
+impl CopyOutStream {
+    #[cfg(test)]
+    pub(crate) fn from_receiver(rx: mpsc::Receiver<Result<Bytes, Error>>) -> Self {
+        CopyOutStream {
+            rx,
+            budget: BufferBudget::new(usize::MAX),
+            completed: Arc::new(AtomicBool::new(true)),
+            cancel: None,
+            terminated: false,
+        }
+    }
 }
 
 impl Stream for CopyOutStream {
     type Item = Result<Bytes, Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.rx.poll_recv(cx)
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        match this.rx.poll_recv(cx) {
+            Poll::Ready(Some(Ok(bytes))) => {
+                this.budget.release(bytes.len());
+                Poll::Ready(Some(Ok(bytes)))
+            }
+            Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
+            Poll::Ready(None) => {
+                this.budget.close();
+                if !this.completed.load(Ordering::Acquire) && !this.terminated {
+                    this.terminated = true;
+                    return Poll::Ready(Some(Err(Error::Closed)));
+                }
+                Poll::Ready(None)
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl Drop for CopyOutStream {
+    fn drop(&mut self) {
+        // Wakes the actor if it is waiting for buffer capacity, and cancels a
+        // transfer the caller abandoned. `COPY TO STDOUT` cannot be aborted by
+        // the client without a cancel request, so without this the connection
+        // would stream the whole copy just to discard it.
+        self.budget.close();
+        if !self.completed.load(Ordering::Acquire) {
+            cancel_when_stuck(&self.completed, self.cancel.take());
+        }
     }
 }
 
@@ -884,23 +1067,28 @@ impl Stream for CopyOutStream {
 /// started on a [`crate::Pool`] cannot be interleaved with another checkout of
 /// the same connection.
 pub struct RowStream {
-    rx: mpsc::Receiver<Result<Row, Error>>,
+    rx: mpsc::Receiver<Result<RowItem, Error>>,
+    budget: Option<Arc<BufferBudget>>,
     completed: Arc<AtomicBool>,
     cancel: Option<CancelToken>,
     keepalive: Option<Box<dyn Send + 'static>>,
+    terminated: bool,
 }
 
 impl RowStream {
     pub(crate) fn new(
-        rx: mpsc::Receiver<Result<Row, Error>>,
+        rx: mpsc::Receiver<Result<RowItem, Error>>,
+        budget: Option<Arc<BufferBudget>>,
         completed: Arc<AtomicBool>,
         cancel: Option<CancelToken>,
     ) -> Self {
         RowStream {
             rx,
+            budget,
             completed,
             cancel,
             keepalive: None,
+            terminated: false,
         }
     }
 
@@ -918,19 +1106,43 @@ impl Stream for RowStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         match this.rx.poll_recv(cx) {
+            Poll::Ready(Some(Ok(item))) => {
+                // The row left the queue: the actor may buffer more.
+                if let Some(budget) = &this.budget {
+                    budget.release(item.size);
+                }
+                Poll::Ready(Some(Ok(item.row)))
+            }
+            Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
             // The query is over: release whatever is keeping the connection
             // (a pooled checkout) now instead of waiting for `Drop`.
             Poll::Ready(None) => {
                 this.keepalive.take();
+                if let Some(budget) = &this.budget {
+                    budget.close();
+                }
+                // A closed channel is a clean end only when the actor marked
+                // the query complete. If the actor disappeared (runtime
+                // shutdown, panic), the absence of `completed` means the result
+                // is truncated; reporting `None` would silently turn a partial
+                // result into a successful one.
+                if !this.completed.load(Ordering::Acquire) && !this.terminated {
+                    this.terminated = true;
+                    return Poll::Ready(Some(Err(Error::Closed)));
+                }
                 Poll::Ready(None)
             }
-            other => other,
+            Poll::Pending => Poll::Pending,
         }
     }
 }
 
 impl Drop for RowStream {
     fn drop(&mut self) {
+        // Wake an actor waiting for buffer capacity.
+        if let Some(budget) = &self.budget {
+            budget.close();
+        }
         // The connection keeps reading the rest of the result in the background
         // (so it is never left half-read); if that takes too long, cancel the
         // query server-side.
@@ -1030,25 +1242,42 @@ impl Actor {
 
     /// Runs a multi-statement script via the simple query protocol.
     async fn handle_script(&mut self, request: ScriptRequest) {
-        tracing::debug!(sql_len = request.sql.len(), "postgresql: script");
+        let result = self.run_script(&request.sql).await;
+        request.completed.store(true, Ordering::Release);
+        let _ = request.done.send(result);
+    }
+
+    /// Runs a script and returns the last command's affected rows plus the
+    /// transaction status reported by the final `ReadyForQuery`.
+    async fn run_script(&mut self, sql: &str) -> Result<ScriptOutcome, Error> {
+        tracing::debug!(sql_len = sql.len(), "postgresql: script");
         self.write_buf.clear();
-        if let Err(err) = frontend::query(&mut self.write_buf, &request.sql) {
-            self.mark_broken();
-            let _ = request.done.send(Err(err.into()));
-            return;
+        if let Err(err) = frontend::query(&mut self.write_buf, sql) {
+            // Nothing reached the wire: a caller error (for example a NUL in
+            // the SQL) must not poison the connection.
+            return Err(err.into());
         }
         if let Err(err) = self.flush().await {
             self.mark_broken();
-            let _ = request.done.send(Err(err));
-            return;
+            return Err(err);
         }
 
         let mut affected = 0u64;
         let mut pending_error: Option<Error> = None;
+        let mut transaction_status = b'I';
         loop {
             match self.read_message().await {
-                Ok(BackendMessage::CommandComplete(tag)) => affected = parse_command_tag(&tag),
-                Ok(BackendMessage::ReadyForQuery(_)) => break,
+                Ok(BackendMessage::CommandComplete(tag)) => match parse_command_tag(&tag) {
+                    Ok(count) => affected = count,
+                    Err(err) => {
+                        self.mark_broken();
+                        return Err(err);
+                    }
+                },
+                Ok(BackendMessage::ReadyForQuery(status)) => {
+                    transaction_status = status;
+                    break;
+                }
                 Ok(BackendMessage::RowDescription(_)) => {}
                 Ok(BackendMessage::DataRow(_)) => {}
                 Ok(BackendMessage::NoticeResponse(_)) => {}
@@ -1071,16 +1300,18 @@ impl Actor {
                 Err(Error::Server(db)) => pending_error = Some(Error::Server(db)),
                 Err(err) => {
                     self.mark_broken();
-                    let _ = request.done.send(Err(err));
-                    return;
+                    return Err(err);
                 }
             }
         }
 
-        let _ = request.done.send(match pending_error {
+        match pending_error {
             Some(err) => Err(err),
-            None => Ok(affected),
-        });
+            None => Ok(ScriptOutcome {
+                affected,
+                transaction_status,
+            }),
+        }
     }
 
     async fn handle_copy_in(&mut self, request: CopyInRequest) {
@@ -1098,7 +1329,8 @@ impl Actor {
             }
         }
         if let Some(err) = encode_error {
-            self.mark_broken();
+            // The message never reached the wire; the connection is still in a
+            // known state.
             let _ = request.done.send(Err(err.into()));
             return;
         }
@@ -1229,7 +1461,8 @@ impl Actor {
             }
         }
         if let Some(err) = encode_error {
-            self.mark_broken();
+            // The message never reached the wire; the connection is still in a
+            // known state.
             let _ = request.done.send(Err(err.into()));
             return;
         }
@@ -1243,11 +1476,16 @@ impl Actor {
         loop {
             match self.read_message().await {
                 Ok(BackendMessage::CopyData(data)) => {
-                    // Bounded channel: a slow consumer applies backpressure.
-                    if request.chunks.send(Ok(data)).await.is_err() {
-                        // The consumer is gone; keep draining to `ReadyForQuery`
-                        // so the connection stays usable.
-                        continue;
+                    // Channel capacity and the byte budget both apply
+                    // backpressure. A consumer that is gone stops the sends but
+                    // the actor keeps draining to `ReadyForQuery` (a cancel is
+                    // scheduled by `CopyOutStream::drop`).
+                    let size = data.len();
+                    if !request.chunks.is_closed()
+                        && request.budget.reserve(size).await
+                        && request.chunks.send(Ok(data)).await.is_err()
+                    {
+                        request.budget.release(size);
                     }
                 }
                 Ok(BackendMessage::ReadyForQuery(_)) => break,
@@ -1264,6 +1502,7 @@ impl Actor {
             }
         }
 
+        request.completed.store(true, Ordering::Release);
         match pending_error {
             // The stream is what the caller reads, so it gets the real error;
             // `done` is only awaited for the row count.
@@ -1297,9 +1536,14 @@ impl Actor {
         let mut result = Ok(affected);
         loop {
             match self.read_message().await {
-                Ok(BackendMessage::CommandComplete(tag)) => {
-                    affected = parse_command_tag(&tag);
-                }
+                Ok(BackendMessage::CommandComplete(tag)) => match parse_command_tag(&tag) {
+                    Ok(count) => affected = count,
+                    Err(err) => {
+                        self.mark_broken();
+                        result = Err(err);
+                        break;
+                    }
+                },
                 Ok(BackendMessage::ReadyForQuery(_)) => break,
                 Ok(BackendMessage::NoticeResponse(_)) => {}
                 Ok(_) => {}
@@ -1359,73 +1603,76 @@ impl Actor {
                 let _ = query.done.send(Ok(affected));
             }
             Err(err) => {
-                if !query.rows.is_closed() {
+                if let Some(rows) = &query.rows
+                    && !rows.is_closed()
+                {
                     // The row stream is what the caller reads; `done` is only
-                    // awaited by `execute`, which drops the row channel. Both
-                    // want the error, so the rows get a description of it.
+                    // awaited by `execute`, which has no row channel. Both want
+                    // the error, so the rows get a description of it.
                     let for_rows = match &err {
                         Error::Server(db) => Error::Server(db.clone()),
                         Error::Closed => Error::Closed,
                         other => Error::ConnectionFailed(other.to_string()),
                     };
-                    let _ = query.rows.send(Err(for_rows)).await;
+                    let _ = rows.send(Err(for_rows)).await;
                 }
                 let _ = query.done.send(Err(err));
             }
         }
     }
 
-    /// Performs one attempt: prepare (if needed), bind, execute and read the
-    /// result. Rows are streamed to `query.rows`; an error carries whether any
-    /// row was already delivered, so a stale plan can only be retried when the
-    /// caller's stream has seen nothing yet.
+    /// Allocates the next server-side statement name.
+    fn next_statement_name(&mut self) -> Arc<str> {
+        self.statement_counter += 1;
+        Arc::from(format!("s{}", self.statement_counter))
+    }
+
+    /// Performs one attempt: prepare (when the statement is not cached), bind,
+    /// execute and read the result. Rows are streamed to `query.rows`; an error
+    /// carries whether any row was already delivered, so a stale plan can only
+    /// be retried when the caller's stream has seen nothing yet.
     async fn attempt_query(&mut self, query: &QueryRequest) -> Result<u64, AttemptError> {
         let hash = statement_key(&query.sql, query.params.oids.as_slice());
+        let param_count = query.params.oids.len();
 
-        let (name, fields): (Arc<str>, Arc<Columns>) = if self.statement_cache_size == 0 {
-            // Caching disabled (e.g. transaction-mode pooler): use the unnamed
-            // statement.
-            let fields = self.prepare("", &query.sql, query.params.oids.as_slice()).await?;
-            (Arc::from(""), fields)
-        } else {
-            let cached_matches = self
+        // A cache hit only needs Bind/Execute/Sync (one round trip). On a miss
+        // -- including `statement_cache_size = 0` -- Parse and Describe are
+        // sent in the same flush as Bind/Execute/Sync: the row description
+        // arrives before any row, so the whole cycle is still one round trip
+        // and one implicit transaction (which keeps it safe behind a
+        // transaction-mode pooler).
+        let (name, mut fields): (Arc<str>, Option<Arc<Columns>>) = if self.statement_cache_size > 0 {
+            let matches = self
                 .cache
                 .get(&hash)
                 .map(|cached| cached.matches(&query.sql, query.params.oids.as_slice()))
                 .unwrap_or(false);
-            if cached_matches {
+            if matches {
                 // Move the entry to the back of the map in O(1): `swap_remove`
                 // followed by `insert` is an approximate LRU and avoids the
                 // O(cache size) scan a `VecDeque::retain` would cost on every
                 // cache hit.
                 let (_, cached) = self.cache.swap_remove_entry(&hash).expect("checked");
                 let name = cached.name.clone();
-                let fields = cached.fields.clone();
+                let fields = Some(cached.fields.clone());
                 self.cache.insert(hash, cached);
                 (name, fields)
             } else {
-                self.statement_counter += 1;
-                let name: Arc<str> = Arc::from(format!("s{}", self.statement_counter));
-                let fields = self.prepare(&name, &query.sql, query.params.oids.as_slice()).await?;
-                let entry = CachedStatement {
-                    sql: query.sql.clone(),
-                    oids: query.params.oids.clone(),
-                    name: name.clone(),
-                    fields: fields.clone(),
-                };
-                // A hash collision displaces an unrelated statement; close it so
-                // it is not leaked server-side.
-                if let Some(old) = self.cache.insert(hash, entry) {
-                    self.pending_closes.push(old.name);
-                }
-                self.evict_statements();
-                (name, fields)
+                (self.next_statement_name(), None)
             }
+        } else {
+            // Caching disabled (e.g. transaction-mode pooler): use the unnamed
+            // statement.
+            (Arc::from(""), None)
         };
+        let needs_prepare = fields.is_none();
 
-        let param_count = query.params.oids.len();
         self.write_buf.clear();
         self.write_pending_closes()?;
+        if needs_prepare {
+            frontend::parse(&mut self.write_buf, &name, &query.sql, &query.params.oids)?;
+            frontend::describe(&mut self.write_buf, b'S', &name)?;
+        }
         let len_pos = frontend::bind_start(&mut self.write_buf, "", &name, param_count)?;
         self.write_buf.extend_from_slice(&query.params.values);
         frontend::bind_finish(&mut self.write_buf, Format::Binary, len_pos)?;
@@ -1443,24 +1690,72 @@ impl Actor {
 
         loop {
             match self.read_message().await {
-                Ok(BackendMessage::BindComplete) => {}
+                Ok(BackendMessage::ParseComplete)
+                | Ok(BackendMessage::ParameterDescription(_))
+                | Ok(BackendMessage::BindComplete)
+                | Ok(BackendMessage::CloseComplete) => {}
+                Ok(BackendMessage::RowDescription(described)) => {
+                    if fields.is_none() {
+                        fields = Some(Columns::from_fields(&described));
+                    }
+                }
+                Ok(BackendMessage::NoData) => {
+                    if fields.is_none() {
+                        fields = Some(Columns::from_fields(&[]));
+                    }
+                }
                 Ok(BackendMessage::DataRow(payload)) => {
                     rows_sent = true;
-                    if !query.rows.is_closed() {
+                    let Some(fields) = &fields else {
+                        self.mark_broken();
+                        return Err(AttemptError {
+                            error: Error::Protocol(ProtocolError::Protocol(
+                                "the server sent a DataRow before describing the result".into(),
+                            )),
+                            rows_sent,
+                        });
+                    };
+                    if let Some(rows) = &query.rows
+                        && !rows.is_closed()
+                    {
                         match Row::parse(fields.clone(), &payload, self.zone) {
                             Ok(row) => {
-                                // Bounded channel: this applies backpressure.
-                                let _ = query.rows.send(Ok(row)).await;
+                                let size = payload.len();
+                                // Both the channel capacity and the byte
+                                // budget apply backpressure.
+                                let admitted = match &query.budget {
+                                    Some(budget) => budget.reserve(size).await,
+                                    None => true,
+                                };
+                                if admitted
+                                    && rows
+                                        .send(Ok(RowItem {
+                                            row,
+                                            size,
+                                        }))
+                                        .await
+                                        .is_err()
+                                    && let Some(budget) = &query.budget
+                                {
+                                    budget.release(size);
+                                }
                             }
                             Err(err) => {
-                                let _ = query.rows.send(Err(err)).await;
+                                let _ = rows.send(Err(err)).await;
                             }
                         }
                     }
                 }
-                Ok(BackendMessage::CommandComplete(tag)) => {
-                    affected = parse_command_tag(&tag);
-                }
+                Ok(BackendMessage::CommandComplete(tag)) => match parse_command_tag(&tag) {
+                    Ok(count) => affected = count,
+                    Err(err) => {
+                        self.mark_broken();
+                        return Err(AttemptError {
+                            error: err,
+                            rows_sent,
+                        });
+                    }
+                },
                 Ok(BackendMessage::NoticeResponse(_notice)) => {}
                 Ok(BackendMessage::EmptyQueryResponse) => {}
                 // The row limit was reached; the trailing `Sync` closes the
@@ -1502,6 +1797,27 @@ impl Actor {
                     });
                 }
             }
+        }
+
+        // Cache the statement as soon as Parse+Describe succeeded, even if the
+        // execution itself failed: a constraint violation still leaves a valid
+        // prepared statement, and the next call can use the fast path.
+        if needs_prepare
+            && self.statement_cache_size > 0
+            && let Some(fields) = &fields
+        {
+            let entry = CachedStatement {
+                sql: query.sql.clone(),
+                oids: query.params.oids.clone(),
+                name: name.clone(),
+                fields: fields.clone(),
+            };
+            // A hash collision displaces an unrelated statement; close it so it
+            // is not leaked server-side.
+            if let Some(old) = self.cache.insert(hash, entry) {
+                self.pending_closes.push(old.name);
+            }
+            self.evict_statements();
         }
 
         match pending_error {
@@ -1592,37 +1908,6 @@ impl Actor {
         Ok(())
     }
 
-    async fn prepare(&mut self, name: &str, sql: &str, param_oids: &[Oid]) -> Result<Arc<Columns>, Error> {
-        self.write_buf.clear();
-        self.write_pending_closes()?;
-        frontend::parse(&mut self.write_buf, name, sql, param_oids)?;
-        frontend::describe(&mut self.write_buf, b'S', name)?;
-        frontend::sync(&mut self.write_buf)?;
-        self.flush().await?;
-
-        let mut fields: Option<Vec<postgresql_protocol::backend::FieldDescription>> = None;
-        let mut pending_error: Option<Box<DbError>> = None;
-        loop {
-            match self.read_message().await {
-                Ok(BackendMessage::ParseComplete) => {}
-                Ok(BackendMessage::ParameterDescription(_)) => {}
-                Ok(BackendMessage::RowDescription(described)) => fields = Some(described),
-                Ok(BackendMessage::NoData) => fields = Some(Vec::new()),
-                Ok(BackendMessage::NoticeResponse(_)) => {}
-                Ok(BackendMessage::ReadyForQuery(_)) => break,
-                Ok(_) => {}
-                Err(Error::Server(db)) => pending_error = Some(db),
-                Err(err) => return Err(err),
-            }
-        }
-
-        if let Some(db) = pending_error {
-            return Err(Error::Server(db));
-        }
-
-        Ok(Columns::from_fields(&fields.unwrap_or_default()))
-    }
-
     async fn flush(&mut self) -> Result<(), Error> {
         self.stream.write_all(&self.write_buf).await.map_err(Error::Io)?;
         self.stream.flush().await.map_err(Error::Io)?;
@@ -1678,18 +1963,34 @@ fn fail_request(request: Request, err: Error) {
     }
 }
 
-fn parse_command_tag(tag: &Bytes) -> u64 {
-    let Ok(text) = std::str::from_utf8(tag) else {
-        return 0;
-    };
-    text.rsplit(' ').next().and_then(|n| n.parse::<u64>().ok()).unwrap_or(0)
+/// Parses the affected-row count from a `CommandComplete` tag.
+///
+/// Returns `0` for tags without a trailing number (`CREATE TABLE`), and a
+/// protocol error for a tag that is not valid UTF-8: the connection may be
+/// desynchronized, and silently reporting zero rows would hide that.
+fn parse_command_tag(tag: &Bytes) -> Result<u64, Error> {
+    let text = std::str::from_utf8(tag)
+        .map_err(|_| Error::Protocol(ProtocolError::Protocol("CommandComplete tag is not valid UTF-8".into())))?;
+    Ok(text.rsplit(' ').next().and_then(|n| n.parse::<u64>().ok()).unwrap_or(0))
+}
+
+/// Opens a TCP connection to the configured host.
+///
+/// An IP literal is parsed first: passing `("::1", port)` to `ToSocketAddrs`
+/// asks the resolver for a *hostname*, and `format!("{}:{}", "::1", port)`
+/// parses as an IPv6 address with port 0. Host names still go through the
+/// resolver.
+async fn connect_tcp(config: &Config) -> std::io::Result<TcpStream> {
+    match config.host.parse::<std::net::IpAddr>() {
+        Ok(ip) => TcpStream::connect(std::net::SocketAddr::new(ip, config.port)).await,
+        Err(_) => TcpStream::connect((config.host.as_str(), config.port)).await,
+    }
 }
 
 async fn establish(config: &Config) -> Result<(PgStream, BytesMut, i32, i32), Error> {
-    let address = format!("{}:{}", config.host, config.port);
-    let tcp = tokio::time::timeout(config.connect_timeout, TcpStream::connect(&address))
+    let tcp = tokio::time::timeout(config.connect_timeout, connect_tcp(config))
         .await
-        .map_err(|_| Error::Config(format!("timed out connecting to {address}")))?
+        .map_err(|_| Error::Config(format!("timed out connecting to {}:{}", config.host, config.port)))?
         .map_err(Error::Io)?;
     let _ = tcp.set_nodelay(true);
 
@@ -1927,7 +2228,57 @@ impl crate::query::ScriptExecutor for Connection {
 
 #[cfg(test)]
 mod tests {
+    use futures_util::StreamExt;
+
     use super::*;
+
+    #[tokio::test]
+    async fn a_closed_row_channel_is_an_error_until_completed() {
+        let (tx, rx) = mpsc::channel(1);
+        drop(tx);
+        let mut stream =
+            RowStream::new(rx, Some(BufferBudget::new(usize::MAX)), Arc::new(AtomicBool::new(false)), None);
+        // The actor vanished before marking the query complete: the missing
+        // rows are an error, not a clean end.
+        assert!(matches!(stream.next().await, Some(Err(Error::Closed))));
+        assert!(stream.next().await.is_none());
+
+        let (tx, rx) = mpsc::channel(1);
+        drop(tx);
+        let mut stream = RowStream::new(rx, Some(BufferBudget::new(usize::MAX)), Arc::new(AtomicBool::new(true)), None);
+        assert!(stream.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn buffer_budget_bounds_the_queue_and_admits_one_oversized_item() {
+        let budget = BufferBudget::new(100);
+        // Nothing is queued: even an item larger than the limit is admitted, so
+        // a single huge row cannot deadlock the reader.
+        assert!(budget.try_reserve(1_000));
+        assert!(!budget.try_reserve(1), "a second item must wait");
+        budget.release(1_000);
+        assert!(budget.try_reserve(80));
+        assert!(!budget.try_reserve(30));
+        budget.release(80);
+        assert!(budget.try_reserve(100));
+
+        // Closing wakes a waiter and makes further reservations fail.
+        let waiter = budget.clone();
+        let handle = tokio::spawn(async move { waiter.reserve(1).await });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        budget.close();
+        assert!(!handle.await.unwrap());
+    }
+
+    #[test]
+    fn command_tags_are_parsed_strictly() {
+        assert_eq!(parse_command_tag(&Bytes::from_static(b"INSERT 0 3")).unwrap(), 3);
+        assert_eq!(parse_command_tag(&Bytes::from_static(b"SELECT 42")).unwrap(), 42);
+        // DDL tags have no count.
+        assert_eq!(parse_command_tag(&Bytes::from_static(b"CREATE TABLE")).unwrap(), 0);
+        // A non-UTF-8 tag means the stream may be desynchronized.
+        assert!(parse_command_tag(&Bytes::from_static(b"\xff\xfe")).is_err());
+    }
 
     #[test]
     fn stale_plan_is_only_retried_before_rows_are_delivered() {

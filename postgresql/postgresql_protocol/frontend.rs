@@ -24,6 +24,19 @@ pub fn put_cstr(buf: &mut BytesMut, s: &str) {
     buf.put_u8(0);
 }
 
+/// Rejects strings that would be split by the protocol's NUL terminator.
+///
+/// A NUL inside a SQL string, a name or a password would leave trailing bytes
+/// in the message: PostgreSQL rejects the whole message (`08P01`), or a
+/// truncated SQL prefix could be executed. Failing before the write gives a
+/// clear error and avoids the round trip.
+fn check_no_nul(what: &str, value: &str) -> Result<(), Error> {
+    if value.contains('\0') {
+        return Err(Error::Encode(format!("{what} must not contain a NUL byte")));
+    }
+    Ok(())
+}
+
 /// Starts a tagged message, writing the tag and a placeholder length.
 ///
 /// Returns the offset of the length field, to be passed to [`finish`].
@@ -92,6 +105,7 @@ pub fn cancel_request(buf: &mut BytesMut, process_id: i32, secret_key: i32) {
 ///
 /// Returns [`Error::Encode`] if the message is larger than 2 GiB.
 pub fn password(buf: &mut BytesMut, password: &str) -> Result<(), Error> {
+    check_no_nul("password", password)?;
     let len_pos = begin(buf, b'p');
     put_cstr(buf, password);
     finish(buf, len_pos)
@@ -127,6 +141,7 @@ pub fn sasl_response(buf: &mut BytesMut, data: &[u8]) -> Result<(), Error> {
 ///
 /// Returns [`Error::Encode`] if the message is larger than 2 GiB.
 pub fn query(buf: &mut BytesMut, sql: &str) -> Result<(), Error> {
+    check_no_nul("SQL", sql)?;
     let len_pos = begin(buf, b'Q');
     put_cstr(buf, sql);
     finish(buf, len_pos)
@@ -139,6 +154,8 @@ pub fn query(buf: &mut BytesMut, sql: &str) -> Result<(), Error> {
 /// Returns [`Error::Encode`] when more than [`MAX_VALUE_COUNT`] parameter
 /// types are supplied, or if the message is larger than 2 GiB.
 pub fn parse(buf: &mut BytesMut, name: &str, sql: &str, param_oids: &[u32]) -> Result<(), Error> {
+    check_no_nul("prepared statement name", name)?;
+    check_no_nul("SQL", sql)?;
     let count = count16(param_oids.len())?;
     let len_pos = begin(buf, b'P');
     put_cstr(buf, name);
@@ -298,6 +315,7 @@ pub fn copy_done(buf: &mut BytesMut) -> Result<(), Error> {
 ///
 /// Returns [`Error::Encode`] if the message is larger than 2 GiB.
 pub fn copy_fail(buf: &mut BytesMut, message: &str) -> Result<(), Error> {
+    check_no_nul("COPY error message", message)?;
     let len_pos = begin(buf, b'f');
     put_cstr(buf, message);
     finish(buf, len_pos)
@@ -314,6 +332,19 @@ fn length32(len: usize) -> Result<i32, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejects_nul_bytes() {
+        // A NUL would leave trailing bytes in the message (08P01) or truncate
+        // the SQL after the prefix; reject it before writing anything.
+        let mut buf = BytesMut::new();
+        assert!(query(&mut buf, "SELECT 1\0; DROP TABLE t").is_err());
+        assert!(buf.is_empty());
+        assert!(parse(&mut buf, "", "SELECT 1\0", &[]).is_err());
+        assert!(copy_fail(&mut buf, "bad\0").is_err());
+        assert!(password(&mut buf, "pa\0ss").is_err());
+        assert!(copy_fail(&mut buf, "ok").is_ok());
+    }
 
     #[test]
     fn startup_layout() {

@@ -164,6 +164,34 @@ fn reject_date_infinity(days: i32) -> Result<(), Error> {
     Ok(())
 }
 
+/// Rejects a `time` / `timetz` value outside a single day.
+///
+/// PostgreSQL's `time` counts microseconds since midnight,
+/// `0..=86_400_000_000` (where the maximum is `24:00:00`). A value outside that
+/// range is not a time of day; rejecting it avoids decoding `24:00:00` as the
+/// next day's midnight and bounds a hostile value.
+fn check_time_of_day(micros: i64, what: &str) -> Result<(), Error> {
+    if !(0..86_400_000_000).contains(&micros) {
+        return Err(Error::Decode(format!("{what} value {micros} is outside a single day")));
+    }
+    Ok(())
+}
+
+/// Rejects a `timetz` UTC offset outside the range PostgreSQL itself accepts.
+///
+/// The offset comes from the wire and is used to shift the time of day; an
+/// unbounded `i32` would otherwise decode a nonsensical instant instead of
+/// reporting a malformed value.
+fn check_timetz_offset(offset: i32) -> Result<(), Error> {
+    const MAX_OFFSET_SECS: i32 = 16 * 60 * 60;
+    if !(-MAX_OFFSET_SECS..=MAX_OFFSET_SECS).contains(&offset) {
+        return Err(Error::Decode(format!(
+            "timetz UTC offset {offset} is outside the accepted +-16 hours"
+        )));
+    }
+    Ok(())
+}
+
 impl FromSql for time::DateTime {
     fn from_sql(oid: Oid, buf: &[u8]) -> Result<Self, Error> {
         match oid {
@@ -183,23 +211,15 @@ impl FromSql for time::DateTime {
             TIMEOID => {
                 need(buf, 8, "time")?;
                 let micros = i64::from_be_bytes(buf[..8].try_into().unwrap());
-                // PostgreSQL's `time` counts microseconds since midnight,
-                // `0..=86_400_000_000` (where the maximum is `24:00:00`). A
-                // value outside that range is not a time of day; rejecting it
-                // avoids decoding `24:00:00` as the next day's midnight and
-                // bounds a hostile value.
-                if !(0..86_400_000_000).contains(&micros) {
-                    return Err(Error::Decode(format!("time value {micros} is outside a single day")));
-                }
+                check_time_of_day(micros, "time")?;
                 Ok(time::DateTime::from_unix_nanos((micros as i128) * 1_000)?)
             }
             TIMETZOID => {
                 need(buf, 12, "timetz")?;
                 let micros = i64::from_be_bytes(buf[..8].try_into().unwrap());
                 let offset = i32::from_be_bytes(buf[8..12].try_into().unwrap());
-                if !(0..86_400_000_000).contains(&micros) {
-                    return Err(Error::Decode(format!("timetz value {micros} is outside a single day")));
-                }
+                check_time_of_day(micros, "timetz")?;
+                check_timetz_offset(offset)?;
                 let nanos = (micros as i128 - (offset as i128) * 1_000_000) * 1_000;
                 Ok(time::DateTime::from_unix_nanos(nanos)?)
             }
@@ -231,6 +251,7 @@ impl FromSql for time::DateTime {
             TIMEOID => {
                 need(buf, 8, "time")?;
                 let micros = i64::from_be_bytes(buf[..8].try_into().unwrap());
+                check_time_of_day(micros, "time")?;
                 civil_in_zone(time::DateTime::from_unix_nanos((micros as i128) * 1_000)?, zone)
             }
             other => Err(Error::Decode(format!("cannot decode OID {other} as DateTime"))),
@@ -381,8 +402,29 @@ fn decode_array<T: FromSql>(buf: &[u8], zone: time::TimeZone) -> Result<Vec<T>, 
     let ndim = i32::from_be_bytes(buf[0..4].try_into().unwrap());
     let element_oid = u32::from_be_bytes(buf[8..12].try_into().unwrap());
 
+    // The element OID comes from the payload and must be one the target type
+    // can actually hold; otherwise a server could have an `int4[]` column
+    // decode as, say, `text` with a different element type. An empty array may
+    // still declare OID 0 (unspecified) because there is no element to
+    // misinterpret.
     if ndim == 0 {
+        if element_oid != 0 && !T::accepts(element_oid) {
+            return Err(Error::Decode(format!(
+                "array element type OID {element_oid} cannot be decoded as the requested type"
+            )));
+        }
+        if buf.len() != 12 {
+            return Err(Error::Decode(format!(
+                "empty array has {} trailing bytes after its header",
+                buf.len() - 12
+            )));
+        }
         return Ok(Vec::new());
+    }
+    if !T::accepts(element_oid) {
+        return Err(Error::Decode(format!(
+            "array element type OID {element_oid} cannot be decoded as the requested type"
+        )));
     }
     if ndim != 1 {
         return Err(Error::Decode("only one-dimensional arrays are supported".into()));
@@ -398,14 +440,6 @@ fn decode_array<T: FromSql>(buf: &[u8], zone: time::TimeZone) -> Result<Vec<T>, 
         return Err(Error::Decode(format!(
             "array claims {count} elements but the payload holds at most {}",
             (buf.len() - 20) / 4
-        )));
-    }
-    // The element OID comes from the payload and must be one the target type
-    // can actually hold; otherwise a server could have an `int4[]` column
-    // decode as, say, `text` with a different element type.
-    if !T::accepts(element_oid) {
-        return Err(Error::Decode(format!(
-            "array element type OID {element_oid} cannot be decoded as the requested type"
         )));
     }
 
@@ -424,6 +458,12 @@ fn decode_array<T: FromSql>(buf: &[u8], zone: time::TimeZone) -> Result<Vec<T>, 
             out.push(T::from_sql_zoned(element_oid, &buf[pos..pos + len], zone)?);
             pos += len;
         }
+    }
+    if pos != buf.len() {
+        return Err(Error::Decode(format!(
+            "array has {} trailing bytes after its last element",
+            buf.len() - pos
+        )));
     }
     Ok(out)
 }
@@ -608,6 +648,10 @@ mod tests {
                 time::DateTime::from_sql(TIMEOID, &micros.to_be_bytes()).is_err(),
                 "time {micros} must be rejected"
             );
+            assert!(
+                time::DateTime::from_sql_zoned(TIMEOID, &micros.to_be_bytes(), time::TimeZone::UTC).is_err(),
+                "zoned time {micros} must be rejected"
+            );
         }
         // timetz: an in-day time decodes; hostile values error rather than panic.
         let mut buf = 5_000_000i64.to_be_bytes().to_vec();
@@ -616,6 +660,58 @@ mod tests {
         let mut buf = i64::MAX.to_be_bytes().to_vec();
         buf.extend_from_slice(&i32::MAX.to_be_bytes());
         assert!(time::DateTime::from_sql(TIMETZOID, &buf).is_err());
+    }
+
+    #[test]
+    fn timetz_offsets_are_bounded_and_normalized() {
+        // 12:00+02:00 is 10:00Z.
+        let micros = 12 * 3_600_000_000i64;
+        let mut buf = micros.to_be_bytes().to_vec();
+        buf.extend_from_slice(&7_200i32.to_be_bytes());
+        let decoded = time::DateTime::from_sql(TIMETZOID, &buf).unwrap();
+        assert_eq!((decoded.hour(), decoded.minute()), (10, 0));
+
+        // PostgreSQL's own limit is +-15:59:59; anything beyond +-16h is
+        // malformed and must not decode to a bogus instant.
+        for offset in [16 * 3600 + 1, i32::MAX, i32::MIN] {
+            let mut buf = 0i64.to_be_bytes().to_vec();
+            buf.extend_from_slice(&offset.to_be_bytes());
+            assert!(
+                time::DateTime::from_sql(TIMETZOID, &buf).is_err(),
+                "offset {offset} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn arrays_reject_trailing_bytes() {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&1i32.to_be_bytes());
+        buf.extend_from_slice(&0i32.to_be_bytes());
+        buf.extend_from_slice(&23u32.to_be_bytes());
+        buf.extend_from_slice(&1i32.to_be_bytes());
+        buf.extend_from_slice(&1i32.to_be_bytes());
+        buf.extend_from_slice(&4i32.to_be_bytes());
+        buf.extend_from_slice(&7i32.to_be_bytes());
+        assert_eq!(Vec::<i32>::from_sql(1007, &buf).unwrap(), vec![7]);
+
+        buf.extend_from_slice(&[0xde, 0xad]);
+        let err = Vec::<i32>::from_sql(1007, &buf).unwrap_err();
+        assert!(matches!(err, Error::Decode(_)), "{err}");
+    }
+
+    #[test]
+    fn empty_arrays_validate_the_element_oid_and_length() {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&0i32.to_be_bytes());
+        buf.extend_from_slice(&0i32.to_be_bytes());
+        buf.extend_from_slice(&23u32.to_be_bytes()); // int4 element
+        // An empty text[] payload declaring int4 elements cannot be decoded as
+        // Vec<String>.
+        assert!(Vec::<String>::from_sql(1009, &buf).is_err());
+        // Trailing bytes after an empty header are rejected.
+        buf.extend_from_slice(&[0; 4]);
+        assert!(Vec::<i32>::from_sql(1007, &buf).is_err());
     }
 
     #[test]

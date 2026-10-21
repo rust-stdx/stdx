@@ -18,11 +18,15 @@
 //! * **COPY** — binary `COPY ... FROM STDIN` / `TO STDOUT` for bulk loads.
 //! * **Scripts** — `execute_script` runs multi-statement SQL (migrations, `SET`
 //!   scripts, `VACUUM`) via the simple query protocol.
+//! * **Forward-only migrations** — SQL migrations from the filesystem or an
+//!   embedded folder, strict checksum/history validation, advisory locking,
+//!   whole-run transactions, and a status API.
 //! * **`LISTEN` / `NOTIFY`** — [`Connection::notifications`] streams
 //!   notifications from the server.
 //! * **Cancellation** — an abandoned query is drained in the background and,
 //!   if it is still running two seconds later, cancelled with a
-//!   `CancelRequest`.
+//!   `CancelRequest`. The same applies to an abandoned `execute_script`,
+//!   `COPY ... TO STDOUT` stream and row stream.
 //! * **Zero-copy accessors** — [`Row::get_str`] / [`Row::get_bytes`] borrow
 //!   from the received frame.
 //! * **Transactions without lifetimes** — `Connection`, `Pool`, `PooledConnection`
@@ -82,13 +86,27 @@
 //! `timestamp`/`date`/`time` values (default UTC), and `statement_cache_size`
 //! bounds the prepared-statement cache (`0` disables it, for transaction-mode
 //! poolers). `max_message_len` bounds the largest backend message the client
-//! will buffer, in bytes (default 128 MiB); `max_scram_iterations` caps the
-//! SCRAM iteration count the server may request (default 2,000,000). Unknown
-//! parameters are rejected so typos surface immediately.
+//! will buffer, in bytes (default 128 MiB); `max_buffered_bytes` bounds the
+//! decoded rows buffered for a slow reader (default 16 MiB, one oversized row
+//! is always allowed); `max_scram_iterations` caps the SCRAM iteration count
+//! the server may request (default 1,000,000). Unknown parameters are rejected
+//! so typos surface immediately.
 //!
 //! `connect_timeout` bounds the **whole** connection attempt: the TCP connect,
 //! the TLS handshake and authentication. A server that accepts TCP and then
-//! stalls cannot hang `Connection::connect`.
+//! stalls cannot hang `Connection::connect`. Zero is rejected: it would make
+//! every attempt fail immediately (unlike libpq, where zero means "no
+//! timeout").
+//!
+//! # Runtime affinity
+//!
+//! A [`Connection`] is a handle to a background task spawned on the runtime
+//! that created it, and a [`Pool`] opens its connections on the runtime that
+//! called [`Pool::connect`]. Keep that runtime alive while they are in use.
+//! Using a handle from another runtime works while the original runtime is
+//! running, but shutting it down aborts the background task: in-flight streams
+//! then report [`Error::Closed`] and new queries fail,
+//! instead of silently returning a truncated result.
 //!
 //! # TLS is required
 //!
@@ -204,6 +222,60 @@
 //! # }
 //! ```
 //!
+//! # Migrations
+//!
+//! [`migrate::Migrator`] applies forward-only SQL migrations from a directory
+//! or from an embedded folder. Files use the format
+//! `<version>_<description>.sql`; subdirectories are allowed and the version
+//! always comes from the file name:
+//!
+//! ```text
+//! migrations/
+//!   2025/20250101_init.sql
+//!   2026/20260101_add_orders.sql
+//! ```
+//!
+//! ```ignore
+//! use postgresql::migrate::Migrator;
+//!
+//! # async fn run(pool: postgresql::Pool) -> Result<(), postgresql::Error> {
+//! let migrator = Migrator::from_dir("migrations")?;
+//! let report = migrator.run(&pool).await?;
+//! # let _ = report;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! The `embed` feature is enabled by default. A folder can be embedded with
+//! the `embed` derive and loaded with `Migrator::from_embed`:
+//!
+//! ```ignore
+//! use embed::Embed;
+//! use postgresql::migrate::Migrator;
+//!
+//! #[derive(Embed)]
+//! #[folder = "migrations/"]
+//! struct Migrations;
+//!
+//! # async fn run(pool: postgresql::Pool) -> Result<(), postgresql::Error> {
+//! let report = Migrator::from_embed::<Migrations>()?.run(&pool).await?;
+//! # let _ = report;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Migrations are recorded in `_stdx_postgresql_migrations` by default. The
+//! migrator validates checksums, missing migrations and ordering before
+//! applying anything. All pending transactional migrations run in one
+//! transaction by default; a migration whose first non-empty line is
+//! `-- migrate:no-transaction` is applied outside a transaction and splits the
+//! run into transaction groups. Use [`migrate::Migrator::verify_checksums`] to
+//! relax checksum checks during local development and
+//! [`migrate::Migrator::with_advisory_lock`] to disable the lock only when a
+//! single migrator is guaranteed. [`migrate::Migrator::status`] reports
+//! applied, pending, missing, modified and dirty migrations without changing
+//! the database.
+//!
 //! # Supported types
 //!
 //! | Rust type | PostgreSQL type |
@@ -246,18 +318,25 @@
 //!   write temporal values).
 //! * A single backend message, and a single binary `COPY` row, is bounded by
 //!   `max_message_len` (128 MiB by default). A larger message or row is a
-//!   decode error rather than unbounded buffering.
+//!   decode error rather than unbounded buffering. `max_buffered_bytes`
+//!   (16 MiB by default) additionally bounds how many decoded rows are queued
+//!   for a reader that is not consuming them, so a hostile server cannot fill
+//!   memory with many large rows. One row larger than the budget is always
+//!   delivered.
 //! * `COPY ... FROM STDIN` and `COPY ... TO STDOUT` can only be run through
 //!   [`copy_in!`](crate::copy_in) / [`copy_out!`](crate::copy_out). Running one
 //!   through `query!` / `query_as!` or `execute_script` is an error; the client
 //!   leaves COPY mode and keeps the connection usable.
 //! * SCRAM authentication is capped at `max_scram_iterations` iterations
-//!   (2,000,000 by default); the server's PBKDF2 work runs on the blocking
+//!   (1,000,000 by default); the server's PBKDF2 work runs on the blocking
 //!   pool, so it never stalls an async worker. The password is prepared with
 //!   SASLprep before key derivation.
 //! * Not yet supported: SCRAM channel binding (`SCRAM-SHA-256-PLUS`),
-//!   multi-host connection URLs, the `numeric` / `decimal` type, and streaming
-//!   replication (`CopyBothResponse`).
+//!   multi-host connection URLs, Unix-domain sockets (only TCP is used; a
+//!   percent-encoded socket path is not a host), the `numeric` / `decimal`
+//!   type, and streaming replication (`CopyBothResponse`). Only `PGUSER`,
+//!   `USER` and `LOGNAME` are read from the environment; the other `PG*`
+//!   variables are not.
 //! * [`Connection::notifications`] delivers notifications through a bounded
 //!   broadcast channel; a subscriber that falls behind misses the oldest
 //!   notifications instead of buffering them without bound.
@@ -310,7 +389,7 @@
 //! has to be opted into. Two forms are provided:
 //!
 //! * `#[derive(Json)]` — preferred; see above.
-//! * [`Json<T>`] — for cases the derive cannot cover: a type that
+//! * [`struct@Json<T>`] — for cases the derive cannot cover: a type that
 //!   already derives [`FromRow`] (deriving `Json` too would define `FromRow`
 //!   and [`RowShape`] twice), or a value with no nameable type, such as
 //!   `HashMap<String, i32>`:
@@ -354,7 +433,8 @@
 //! SCRAM-SHA-256 is used for password authentication; MD5 is rejected. The
 //! server's SCRAM challenge is validated (bounded iteration count and salt,
 //! nonce, server signature), so a hostile endpoint cannot make the client do
-//! unbounded work during login.
+//! unbounded work during login. The password and the derived salted password
+//! are zeroized when their state is dropped.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -370,6 +450,7 @@ mod encode;
 mod error;
 mod interval;
 mod json;
+pub mod migrate;
 mod pool;
 mod query;
 mod row;
@@ -387,6 +468,7 @@ pub use encode::{Date, IsNull, StaticType, Timestamp, ToSql};
 pub use error::Error;
 pub use interval::Interval;
 pub use json::Json;
+pub use migrate::{AppliedMigration, Migration, MigrationState, MigrationStatus, Migrator, Report, StatusReport};
 pub use pool::{Pool, PooledConnection};
 pub use postgresql_derive::{FromRow, Json, ToRow};
 pub use postgresql_macros::{copy_in, copy_out, query, query_as};
@@ -414,6 +496,19 @@ pub mod __private {
         shape::verify_shape,
         types::JSONBOID,
     };
+
+    /// Falls back to `Default` only when a column is missing or `NULL`.
+    ///
+    /// Used by `#[postgresql(default)]`. Any other error (a wrong column type,
+    /// malformed bytes) is returned unchanged instead of being hidden behind a
+    /// default value.
+    pub fn default_on_missing<T: Default>(result: Result<T, Error>) -> Result<T, Error> {
+        match result {
+            Ok(value) => Ok(value),
+            Err(Error::ColumnNotFound(_) | Error::UnexpectedNull(_)) => Ok(T::default()),
+            Err(other) => Err(other),
+        }
+    }
 
     /// Starts a typed binary `COPY ... FROM STDIN` (used by `copy_in!`).
     pub async fn copy_in<T: ToRow>(conn: &Connection, sql: &str) -> Result<CopyIn<T>, Error> {

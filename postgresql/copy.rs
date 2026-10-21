@@ -3,9 +3,9 @@
 //! Rows are written and read positionally, in the order of the `COPY` column
 //! list. [`ToRow`] is implemented for tuples and — via
 //! `#[derive(ToRow)]` — for structs, whose fields are encoded in declaration
-//! order. [`FromCopyRow`] is implemented for scalars and tuples; a struct is
-//! read field by field with [`FromCopyRow::from_copy_row`] or by decoding into
-//! a tuple first.
+//! order. [`FromCopyRow`] is implemented for scalars and tuples; a struct can
+//! implement it manually with [`FromCopyRow::from_copy_row`] (or be decoded via
+//! a tuple first).
 
 use std::marker::PhantomData;
 
@@ -329,13 +329,7 @@ mod tests {
         let (tx, rx) = mpsc::channel(256);
         (
             tx,
-            CopyOut::new(
-                CopyOutStream {
-                    rx,
-                },
-                vec![23, 25],
-                128 * 1024 * 1024,
-            ),
+            CopyOut::new(CopyOutStream::from_receiver(rx), vec![23, 25], 128 * 1024 * 1024),
         )
     }
 
@@ -441,13 +435,7 @@ mod tests {
         // The row limit must be enforced even when the whole row is already
         // buffered, not only while waiting for bytes.
         let (tx, rx) = mpsc::channel(256);
-        let mut out = CopyOut::<Row>::new(
-            CopyOutStream {
-                rx,
-            },
-            vec![23, 25],
-            8,
-        );
+        let mut out = CopyOut::<Row>::new(CopyOutStream::from_receiver(rx), vec![23, 25], 8);
         let mut data = header();
         data.extend_from_slice(&row(&[Some(&1i32.to_be_bytes()), Some(b"way-too-long")]));
         tx.send(Ok(Bytes::from(data))).await.unwrap();

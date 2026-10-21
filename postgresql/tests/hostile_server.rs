@@ -288,8 +288,6 @@ fn ready() -> Vec<u8> {
 }
 
 fn authenticate() -> Vec<u8> {
-    let mut payload = 0i32.to_be_bytes().to_vec();
-    payload.extend_from_slice(&ready()); // placeholder, replaced below
     frame(b'R', &0i32.to_be_bytes())
 }
 
@@ -325,13 +323,12 @@ fn command_complete(tag: &str) -> Vec<u8> {
     frame(b'C', &cstr(tag))
 }
 
-/// Answer to `Parse` + `Describe` + `Sync`.
-fn prepare_response() -> Vec<u8> {
+/// The `Parse`/`Describe` half of a response, without `ReadyForQuery`.
+fn prepare_prefix() -> Vec<u8> {
     let mut out = frame(b'1', &[]);
     let payload = 0i16.to_be_bytes().to_vec();
     out.extend_from_slice(&frame(b't', &payload));
     out.extend_from_slice(&row_description());
-    out.extend_from_slice(&ready());
     out
 }
 
@@ -490,8 +487,13 @@ fn server_config() -> Arc<ServerConfig> {
 }
 
 async fn serve(case: Case) -> SocketAddr {
-    let config = server_config();
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    serve_on(listener, case).await
+}
+
+/// Serves `case` on an already-bound listener (used to test IPv6 addresses).
+async fn serve_on(listener: TcpListener, case: Case) -> SocketAddr {
+    let config = server_config();
     let addr = listener.local_addr().expect("local addr");
     tokio::spawn(async move {
         while let Ok((sock, _)) = listener.accept().await {
@@ -538,6 +540,7 @@ async fn handle(mut sock: TcpStream, config: Arc<ServerConfig>, case: Case) -> s
 
     // Answer each `Sync`: the first one belongs to `Parse`/`Describe`.
     let mut buf = BytesMut::new();
+    let mut saw_parse = false;
     let mut saw_bind = false;
     let mut sent_case = false;
     loop {
@@ -549,19 +552,27 @@ async fn handle(mut sock: TcpStream, config: Arc<ServerConfig>, case: Case) -> s
             }
             buf.advance(len + 1);
             match tag {
+                b'P' => saw_parse = true,
+                b'B' => saw_bind = true,
                 b'S' => {
-                    let response = if !saw_bind {
-                        prepare_response()
-                    } else if !sent_case {
+                    // A single batch may carry Parse+Describe+Bind+Execute, so
+                    // build the whole answer in protocol order and end it with
+                    // exactly one ReadyForQuery.
+                    let mut response = Vec::new();
+                    if saw_parse {
+                        response.extend_from_slice(&prepare_prefix());
+                    }
+                    if saw_bind && !sent_case {
                         sent_case = true;
-                        case_response(case)
-                    } else {
-                        ready()
-                    };
+                        response.extend_from_slice(&case_response(case));
+                    } else if !response.is_empty() || !saw_bind {
+                        response.extend_from_slice(&ready());
+                    }
+                    saw_parse = false;
+                    saw_bind = false;
                     sock.write_all(&response).await?;
                     sock.flush().await?;
                 }
-                b'B' => saw_bind = true,
                 b'Q' => {
                     if !sent_case {
                         sent_case = true;
@@ -582,4 +593,25 @@ async fn handle(mut sock: TcpStream, config: Arc<ServerConfig>, case: Case) -> s
         }
         buf.put_slice(&chunk[..read]);
     }
+}
+
+/// An IPv6 literal host must connect to `[addr]:port`, not to an address that
+/// happens to parse out of the `host:port` string (which silently used port 0).
+#[tokio::test]
+async fn ipv6_literal_hosts_connect() {
+    let Ok(listener) = TcpListener::bind("[::1]:0").await else {
+        eprintln!("skipping: no IPv6 loopback available");
+        return;
+    };
+    let addr = serve_on(listener, Case::NotificationDuringQuery).await;
+    let url = format!("postgres://probe@[::1]:{}/db", addr.port());
+    let conn = tokio::time::timeout(Duration::from_secs(20), postgresql::Connection::connect(&url))
+        .await
+        .expect("handshake timed out")
+        .expect("connect over IPv6");
+    let value: i32 = postgresql::QueryAs::<i32>::new("SELECT 1::int4", &[])
+        .fetch_one(&conn)
+        .await
+        .expect("query over IPv6");
+    assert_eq!(value, 1);
 }

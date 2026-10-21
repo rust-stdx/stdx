@@ -1,4 +1,4 @@
-FROM node:slim as node
+FROM node:slim AS node
 
 FROM debian:13
 
@@ -15,9 +15,15 @@ RUN apt-get install -y --no-install-recommends \
     zip htop wrk zstd gdb dnsutils jq b3sum gnupg libimage-exiftool-perl bsdmainutils lsof xxd net-tools iproute2 \
     python3 python3-pip pipx tcpdump strace \
     # Rust toolchain
-    rustup lld musl musl-dev musl-tools libc6-dev clang llvm libclang-dev openssl libssl-dev \
+    rustup openssl libssl-dev musl musl-dev musl-tools libc6-dev clang-22 llvm-22 llvm-22-dev libclang-22-dev lld-22 \
     # useful data. mailcap for mimetypes. tzdata for timezones.
     mailcap tzdata
+
+# Versioned LLVM packages only ship `*-22` names; link the ones this repo uses.
+RUN for t in clang clang++ ld.lld lld wasm-ld llvm-config llvm-ar llvm-ranlib llvm-nm \
+             llvm-objcopy llvm-objdump llvm-strip llvm-symbolizer llvm-cov llvm-profdata; do \
+        ln -sf "/usr/lib/llvm-22/bin/$t" "/usr/bin/$t"; \
+    done
 
 # setup node
 COPY --from=node /usr/local/bin/node /usr/local/bin/

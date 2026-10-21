@@ -2,15 +2,22 @@
 
 use std::{fmt, time::Duration};
 
+use zeroize::Zeroize;
+
 use crate::error::Error;
+
+/// Default number of bytes of decoded rows (or `COPY` chunks) buffered per
+/// reader before the actor applies backpressure.
+const DEFAULT_MAX_BUFFERED_BYTES: usize = 16 * 1024 * 1024;
 
 /// How the client verifies the server certificate.
 ///
-/// TLS is always required: `disable` and `prefer` (which permit plaintext) are
-/// rejected. The default is [`SslMode::Require`], which encrypts the
-/// connection but does **not** authenticate the server — an active attacker
+/// TLS is always required: `disable`, `prefer` and `allow` (which permit
+/// plaintext) are rejected. The default is [`SslMode::Require`], which encrypts
+/// the connection but does **not** authenticate the server — an active attacker
 /// can impersonate it. Use [`SslMode::VerifyFull`] unless the network is
-/// trusted.
+/// trusted. Note that libpq's `require` verifies the chain when a root CA is
+/// present; this client never does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SslMode {
     /// Require TLS. The server certificate is **not** verified, so the
@@ -70,8 +77,14 @@ pub struct Config {
     /// Largest accepted backend message, in bytes. Defaults to 128 MiB. A
     /// hostile server cannot make the client buffer more than this per message.
     pub max_message_len: usize,
+    /// Maximum number of bytes of decoded rows (or `COPY` chunks) buffered on
+    /// behalf of a reader that is not consuming them. Defaults to 16 MiB.
+    ///
+    /// A single row larger than this is still delivered (one row is always
+    /// allowed); the bound applies to the queue.
+    pub max_buffered_bytes: usize,
     /// Largest SCRAM iteration count accepted from the server. Defaults to
-    /// 2,000,000. The server chooses this value and it is pure client CPU
+    /// 1,000,000. The server chooses this value and it is pure client CPU
     /// work, so it bounds the work an unauthenticated server can force.
     pub max_scram_iterations: u32,
     /// Pool settings parsed from the URL (overridden by an explicit
@@ -97,6 +110,7 @@ impl fmt::Debug for Config {
             .field("timezone", &self.timezone)
             .field("statement_cache_size", &self.statement_cache_size)
             .field("max_message_len", &self.max_message_len)
+            .field("max_buffered_bytes", &self.max_buffered_bytes)
             .field("max_scram_iterations", &self.max_scram_iterations)
             .field("pool", &self.pool)
             .finish()
@@ -130,15 +144,26 @@ fn decode_checked(name: &str, input: &str) -> Result<String, Error> {
     Ok(decoded)
 }
 
+impl Drop for Config {
+    /// Zeroizes the password. Best-effort: the string may have been copied
+    /// elsewhere (for example into an error message) outside our control.
+    fn drop(&mut self) {
+        if let Some(password) = self.password.as_mut() {
+            password.zeroize();
+        }
+    }
+}
+
 impl Config {
     /// Parses a `postgres://` or `postgresql://` URL.
     ///
     /// Supported query parameters: `sslmode`, `sslrootcert`, `connect_timeout`
     /// (seconds), `application_name`, `options`, `timezone`,
     /// `statement_cache_size`, `max_message_len` (bytes),
-    /// `max_scram_iterations`, `pool_size`, `min_connections`,
-    /// `acquire_timeout`, `idle_timeout` and `max_lifetime`. Unknown
-    /// parameters are rejected so that typos surface immediately.
+    /// `max_buffered_bytes` (bytes), `max_scram_iterations`, `pool_size`,
+    /// `min_connections`, `acquire_timeout`, `idle_timeout` and
+    /// `max_lifetime`. Unknown parameters are rejected so that typos surface
+    /// immediately.
     ///
     /// # Errors
     ///
@@ -154,11 +179,15 @@ impl Config {
             )));
         }
 
-        let host = parsed
-            .host_str()
-            .filter(|h| !h.is_empty())
-            .unwrap_or("localhost")
-            .to_string();
+        // Normalize the host: `url::Url::host_str` keeps the brackets around an
+        // IPv6 literal (`[::1]`), which is not a valid IP address for
+        // `TcpStream::connect` nor a valid TLS server name.
+        let host = match parsed.host() {
+            Some(url::Host::Ipv6(ip)) => ip.to_string(),
+            Some(url::Host::Ipv4(ip)) => ip.to_string(),
+            Some(url::Host::Domain(domain)) => domain.to_string(),
+            None => "localhost".to_string(),
+        };
         reject_nul("host", &host)?;
         let port = parsed.port().unwrap_or(5432);
 
@@ -193,6 +222,7 @@ impl Config {
         let mut timezone = None;
         let mut statement_cache_size = 256usize;
         let mut max_message_len = postgresql_protocol::DEFAULT_MAX_MESSAGE_LEN;
+        let mut max_buffered_bytes = DEFAULT_MAX_BUFFERED_BYTES;
         let mut max_scram_iterations = postgresql_protocol::scram::DEFAULT_MAX_SCRAM_ITERATIONS;
         let mut pool = PoolConfig::default();
 
@@ -208,6 +238,7 @@ impl Config {
                     statement_cache_size = parse_count("statement_cache_size", &value)? as usize;
                 }
                 "max_message_len" => max_message_len = parse_len("max_message_len", &value)?,
+                "max_buffered_bytes" => max_buffered_bytes = parse_buffered_bytes(&value)?,
                 "max_scram_iterations" => max_scram_iterations = parse_iterations("max_scram_iterations", &value)?,
                 "pool_size" => pool.pool_size = parse_count("pool_size", &value)?,
                 "min_connections" => pool.min_connections = parse_count("min_connections", &value)?,
@@ -233,6 +264,16 @@ impl Config {
             }
         }
 
+        // `connect_timeout` bounds the whole connection attempt. A zero
+        // duration would make every attempt fail immediately, so it is
+        // rejected instead of silently producing an unusable connection.
+        if connect_timeout.is_zero() {
+            return Err(Error::Config(
+                "`connect_timeout` must be greater than zero; omit it to use the 10 second default".into(),
+            ));
+        }
+        pool.validate()?;
+
         Ok(Config {
             host,
             port,
@@ -247,6 +288,7 @@ impl Config {
             timezone,
             statement_cache_size,
             max_message_len,
+            max_buffered_bytes,
             max_scram_iterations,
             pool,
         })
@@ -259,8 +301,27 @@ fn parse_len(name: &str, value: &str) -> Result<usize, Error> {
     let n: usize = value
         .parse()
         .map_err(|_| Error::Config(format!("`{name}` must be an integer number of bytes")))?;
+    check_len(name, n)?;
+    Ok(n)
+}
+
+fn check_len(name: &str, n: usize) -> Result<(), Error> {
     if !(64 * 1024..=i32::MAX as usize).contains(&n) {
         return Err(Error::Config(format!("`{name}` must be between 65536 and {} bytes", i32::MAX)));
+    }
+    Ok(())
+}
+
+/// Parses the row-buffering budget (larger than one message is allowed).
+fn parse_buffered_bytes(value: &str) -> Result<usize, Error> {
+    const MAX: usize = 1024 * 1024 * 1024;
+    let n: usize = value
+        .parse()
+        .map_err(|_| Error::Config("`max_buffered_bytes` must be an integer number of bytes".into()))?;
+    if !(64 * 1024..=MAX).contains(&n) {
+        return Err(Error::Config(format!(
+            "`max_buffered_bytes` must be between 65536 and {MAX} bytes"
+        )));
     }
     Ok(n)
 }
@@ -297,23 +358,43 @@ fn parse_count(name: &str, value: &str) -> Result<u32, Error> {
 pub struct PoolConfig {
     /// Maximum number of connections in the pool.
     pub pool_size: u32,
-    /// Connections to open eagerly when the pool is created, and the floor the
-    /// idle reaper will not drop below.
+    /// Connections to open eagerly when the pool is created, and the floor of
+    /// live connections the idle reaper maintains.
     ///
     /// This is best-effort: if some connections cannot be established the pool
-    /// starts with fewer, and the floor is not replenished if connections are
-    /// lost or expire.
+    /// starts with fewer. Expired connections kept only to satisfy the floor
+    /// are replaced by the reaper (best-effort) rather than kept past
+    /// `max_lifetime`.
     pub min_connections: u32,
     /// How long [`crate::Pool::get`] waits for a connection before failing.
+    ///
+    /// Establishing a new connection can additionally take up to
+    /// `connect_timeout`.
     pub acquire_timeout: Duration,
-    /// Close a connection after this long without use.
+    /// Close a connection after this long without use. Checked at each
+    /// [`PoolConfig::reap_interval`].
     pub idle_timeout: Duration,
-    /// Close a connection this long after it was created.
+    /// Close a connection this long after it was created. Checked at each
+    /// [`PoolConfig::reap_interval`].
     pub max_lifetime: Duration,
     /// Largest accepted backend message, in bytes, for connections created by
-    /// this pool. Overrides the URL's `max_message_len` when a [`PoolConfig`]
-    /// is supplied explicitly.
-    pub max_message_len: usize,
+    /// this pool.
+    ///
+    /// `None` (the default) keeps the URL's `max_message_len`, so passing a
+    /// `PoolConfig` for unrelated settings cannot silently raise a limit that
+    /// the connection URL deliberately lowered.
+    pub max_message_len: Option<usize>,
+    /// How often the idle reaper runs. Defaults to 30 seconds.
+    pub reap_interval: Duration,
+    /// Verify an idle connection with a round trip before handing it out.
+    ///
+    /// Disabled by default. Enable it when connections may be killed by a
+    /// proxy or a network partition that the idle actor cannot observe.
+    pub test_on_checkout: bool,
+    /// Only verify connections that have been idle for at least this long when
+    /// [`PoolConfig::test_on_checkout`] is enabled. Defaults to 30 seconds;
+    /// [`Duration::ZERO`] verifies every checkout.
+    pub test_on_checkout_after: Duration,
 }
 
 impl Default for PoolConfig {
@@ -324,8 +405,39 @@ impl Default for PoolConfig {
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Duration::from_secs(600),
             max_lifetime: Duration::from_secs(1800),
-            max_message_len: postgresql_protocol::DEFAULT_MAX_MESSAGE_LEN,
+            max_message_len: None,
+            reap_interval: Duration::from_secs(30),
+            test_on_checkout: false,
+            test_on_checkout_after: Duration::from_secs(30),
         }
+    }
+}
+
+impl PoolConfig {
+    /// Rejects settings that cannot work (or that would hang a checkout).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Config`] for a zero `pool_size`, a `min_connections`
+    /// larger than `pool_size`, a zero `reap_interval`, or a
+    /// `max_message_len` outside the range accepted by the URL parameter.
+    pub fn validate(&self) -> Result<(), Error> {
+        if self.pool_size == 0 {
+            return Err(Error::Config("`pool_size` must be greater than zero".into()));
+        }
+        if self.min_connections > self.pool_size {
+            return Err(Error::Config(format!(
+                "`min_connections` ({}) must not exceed `pool_size` ({})",
+                self.min_connections, self.pool_size
+            )));
+        }
+        if self.reap_interval.is_zero() {
+            return Err(Error::Config("`reap_interval` must be greater than zero".into()));
+        }
+        if let Some(max_message_len) = self.max_message_len {
+            check_len("max_message_len", max_message_len)?;
+        }
+        Ok(())
     }
 }
 
@@ -387,8 +499,9 @@ mod tests {
             Config::parse("postgres://bob@localhost/db?max_message_len=1048576&max_scram_iterations=5000").unwrap();
         assert_eq!(config.max_message_len, 1_048_576);
         assert_eq!(config.max_scram_iterations, 5000);
-        // The pool default is applied when no explicit PoolConfig is supplied.
-        assert_eq!(config.pool.max_message_len, postgresql_protocol::DEFAULT_MAX_MESSAGE_LEN);
+        // A `PoolConfig` does not set `max_message_len` by default, so the URL
+        // value is kept when one is supplied.
+        assert_eq!(config.pool.max_message_len, None);
     }
 
     #[test]
@@ -396,6 +509,35 @@ mod tests {
         assert!(Config::parse("postgres://bob@localhost/db?max_message_len=100").is_err());
         assert!(Config::parse("postgres://bob@localhost/db?max_message_len=99999999999").is_err());
         assert!(Config::parse("postgres://bob@localhost/db?max_scram_iterations=0").is_err());
+    }
+
+    #[test]
+    fn rejects_zero_connect_timeout() {
+        // A zero timeout would make every connection attempt fail instantly.
+        let err = Config::parse("postgres://bob@localhost/db?connect_timeout=0").unwrap_err();
+        assert!(err.to_string().contains("greater than zero"), "{err}");
+    }
+
+    #[test]
+    fn rejects_impossible_pool_configs() {
+        let err = Config::parse("postgres://bob@localhost/db?pool_size=0").unwrap_err();
+        assert!(err.to_string().contains("pool_size"), "{err}");
+        let err = Config::parse("postgres://bob@localhost/db?pool_size=1&min_connections=2").unwrap_err();
+        assert!(err.to_string().contains("min_connections"), "{err}");
+
+        let mut config = PoolConfig::default();
+        config.min_connections = config.pool_size + 1;
+        assert!(config.validate().is_err());
+        config.min_connections = 0;
+        config.pool_size = 0;
+        assert!(config.validate().is_err());
+        config.pool_size = 1;
+        config.reap_interval = Duration::ZERO;
+        assert!(config.validate().is_err());
+        config.reap_interval = Duration::from_secs(1);
+        config.max_message_len = Some(1024);
+        assert!(config.validate().is_err());
+        assert!(PoolConfig::default().validate().is_ok());
     }
 
     #[test]
@@ -421,6 +563,18 @@ mod tests {
         assert!(Config::parse("postgres://bob@localhost/db?application_name=a%00user%00admin").is_err());
         assert!(Config::parse("postgres://bob@localhost/db?options=-c%00x=1").is_err());
         assert!(Config::parse("postgres://bob@localhost/db?timezone=UTC%00").is_err());
+    }
+
+    #[test]
+    fn normalizes_ipv6_hosts() {
+        // `host_str()` keeps the brackets, which are not valid for
+        // `TcpStream::connect` or for a TLS server name.
+        let config = Config::parse("postgres://u@[::1]:5432/db").unwrap();
+        assert_eq!(config.host, "::1");
+        assert_eq!(config.port, 5432);
+        let config = Config::parse("postgres://u@[2001:db8::1]/db").unwrap();
+        assert_eq!(config.host, "2001:db8::1");
+        assert_eq!(config.port, 5432);
     }
 
     #[test]

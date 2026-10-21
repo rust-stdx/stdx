@@ -75,8 +75,9 @@ impl Columns {
 
 /// One result row.
 ///
-/// Column values are borrowed slices of the received frame, so a row can be
-/// cheaply cloned and kept beyond its originating query.
+/// Column values are borrowed slices of the received frame, so cloning a row
+/// shares the column bytes (only the small value table is reallocated) and a
+/// row can be kept beyond its originating query.
 #[derive(Debug, Clone)]
 pub struct Row {
     columns: Arc<Columns>,
@@ -133,6 +134,12 @@ impl Row {
                 pos += len;
             }
         }
+        if pos != payload.len() {
+            return Err(Error::Decode(format!(
+                "data row has {} trailing bytes after its last column",
+                payload.len() - pos
+            )));
+        }
         Ok(Row::new(columns, values.into_boxed_slice(), zone))
     }
 
@@ -152,6 +159,9 @@ impl Row {
     }
 
     /// Returns `true` if the column at `index` is `NULL`.
+    ///
+    /// An out-of-range index also reports `true`; use [`Row::try_get_by_index`]
+    /// when the index comes from outside the result description.
     pub fn is_null(&self, index: usize) -> bool {
         self.values.get(index).map(|v| v.is_none()).unwrap_or(true)
     }
@@ -384,6 +394,18 @@ mod tests {
         let cols = columns(&[("a", 25), ("b", 25)]);
         let payload = frame(&[Some(b"only one")]);
         let err = Row::parse(cols, &payload, time::TimeZone::UTC).unwrap_err();
+        assert!(matches!(err, Error::Decode(_)), "{err}");
+    }
+
+    #[test]
+    fn trailing_bytes_after_the_last_column_are_rejected() {
+        let cols = columns(&[("a", 23)]);
+        let mut payload = BytesMut::new();
+        payload.extend_from_slice(&1i16.to_be_bytes());
+        payload.extend_from_slice(&4i32.to_be_bytes());
+        payload.extend_from_slice(&1i32.to_be_bytes());
+        payload.extend_from_slice(&[0xde, 0xad]);
+        let err = Row::parse(cols, &payload.freeze(), time::TimeZone::UTC).unwrap_err();
         assert!(matches!(err, Error::Decode(_)), "{err}");
     }
 

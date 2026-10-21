@@ -14,8 +14,9 @@ pub struct DbError {
     pub severity: SmallString<8>,
     /// SQLSTATE code.
     ///
-    /// The wire protocol bounds this to five bytes, so it is always stored
-    /// inline and decoding it never allocates.
+    /// PostgreSQL always sends five bytes, which stay inline. A hostile server
+    /// can send a longer value; it then spills to the heap like any other
+    /// string.
     pub code: SmallString<5>,
     /// Primary human-readable message.
     pub message: String,

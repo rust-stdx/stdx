@@ -158,4 +158,4 @@ quote = "1"
 proc-macro2 = "1"
 
 # benchmarks
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }

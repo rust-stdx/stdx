@@ -9,6 +9,7 @@ use std::{
     time::Instant,
 };
 
+use futures_util::StreamExt;
 use tokio::sync::{Notify, OwnedSemaphorePermit, Semaphore};
 
 use crate::{
@@ -18,6 +19,10 @@ use crate::{
     error::Error,
     transaction::Transaction,
 };
+
+/// How long a `test_on_checkout` health check may take before the connection
+/// is considered dead.
+const CHECKOUT_PING_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 pub(crate) struct IdleConn {
     pub(crate) conn: Connection,
@@ -153,7 +158,9 @@ impl Pool {
     ///
     /// Pool settings are read from the URL (`pool_size`, `min_connections`,
     /// `acquire_timeout`, `idle_timeout`, `max_lifetime`); when `config` is
-    /// `Some`, it overrides them entirely.
+    /// `Some`, it overrides them entirely. `max_message_len` is only overridden
+    /// when [`PoolConfig::max_message_len`] is `Some`, so a `PoolConfig` cannot
+    /// silently raise a limit the URL lowered.
     ///
     /// # TLS
     ///
@@ -191,19 +198,24 @@ impl Pool {
     ///
     /// Returns a configuration error for an invalid URL. Opening the
     /// `min_connections` is **best-effort**: if some cannot be established the
-    /// pool starts with fewer and opens more on demand (the minimum is not
-    /// maintained afterwards).
+    /// pool starts with fewer, and the reaper replenishes the minimum on its
+    /// next tick.
     pub async fn connect(url: &str, config: Option<PoolConfig>) -> Result<Self, Error> {
         let mut parsed = Config::parse(url)?;
         if let Some(overrides) = config {
-            // The explicit pool config wins over the URL for pool-wide settings.
-            parsed.max_message_len = overrides.max_message_len;
+            // The explicit pool config wins over the URL for pool-wide settings,
+            // but only for limits it actually sets: a `None` max_message_len
+            // keeps the URL's (possibly stricter) value.
+            if let Some(max_message_len) = overrides.max_message_len {
+                parsed.max_message_len = max_message_len;
+            }
             parsed.pool = overrides;
         }
         Pool::from_config(parsed).await
     }
 
     async fn from_config(config: Config) -> Result<Self, Error> {
+        config.pool.validate()?;
         let settings = config.pool.clone();
         let pool = Pool {
             inner: Arc::new(PoolInner {
@@ -216,16 +228,26 @@ impl Pool {
             }),
         };
 
-        for _ in 0..settings.min_connections {
-            let permit = match pool.inner.semaphore.clone().acquire_owned().await {
-                Ok(permit) => permit,
-                Err(_) => break,
-            };
-            match Connection::connect_with_config(pool.inner.config.clone()).await {
-                Ok(conn) => pool.inner.push_idle(conn, permit, Instant::now()),
-                Err(_) => break,
+        // Open the initial connections with bounded parallelism: opening them
+        // one by one makes startup latency grow linearly with
+        // `min_connections`, and a failure no longer stops the remaining
+        // attempts (the minimum is best-effort, as documented).
+        let inner = pool.inner.clone();
+        let futures = (0..settings.min_connections).map(move |_| {
+            let inner = inner.clone();
+            async move {
+                let permit = inner.semaphore.clone().acquire_owned().await.ok()?;
+                let conn = Connection::connect_with_config(inner.config.clone()).await.ok()?;
+                Some((conn, permit))
+            }
+        });
+        let mut opening = futures_util::stream::iter(futures).buffer_unordered(4);
+        while let Some(opened) = opening.next().await {
+            if let Some((conn, permit)) = opened {
+                pool.inner.push_idle(conn, permit, Instant::now());
             }
         }
+        drop(opening);
 
         // The reaper only holds a `Weak` reference, so dropping the last
         // `Pool` handle (without `close`) ends the task and the idle
@@ -235,7 +257,36 @@ impl Pool {
         Ok(pool)
     }
 
+    /// Pops an idle connection, optionally validating it first.
+    ///
+    /// Returns `None` when the idle list is empty.
+    async fn take_idle(&self) -> Option<PooledConnection> {
+        loop {
+            let idle = self.inner.pop_idle()?;
+            if !self.inner.settings.test_on_checkout {
+                return Some(self.wrap_idle(idle));
+            }
+            let verify = self.inner.settings.test_on_checkout_after.is_zero()
+                || idle.idle_since.elapsed() >= self.inner.settings.test_on_checkout_after;
+            if !verify {
+                return Some(self.wrap_idle(idle));
+            }
+            // A connection that cannot answer a trivial query in time is
+            // discarded; the permit is released with it.
+            let healthy = matches!(tokio::time::timeout(CHECKOUT_PING_TIMEOUT, idle.conn.ping()).await, Ok(Ok(())));
+            if healthy {
+                return Some(self.wrap_idle(idle));
+            }
+            drop(idle);
+        }
+    }
+
     /// Acquires a connection, waiting up to the configured acquire timeout.
+    ///
+    /// The timeout covers waiting for a permit; establishing a new connection
+    /// can additionally take up to `connect_timeout`. When
+    /// [`PoolConfig::test_on_checkout`] is enabled, validating an idle
+    /// connection also happens within [`Pool::get`].
     ///
     /// # Errors
     ///
@@ -248,8 +299,8 @@ impl Pool {
         }
 
         loop {
-            if let Some(idle) = self.inner.pop_idle() {
-                return Ok(self.wrap_idle(idle));
+            if let Some(idle) = self.take_idle().await {
+                return Ok(idle);
             }
 
             let notified = self.inner.notify.notified();
@@ -257,8 +308,8 @@ impl Pool {
             if self.inner.is_closed() {
                 return Err(Error::PoolClosed);
             }
-            if let Some(idle) = self.inner.pop_idle() {
-                return Ok(self.wrap_idle(idle));
+            if let Some(idle) = self.take_idle().await {
+                return Ok(idle);
             }
 
             tokio::select! {
@@ -272,9 +323,9 @@ impl Pool {
                         .map_err(|_| Error::PoolClosed)?;
 
                     // A connection may have been returned while we waited.
-                    if let Some(idle) = self.inner.pop_idle() {
+                    if let Some(idle) = self.take_idle().await {
                         drop(permit);
-                        return Ok(self.wrap_idle(idle));
+                        return Ok(idle);
                     }
 
                     let conn = Connection::connect_with_config(self.inner.config.clone()).await?;
@@ -326,8 +377,11 @@ impl Pool {
 
     async fn reap_loop(inner: Weak<PoolInner>) {
         loop {
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-            // The pool is gone: drop the idle connections and stop.
+            let Some(strong) = inner.upgrade() else { return };
+            let interval = strong.settings.reap_interval;
+            drop(strong);
+            tokio::time::sleep(interval).await;
+
             let Some(inner) = inner.upgrade() else { return };
             if inner.is_closed() {
                 return;
@@ -337,25 +391,39 @@ impl Pool {
             let max_lifetime = inner.settings.max_lifetime;
             let min = inner.settings.min_connections as usize;
 
-            let mut idle = inner.lock_idle();
-            let mut keep: Vec<IdleConn> = Vec::with_capacity(idle.len());
-            let mut expired: Vec<IdleConn> = Vec::new();
-            for conn in idle.drain(..) {
-                let is_expired = now.duration_since(conn.idle_since) > idle_timeout
-                    || now.duration_since(conn.created) > max_lifetime;
-                if is_expired {
-                    expired.push(conn);
-                } else {
-                    keep.push(conn);
+            let mut expired = Vec::new();
+            {
+                let mut idle = inner.lock_idle();
+                let mut keep = Vec::with_capacity(idle.len());
+                for conn in idle.drain(..) {
+                    if now.duration_since(conn.idle_since) > idle_timeout
+                        || now.duration_since(conn.created) > max_lifetime
+                    {
+                        expired.push(conn);
+                    } else {
+                        keep.push(conn);
+                    }
                 }
-            }
-            // Keep at least `min` connections even if some have expired.
-            while keep.len() < min {
-                let Some(conn) = expired.pop() else { break };
-                keep.push(conn);
+                *idle = keep;
             }
             drop(expired);
-            *idle = keep;
+
+            // The minimum is a floor of live connections, not a set of slots
+            // that outlive `max_lifetime`: replace what was closed so the
+            // floor is honoured without keeping expired connections forever.
+            let deficit = min.saturating_sub(inner.lock_idle().len());
+            for _ in 0..deficit {
+                if inner.is_closed() {
+                    return;
+                }
+                let Ok(permit) = inner.semaphore.clone().try_acquire_owned() else {
+                    break;
+                };
+                match Connection::connect_with_config(inner.config.clone()).await {
+                    Ok(conn) => inner.push_idle(conn, permit, Instant::now()),
+                    Err(_) => break,
+                }
+            }
         }
     }
 }

@@ -111,7 +111,10 @@ impl<'a> Query<'a> {
         Ok(out)
     }
 
-    /// Returns exactly one row, or [`Error::RowNotFound`].
+    /// Returns the first row, or [`Error::RowNotFound`] if there is none.
+    ///
+    /// Extra rows are discarded; use [`Query::fetch_all`] when the statement
+    /// may return more than one.
     pub async fn fetch_one<E: Executor, T: FromRow>(&self, executor: &E) -> Result<T, Error> {
         let mut rows = executor.fetch_rows(self.sql, self.params, 1).await?;
         match rows.next().await {
@@ -162,7 +165,7 @@ impl<'a, T: FromRow> QueryAs<'a, T> {
         self.query.fetch_all::<E, T>(executor).await
     }
 
-    /// Returns exactly one row, or [`Error::RowNotFound`].
+    /// Returns the first row, or [`Error::RowNotFound`] if there is none.
     pub async fn fetch_one<E: Executor>(&self, executor: &E) -> Result<T, Error> {
         self.query.fetch_one::<E, T>(executor).await
     }

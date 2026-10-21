@@ -83,10 +83,11 @@ pub const fn verify_shape(expected: &[ColumnSpec], actual: &[ColumnSpec]) {
         if !decodes_from(e.type_oid, a.type_oid) {
             panic!("postgresql: a result column has a type incompatible with its target field");
         }
-        if e.nullable != a.nullable && a.known {
-            panic!(
-                "postgresql: a result column's nullability does not match its target field (wrap it in Option or make the column NOT NULL)"
-            );
+        // Only one direction is unsafe: a non-nullable target over a column
+        // that is *known* to be nullable. A target that is more permissive
+        // (`Option<T>` over a NOT NULL column) is always fine.
+        if !e.nullable && a.known && a.nullable {
+            panic!("postgresql: a result column may be NULL but the target field is not Option (wrap it in Option)");
         }
         if !e.name.is_empty() && !str_eq(e.name, a.name) {
             panic!("postgresql: a result column name does not match its target field name");
@@ -184,4 +185,46 @@ impl RowShape for Vec<u8> {
         nullable: false,
         known: true,
     }];
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::INT4OID;
+
+    fn spec(name: &'static str, type_oid: Oid, nullable: bool, known: bool) -> ColumnSpec {
+        ColumnSpec {
+            name,
+            type_oid,
+            nullable,
+            known,
+        }
+    }
+
+    fn check(expected: &[ColumnSpec], actual: &[ColumnSpec]) -> bool {
+        std::panic::catch_unwind(|| verify_shape(expected, actual)).is_ok()
+    }
+
+    #[test]
+    fn nullable_targets_are_always_accepted() {
+        // Option<T> over a NOT NULL column is a safe, common pattern.
+        assert!(check(&[spec("a", INT4OID, true, true)], &[spec("a", INT4OID, false, true)]));
+        // Unknown nullability (an expression or a view) must not be rejected.
+        assert!(check(&[spec("a", INT4OID, false, true)], &[spec("a", INT4OID, true, false)]));
+    }
+
+    #[test]
+    fn a_nullable_column_cannot_decode_into_a_non_option_target() {
+        assert!(!check(&[spec("a", INT4OID, false, true)], &[spec("a", INT4OID, true, true)]));
+    }
+
+    #[test]
+    fn type_and_name_mismatches_are_rejected() {
+        assert!(!check(&[spec("a", TEXTOID, false, true)], &[spec("a", INT4OID, false, true)]));
+        assert!(!check(&[spec("a", INT4OID, false, true)], &[spec("b", INT4OID, false, true)]));
+        assert!(!check(
+            &[spec("a", INT4OID, false, true)],
+            &[spec("a", INT4OID, false, true), spec("b", INT4OID, false, true)]
+        ));
+    }
 }
