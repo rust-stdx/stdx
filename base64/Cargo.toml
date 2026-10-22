@@ -15,12 +15,16 @@ path = "./base64.rs"
 default = ["alloc"]
 alloc = []
 serde = ["dep:serde"]
+small_collections = ["dep:small_collections", "serde", "alloc"]
 
 [dependencies]
 serde = { workspace = true, optional = true }
+small_collections = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
 serde_json = { workspace = true }
+serde_test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
