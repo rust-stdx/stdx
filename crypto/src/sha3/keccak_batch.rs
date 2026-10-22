@@ -1,4 +1,5 @@
-//! Batched Keccak-p[1600] permutations shared by the tree-hash constructions.
+//! Batched Keccak-p[1600] permutations shared by the tree-hash constructions
+//! and the ML-KEM / ML-DSA matrix, noise, and mask samplers.
 //!
 //! `W` independent Keccak states are processed in lockstep, one state per SIMD
 //! lane. `ROUNDS` selects the Keccak-p round count: 24 for SHAKE-based
@@ -905,6 +906,7 @@ pub(crate) struct SpongeX<const W: usize, const ROUNDS: usize> {
     pad: u8,
     pos: usize,
     backend: Backend,
+    squeezing: bool,
 }
 
 impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
@@ -916,6 +918,7 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
             pad,
             pos: 0,
             backend,
+            squeezing: false,
         };
     }
 
@@ -926,6 +929,7 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
         // `MAX_BATCH` so the type does not depend on an arithmetic expression).
         self.state.lanes[..25 * W].fill(0);
         self.pos = 0;
+        self.squeezing = false;
     }
 
     /// Absorbs `W` equal-length messages, one per state.
@@ -933,6 +937,7 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
     /// # Panics
     /// Panics in debug builds if the messages differ in length.
     pub(crate) fn absorb_batch(&mut self, msgs: &[&[u8]; W]) {
+        debug_assert!(!self.squeezing, "absorb_batch cannot be called after squeezing");
         let len = msgs[0].len();
         debug_assert!(msgs.iter().all(|m| m.len() == len));
         let mut off = 0;
@@ -1048,6 +1053,58 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
         debug_assert!(CV_LEN <= self.rate);
         debug_assert!(self.pos < self.rate);
 
+        self.pad_and_permute();
+        self.squeezing = true;
+        self.export(out);
+        self.pos = CV_LEN;
+    }
+
+    /// Pads once and squeezes `LEN` bytes from each state, continuing across
+    /// as many rate-sized blocks as necessary.
+    ///
+    /// This is the general counterpart of [`Self::squeeze_cvs`] for samplers
+    /// that need more than one block or an output length that is not a
+    /// multiple of eight. It must be called after [`Self::absorb_batch`] and
+    /// may be called repeatedly; each call continues the output stream.
+    pub(crate) fn squeeze_batch<const LEN: usize>(&mut self, out: &mut [[u8; LEN]; W]) {
+        debug_assert!(LEN > 0);
+
+        // Fast path for full-rate blocks, which is what the lattice samplers
+        // use in their inner loops. `export` copies whole lanes with fewer
+        // bounds checks than the general range exporter.
+        if LEN == self.rate && (!self.squeezing || self.pos == self.rate) {
+            if self.squeezing {
+                self.state.permute(self.backend);
+            } else {
+                self.pad_and_permute();
+                self.squeezing = true;
+            }
+            self.export(out);
+            self.pos = self.rate;
+            return;
+        }
+
+        if !self.squeezing {
+            self.pad_and_permute();
+            self.squeezing = true;
+        }
+
+        let mut offset = 0usize;
+        while offset < LEN {
+            if self.pos == self.rate {
+                self.state.permute(self.backend);
+                self.pos = 0;
+            }
+            let take = min(self.rate - self.pos, LEN - offset);
+            for w in 0..W {
+                self.export_range(w, self.pos, &mut out[w][offset..offset + take]);
+            }
+            self.pos += take;
+            offset += take;
+        }
+    }
+
+    fn pad_and_permute(&mut self) {
         // Pad: domain byte at `pos`, 0x80 at the last byte of the rate.
         let p = self.pos;
         let lane = p / 8;
@@ -1064,7 +1121,7 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
         }
 
         self.state.permute(self.backend);
-        self.export(out);
+        self.pos = 0;
     }
 
     fn export<const CV_LEN: usize>(&self, out: &mut [[u8; CV_LEN]; W]) {
@@ -1072,6 +1129,20 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
             for lane in 0..CV_LEN / 8 {
                 out[w][lane * 8..lane * 8 + 8].copy_from_slice(&self.state.lanes[W * lane + w].to_le_bytes());
             }
+        }
+    }
+
+    fn export_range(&self, w: usize, start: usize, out: &mut [u8]) {
+        let mut written = 0usize;
+        let mut position = start;
+        while written < out.len() {
+            let lane = position / 8;
+            let lane_offset = position % 8;
+            let word = self.state.lanes[W * lane + w].to_le_bytes();
+            let take = min(8 - lane_offset, out.len() - written);
+            out[written..written + take].copy_from_slice(&word[lane_offset..lane_offset + take]);
+            written += take;
+            position += take;
         }
     }
 }
@@ -1160,7 +1231,7 @@ impl<const ROUNDS: usize> Leaves<ROUNDS> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sha3::{Shake256, TurboShake256, keccak::ROUND_CONSTANTS};
+    use crate::sha3::{Shake128, Shake256, TurboShake256, keccak::ROUND_CONSTANTS};
 
     fn next_u64(state: &mut u64) -> u64 {
         // xorshift64*, adequate for test data.
@@ -1438,6 +1509,80 @@ mod tests {
         sponge.squeeze_cvs::<64>(&mut cvs);
         for w in 0..W {
             assert_eq!(cvs[w][..], expected[w][..], "rounds {ROUNDS}, width {W}, len {len}, lane {w}");
+        }
+    }
+
+    fn check_batched_squeeze<const LEN: usize>(rate: usize, pad: u8, seed: u64) {
+        let mut rng = seed;
+        let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(34, &mut rng));
+        let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
+
+        let expected: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| {
+            let mut out = std::vec![0u8; LEN];
+            if rate == 168 {
+                Shake128::hash(&msgs[w], &mut out);
+            } else {
+                Shake256::hash(&msgs[w], &mut out);
+            }
+            out
+        });
+
+        let mut sponge = SpongeX::<2, 24>::new(rate, pad, Backend::detect());
+        sponge.absorb_batch(&refs);
+        let mut out = [[0u8; LEN]; 2];
+        sponge.squeeze_batch::<LEN>(&mut out);
+        for w in 0..2 {
+            assert_eq!(out[w][..], expected[w][..], "rate={rate}, LEN={LEN}, state={w}");
+        }
+    }
+
+    #[test]
+    fn batched_squeeze_matches_single_xof() {
+        macro_rules! check_lengths {
+            ($rate:literal, $pad:literal) => {
+                check_batched_squeeze::<1>($rate, $pad, 0x1234);
+                check_batched_squeeze::<7>($rate, $pad, 0x1235);
+                check_batched_squeeze::<8>($rate, $pad, 0x1236);
+                check_batched_squeeze::<127>($rate, $pad, 0x1237);
+                check_batched_squeeze::<128>($rate, $pad, 0x1238);
+                check_batched_squeeze::<135>($rate, $pad, 0x1239);
+                check_batched_squeeze::<136>($rate, $pad, 0x123a);
+                check_batched_squeeze::<167>($rate, $pad, 0x123b);
+                check_batched_squeeze::<168>($rate, $pad, 0x123c);
+                check_batched_squeeze::<169>($rate, $pad, 0x123d);
+                check_batched_squeeze::<576>($rate, $pad, 0x123e);
+                check_batched_squeeze::<640>($rate, $pad, 0x123f);
+                check_batched_squeeze::<1000>($rate, $pad, 0x1240);
+            };
+        }
+
+        check_lengths!(168, 0x1f);
+        check_lengths!(136, 0x1f);
+    }
+
+    #[test]
+    fn batched_squeeze_continues_across_calls() {
+        let mut rng = 0x91e1_0c3d_7f5a_2b48u64;
+        let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(34, &mut rng));
+        let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
+        let expected: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| {
+            let mut out = std::vec![0u8; 999];
+            Shake128::hash(&msgs[w], &mut out);
+            out
+        });
+
+        let mut sponge = SpongeX::<2, 24>::new(168, 0x1f, Backend::detect());
+        sponge.absorb_batch(&refs);
+        let mut combined = [[0u8; 999]; 2];
+        for offset in (0..999).step_by(37) {
+            let mut part = [[0u8; 37]; 2];
+            sponge.squeeze_batch::<37>(&mut part);
+            for w in 0..2 {
+                combined[w][offset..offset + 37].copy_from_slice(&part[w]);
+            }
+        }
+        for w in 0..2 {
+            assert_eq!(combined[w][..], expected[w][..], "state={w}");
         }
     }
 

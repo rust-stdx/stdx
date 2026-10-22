@@ -1,5 +1,7 @@
 //! X-Wing: hybrid post-quantum key encapsulation mechanism (KEM) algorithm (ML-KEM-768 with X25519).
 
+use constant_time_eq::constant_time_eq;
+
 use crate::{
     RandomError,
     curve25519::x25519,
@@ -97,7 +99,7 @@ pub fn generate_keypair_derand(secret_key: &[u8; SECRET_KEY_SIZE]) -> (SecretKey
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey {
     bytes: [u8; SECRET_KEY_SIZE],
@@ -105,6 +107,15 @@ pub struct SecretKey {
     x25519_public_key_bytes: [u8; x25519::KEY_SIZE],
     mlkem_secret_key: mlkem::SecretKey768,
 }
+
+impl PartialEq for SecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        // The 32-byte seed deterministically expands to every other field.
+        constant_time_eq(&self.bytes, &other.bytes)
+    }
+}
+
+impl Eq for SecretKey {}
 
 impl SecretKey {
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_SIZE] {

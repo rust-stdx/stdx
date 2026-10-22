@@ -1,3 +1,5 @@
+use constant_time_eq::constant_time_eq;
+
 use super::mlkem::{
     ML_KEM_1024, MlKemError, SHARED_SECRET_SIZE, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand,
     encapsulation_key_modulus_check, indcpa_secret_key_bytes,
@@ -22,11 +24,19 @@ pub const CIPHERTEXT_SIZE_1024: usize = 1568;
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey1024 {
     bytes: [u8; SECRET_KEY_SIZE_1024],
 }
+
+impl PartialEq for SecretKey1024 {
+    fn eq(&self, other: &Self) -> bool {
+        constant_time_eq(&self.bytes, &other.bytes)
+    }
+}
+
+impl Eq for SecretKey1024 {}
 
 /// ML-KEM-1024 encapsulation key (public key) as defined in FIPS 203.
 ///

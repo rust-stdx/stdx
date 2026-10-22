@@ -4,7 +4,7 @@
 
 mod kangaroo_twelve;
 pub mod keccak;
-mod keccak_batch;
+pub(crate) mod keccak_batch;
 mod kmac;
 mod parallel_hash;
 mod sha3_256;

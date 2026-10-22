@@ -1,3 +1,5 @@
+use constant_time_eq::constant_time_eq;
+
 use super::mlkem::{
     ML_KEM_768, MlKemError, SHARED_SECRET_SIZE, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand,
     encapsulation_key_modulus_check, indcpa_secret_key_bytes,
@@ -22,11 +24,19 @@ pub const CIPHERTEXT_SIZE_768: usize = 1088;
 /// let decapsulated = secret_key.decapsulate(&ciphertext).unwrap();
 /// assert_eq!(shared_secret, decapsulated);
 /// ```
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct SecretKey768 {
     bytes: [u8; SECRET_KEY_SIZE_768],
 }
+
+impl PartialEq for SecretKey768 {
+    fn eq(&self, other: &Self) -> bool {
+        constant_time_eq(&self.bytes, &other.bytes)
+    }
+}
+
+impl Eq for SecretKey768 {}
 
 /// ML-KEM-768 encapsulation key (public key) as defined in FIPS 203.
 ///
@@ -37,12 +47,18 @@ pub struct PublicKey768 {
 }
 
 impl SecretKey768 {
+    /// Creates a decapsulation key from its FIPS 203 encoding.
+    ///
+    /// The key is not validated here; use [`SecretKey768::decapsulate`], which
+    /// performs the FIPS 203 decapsulation-key check (`H(ek) == h`). A key that
+    /// fails that check makes decapsulation return [`MlKemError::InvalidKey`].
     pub fn from_bytes(bytes: &[u8; SECRET_KEY_SIZE_768]) -> Self {
         Self {
             bytes: *bytes,
         }
     }
 
+    /// Returns the FIPS 203 encoding of this decapsulation key.
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_SIZE_768] {
         self.bytes
     }

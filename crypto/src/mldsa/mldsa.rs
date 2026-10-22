@@ -10,7 +10,10 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     RandomError, Xof,
-    sha3::{Shake128, Shake256},
+    sha3::{
+        Shake128, Shake256,
+        keccak_batch::{Backend, SpongeX},
+    },
 };
 
 /// Number of coefficients in a polynomial.
@@ -52,7 +55,6 @@ pub enum MlDsaError {
     Random(RandomError),
 }
 
-#[cfg(feature = "alloc")]
 impl core::fmt::Display for MlDsaError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -65,6 +67,8 @@ impl core::fmt::Display for MlDsaError {
         }
     }
 }
+
+impl core::error::Error for MlDsaError {}
 
 impl From<RandomError> for MlDsaError {
     fn from(err: RandomError) -> Self {
@@ -389,20 +393,64 @@ fn poly_sub(a: &Poly, b: &Poly) -> Poly {
     r
 }
 
-fn ntt_add(a: &NttPoly, b: &NttPoly) -> NttPoly {
-    let mut r = NttPoly::default();
-    for i in 0..N {
-        r.coeffs[i] = field_add(a.coeffs[i], b.coeffs[i]);
+fn ntt_mul_add(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        neon::ntt_mul_add(a, b, acc);
     }
-    r
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 availability was just checked.
+            unsafe { avx2::ntt_mul_add(a, b, acc) }
+        } else {
+            ntt_mul_add_scalar(a, b, acc)
+        }
+    }
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(target_arch = "x86_64", feature = "std"),
+    )))]
+    {
+        ntt_mul_add_scalar(a, b, acc)
+    }
 }
 
-fn ntt_sub(a: &NttPoly, b: &NttPoly) -> NttPoly {
-    let mut r = NttPoly::default();
-    for i in 0..N {
-        r.coeffs[i] = field_sub(a.coeffs[i], b.coeffs[i]);
+fn ntt_mul_sub(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        neon::ntt_mul_sub(a, b, acc);
     }
-    r
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 availability was just checked.
+            unsafe { avx2::ntt_mul_sub(a, b, acc) }
+        } else {
+            ntt_mul_sub_scalar(a, b, acc)
+        }
+    }
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(target_arch = "x86_64", feature = "std"),
+    )))]
+    {
+        ntt_mul_sub_scalar(a, b, acc)
+    }
+}
+
+#[cfg(any(test, not(all(target_arch = "aarch64", target_feature = "neon"))))]
+fn ntt_mul_add_scalar(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+    for i in 0..N {
+        acc.coeffs[i] = field_add(acc.coeffs[i], field_montgomery_mul(a.coeffs[i], b.coeffs[i]));
+    }
+}
+
+#[cfg(any(test, not(all(target_arch = "aarch64", target_feature = "neon"))))]
+fn ntt_mul_sub_scalar(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+    for i in 0..N {
+        acc.coeffs[i] = field_sub(acc.coeffs[i], field_montgomery_mul(a.coeffs[i], b.coeffs[i]));
+    }
 }
 
 fn ntt_mul(a: &NttPoly, b: &NttPoly) -> NttPoly {
@@ -783,6 +831,75 @@ fn expand_mask(nonce: &[u8; 64], kappa: usize, params: &MlDsaParams) -> Poly {
     bitunpack(&buf[..params.polyz_bytes], params.gamma1_bits)
 }
 
+fn expand_mask_batch<const L: usize>(nonce: &[u8; 64], kappa: usize, params: &MlDsaParams) -> [Poly; L] {
+    if Backend::detect() == Backend::Scalar {
+        let mut out: [Poly; L] = core::array::from_fn(|_| Poly::default());
+        for (index, poly) in out.iter_mut().enumerate() {
+            *poly = expand_mask(nonce, kappa + index, params);
+        }
+        return out;
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            return expand_mask_batched::<L, 8>(nonce, kappa, params);
+        }
+        if std::arch::is_x86_feature_detected!("avx2") {
+            return expand_mask_batched::<L, 4>(nonce, kappa, params);
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+    return expand_mask_batched::<L, 8>(nonce, kappa, params);
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
+    return expand_mask_batched::<L, 4>(nonce, kappa, params);
+
+    expand_mask_batched::<L, 2>(nonce, kappa, params)
+}
+
+fn expand_mask_batched<const L: usize, const W: usize>(
+    nonce: &[u8; 64],
+    kappa: usize,
+    params: &MlDsaParams,
+) -> [Poly; L] {
+    let mut out: [Poly; L] = core::array::from_fn(|_| Poly::default());
+    let mut stream = 0usize;
+
+    while stream < L {
+        let take = core::cmp::min(W, L - stream);
+        let mut messages = [[0u8; 66]; W];
+        for w in 0..W {
+            let index = stream + core::cmp::min(w, take - 1);
+            messages[w][..64].copy_from_slice(nonce);
+            messages[w][64..66].copy_from_slice(&((kappa + index) as u16).to_le_bytes());
+        }
+
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &messages[w][..]);
+        let mut sponge = SpongeX::<W, 24>::new(136, 0x1f, Backend::detect());
+        sponge.absorb_batch(&refs);
+
+        if params.polyz_bytes == 18 * N / 8 {
+            let mut blocks = [[0u8; 18 * N / 8]; W];
+            sponge.squeeze_batch::<{ 18 * N / 8 }>(&mut blocks);
+            for w in 0..take {
+                out[stream + w] = bitunpack(&blocks[w], params.gamma1_bits);
+            }
+        } else {
+            let mut blocks = [[0u8; 20 * N / 8]; W];
+            sponge.squeeze_batch::<{ 20 * N / 8 }>(&mut blocks);
+            for w in 0..take {
+                out[stream + w] = bitunpack(&blocks[w], params.gamma1_bits);
+            }
+        }
+
+        stream += take;
+    }
+
+    out
+}
+
 fn highbits_poly(w: &Poly, params: &MlDsaParams) -> [u8; N] {
     let mut r = [0u8; N];
     for i in 0..N {
@@ -887,6 +1004,7 @@ fn pk_decode<const K: usize>(params: &MlDsaParams, pk: &[u8]) -> Result<([u8; 32
 
 fn bitpack_18(z: &Poly, out: &mut [u8]) {
     const B: u32 = 1 << 17;
+    debug_assert_eq!(out.len(), 18 * N / 8);
     let mut q = 0usize;
 
     for i in (0..N).step_by(4) {
@@ -912,6 +1030,7 @@ fn bitpack_18(z: &Poly, out: &mut [u8]) {
 
 fn bitpack_20(z: &Poly, out: &mut [u8]) {
     let b = 1u32 << 19;
+    debug_assert_eq!(out.len(), 20 * N / 8);
     let mut q = 0usize;
 
     for i in (0..N).step_by(2) {
@@ -938,6 +1057,7 @@ fn bitpack(z: &Poly, gamma1_bits: usize, out: &mut [u8]) {
 fn bitunpack_18(v: &[u8]) -> Poly {
     const B: u32 = 1 << 17;
     const MASK18: u32 = (1 << 18) - 1;
+    debug_assert_eq!(v.len(), 18 * N / 8);
     let mut r = Poly::default();
     let mut p = v;
 
@@ -958,6 +1078,7 @@ fn bitunpack_18(v: &[u8]) -> Poly {
 fn bitunpack_20(v: &[u8]) -> Poly {
     let b = 1u32 << 19;
     let mask20 = (1u32 << 20) - 1;
+    debug_assert_eq!(v.len(), 20 * N / 8);
     let mut r = Poly::default();
     let mut p = v;
 
@@ -998,7 +1119,9 @@ fn hint_encode<const K: usize>(params: &MlDsaParams, h: &[[u8; N]; K], out: &mut
 
 fn hint_decode<const K: usize>(params: &MlDsaParams, sig: &[u8]) -> Result<[[u8; N]; K], MlDsaError> {
     let omega = params.omega;
-    debug_assert_eq!(sig.len(), omega + K);
+    if sig.len() != omega + K {
+        return Err(MlDsaError::InvalidSignatureLength);
+    }
     let mut h = [[0u8; N]; K];
     let mut idx: usize = 0;
 
@@ -1107,15 +1230,107 @@ fn w1_encode<const K: usize>(params: &MlDsaParams, w1: &[[u8; N]; K]) -> ([u8; M
     (buf, pos)
 }
 
-fn compute_matrix_a<const K: usize, const L: usize>(rho: &[u8; 32]) -> [[NttPoly; L]; K] {
-    core::array::from_fn(|r| core::array::from_fn(|s| sample_ntt(rho, s as u8, r as u8)))
+fn compute_matrix_a_into<const K: usize, const L: usize>(a: &mut [[NttPoly; L]; K], rho: &[u8; 32]) {
+    if Backend::detect() == Backend::Scalar {
+        for r in 0..K {
+            for s in 0..L {
+                a[r][s] = sample_ntt(rho, s as u8, r as u8);
+            }
+        }
+        return;
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            compute_matrix_a_batched_into::<K, L, 8>(a, rho);
+            return;
+        }
+        if std::arch::is_x86_feature_detected!("avx2") {
+            compute_matrix_a_batched_into::<K, L, 4>(a, rho);
+            return;
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+    {
+        compute_matrix_a_batched_into::<K, L, 8>(a, rho);
+        return;
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
+    {
+        compute_matrix_a_batched_into::<K, L, 4>(a, rho);
+        return;
+    }
+
+    compute_matrix_a_batched_into::<K, L, 2>(a, rho);
 }
 
-fn compute_matrix_a_into<const K: usize, const L: usize>(a: &mut [[NttPoly; L]; K], rho: &[u8; 32]) {
-    for r in 0..K {
-        for s in 0..L {
-            a[r][s] = sample_ntt(rho, s as u8, r as u8);
+fn sample_ntt_from_block(out: &mut [FieldElement], buf: &[u8]) -> usize {
+    let mut ctr = 0usize;
+    let mut pos = 0usize;
+    while ctr < out.len() && pos + 3 <= buf.len() {
+        let v = (buf[pos] as u32) | ((buf[pos + 1] as u32) << 8) | ((buf[pos + 2] as u32) << 16);
+        pos += 3;
+        let v = v & 0x7FFFFF;
+        if v < Q {
+            out[ctr] = field_to_montgomery(v);
+            ctr += 1;
         }
+    }
+    ctr
+}
+
+fn compute_matrix_a_batched_into<const K: usize, const L: usize, const W: usize>(
+    a: &mut [[NttPoly; L]; K],
+    rho: &[u8; 32],
+) {
+    let streams = K * L;
+    let mut stream = 0usize;
+
+    while stream < streams {
+        let take = core::cmp::min(W, streams - stream);
+        let mut messages = [[0u8; 34]; W];
+        let mut coordinates = [(0usize, 0usize); W];
+
+        for w in 0..W {
+            let index = stream + core::cmp::min(w, take - 1);
+            let r = index / L;
+            let s = index % L;
+            messages[w][..32].copy_from_slice(rho);
+            messages[w][32] = s as u8;
+            messages[w][33] = r as u8;
+            coordinates[w] = (r, s);
+        }
+
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &messages[w][..]);
+        let mut sponge = SpongeX::<W, 24>::new(168, 0x1f, Backend::detect());
+        sponge.absorb_batch(&refs);
+
+        let mut polynomials: [NttPoly; W] = core::array::from_fn(|_| NttPoly::default());
+        let mut counts = [0usize; W];
+        let mut blocks = [[0u8; 168]; W];
+        sponge.squeeze_batch::<168>(&mut blocks);
+
+        loop {
+            for w in 0..W {
+                if counts[w] < N {
+                    counts[w] += sample_ntt_from_block(&mut polynomials[w].coeffs[counts[w]..], &blocks[w]);
+                }
+            }
+            if counts.iter().all(|&count| count >= N) {
+                break;
+            }
+            sponge.squeeze_batch::<168>(&mut blocks);
+        }
+
+        for w in 0..take {
+            let (r, s) = coordinates[w];
+            a[r][s] = core::mem::take(&mut polynomials[w]);
+        }
+
+        stream += take;
     }
 }
 
@@ -1142,14 +1357,14 @@ fn compute_message_hash(tr: &[u8; 64], message: &[u8], ctx: &[u8]) -> Result<[u8
     Ok(mu)
 }
 
-fn compute_t1_hat<const K: usize>(t1: &[[u16; N]; K]) -> [NttPoly; K] {
-    core::array::from_fn(|i| {
+fn compute_t1_hat_into<const K: usize>(t1: &[[u16; N]; K], out: &mut [NttPoly; K]) {
+    for i in 0..K {
         let mut w = Poly::default();
         for j in 0..N {
             w.coeffs[j] = field_to_montgomery((t1[i][j] as u32) << D);
         }
-        ntt(&w)
-    })
+        out[i] = ntt(&w);
+    }
 }
 
 /// Expanded key material shared by all ML-DSA parameter sets.
@@ -1228,7 +1443,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
         for i in 0..K {
             let mut t_hat = self.s2_hat[i].clone();
             for j in 0..L {
-                t_hat = ntt_add(&t_hat, &ntt_mul(&self.a[i][j], &self.s1_hat[j]));
+                ntt_mul_add(&self.a[i][j], &self.s1_hat[j], &mut t_hat);
             }
             let t = invntt(&t_hat);
             let mut t0 = Poly::default();
@@ -1290,6 +1505,12 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
         rnd: &[u8; 32],
         sig_out: &mut [u8],
     ) -> Result<(), MlDsaError> {
+        const {
+            assert!(
+                (K == 4 && L == 4) || (K == 6 && L == 5) || (K == 8 && L == 7),
+                "unsupported ML-DSA parameter set"
+            );
+        }
         debug_assert_eq!(sig_out.len(), params.signature_size);
         let a = &self.a;
         let s1_hat = &self.s1_hat;
@@ -1319,11 +1540,8 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
             }
             iterations += 1;
 
-            let mut y: [Poly; L] = core::array::from_fn(|_| Poly::default());
-            for item in y.iter_mut() {
-                *item = expand_mask(&nonce, kappa, params);
-                kappa += 1;
-            }
+            let y = expand_mask_batch::<L>(&nonce, kappa, params);
+            kappa += L;
 
             let mut y_hat: [NttPoly; L] = core::array::from_fn(|_| NttPoly::default());
             for i in 0..L {
@@ -1334,7 +1552,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
             for i in 0..K {
                 let mut w_hat = NttPoly::default();
                 for j in 0..L {
-                    w_hat = ntt_add(&w_hat, &ntt_mul(&a[i][j], &y_hat[j]));
+                    ntt_mul_add(&a[i][j], &y_hat[j], &mut w_hat);
                 }
                 w[i] = invntt(&w_hat);
             }
@@ -1417,6 +1635,12 @@ fn verify_internal<const K: usize, const L: usize, const PK_SIZE: usize, const S
     mu: &[u8; 64],
     sig: &[u8; SIG_SIZE],
 ) -> Result<(), MlDsaError> {
+    const {
+        assert!(
+            (K == 4 && L == 4) || (K == 6 && L == 5) || (K == 8 && L == 7),
+            "unsupported ML-DSA parameter set"
+        );
+    }
     let (rho, t1) = pk_decode::<K>(params, pk)?;
     let (ch, z, h) = sig_decode::<K, L>(params, sig)?;
 
@@ -1430,8 +1654,10 @@ fn verify_internal<const K: usize, const L: usize, const PK_SIZE: usize, const S
         }
     }
 
-    let a = compute_matrix_a::<K, L>(&rho);
-    let t1_hat = compute_t1_hat::<K>(&t1);
+    let mut a: [[NttPoly; L]; K] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+    compute_matrix_a_into::<K, L>(&mut a, &rho);
+    let mut t1_hat: [NttPoly; K] = core::array::from_fn(|_| NttPoly::default());
+    compute_t1_hat_into::<K>(&t1, &mut t1_hat);
 
     let c = sample_in_ball(&ch[..params.lambda_over_4], params.tau);
     let c_hat = ntt(&c);
@@ -1445,9 +1671,9 @@ fn verify_internal<const K: usize, const L: usize, const PK_SIZE: usize, const S
     for i in 0..K {
         let mut w_hat = NttPoly::default();
         for j in 0..L {
-            w_hat = ntt_add(&w_hat, &ntt_mul(&a[i][j], &z_hat[j]));
+            ntt_mul_add(&a[i][j], &z_hat[j], &mut w_hat);
         }
-        w_hat = ntt_sub(&w_hat, &ntt_mul(&c_hat, &t1_hat[i]));
+        ntt_mul_sub(&c_hat, &t1_hat[i], &mut w_hat);
         w_approx[i] = invntt(&w_hat);
     }
 
@@ -1725,6 +1951,32 @@ mod neon {
         }
         r
     }
+
+    pub(super) fn ntt_mul_add(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+        let (ap, bp, rp) = (a.coeffs.as_ptr(), b.coeffs.as_ptr(), acc.coeffs.as_mut_ptr());
+        // SAFETY: all four lanes stay within the 256-element arrays.
+        unsafe {
+            let mut i = 0;
+            while i < N {
+                let product = montgomery_mul4(vld1q_u32(ap.add(i)), vld1q_u32(bp.add(i)));
+                vst1q_u32(rp.add(i), add4(vld1q_u32(rp.add(i)), product));
+                i += 4;
+            }
+        }
+    }
+
+    pub(super) fn ntt_mul_sub(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+        let (ap, bp, rp) = (a.coeffs.as_ptr(), b.coeffs.as_ptr(), acc.coeffs.as_mut_ptr());
+        // SAFETY: all four lanes stay within the 256-element arrays.
+        unsafe {
+            let mut i = 0;
+            while i < N {
+                let product = montgomery_mul4(vld1q_u32(ap.add(i)), vld1q_u32(bp.add(i)));
+                vst1q_u32(rp.add(i), sub4(vld1q_u32(rp.add(i)), product));
+                i += 4;
+            }
+        }
+    }
 }
 
 /// AVX2 implementations of the ML-DSA NTT kernels (x86-64, `std`).
@@ -1949,6 +2201,38 @@ mod avx2 {
             }
         }
         r
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub(super) unsafe fn ntt_mul_add(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+        // SAFETY: all eight lanes stay within the 256-element arrays.
+        unsafe {
+            let (ap, bp, rp) = (a.coeffs.as_ptr(), b.coeffs.as_ptr(), acc.coeffs.as_mut_ptr());
+            let mut i = 0;
+            while i < N {
+                let product =
+                    montgomery_mul8(_mm256_loadu_si256(ap.add(i).cast()), _mm256_loadu_si256(bp.add(i).cast()));
+                let current = _mm256_loadu_si256(rp.add(i).cast());
+                _mm256_storeu_si256(rp.add(i).cast(), add8(current, product));
+                i += 8;
+            }
+        }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub(super) unsafe fn ntt_mul_sub(a: &NttPoly, b: &NttPoly, acc: &mut NttPoly) {
+        // SAFETY: all eight lanes stay within the 256-element arrays.
+        unsafe {
+            let (ap, bp, rp) = (a.coeffs.as_ptr(), b.coeffs.as_ptr(), acc.coeffs.as_mut_ptr());
+            let mut i = 0;
+            while i < N {
+                let product =
+                    montgomery_mul8(_mm256_loadu_si256(ap.add(i).cast()), _mm256_loadu_si256(bp.add(i).cast()));
+                let current = _mm256_loadu_si256(rp.add(i).cast());
+                _mm256_storeu_si256(rp.add(i).cast(), sub8(current, product));
+                i += 8;
+            }
+        }
     }
 }
 
@@ -2339,5 +2623,101 @@ mod tests {
             let scalar = ntt_mul_scalar(&a, &b);
             assert_eq!(simd.coeffs, scalar.coeffs, "NEON ntt_mul differs from scalar");
         }
+    }
+
+    #[test]
+    fn ntt_mul_add_sub_match_scalar() {
+        let mut shake = Shake128::new();
+        shake.absorb(b"mldsa-nttmul-add-sub-equivalence");
+        for _ in 0..500 {
+            let a = NttPoly {
+                coeffs: random_poly(&mut shake).coeffs,
+            };
+            let b = NttPoly {
+                coeffs: random_poly(&mut shake).coeffs,
+            };
+            let initial = NttPoly {
+                coeffs: random_poly(&mut shake).coeffs,
+            };
+
+            let mut simd_add = initial.clone();
+            ntt_mul_add(&a, &b, &mut simd_add);
+            let mut scalar_add = initial.clone();
+            ntt_mul_add_scalar(&a, &b, &mut scalar_add);
+            assert_eq!(simd_add.coeffs, scalar_add.coeffs, "ntt_mul_add differs from scalar");
+
+            let mut simd_sub = initial.clone();
+            ntt_mul_sub(&a, &b, &mut simd_sub);
+            let mut scalar_sub = initial;
+            ntt_mul_sub_scalar(&a, &b, &mut scalar_sub);
+            assert_eq!(simd_sub.coeffs, scalar_sub.coeffs, "ntt_mul_sub differs from scalar");
+        }
+    }
+
+    #[test]
+    fn batched_matrix_matches_scalar() {
+        let rho = [0x5au8; 32];
+
+        let mut a44: [[NttPoly; 4]; 4] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+        compute_matrix_a_into::<4, 4>(&mut a44, &rho);
+        let scalar44: [[NttPoly; 4]; 4] =
+            core::array::from_fn(|r| core::array::from_fn(|s| sample_ntt(&rho, s as u8, r as u8)));
+        assert_eq!(a44, scalar44);
+
+        let mut a65: [[NttPoly; 5]; 6] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+        compute_matrix_a_into::<6, 5>(&mut a65, &rho);
+        let scalar65: [[NttPoly; 5]; 6] =
+            core::array::from_fn(|r| core::array::from_fn(|s| sample_ntt(&rho, s as u8, r as u8)));
+        assert_eq!(a65, scalar65);
+
+        let mut a87: [[NttPoly; 7]; 8] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+        compute_matrix_a_into::<8, 7>(&mut a87, &rho);
+        let scalar87: [[NttPoly; 7]; 8] =
+            core::array::from_fn(|r| core::array::from_fn(|s| sample_ntt(&rho, s as u8, r as u8)));
+        assert_eq!(a87, scalar87);
+
+        // Exercise a wider batch than the native aarch64 width. On x86_64 this
+        // is the AVX2 path; on other targets it uses the scalar permutation.
+        let mut wide44: [[NttPoly; 4]; 4] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+        compute_matrix_a_batched_into::<4, 4, 4>(&mut wide44, &rho);
+        assert_eq!(wide44, scalar44);
+
+        let mut wide65: [[NttPoly; 5]; 6] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+        compute_matrix_a_batched_into::<6, 5, 4>(&mut wide65, &rho);
+        assert_eq!(wide65, scalar65);
+
+        let mut wide87: [[NttPoly; 7]; 8] = core::array::from_fn(|_| core::array::from_fn(|_| NttPoly::default()));
+        compute_matrix_a_batched_into::<8, 7, 4>(&mut wide87, &rho);
+        assert_eq!(wide87, scalar87);
+    }
+
+    #[test]
+    fn batched_expand_mask_matches_scalar() {
+        fn check<const L: usize>(params: &MlDsaParams) {
+            let nonce = [0xa5u8; 64];
+            for kappa in [0usize, 1, 17, 5000] {
+                let batched = expand_mask_batch::<L>(&nonce, kappa, params);
+                for (i, poly) in batched.iter().enumerate() {
+                    assert_eq!(
+                        *poly,
+                        expand_mask(&nonce, kappa + i, params),
+                        "expand_mask mismatch at kappa={kappa}, index={i}"
+                    );
+                }
+
+                let wide = expand_mask_batched::<L, 4>(&nonce, kappa, params);
+                for (i, poly) in wide.iter().enumerate() {
+                    assert_eq!(
+                        *poly,
+                        expand_mask(&nonce, kappa + i, params),
+                        "wide expand_mask mismatch at kappa={kappa}, index={i}"
+                    );
+                }
+            }
+        }
+
+        check::<4>(&PARAMS_44);
+        check::<5>(&PARAMS_65);
+        check::<7>(&PARAMS_87);
     }
 }

@@ -4,7 +4,10 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     RandomError, Xof,
-    sha3::{Sha3_256, Sha3_512, Shake128, Shake256},
+    sha3::{
+        Sha3_256, Sha3_512, Shake128, Shake256,
+        keccak_batch::{Backend, SpongeX},
+    },
 };
 
 /// Size of the shared secret produced by ML-KEM encapsulation/decapsulation (32 bytes).
@@ -54,6 +57,8 @@ impl core::fmt::Display for MlKemError {
     }
 }
 
+impl core::error::Error for MlKemError {}
+
 impl From<RandomError> for MlKemError {
     fn from(err: RandomError) -> Self {
         MlKemError::Random(err)
@@ -102,6 +107,10 @@ pub(crate) fn crypto_kem_keypair_derand<const K: usize, const SECRET_KEY_SIZE: u
     params: &MlKemParams<K>,
     coins: &[u8; 64],
 ) -> ([u8; SECRET_KEY_SIZE], [u8; PUBLIC_KEY_SIZE]) {
+    const {
+        assert!(K == 3 || K == 4, "only ML-KEM-768 (K=3) and ML-KEM-1024 (K=4) are supported");
+    }
+
     let mut public_key = [0u8; PUBLIC_KEY_SIZE];
     let mut secret_key = [0u8; SECRET_KEY_SIZE];
 
@@ -127,6 +136,10 @@ pub(crate) fn crypto_kem_enc_derand<const K: usize, const PUBLIC_KEY_SIZE: usize
     public_key: &[u8; PUBLIC_KEY_SIZE],
     coins: &[u8; 32],
 ) -> ([u8; SHARED_SECRET_SIZE], [u8; CIPHERTEXT_SIZE]) {
+    const {
+        assert!(K == 3 || K == 4, "only ML-KEM-768 (K=3) and ML-KEM-1024 (K=4) are supported");
+    }
+
     let mut ciphertext = [0u8; CIPHERTEXT_SIZE];
     let mut buf = [0u8; 64];
     let mut kr = [0u8; 64];
@@ -153,6 +166,10 @@ pub(crate) fn crypto_kem_dec<const K: usize, const SECRET_KEY_SIZE: usize, const
     secret_key: &[u8; SECRET_KEY_SIZE],
     ciphertext: &[u8; CIPHERTEXT_SIZE],
 ) -> Result<[u8; SHARED_SECRET_SIZE], MlKemError> {
+    const {
+        assert!(K == 3 || K == 4, "only ML-KEM-768 (K=3) and ML-KEM-1024 (K=4) are supported");
+    }
+
     let public_key_offset = indcpa_secret_key_bytes::<K>();
     let public_key_size = public_key_bytes::<K>();
     if SECRET_KEY_SIZE != secret_key_size::<K>() {
@@ -214,14 +231,8 @@ pub(crate) fn indcpa_keypair_derand<const K: usize>(
     let noise_seed = array_ref_32(&seed_output[32..64]);
     let matrix = gen_matrix::<K>(public_seed, false);
 
-    let mut skpv = PolyVec::<K>::default();
-    let mut e = PolyVec::<K>::default();
-    for (index, poly) in skpv.vec.iter_mut().enumerate() {
-        *poly = poly_getnoise(noise_seed, index as u8, params.eta1);
-    }
-    for (index, poly) in e.vec.iter_mut().enumerate() {
-        *poly = poly_getnoise(noise_seed, (K + index) as u8, params.eta1);
-    }
+    let mut skpv = polyvec_getnoise::<K>(noise_seed, 0, params.eta1);
+    let mut e = polyvec_getnoise::<K>(noise_seed, K as u8, params.eta1);
 
     polyvec_ntt(&mut skpv);
     polyvec_ntt(&mut e);
@@ -259,16 +270,9 @@ pub(crate) fn indcpa_enc<const K: usize>(
     let at = gen_matrix::<K>(&seed, true);
     let k = poly_frommsg(message);
 
-    let mut sp = PolyVec::<K>::default();
-    let mut ep = PolyVec::<K>::default();
-    for (index, poly) in sp.vec.iter_mut().enumerate() {
-        *poly = poly_getnoise(coins, index as u8, params.eta1);
-    }
-    let ep_nonce_offset = sp.vec.len();
-    for (index, poly) in ep.vec.iter_mut().enumerate() {
-        *poly = poly_getnoise(coins, (ep_nonce_offset + index) as u8, 2);
-    }
-    let epp = poly_getnoise(coins, (sp.vec.len() + ep.vec.len()) as u8, 2);
+    let mut sp = polyvec_getnoise::<K>(coins, 0, params.eta1);
+    let ep = polyvec_getnoise::<K>(coins, K as u8, 2);
+    let epp = poly_getnoise(coins, (2 * K) as u8, 2);
 
     polyvec_ntt(&mut sp);
 
@@ -301,17 +305,16 @@ pub(crate) fn indcpa_dec<const K: usize>(
     debug_assert_eq!(ciphertext.len(), ciphertext_bytes(params));
     debug_assert_eq!(secret_key.len(), indcpa_secret_key_bytes::<K>());
 
-    let (mut b, v) = unpack_ciphertext::<K>(params, ciphertext);
+    let (mut b, mut v) = unpack_ciphertext::<K>(params, ciphertext);
     let skpv = unpack_sk::<K>(secret_key);
 
     polyvec_ntt(&mut b);
     let mut mp = polyvec_basemul_acc_montgomery(&skpv, &b);
     poly_invntt_tomont(&mut mp);
-    let product = mp.clone();
-    poly_sub(&mut mp, &v, &product);
-    poly_reduce(&mut mp);
+    poly_sub_assign(&mut v, &mp);
+    poly_reduce(&mut v);
 
-    message.copy_from_slice(&poly_tomsg(&mp));
+    message.copy_from_slice(&poly_tomsg(&v));
 }
 
 #[inline]
@@ -324,6 +327,7 @@ fn pack_pk<const K: usize>(out: &mut [u8], pk: &PolyVec<K>, seed: &[u8; 32]) {
 #[inline]
 fn unpack_pk<const K: usize>(packed: &[u8]) -> (PolyVec<K>, [u8; 32]) {
     let polyvec_bytes = polyvec_bytes::<K>();
+    debug_assert_eq!(packed.len(), polyvec_bytes + SYMBYTES);
     let pk = polyvec_frombytes::<K>(&packed[..polyvec_bytes]);
     let mut seed = [0u8; 32];
     seed.copy_from_slice(&packed[polyvec_bytes..polyvec_bytes + 32]);
@@ -350,6 +354,7 @@ fn pack_ciphertext<const K: usize>(params: &MlKemParams<K>, out: &mut [u8], b: &
 #[inline]
 fn unpack_ciphertext<const K: usize>(params: &MlKemParams<K>, packed: &[u8]) -> (PolyVec<K>, Poly) {
     let split = params.polyveccompressedbytes;
+    debug_assert_eq!(packed.len(), split + params.polycompressedbytes);
     (
         polyvec_decompress(params, &packed[..split]),
         poly_decompress(params, &packed[split..split + params.polycompressedbytes]),
@@ -358,6 +363,31 @@ fn unpack_ciphertext<const K: usize>(params: &MlKemParams<K>, packed: &[u8]) -> 
 
 #[inline]
 pub(crate) fn gen_matrix<const K: usize>(seed: &[u8; 32], transpose: bool) -> [PolyVec<K>; K] {
+    if Backend::detect() == Backend::Scalar {
+        return gen_matrix_scalar::<K>(seed, transpose);
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            return gen_matrix_batched::<K, 8>(seed, transpose);
+        }
+        if std::arch::is_x86_feature_detected!("avx2") {
+            return gen_matrix_batched::<K, 4>(seed, transpose);
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+    return gen_matrix_batched::<K, 8>(seed, transpose);
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
+    return gen_matrix_batched::<K, 4>(seed, transpose);
+
+    gen_matrix_batched::<K, 2>(seed, transpose)
+}
+
+#[inline]
+fn gen_matrix_scalar<const K: usize>(seed: &[u8; 32], transpose: bool) -> [PolyVec<K>; K] {
     let mut matrix = core::array::from_fn(|_| PolyVec::<K>::default());
     for i in 0..K {
         for j in 0..K {
@@ -369,6 +399,65 @@ pub(crate) fn gen_matrix<const K: usize>(seed: &[u8; 32], transpose: bool) -> [P
             matrix[i].vec[j] = uniform_poly(seed, x, y);
         }
     }
+    matrix
+}
+
+fn gen_matrix_batched<const K: usize, const W: usize>(seed: &[u8; 32], transpose: bool) -> [PolyVec<K>; K] {
+    let mut matrix = core::array::from_fn(|_| PolyVec::<K>::default());
+    let streams = K * K;
+    let mut stream = 0usize;
+
+    while stream < streams {
+        let take = core::cmp::min(W, streams - stream);
+        let mut messages = [[0u8; 34]; W];
+        let mut coordinates = [(0usize, 0usize); W];
+
+        for w in 0..W {
+            // Duplicate the last valid stream into unused lanes; their output
+            // is ignored after the batch completes.
+            let index = stream + core::cmp::min(w, take - 1);
+            let i = index / K;
+            let j = index % K;
+            let (x, y) = if transpose {
+                (i as u8, j as u8)
+            } else {
+                (j as u8, i as u8)
+            };
+            messages[w][..32].copy_from_slice(seed);
+            messages[w][32] = x;
+            messages[w][33] = y;
+            coordinates[w] = (i, j);
+        }
+
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &messages[w][..]);
+        let mut sponge = SpongeX::<W, 24>::new(SHAKE128_RATE, 0x1f, Backend::detect());
+        sponge.absorb_batch(&refs);
+
+        let mut polynomials: [Poly; W] = core::array::from_fn(|_| Poly::default());
+        let mut counts = [0usize; W];
+        let mut blocks = [[0u8; SHAKE128_RATE]; W];
+        sponge.squeeze_batch::<SHAKE128_RATE>(&mut blocks);
+
+        loop {
+            for w in 0..W {
+                if counts[w] < N {
+                    counts[w] += rej_uniform(&mut polynomials[w].coeffs[counts[w]..], &blocks[w]);
+                }
+            }
+            if counts.iter().all(|&count| count >= N) {
+                break;
+            }
+            sponge.squeeze_batch::<SHAKE128_RATE>(&mut blocks);
+        }
+
+        for w in 0..take {
+            let (i, j) = coordinates[w];
+            matrix[i].vec[j] = core::mem::take(&mut polynomials[w]);
+        }
+
+        stream += take;
+    }
+
     matrix
 }
 
@@ -407,6 +496,69 @@ fn rej_uniform(out: &mut [i16], buf: &[u8]) -> usize {
         }
     }
     ctr
+}
+
+#[inline]
+fn polyvec_getnoise<const K: usize>(seed: &[u8; 32], first_nonce: u8, eta: usize) -> PolyVec<K> {
+    debug_assert_eq!(eta, 2);
+    if Backend::detect() == Backend::Scalar {
+        let mut out = PolyVec::<K>::default();
+        for (index, poly) in out.vec.iter_mut().enumerate() {
+            *poly = poly_getnoise(seed, first_nonce.wrapping_add(index as u8), eta);
+        }
+        return out;
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            return polyvec_getnoise_batched::<K, 8>(seed, first_nonce, eta);
+        }
+        if std::arch::is_x86_feature_detected!("avx2") {
+            return polyvec_getnoise_batched::<K, 4>(seed, first_nonce, eta);
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+    return polyvec_getnoise_batched::<K, 8>(seed, first_nonce, eta);
+
+    #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
+    return polyvec_getnoise_batched::<K, 4>(seed, first_nonce, eta);
+
+    polyvec_getnoise_batched::<K, 2>(seed, first_nonce, eta)
+}
+
+fn polyvec_getnoise_batched<const K: usize, const W: usize>(
+    seed: &[u8; 32],
+    first_nonce: u8,
+    eta: usize,
+) -> PolyVec<K> {
+    debug_assert_eq!(eta, 2);
+    let mut out = PolyVec::<K>::default();
+    let mut stream = 0usize;
+
+    while stream < K {
+        let take = core::cmp::min(W, K - stream);
+        let mut messages = [[0u8; 33]; W];
+        for w in 0..W {
+            let index = stream + core::cmp::min(w, take - 1);
+            messages[w][..32].copy_from_slice(seed);
+            messages[w][32] = first_nonce.wrapping_add(index as u8);
+        }
+
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &messages[w][..]);
+        let mut sponge = SpongeX::<W, 24>::new(136, 0x1f, Backend::detect());
+        sponge.absorb_batch(&refs);
+        let mut blocks = [[0u8; 128]; W];
+        sponge.squeeze_batch::<128>(&mut blocks);
+
+        for w in 0..take {
+            out.vec[stream + w] = cbd2(&blocks[w]);
+        }
+        stream += take;
+    }
+
+    out
 }
 
 #[inline]
@@ -501,6 +653,7 @@ pub(crate) fn polyvec_compress<const K: usize>(params: &MlKemParams<K>, out: &mu
 
 #[inline]
 pub(crate) fn polyvec_decompress<const K: usize>(params: &MlKemParams<K>, input: &[u8]) -> PolyVec<K> {
+    debug_assert_eq!(input.len(), params.polyveccompressedbytes);
     let mut out = PolyVec::<K>::default();
     match params.polyveccompressedbytes {
         960 => {
@@ -557,6 +710,7 @@ fn polyvec_tobytes<const K: usize>(out: &mut [u8], polyvec: &PolyVec<K>) {
 
 #[inline]
 fn polyvec_frombytes<const K: usize>(input: &[u8]) -> PolyVec<K> {
+    debug_assert_eq!(input.len(), polyvec_bytes::<K>());
     let mut out = PolyVec::<K>::default();
     for (i, poly) in out.vec.iter_mut().enumerate() {
         *poly = poly_frombytes(&input[i * POLY_BYTES..(i + 1) * POLY_BYTES]);
@@ -572,8 +726,10 @@ fn polyvec_frombytes<const K: usize>(input: &[u8]) -> PolyVec<K> {
 /// inspected.
 #[inline]
 pub(crate) fn encapsulation_key_modulus_check<const K: usize>(public_key: &[u8]) -> bool {
-    let encoded = &public_key[..polyvec_bytes::<K>()];
-    for chunk in encoded.chunks(3) {
+    let Some(encoded) = public_key.get(..polyvec_bytes::<K>()) else {
+        return false;
+    };
+    for chunk in encoded.as_chunks::<3>().0 {
         let b0 = chunk[0] as u16;
         let b1 = chunk[1] as u16;
         let b2 = chunk[2] as u16;
@@ -675,6 +831,7 @@ fn poly_compress<const K: usize>(params: &MlKemParams<K>, out: &mut [u8], poly: 
 
 #[inline]
 fn poly_decompress<const K: usize>(params: &MlKemParams<K>, input: &[u8]) -> Poly {
+    debug_assert_eq!(input.len(), params.polycompressedbytes);
     let mut out = Poly::default();
     match params.polycompressedbytes {
         128 => {
@@ -721,6 +878,7 @@ fn poly_tobytes(out: &mut [u8], poly: &Poly) {
 
 #[inline]
 fn poly_frombytes(input: &[u8]) -> Poly {
+    debug_assert_eq!(input.len(), POLY_BYTES);
     let mut out = Poly::default();
     for i in 0..(N / 2) {
         out.coeffs[2 * i] = (((input[3 * i] as u16) | ((input[3 * i + 1] as u16) << 8)) & 0x0fff) as i16;
@@ -733,6 +891,9 @@ fn poly_frombytes(input: &[u8]) -> Poly {
 pub(crate) fn poly_frommsg(msg: &[u8]) -> Poly {
     let mut out = Poly::default();
     let half_q: i16 = (Q + 1) / 2;
+    // Keep this arithmetic branchless. This is the site behind the
+    // clangover/CVE-2024-37880 class of compiler-introduced secret branches;
+    // LLVM currently vectorizes it to a `select`.
     for i in 0..(N / 8) {
         for j in 0..8 {
             let bit = ((msg[i] >> j) & 1) as i16;
@@ -814,9 +975,9 @@ fn poly_add(left: &mut Poly, right: &Poly) {
 }
 
 #[inline]
-fn poly_sub(out: &mut Poly, left: &Poly, right: &Poly) {
+fn poly_sub_assign(left: &mut Poly, right: &Poly) {
     for i in 0..N {
-        out.coeffs[i] = (left.coeffs[i] as i32 - right.coeffs[i] as i32) as i16;
+        left.coeffs[i] = (left.coeffs[i] as i32 - right.coeffs[i] as i32) as i16;
     }
 }
 
@@ -906,7 +1067,15 @@ fn hash_g(data: &[u8]) -> [u8; 64] {
     use crate::Hasher;
     let mut hasher = Sha3_512::new();
     hasher.update(data);
-    hasher.sum().as_ref().try_into().unwrap()
+    let digest = hasher.sum();
+    let output = digest.as_ref().try_into().unwrap();
+    #[cfg(feature = "zeroize")]
+    {
+        use zeroize::Zeroize;
+        let mut digest = digest;
+        digest.zeroize();
+    }
+    output
 }
 
 #[inline]
@@ -1260,6 +1429,50 @@ mod tests {
         poly_tobytes(&mut buf, &poly);
         let recovered = poly_frombytes(&buf);
         assert_eq!(poly.coeffs, recovered.coeffs);
+    }
+
+    #[test]
+    fn gen_matrix_batched_matches_scalar() {
+        let seed = [42u8; 32];
+        for transpose in [false, true] {
+            assert_eq!(
+                gen_matrix_batched::<3, 2>(&seed, transpose),
+                gen_matrix_scalar::<3>(&seed, transpose)
+            );
+            assert_eq!(
+                gen_matrix_batched::<4, 2>(&seed, transpose),
+                gen_matrix_scalar::<4>(&seed, transpose)
+            );
+            assert_eq!(
+                gen_matrix_batched::<3, 4>(&seed, transpose),
+                gen_matrix_scalar::<3>(&seed, transpose)
+            );
+            assert_eq!(
+                gen_matrix_batched::<4, 4>(&seed, transpose),
+                gen_matrix_scalar::<4>(&seed, transpose)
+            );
+        }
+    }
+
+    #[test]
+    fn polyvec_getnoise_batched_matches_scalar() {
+        let seed = [17u8; 32];
+        let batched3 = polyvec_getnoise_batched::<3, 2>(&seed, 5, 2);
+        let batched4 = polyvec_getnoise_batched::<4, 2>(&seed, 5, 2);
+        for i in 0..3 {
+            assert_eq!(batched3.vec[i], poly_getnoise(&seed, 5 + i as u8, 2));
+        }
+        for i in 0..4 {
+            assert_eq!(batched4.vec[i], poly_getnoise(&seed, 5 + i as u8, 2));
+        }
+        let batched3_wide = polyvec_getnoise_batched::<3, 4>(&seed, 5, 2);
+        let batched4_wide = polyvec_getnoise_batched::<4, 4>(&seed, 5, 2);
+        for i in 0..3 {
+            assert_eq!(batched3_wide.vec[i], poly_getnoise(&seed, 5 + i as u8, 2));
+        }
+        for i in 0..4 {
+            assert_eq!(batched4_wide.vec[i], poly_getnoise(&seed, 5 + i as u8, 2));
+        }
     }
 
     #[test]

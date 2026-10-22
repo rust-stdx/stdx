@@ -139,5 +139,20 @@ fn bench_verify(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_sign, bench_verify);
+fn bench_mldsa_keygen(c: &mut Criterion) {
+    let seed = [0u8; 32];
+    let mut group = c.benchmark_group("mldsa-keygen");
+    group.bench_function("ML-DSA-44", |b| {
+        b.iter(|| black_box(MlDsa44SecretKey::new(&seed)));
+    });
+    group.bench_function("ML-DSA-65", |b| {
+        b.iter(|| black_box(MlDsa65SecretKey::new(&seed)));
+    });
+    group.bench_function("ML-DSA-87", |b| {
+        b.iter(|| black_box(MlDsa87SecretKey::new(&seed)));
+    });
+    group.finish();
+}
+
+criterion_group!(benches, bench_sign, bench_verify, bench_mldsa_keygen);
 criterion_main!(benches);

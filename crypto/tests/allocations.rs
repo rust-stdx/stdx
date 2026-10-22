@@ -69,6 +69,33 @@ fn ml_dsa_does_not_allocate() {
 }
 
 #[test]
+fn pqc_error_paths_do_not_allocate() {
+    let seed = [3u8; 32];
+    let rnd = [1u8; 32];
+    let msg = b"allocation error path";
+
+    let (sk768, pk768) = SecretKey768::generate_derand(&[7u8; 64]);
+    let (_, mut ct768) = pk768.encapsulate_derand(&[9u8; 32]);
+    ct768[0] ^= 1;
+    assert_no_alloc("ml-kem-768 decapsulate reject", || sk768.decapsulate(&ct768));
+
+    let (sk1024, pk1024) = SecretKey1024::generate_derand(&[7u8; 64]);
+    let (_, mut ct1024) = pk1024.encapsulate_derand(&[9u8; 32]);
+    ct1024[0] ^= 1;
+    assert_no_alloc("ml-kem-1024 decapsulate reject", || sk1024.decapsulate(&ct1024));
+
+    let key = MlDsa65SecretKey::new(&seed);
+    let pk = key.public_key();
+    let mut sig = key.sign_derand(msg, b"", &rnd).unwrap();
+    sig[0] ^= 1;
+    assert_no_alloc("ml-dsa-65 verify reject", || pk.verify(msg, &sig, b""));
+
+    let ctx = [0u8; 256];
+    assert_no_alloc("ml-dsa-65 sign context too long", || key.sign_derand(msg, &ctx, &rnd));
+    assert_no_alloc("ml-dsa-65 verify context too long", || pk.verify(msg, &sig, &ctx));
+}
+
+#[test]
 fn repeated_operations_do_not_leak() {
     // Running many operations must not retain heap memory (there should be no
     // heap traffic at all, but this also catches accidental caching).
