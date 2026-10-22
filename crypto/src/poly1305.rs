@@ -408,6 +408,45 @@ mod tests {
         assert_eq!(single, chunked);
     }
 
+    /// Any sequence of `update` calls must match the one-shot MAC, including
+    /// empty updates and splits at every block boundary.
+    #[test]
+    fn poly1305_random_split_matches_one_shot() {
+        fn next(state: &mut u64) -> u64 {
+            let mut x = *state;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            *state = x;
+            x
+        }
+
+        let mut state = 0x0123_4567_89ab_cdefu64;
+        let mut key = [0u8; 32];
+        let mut data = [0u8; 1024];
+
+        for _ in 0..10_000 {
+            for byte in &mut key {
+                *byte = next(&mut state) as u8;
+            }
+            let len = (next(&mut state) as usize) % (data.len() + 1);
+            for byte in &mut data[..len] {
+                *byte = next(&mut state) as u8;
+            }
+
+            let expected = Poly1305::mac(&key, &data[..len]);
+            let mut mac = Poly1305::new(&key);
+            let mut offset = 0;
+            while offset < len {
+                let take = ((next(&mut state) as usize) % 23) + 1;
+                let end = core::cmp::min(offset + take, len);
+                mac.update(&data[offset..end]);
+                offset = end;
+            }
+            assert_eq!(mac.finalize(), expected, "mismatch for len={len}");
+        }
+    }
+
     #[test]
     fn poly1305_golang_crypto_vectors() {
         // Test vectors from https://github.com/golang/crypto/blob/master/internal/poly1305/vectors_test.go

@@ -1573,4 +1573,28 @@ Expected: {}",
         let mut buf = [0u8; 64];
         cipher.xor_keystream(&mut buf);
     }
+
+    /// The SIMD dispatch must produce exactly the generic keystream for every
+    /// short length, including all partial-block and leftover boundaries.
+    #[test]
+    fn simd_matches_generic_for_short_lengths() {
+        let key = test_key_32();
+        let nonce = test_nonce_12();
+
+        for len in 0..=1024usize {
+            let mut dispatch = ChaCha20Ietf::new(&key, &nonce);
+            let reference = ChaCha20Ietf::new(&key, &nonce);
+
+            let mut dispatched = vec![0u8; len];
+            let mut generic = vec![0u8; len];
+
+            dispatch.xor_keystream(&mut dispatched);
+
+            let mut state = reference.state;
+            let mut leftover = [0u8; super::BLOCK_SIZE - 1];
+            super::chacha_generic::<20, true>(&mut state, &mut leftover, &mut generic);
+
+            assert_eq!(dispatched, generic, "keystream mismatch for len={len}");
+        }
+    }
 }

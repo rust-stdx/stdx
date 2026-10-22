@@ -2720,4 +2720,65 @@ mod tests {
         check::<5>(&PARAMS_65);
         check::<7>(&PARAMS_87);
     }
+
+    /// FIPS 204 Algorithm 8 step 13 / Algorithm 7 step 23 use `γ₁ − β`, not
+    /// `2γ₁ − β` (a bug found in libcrux's verifier in 2026). Pin both sides
+    /// of the boundary, including `γ₁` itself.
+    #[test]
+    fn coefficients_exceed_bound_uses_gamma1_minus_beta() {
+        fn check(params: &MlDsaParams) {
+            let bound = params.gamma1 - params.beta;
+            let mut poly = Poly::default();
+
+            assert!(!coefficients_exceed_bound(&poly, bound), "all-zero poly");
+
+            // Exactly at the bound, positive and negative: rejected.
+            poly.coeffs[0] = field_to_montgomery(bound);
+            assert!(coefficients_exceed_bound(&poly, bound), "|z| = γ₁-β");
+            poly.coeffs[0] = field_to_montgomery(Q - bound);
+            assert!(coefficients_exceed_bound(&poly, bound), "|z| = -(γ₁-β)");
+
+            // One below the bound: accepted.
+            poly.coeffs[0] = field_to_montgomery(bound - 1);
+            assert!(!coefficients_exceed_bound(&poly, bound), "|z| = γ₁-β-1");
+            poly.coeffs[0] = field_to_montgomery(Q - (bound - 1));
+            assert!(!coefficients_exceed_bound(&poly, bound), "|z| = -(γ₁-β-1)");
+
+            // γ₁ itself must be rejected (the incorrect `2γ₁-β` bound accepts it).
+            poly.coeffs[0] = field_to_montgomery(params.gamma1);
+            assert!(coefficients_exceed_bound(&poly, bound), "|z| = γ₁");
+        }
+
+        check(&PARAMS_44);
+        check(&PARAMS_65);
+        check(&PARAMS_87);
+    }
+
+    /// The hint decoder checks the *current* cumulative count on every row.
+    /// Checking the previous row (the libcrux bug) would let the last row
+    /// exceed ω; pin that specific case for every parameter set.
+    #[test]
+    fn hint_decode_rejects_last_row_overflow() {
+        fn check<const K: usize>(params: &MlDsaParams) {
+            let omega = params.omega;
+            let mut sig = [0u8; 128];
+            let sig = &mut sig[..omega + K];
+
+            // A valid single hint in the first polynomial, and a cumulative
+            // count of 1 for every row.
+            sig[0] = 1;
+            for i in 0..K {
+                sig[omega + i] = 1;
+            }
+
+            // Only the last row's count is out of range.
+            sig[omega + K - 1] = (omega + 1) as u8;
+
+            assert_eq!(hint_decode::<K>(params, sig), Err(MlDsaError::InvalidSignature));
+        }
+
+        check::<4>(&PARAMS_44);
+        check::<6>(&PARAMS_65);
+        check::<8>(&PARAMS_87);
+    }
 }

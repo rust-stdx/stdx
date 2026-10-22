@@ -61,6 +61,9 @@ impl Aead for ChaCha20Blake3 {
     const TAG_SIZE: usize = 32;
     const NONCE_SIZE: usize = 32;
 
+    /// # Panics
+    ///
+    /// Panics if `nonce.len() != 32`.
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         assert!(nonce.len() == 32, "nonce must be 32 bytes");
 

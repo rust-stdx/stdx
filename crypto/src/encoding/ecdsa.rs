@@ -71,7 +71,8 @@ fn encode_integer(value: &[u8], out: &mut Vec<u8>) {
     while start + 1 < value.len() && value[start] == 0 {
         start += 1;
     }
-    let value = &value[start..];
+    // An empty input encodes the integer zero, not an empty INTEGER.
+    let value: &[u8] = if value.is_empty() { &[0u8] } else { &value[start..] };
 
     // DER integers are signed, so a leading 0x00 is required when the most
     // significant bit is set.
@@ -197,6 +198,15 @@ mod tests {
     fn encodes_zero() {
         let der = encode_signature_der(&[0x00], &[0x00]);
         assert_eq!(der, [0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00]);
+    }
+
+    #[test]
+    fn encodes_empty_integers_as_zero() {
+        let der = encode_signature_der(&[], &[]);
+        assert_eq!(der, [0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00]);
+
+        let der = encode_signature_der(&[], &[0x01]);
+        assert_eq!(der, [0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x01]);
     }
 
     #[test]

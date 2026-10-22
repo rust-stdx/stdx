@@ -196,6 +196,30 @@ mod tests {
         assert_eq!(encapsulated_secret, decapsulated_secret);
     }
 
+    /// See the ML-KEM-768 counterpart: malformed secret-key coefficients must
+    /// not panic and must produce a deterministic implicit rejection.
+    #[test]
+    fn ml_kem_1024_malformed_secret_key_does_not_panic() {
+        let ciphertext = [0xa5u8; CIPHERTEXT_SIZE_1024];
+        let (valid, _) = SecretKey1024::generate_derand(&[7u8; 64]);
+
+        let mut bytes = valid.to_bytes();
+        let indcpa_len = indcpa_secret_key_bytes::<4>();
+        bytes[..indcpa_len].fill(0xff);
+
+        let secret_key = SecretKey1024::from_bytes(&bytes);
+        let first = secret_key
+            .decapsulate(&ciphertext)
+            .expect("implicit rejection must succeed");
+        let second = secret_key
+            .decapsulate(&ciphertext)
+            .expect("implicit rejection must succeed");
+        assert_eq!(first, second, "implicit rejection must be deterministic");
+
+        let garbage = SecretKey1024::from_bytes(&[0xff; SECRET_KEY_SIZE_1024]);
+        assert_eq!(garbage.decapsulate(&ciphertext), Err(MlKemError::InvalidKey));
+    }
+
     #[test]
     fn ml_kem_1024_deterministic_derand_vectors_are_stable() {
         let key_coins = [3u8; 64];

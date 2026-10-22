@@ -165,18 +165,24 @@ dependencies = [
 name = "base32"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "criterion",
  "serde",
  "serde_json",
+ "serde_test",
+ "small_collections",
 ]
 
 [[package]]
 name = "base64"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "criterion",
  "serde",
  "serde_json",
+ "serde_test",
+ "small_collections",
 ]
 
 [[package]]
@@ -861,9 +867,12 @@ dependencies = [
 name = "hex"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "criterion",
  "serde",
  "serde_json",
+ "serde_test",
+ "small_collections",
 ]
 
 [[package]]

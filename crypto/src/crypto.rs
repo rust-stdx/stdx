@@ -43,7 +43,13 @@ pub(crate) use bytes::Bytes;
 pub use bytes::Hash;
 pub use p_curves::{p224, p256, p384, p521};
 
-const MAX_HASH_BLOCK_SIZE: usize = 136;
+/// Maximum block size supported by the generic constructions that buffer a
+/// hash block on the stack (HMAC and PBKDF2).
+///
+/// This is the largest `Hasher::BLOCK_SIZE` of any implementation in this
+/// crate (SHAKE128, with a 168-byte rate). Implementations with a larger block
+/// size are rejected at compile time by those constructions.
+const MAX_HASH_BLOCK_SIZE: usize = 168;
 
 /// Maximum output size supported by [`Hash`].
 pub const MAX_HASH_OUTPUT_SIZE: usize = 64;
@@ -227,8 +233,24 @@ pub trait Aead {
     const TAG_SIZE: usize;
     const NONCE_SIZE: usize;
 
+    /// Encrypts `in_out` in place and returns the authentication tag.
+    ///
+    /// # Panics
+    ///
+    /// Implementations panic when `nonce.len() != Self::NONCE_SIZE` (and may
+    /// panic on other violations of their documented contract). Callers whose
+    /// nonce length is not statically known should check it before calling.
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash;
 
+    /// Authenticates and decrypts `in_out` in place.
+    ///
+    /// # Buffer contents on failure
+    ///
+    /// When the tag does not authenticate, this returns an error and the
+    /// contents of `in_out` are **unspecified**: some implementations may have
+    /// already written plaintext into the buffer before checking the tag, while
+    /// others may leave it untouched or zero it. Callers must only use the
+    /// buffer when `Ok(())` is returned.
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError>;
 
     #[cfg(feature = "alloc")]

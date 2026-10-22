@@ -61,6 +61,16 @@ pub struct KeccakSponge<const ROUNDS: usize> {
 }
 
 impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
+    /// Creates a sponge with the given rate (in bytes) and padding delimiter.
+    ///
+    /// `rate` must satisfy `0 < rate < 200`; it is the number of state bytes
+    /// between two permutations and must leave room for the padding byte.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds, panics if `rate` is zero or `>= 200`. The bound is only
+    /// checked by a `debug_assert!`; passing an invalid rate in a release build
+    /// is unsupported and can panic later or produce meaningless output.
     #[inline]
     pub fn new(rate: usize, delimiter: u8) -> Self {
         debug_assert!(rate > 0 && rate < 200);
@@ -337,6 +347,21 @@ mod tests {
     fn keccak_f1600_soft() {
         let (state_first, state_second) = keccak_f1600_vectors();
         keccak_f(p1600_soft::<24>, state_first, state_second);
+    }
+
+    /// The rate bound is enforced by a `debug_assert!` only.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "rate > 0 && rate < 200")]
+    fn sponge_rejects_zero_rate() {
+        let _ = super::KeccakSponge::<24>::new(0, 0x06);
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "rate > 0 && rate < 200")]
+    fn sponge_rejects_oversized_rate() {
+        let _ = super::KeccakSponge::<24>::new(201, 0x06);
     }
 
     /// The FEAT_SHA3 permutation must agree with the portable one for every

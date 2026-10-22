@@ -36,6 +36,9 @@ impl Aead for Aes128Gcm {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
+    /// # Panics
+    ///
+    /// Panics if `nonce.len() != 12`.
     #[inline]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce).unwrap();
@@ -79,6 +82,9 @@ impl Aead for Aes256Gcm {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
+    /// # Panics
+    ///
+    /// Panics if `nonce.len() != 12`.
     #[inline]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce).unwrap();
@@ -541,6 +547,62 @@ mod tests_256 {
     fn nist_gcm_test_vectors_soft() {
         for v in NIST_GCM_VECTORS.iter().chain(EXTRA_GCM_VECTORS.iter()) {
             run_gcm_vector_soft(v);
+        }
+    }
+
+    #[test]
+    fn gcm_max_len_constant() {
+        // NIST SP 800-38D: at most 2^32 - 2 blocks of 16 bytes, leaving one
+        // block of margin before the 32-bit counter wraps.
+        assert_eq!(GCM_MAX_LEN, (u32::MAX as u64 - 1) * 16);
+        assert_eq!(GCM_MAX_LEN, 68_719_476_704);
+    }
+
+    /// The hardware dispatch and the portable software path must agree on
+    /// every short plaintext/AAD length, including the partial-block tails.
+    #[test]
+    fn gcm_dispatch_matches_soft_for_all_short_lengths() {
+        let key = [0x3cu8; 32];
+        let nonce = [0x5au8; 12];
+        let round_keys = expand_key::<15>(&key);
+        let h = encrypt_block::<15>(&round_keys, &[0u8; 16]);
+        let cipher = Aes256Gcm::new(&key);
+
+        for pt_len in 0..=129usize {
+            for aad_len in 0..=33usize {
+                let pt: Vec<u8> = (0..pt_len)
+                    .map(|i| (i as u8).wrapping_mul(37).wrapping_add(11))
+                    .collect();
+                let aad: Vec<u8> = (0..aad_len)
+                    .map(|i| (i as u8).wrapping_mul(53).wrapping_add(7))
+                    .collect();
+
+                let mut soft = pt.clone();
+                let soft_tag = cipher.0.encrypt_in_place_soft(&mut soft, &round_keys, &h, &nonce, &aad);
+                let mut dispatch = pt.clone();
+                let dispatch_tag = cipher.encrypt_in_place(&mut dispatch, &nonce, &aad);
+
+                assert_eq!(soft, dispatch, "ciphertext mismatch for pt_len={pt_len} aad_len={aad_len}");
+                assert_eq!(
+                    soft_tag.as_ref(),
+                    dispatch_tag.as_ref(),
+                    "tag mismatch for pt_len={pt_len} aad_len={aad_len}"
+                );
+
+                let tag: [u8; 16] = soft_tag.as_ref().try_into().unwrap();
+                let mut soft_plain = dispatch.clone();
+                cipher
+                    .0
+                    .decrypt_in_place_soft(&mut soft_plain, &round_keys, &h, &tag, &nonce, &aad)
+                    .expect("software decrypt failed");
+                assert_eq!(soft_plain, pt);
+
+                let mut dispatch_plain = dispatch.clone();
+                cipher
+                    .decrypt_in_place(&mut dispatch_plain, &nonce, &aad, dispatch_tag.as_ref())
+                    .expect("dispatch decrypt failed");
+                assert_eq!(dispatch_plain, pt);
+            }
         }
     }
 

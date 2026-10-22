@@ -409,7 +409,7 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aes::expand_key;
+    use crate::aes::aes::expand_key;
 
     fn have_features() -> bool {
         std::arch::is_x86_feature_detected!("aes")

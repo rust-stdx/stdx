@@ -360,7 +360,7 @@ mod tests {
     use hex;
 
     use super::*;
-    use crate::aes::expand_key;
+    use crate::aes::aes::expand_key;
 
     fn make_round_keys(key: &[u8; 32]) -> [uint8x16_t; 15] {
         let soft = crate::aes::aes::expand_key::<15>(key);

@@ -1406,6 +1406,16 @@ mod tests {
     }
 
     #[test]
+    fn field_edge_values_are_canonical() {
+        p_curves::test_support::field_edge_values_are_canonical::<P521>();
+    }
+
+    #[test]
+    fn scalar_edge_values_are_canonical() {
+        p_curves::test_support::scalar_edge_values_are_canonical::<P521>();
+    }
+
+    #[test]
     fn ecdh_round_trip_alice_bob() {
         p_curves::test_support::ecdh_round_trip_alice_bob::<P521>();
     }

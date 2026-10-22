@@ -101,6 +101,9 @@ impl Aead for AsconAead128 {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 16;
 
+    /// # Panics
+    ///
+    /// Panics if `nonce.len() != 16`.
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         let nonce: &[u8; 16] = nonce.try_into().expect("nonce must be 16 bytes");
         let mut state = self.init_state(nonce);

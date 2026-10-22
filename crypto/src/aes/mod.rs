@@ -25,7 +25,7 @@ mod ghash_amd64;
 mod ghash_arm64;
 
 pub(crate) use aes::RoundKeys;
-pub use aes::{decrypt_block, encrypt_block, expand_key};
+pub use aes::{decrypt_block, encrypt_block};
 pub use aes_ctr::{Aes128Ctr, Aes256Ctr};
 pub use aes_gcm::{Aes128Gcm, Aes256Gcm};
 
@@ -79,7 +79,7 @@ impl Aes256Block {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{aes::expand_key, *};
 
     fn encrypt_block_128(key: &[u8; 16], block: &[u8; 16]) -> [u8; 16] {
         encrypt_block(&expand_key::<11>(key), block)

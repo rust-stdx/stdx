@@ -190,6 +190,35 @@ mod tests {
         assert_eq!(encapsulated_secret, decapsulated_secret);
     }
 
+    /// `from_bytes` only checks the length. Out-of-range secret-key
+    /// coefficients (0xFFF > q) must still decapsulate deterministically
+    /// through implicit rejection, without panicking.
+    #[test]
+    fn ml_kem_768_malformed_secret_key_does_not_panic() {
+        let ciphertext = [0x5au8; CIPHERTEXT_SIZE_768];
+        let (valid, _) = SecretKey768::generate_derand(&[7u8; 64]);
+
+        // Corrupt only the IND-CPA secret-key coefficients; the embedded
+        // public key and its hash stay consistent, so decapsulation runs.
+        let mut bytes = valid.to_bytes();
+        let indcpa_len = indcpa_secret_key_bytes::<3>();
+        bytes[..indcpa_len].fill(0xff);
+
+        let secret_key = SecretKey768::from_bytes(&bytes);
+        let first = secret_key
+            .decapsulate(&ciphertext)
+            .expect("implicit rejection must succeed");
+        let second = secret_key
+            .decapsulate(&ciphertext)
+            .expect("implicit rejection must succeed");
+        assert_eq!(first, second, "implicit rejection must be deterministic");
+
+        // An entirely bogus key fails the H(ek) == h consistency check, but
+        // must return an error rather than panicking.
+        let garbage = SecretKey768::from_bytes(&[0xff; SECRET_KEY_SIZE_768]);
+        assert_eq!(garbage.decapsulate(&ciphertext), Err(MlKemError::InvalidKey));
+    }
+
     #[test]
     fn ml_kem_768_decapsulation_rejects_tampered_ciphertext() {
         let (private_key, public_key) = SecretKey768::generate().unwrap();

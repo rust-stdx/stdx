@@ -1508,4 +1508,53 @@ pub(crate) mod test_support {
         assert_eq!(drbg.k, C::DigestBytes::zeroed());
         assert_eq!(drbg.v, C::DigestBytes::zeroed());
     }
+
+    /// Field elements at the edges of `[0, p)` stay canonical through the
+    /// basic operations, and the group laws hold. This catches reduction
+    /// routines that return a value in `[p, 2p)` or mishandle `p - 1`.
+    pub(crate) fn field_edge_values_are_canonical<C: Curve>() {
+        let p = C::MODULUS_P;
+        let one = C::U::ONE;
+        let two = C::U::read_be(&[2]);
+        let p_minus_one = p.sub_raw(&one).0;
+        let p_minus_two = p.sub_raw(&two).0;
+
+        for value in [C::U::ZERO, one, two, p_minus_two, p_minus_one] {
+            let element = FieldElement::<C>::from_uint(value);
+            let bytes = element.to_bytes();
+
+            assert!(!C::U::read_be(bytes.as_ref()).ct_ge(&p), "field element is not canonical");
+            assert_eq!(FieldElement::<C>::from_bytes(&bytes).unwrap(), element);
+
+            assert_eq!(element.add(FieldElement::<C>::ZERO), element);
+            assert_eq!(element.sub(element), FieldElement::<C>::ZERO);
+            assert_eq!(element.mul(FieldElement::<C>::ONE), element);
+            assert_eq!(element.mul(FieldElement::<C>::ZERO), FieldElement::<C>::ZERO);
+            assert_eq!(element.add(element.negate()), FieldElement::<C>::ZERO);
+            assert_eq!(element.double(), element.add(element));
+
+            if !element.is_zero() {
+                assert_eq!(
+                    element.mul(element.invert().unwrap()),
+                    FieldElement::<C>::ONE,
+                    "inversion is not the multiplicative inverse"
+                );
+            }
+        }
+    }
+
+    /// Scalars at the edges of `[1, n)` round-trip and invert correctly.
+    pub(crate) fn scalar_edge_values_are_canonical<C: Curve>() {
+        let n = C::MODULUS_N;
+        let n_minus_one = n.sub_raw(&C::U::ONE).0;
+
+        for value in [C::U::ONE, n_minus_one] {
+            let scalar = Scalar::<C>(value);
+            let bytes = scalar.to_bytes();
+
+            assert_eq!(Scalar::<C>::from_bytes(&bytes).unwrap(), scalar);
+            assert_eq!(scalar.sub(scalar), Scalar::<C>(C::U::ZERO));
+            assert_eq!(scalar.mul(scalar.invert().unwrap()), Scalar::<C>(C::U::ONE));
+        }
+    }
 }

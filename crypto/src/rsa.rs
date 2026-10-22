@@ -121,8 +121,10 @@ impl PublicKey {
             return Err(RsaError::Unspecified);
         }
         let (seq_len, len_size) = read_length(&data[1..])?;
+        let seq_len = usize::try_from(seq_len).map_err(|_| RsaError::Unspecified)?;
         let header = 1 + len_size;
-        if data.len() != header + seq_len {
+        let total_len = header.checked_add(seq_len).ok_or(RsaError::Unspecified)?;
+        if data.len() != total_len {
             return Err(RsaError::Unspecified);
         }
         let mut body = &data[header..];
@@ -243,6 +245,13 @@ impl PublicKey {
             return Err(RsaError::Unspecified);
         }
 
+        // Reject an impossible salt length before subtracting it from the
+        // encoded-message length: `salt_len` is caller-controlled and may be
+        // close to `usize::MAX`, which would otherwise overflow.
+        if salt_len > em_len.saturating_sub(hash_len + 2) {
+            return Err(RsaError::Unspecified);
+        }
+
         let mut em = [0u8; RSA_MAX_BYTES];
         write_uint_be(&m, &mut em, em_len);
 
@@ -251,9 +260,6 @@ impl PublicKey {
             return Err(RsaError::Unspecified);
         }
 
-        if em_len < hash_len + salt_len + 2 {
-            return Err(RsaError::Unspecified);
-        }
         if em[em_len - 1] != 0xBC {
             return Err(RsaError::Unspecified);
         }
@@ -446,12 +452,17 @@ fn mgf1<H: Hasher>(seed: &[u8], out: &mut [u8]) {
 /// long form is accepted only when the length is at least 128 and its first
 /// content byte is non-zero. Indefinite lengths (`0x80`) and long forms wider
 /// than four bytes are rejected.
-fn read_length(data: &[u8]) -> Result<(usize, usize), RsaError> {
+///
+/// The value is returned as a `u32` because DER lengths are at most four
+/// bytes. Callers must convert it to `usize` with `try_from` and use checked
+/// arithmetic when adding it to other offsets: on 32-bit targets the sum can
+/// otherwise wrap.
+fn read_length(data: &[u8]) -> Result<(u32, usize), RsaError> {
     if data.is_empty() {
         return Err(RsaError::Unspecified);
     }
     if data[0] & 0x80 == 0 {
-        Ok((data[0] as usize, 1))
+        Ok((data[0] as u32, 1))
     } else {
         let num_bytes = (data[0] & 0x7f) as usize;
         if num_bytes == 0 || num_bytes > 4 || data.len() < 1 + num_bytes {
@@ -460,9 +471,9 @@ fn read_length(data: &[u8]) -> Result<(usize, usize), RsaError> {
         if data[1] == 0x00 {
             return Err(RsaError::Unspecified);
         }
-        let mut len = 0usize;
+        let mut len = 0u32;
         for i in 0..num_bytes {
-            len = (len << 8) | data[1 + i] as usize;
+            len = (len << 8) | data[1 + i] as u32;
         }
         if len < 0x80 {
             return Err(RsaError::Unspecified);
@@ -483,7 +494,8 @@ fn read_integer(data: &[u8], out: &mut [u8]) -> Result<(usize, usize), RsaError>
         return Err(RsaError::Unspecified);
     }
     let (len, len_size) = read_length(&data[1..])?;
-    let consumed = 1 + len_size + len;
+    let len = usize::try_from(len).map_err(|_| RsaError::Unspecified)?;
+    let consumed = (1 + len_size).checked_add(len).ok_or(RsaError::Unspecified)?;
     if len == 0 || data.len() < consumed {
         return Err(RsaError::Unspecified);
     }
@@ -857,6 +869,9 @@ mod tests {
         // Truncated and empty inputs.
         assert!(read_length(&[0x82, 0x01]).is_err());
         assert!(read_length(&[]).is_err());
+
+        // Four-byte lengths are parsed into a u32, including the maximum.
+        assert_eq!(read_length(&[0x84, 0xff, 0xff, 0xff, 0xff]).unwrap(), (u32::MAX, 5));
     }
 
     #[test]
@@ -881,6 +896,10 @@ mod tests {
         assert!(read_integer(&[0x02, 0x00], &mut out).is_err());
         assert!(read_integer(&[0x02, 0x02, 0x01], &mut out).is_err());
         assert!(read_integer(&[0x04, 0x01, 0x01], &mut out).is_err());
+
+        // A four-byte length that overflows `usize` on 32-bit targets must be
+        // rejected instead of wrapping and producing an out-of-bounds slice.
+        assert!(read_integer(&[0x02, 0x84, 0xff, 0xff, 0xff, 0xfc], &mut out).is_err());
     }
 
     #[cfg(feature = "alloc")]
@@ -925,6 +944,12 @@ mod tests {
         let mut body_neg_e = der_integer(&n);
         body_neg_e.extend_from_slice(&[0x02, 0x01, 0x80]);
         assert!(PublicKey::from_pkcs1_der(&der_sequence(&body_neg_e)).is_err());
+
+        // 32-bit regression: the INTEGER length 0xFFFFFFFC would overflow
+        // `1 + len_size + len` on 32-bit targets, wrapping the computed end to
+        // 2 and slicing `data[6..2]`. It must be rejected on every target.
+        let overflow = [0x30, 0x07, 0x02, 0x84, 0xff, 0xff, 0xff, 0xfc, 0x00];
+        assert!(PublicKey::from_pkcs1_der(&overflow).is_err());
     }
 
     #[test]
@@ -951,6 +976,34 @@ mod tests {
         let mut tampered = msg.to_vec();
         tampered[0] ^= 0x01;
         assert!(key.verify_pss::<crate::sha2::Sha256>(&sig, &tampered, 32).is_err());
+
+        // Only the encoded salt length verifies; the boundaries around it and
+        // lengths that cannot fit in `emLen` are rejected.
+        for salt_len in [0usize, 1, 31, 32, 33, 63, 64, 222, 223, 256] {
+            let result = key.verify_pss::<crate::sha2::Sha256>(&sig, msg, salt_len);
+            assert_eq!(
+                result.is_ok(),
+                salt_len == 32,
+                "unexpected PSS result for salt_len={salt_len}: {result:?}"
+            );
+        }
+
+        // `salt_len` is caller-controlled. Values near `usize::MAX` used to
+        // overflow `hash_len + salt_len + 2` (debug panic) or wrap the
+        // subsequent subtraction (release). They must return an error.
+        for salt_len in [
+            usize::MAX,
+            usize::MAX - 1,
+            usize::MAX - 32,
+            usize::MAX / 2,
+            1usize << 32,
+        ] {
+            assert_eq!(
+                key.verify_pss::<crate::sha2::Sha256>(&sig, msg, salt_len),
+                Err(RsaError::Unspecified),
+                "salt_len={salt_len} was not rejected"
+            );
+        }
     }
 
     #[cfg(feature = "std")]

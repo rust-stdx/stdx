@@ -51,6 +51,10 @@ impl Aead for ChaCha20Poly1305 {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
+    /// # Panics
+    ///
+    /// Panics if `nonce.len() != 12` or if `in_out` exceeds
+    /// [`CHACHA20_IETF_MAX_LEN`].
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         assert!(
             in_out.len() as u64 <= CHACHA20_IETF_MAX_LEN,
@@ -152,6 +156,10 @@ impl Aead for XChaCha20Poly1305 {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 24;
 
+    /// # Panics
+    ///
+    /// Panics if `nonce.len() != 24` or if `in_out` exceeds
+    /// [`CHACHA20_IETF_MAX_LEN`].
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
         assert!(
             in_out.len() as u64 <= CHACHA20_IETF_MAX_LEN,

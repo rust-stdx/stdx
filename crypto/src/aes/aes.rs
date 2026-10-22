@@ -95,11 +95,19 @@ fn sub_word(w: [u8; 4]) -> [u8; 4] {
 /// - `N = 15` -> AES-256 (Nk=8, Nr=14, 60 words -> 15 round keys)
 ///
 /// The schedule is computed with a constant-time S-box (no table lookups).
-pub fn expand_key<const N: usize>(key: &[u8]) -> RoundKeysSoftware<N> {
+///
+/// # Panics
+///
+/// Panics if `key.len()` is not exactly 16 bytes for `N = 11` or 32 bytes for
+/// `N = 15`. Accepting other lengths would either index out of bounds or
+/// silently derive a schedule for a non-standard key size.
+pub(crate) fn expand_key<const N: usize>(key: &[u8]) -> RoundKeysSoftware<N> {
     const {
         assert!(N == 11 || N == 15);
     }
-    let nk = key.len() / 4;
+    // Number of 32-bit key words: 4 for AES-128, 8 for AES-256.
+    let nk = if N == 11 { 4 } else { 8 };
+    assert_eq!(key.len(), 4 * nk, "AES key must be {} bytes for this round count", 4 * nk);
     let words = N * 4;
 
     // Max 60 words (AES-256). Use a fixed-size buffer for both key sizes.
@@ -167,6 +175,44 @@ pub fn decrypt_block<const N: usize>(round_keys: &RoundKeysSoftware<N>, block: &
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn expand_key_accepts_standard_key_lengths() {
+        assert_eq!(expand_key::<11>(&[0u8; 16]).len(), 11);
+        assert_eq!(expand_key::<15>(&[0u8; 32]).len(), 15);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 16 bytes")]
+    fn expand_key_rejects_empty_key() {
+        let _ = expand_key::<11>(&[]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 16 bytes")]
+    fn expand_key_rejects_short_aes128_key() {
+        let _ = expand_key::<11>(&[0u8; 15]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 16 bytes")]
+    fn expand_key_rejects_non_standard_aes128_key() {
+        // 20- and 24-byte keys used to derive a silently wrong schedule.
+        let _ = expand_key::<11>(&[0u8; 20]);
+        let _ = expand_key::<11>(&[0u8; 24]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 32 bytes")]
+    fn expand_key_rejects_16_byte_aes256_key() {
+        let _ = expand_key::<15>(&[0u8; 16]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 32 bytes")]
+    fn expand_key_rejects_oversized_key() {
+        let _ = expand_key::<15>(&[0u8; 300]);
+    }
 
     // ── AES-256 block cipher (FIPS 197 Appendix B + C) ────────────────────────
 

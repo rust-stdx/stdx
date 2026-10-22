@@ -3,7 +3,7 @@
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{Hash, Hasher, MAX_HASH_BLOCK_SIZE};
+use crate::{Hash, Hasher, MAX_HASH_BLOCK_SIZE, MAX_HASH_OUTPUT_SIZE};
 
 /// HMAC (Hash-based Message Authentication Code) implementation.
 ///
@@ -50,6 +50,19 @@ impl<H: Hasher> Hmac<H> {
     }
 
     pub fn new(key: &[u8]) -> Self {
+        const {
+            assert!(
+                H::BLOCK_SIZE > 0 && H::BLOCK_SIZE <= MAX_HASH_BLOCK_SIZE,
+                "the hash block size must be in 1..=MAX_HASH_BLOCK_SIZE"
+            )
+        };
+        const {
+            assert!(
+                H::OUTPUT_SIZE > 0 && H::OUTPUT_SIZE <= MAX_HASH_OUTPUT_SIZE,
+                "the hash output size must be in 1..=MAX_HASH_OUTPUT_SIZE"
+            )
+        };
+
         let mut key_block = [0u8; MAX_HASH_BLOCK_SIZE];
 
         // normalize key to block size
@@ -109,9 +122,10 @@ impl<H: Hasher> Hmac<H> {
 #[cfg(test)]
 mod hmac_tests {
     use crate::{
+        Hasher,
         hmac::Hmac,
         sha2::{Sha256, Sha384, Sha512},
-        sha3::{Sha3_256, Sha3_512},
+        sha3::{Sha3_256, Sha3_512, Shake128},
     };
 
     #[cfg(feature = "zeroize")]
@@ -481,5 +495,45 @@ mod hmac_tests {
         }
         assert!(valid_tested > 0, "no valid HMAC-SHA3-512 wycheproof tests were run");
         assert!(invalid_tested > 0, "no invalid HMAC-SHA3-512 wycheproof tests were run");
+    }
+
+    /// SHAKE128 has a 168-byte block, the largest `Hasher::BLOCK_SIZE` in the
+    /// crate. This pins the block-size handling that used to index past the
+    /// 136-byte HMAC buffers.
+    #[test]
+    fn hmac_shake128_matches_manual_construction() {
+        fn manual_hmac(key: &[u8], message: &[u8]) -> crate::Hash {
+            let mut key_block = [0u8; Shake128::BLOCK_SIZE];
+            if key.len() > Shake128::BLOCK_SIZE {
+                let hashed = <Shake128 as Hasher>::hash(key);
+                key_block[..hashed.len()].copy_from_slice(hashed.as_ref());
+            } else {
+                key_block[..key.len()].copy_from_slice(key);
+            }
+
+            let mut inner = Shake128::new();
+            inner.update(&key_block.map(|byte| byte ^ 0x36));
+            inner.update(message);
+            let inner_hash = inner.sum();
+
+            let mut outer = Shake128::new();
+            outer.update(&key_block.map(|byte| byte ^ 0x5c));
+            outer.update(inner_hash.as_ref());
+            outer.sum()
+        }
+
+        assert_eq!(Shake128::BLOCK_SIZE, crate::MAX_HASH_BLOCK_SIZE);
+
+        for key in [&b""[..], b"key", &[0xa5u8; 168][..], &[0xa5u8; 200][..]] {
+            for message in [&b""[..], b"message", &[0x5au8; 1000][..]] {
+                assert_eq!(
+                    Hmac::<Shake128>::mac(key, message).as_ref(),
+                    manual_hmac(key, message).as_ref(),
+                    "HMAC-SHAKE128 mismatch for key len {} and message len {}",
+                    key.len(),
+                    message.len()
+                );
+            }
+        }
     }
 }
