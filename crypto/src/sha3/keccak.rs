@@ -45,6 +45,143 @@ enum SpongeMode {
     Squeezing,
 }
 
+/// The single-state permutation implementation a sponge uses.
+///
+/// Detection happens once, when the sponge is created, so the hot path never
+/// probes the CPU. This mirrors [`super::keccak_batch::Backend`], which does
+/// the same for the batched permutation.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
+pub(crate) enum PermuteBackend {
+    /// Portable 64-bit implementation.
+    Soft,
+    /// x86-64 with BMI1 and BMI2 (`andn`, `rorx`).
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
+    ))]
+    Bmi,
+    /// x86-64 single-state AVX2, in the CRYPTOGAMS "magic" lane order.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+    Avx2,
+    /// x86-64 single-state AVX-512F, two rounds per iteration.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    Avx512,
+    /// Armv8.4-A with FEAT_SHA3.
+    #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
+    Sha3,
+}
+
+/// Whether the single-state AVX2 kernel is expected to beat the scalar one.
+///
+/// The CRYPTOGAMS kernel leans on 256-bit shuffles and blends. AMD cores before
+/// Zen 2 split 256-bit instructions in two, and the reference implementation
+/// notes that the kernel then loses to a 64-bit scalar implementation. On those
+/// parts the dispatcher falls back to BMI1/BMI2 instead.
+#[cfg(all(target_arch = "x86_64", feature = "std"))]
+fn avx2_single_state_pays_off() -> bool {
+    let leaf0 = core::arch::x86_64::__cpuid(0);
+    let is_amd = leaf0.ebx == 0x6874_7541 && leaf0.edx == 0x6974_6e65 && leaf0.ecx == 0x444d_4163;
+    if !is_amd {
+        return true;
+    }
+
+    let leaf1 = core::arch::x86_64::__cpuid(1);
+    let base_family = (leaf1.eax >> 8) & 0xf;
+    let base_model = (leaf1.eax >> 4) & 0xf;
+    let ext_family = (leaf1.eax >> 20) & 0xff;
+    let ext_model = (leaf1.eax >> 16) & 0xf;
+    let family = if base_family == 0xf {
+        base_family + ext_family
+    } else {
+        base_family
+    };
+    let model = if base_family == 0x6 || base_family == 0xf {
+        (ext_model << 4) | base_model
+    } else {
+        base_model
+    };
+
+    // Excavator (0x15, 0x16) and Zen 1 / Zen+ (0x17, model < 0x30).
+    return !(family == 0x15 || family == 0x16 || (family == 0x17 && model < 0x30));
+}
+
+impl PermuteBackend {
+    /// Detects the widest single-state backend the CPU supports.
+    ///
+    /// Statically enabled `target_feature`s win over the runtime probe, for the
+    /// same reason as in the batched backend: a binary built for a specific CPU
+    /// may be run where the probe is masked.
+    #[allow(unreachable_code)]
+    #[inline]
+    pub(crate) fn detect() -> Self {
+        #[cfg(target_arch = "x86_64")]
+        {
+            #[cfg(feature = "std")]
+            {
+                #[cfg(target_feature = "avx512f")]
+                return PermuteBackend::Avx512;
+
+                #[cfg(target_feature = "avx2")]
+                return PermuteBackend::Avx2;
+
+                #[cfg(all(target_feature = "bmi1", target_feature = "bmi2"))]
+                return PermuteBackend::Bmi;
+
+                if std::arch::is_x86_feature_detected!("avx512f") {
+                    return PermuteBackend::Avx512;
+                }
+                if std::arch::is_x86_feature_detected!("avx2") && avx2_single_state_pays_off() {
+                    return PermuteBackend::Avx2;
+                }
+                if std::arch::is_x86_feature_detected!("bmi1") && std::arch::is_x86_feature_detected!("bmi2") {
+                    return PermuteBackend::Bmi;
+                }
+            }
+
+            #[cfg(all(not(feature = "std"), target_feature = "avx512f"))]
+            return PermuteBackend::Avx512;
+
+            #[cfg(all(not(feature = "std"), target_feature = "avx2"))]
+            return PermuteBackend::Avx2;
+
+            #[cfg(all(not(feature = "std"), target_feature = "bmi1", target_feature = "bmi2"))]
+            return PermuteBackend::Bmi;
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            #[cfg(feature = "std")]
+            if std::arch::is_aarch64_feature_detected!("sha3") {
+                return PermuteBackend::Sha3;
+            }
+
+            #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+            return PermuteBackend::Sha3;
+        }
+
+        PermuteBackend::Soft
+    }
+
+    /// Human-readable name of this backend, for diagnostics.
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            PermuteBackend::Soft => "scalar",
+            #[cfg(all(
+                target_arch = "x86_64",
+                any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
+            ))]
+            PermuteBackend::Bmi => "bmi2",
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+            PermuteBackend::Avx2 => "avx2",
+            #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+            PermuteBackend::Avx512 => "avx512",
+            #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
+            PermuteBackend::Sha3 => "armv8.4-sha3",
+        }
+    }
+}
+
 /// A sponge construction based on Keccak p1600
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
@@ -58,6 +195,8 @@ pub struct KeccakSponge<const ROUNDS: usize> {
     /// the current position in the state buffer
     pos: usize,
     mode: SpongeMode,
+    /// cached at construction so the permutation does not probe the CPU
+    backend: PermuteBackend,
 }
 
 impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
@@ -80,6 +219,7 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
             padding: delimiter,
             pos: 0,
             mode: SpongeMode::Absorbing,
+            backend: PermuteBackend::detect(),
         };
     }
 
@@ -167,38 +307,59 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
         // this is totally safe as long as state.len() == 200 and state remains a [u8]. We are just
         // playing with the memory representation of the array, from [u8] to [u64].
         let state: &mut [u64; 200 / 8] = unsafe { core::mem::transmute(&mut self.state) };
-        p1600::<ROUNDS>(state);
+        p1600_with::<ROUNDS>(state, self.backend);
         self.pos = 0;
     }
 }
 
 /// The Keccak-p permutation of a 1600-bit state.
 ///
-/// On aarch64 the ARMv8.4-A SHA-3 instructions are used when the running CPU
-/// implements the optional FEAT_SHA3 extension; otherwise the portable
-/// implementation is used.
+/// The best implementation the CPU supports is detected at run time when the
+/// `std` feature is enabled and the extension is not already enabled at compile
+/// time: BMI1/BMI2 on x86-64 and FEAT_SHA3 on aarch64. Everywhere else the
+/// portable implementation is used.
+///
+/// Callers that permute more than one block should detect once with
+/// [`PermuteBackend::detect`] and call [`p1600_with`] instead; [`KeccakSponge`]
+/// already does.
 pub fn p1600<const ROUNDS: usize>(state: &mut [u64; 25]) {
+    p1600_with::<ROUNDS>(state, PermuteBackend::detect());
+}
+
+/// Applies Keccak-p[1600, `ROUNDS`] with an already-detected `backend`.
+///
+/// `ROUNDS` must not exceed 24; a larger value aborts in debug builds and is
+/// unsupported otherwise.
+pub(crate) fn p1600_with<const ROUNDS: usize>(state: &mut [u64; 25], backend: PermuteBackend) {
     const {
         assert!(ROUNDS <= 24, "A round_count greater than 24 is not supported.");
     }
 
-    // SAFETY: `p1600_armv8` requires the `sha3` target feature, which
-    // is dynamically or statically detected.
-    #[cfg(target_arch = "aarch64")]
-    unsafe {
-        // FEAT_SHA3 is optional on aarch64, so it must be detected before the
-        // hardware permutation is used. Without `std` the feature is known at
-        // compile time instead.
-        #[cfg(feature = "std")]
-        if std::arch::is_aarch64_feature_detected!("sha3") {
-            return super::keccak_arm64::p1600_armv8::<ROUNDS>(state);
+    match backend {
+        PermuteBackend::Soft => p1600_soft::<ROUNDS>(state),
+        #[cfg(all(
+            target_arch = "x86_64",
+            any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
+        ))]
+        // SAFETY: the backend was detected at construction.
+        PermuteBackend::Bmi => unsafe { super::keccak_amd64::p1600_bmi::<ROUNDS>(state) },
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+        // SAFETY: the backend was detected at construction.
+        PermuteBackend::Avx2 => unsafe { super::keccak_amd64::p1600_avx2::<ROUNDS>(state) },
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+        PermuteBackend::Avx512 => {
+            // The kernel applies rounds in pairs; fall back for odd counts.
+            if ROUNDS.is_multiple_of(2) {
+                // SAFETY: the backend was detected at construction.
+                unsafe { super::keccak_amd64::p1600_avx512::<ROUNDS>(state) }
+            } else {
+                p1600_soft::<ROUNDS>(state)
+            }
         }
-
-        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
-        return super::keccak_arm64::p1600_armv8::<ROUNDS>(state);
+        #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
+        // SAFETY: FEAT_SHA3 was detected at construction.
+        PermuteBackend::Sha3 => unsafe { super::keccak_arm64::p1600_armv8::<ROUNDS>(state) },
     }
-
-    p1600_soft::<ROUNDS>(state);
 }
 
 /// Portable implementation of the Keccak-p permutation of a 1600-bit state.
@@ -364,6 +525,19 @@ mod tests {
         let _ = super::KeccakSponge::<24>::new(201, 0x06);
     }
 
+    /// Deterministic pseudo-random state, adequate for differential tests.
+    fn random_state(seed: u64) -> [u64; 25] {
+        let mut rng = seed;
+        let mut state = [0u64; 25];
+        for word in state.iter_mut() {
+            rng ^= rng >> 12;
+            rng ^= rng << 25;
+            rng ^= rng >> 27;
+            *word = rng.wrapping_mul(0x2545_f491_4f6c_dd1d);
+        }
+        return state;
+    }
+
     /// The FEAT_SHA3 permutation must agree with the portable one for every
     /// round count, not just for the 24 rounds covered by the XKCP vectors.
     #[cfg(all(target_arch = "aarch64", feature = "std"))]
@@ -375,15 +549,7 @@ mod tests {
             return;
         }
 
-        let mut rng = 0x0123_4567_89ab_cdef_u64;
-        let mut state = [0u64; 25];
-        for word in state.iter_mut() {
-            rng ^= rng >> 12;
-            rng ^= rng << 25;
-            rng ^= rng >> 27;
-            *word = rng.wrapping_mul(0x2545_f491_4f6c_dd1d);
-        }
-
+        let state = random_state(0x0123_4567_89ab_cdef);
         macro_rules! check {
             ($($rounds:literal),* $(,)?) => {
                 $({
@@ -391,6 +557,123 @@ mod tests {
                     let mut portable = state;
                     // SAFETY: FEAT_SHA3 was detected above.
                     unsafe { p1600_armv8::<$rounds>(&mut hardware) };
+                    p1600_soft::<$rounds>(&mut portable);
+                    assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
+                })*
+            };
+        }
+
+        check!(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        );
+    }
+
+    /// The BMI1/BMI2 permutation must agree with the portable one for every
+    /// round count, not just for the 24 rounds covered by the XKCP vectors.
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
+    ))]
+    #[test]
+    fn keccak_f1600_bmi_matches_soft() {
+        use crate::sha3::keccak_amd64::p1600_bmi;
+
+        #[cfg(feature = "std")]
+        if !(std::arch::is_x86_feature_detected!("bmi1") && std::arch::is_x86_feature_detected!("bmi2")) {
+            return;
+        }
+
+        let state = random_state(0x0123_4567_89ab_cdef);
+        macro_rules! check {
+            ($($rounds:literal),* $(,)?) => {
+                $({
+                    let mut hardware = state;
+                    let mut portable = state;
+                    // SAFETY: BMI1 and BMI2 were detected above.
+                    unsafe { p1600_bmi::<$rounds>(&mut hardware) };
+                    p1600_soft::<$rounds>(&mut portable);
+                    assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
+                })*
+            };
+        }
+
+        check!(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        );
+    }
+
+    /// The single-state AVX2 permutation must agree with the portable one for
+    /// every round count.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+    #[test]
+    fn keccak_f1600_avx2_matches_soft() {
+        use crate::sha3::keccak_amd64::p1600_avx2;
+
+        #[cfg(feature = "std")]
+        if !std::arch::is_x86_feature_detected!("avx2") {
+            return;
+        }
+
+        let state = random_state(0x0123_4567_89ab_cdef);
+        macro_rules! check {
+            ($($rounds:literal),* $(,)?) => {
+                $({
+                    let mut hardware = state;
+                    let mut portable = state;
+                    // SAFETY: AVX2 was detected above.
+                    unsafe { p1600_avx2::<$rounds>(&mut hardware) };
+                    p1600_soft::<$rounds>(&mut portable);
+                    assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
+                })*
+            };
+        }
+
+        check!(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        );
+    }
+
+    /// The single-state AVX-512 permutation must agree with the portable one
+    /// for every even round count.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    #[test]
+    fn keccak_f1600_avx512_matches_soft() {
+        use crate::sha3::keccak_amd64::p1600_avx512;
+
+        #[cfg(feature = "std")]
+        if !std::arch::is_x86_feature_detected!("avx512f") {
+            return;
+        }
+
+        let state = random_state(0x0123_4567_89ab_cdef);
+        macro_rules! check {
+            ($($rounds:literal),* $(,)?) => {
+                $({
+                    let mut hardware = state;
+                    let mut portable = state;
+                    // SAFETY: AVX-512F was detected above.
+                    unsafe { p1600_avx512::<$rounds>(&mut hardware) };
+                    p1600_soft::<$rounds>(&mut portable);
+                    assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
+                })*
+            };
+        }
+
+        check!(2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24);
+    }
+
+    /// The backend selected by [`super::PermuteBackend::detect`] must agree with
+    /// the portable implementation for every round count.
+    #[test]
+    fn dispatched_backend_matches_soft() {
+        let backend = super::PermuteBackend::detect();
+        let state = random_state(0x0123_4567_89ab_cdef);
+        macro_rules! check {
+            ($($rounds:literal),* $(,)?) => {
+                $({
+                    let mut hardware = state;
+                    let mut portable = state;
+                    super::p1600_with::<$rounds>(&mut hardware, backend);
                     p1600_soft::<$rounds>(&mut portable);
                     assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
                 })*

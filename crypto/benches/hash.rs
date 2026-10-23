@@ -8,17 +8,18 @@ use crypto::{
     blake3::Blake3,
     sha2::{Sha256, Sha512},
     sha3::{
-        Kt256, ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256, kt256_backend_name,
+        Kt256, ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256, keccak_backend_name, kt256_backend_name,
         parallel_hash_backend_name,
     },
 };
 
-const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
+const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024, 10 * 1024 * 1024];
 
 fn bench_hashes(c: &mut Criterion) {
-    // Printed once so CI logs record which leaf kernel the numbers measure.
+    // Printed once so CI logs record which kernels the numbers measure.
     // `ParallelHash` at B=8192 should land near `width` times the SHAKE256
     // throughput; if it does not, the batched backend is not doing its job.
+    eprintln!("Keccak single-lane backend: {}", keccak_backend_name());
     eprintln!("ParallelHash backend: {}", parallel_hash_backend_name());
     eprintln!("KT256 backend: {}", kt256_backend_name());
 
@@ -64,16 +65,16 @@ fn bench_hashes(c: &mut Criterion) {
             });
         });
 
-        group.bench_with_input(BenchmarkId::from_parameter("KT256-64"), &data, |b, data| {
+        group.bench_with_input(BenchmarkId::from_parameter("KT256"), &data, |b, data| {
             b.iter(|| {
-                let mut out = [0u8; 64];
+                let mut out = [0u8; 32];
                 Kt256::hash(black_box(data.as_slice()), b"", &mut out);
                 black_box(out);
             });
         });
 
         // ParallelHash256 with the most common block sizes.
-        for (label, block_size) in [("B1024", 1024usize), ("B8192", 8192)] {
+        for (label, block_size) in [("B1024", 1024usize), ("B4096", 4096), ("B8192", 8192)] {
             group.bench_with_input(
                 BenchmarkId::from_parameter(format!("ParallelHash256-{label}")),
                 &data,

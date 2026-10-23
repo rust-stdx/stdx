@@ -233,16 +233,21 @@ mod scalar {
 
 /// AVX2 4-way Keccak-p[1600].
 ///
-/// Same structure as the NEON 2-way kernel below, but each `__m256i` holds the
-/// same lane of four states. AVX2 has no per-64-bit-lane rotate, so `rotl` uses
-/// the variable-shift instructions `vpsllvq`/`vpsrlvq`; a shift count of 64
-/// yields zero, which makes `rotl(x, 0) == x` fall out naturally.
+/// Each `__m256i` holds the same lane of four states. The round is written as a
+/// straight-line, by-value function and fully unrolled, like the AVX-512 kernel
+/// above: a loop over `RHO`/`PI` keeps the state in memory and turns every
+/// rotation into a broadcast of the shift count plus `vpsllvq`/`vpsrlvq`, which
+/// costs about three times as many instructions as immediate shifts.
+///
+/// AVX2 has no per-64-bit-lane rotate, so `rotl` is two immediate shifts and an
+/// `or`. Rotations by 8 and 56 could use `vpshufb`, but a byte-shuffle mask is a
+/// memory operand and does not measurably reduce the round's port pressure.
 #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
 mod avx2 {
     use core::arch::x86_64::*;
 
     use super::MAX_LANES;
-    use crate::sha3::keccak::{PI, RHO, ROUND_CONSTANTS};
+    use crate::sha3::keccak::ROUND_CONSTANTS;
 
     /// # Safety
     /// The caller must have verified that the CPU implements AVX2, and `state`
@@ -255,59 +260,211 @@ mod avx2 {
         keccak_p1600_x4::<ROUNDS>(s);
     }
 
+    macro_rules! rotl {
+        ($a:expr, $n:literal) => {
+            _mm256_or_si256(_mm256_slli_epi64::<$n>($a), _mm256_srli_epi64::<{ 64 - $n }>($a))
+        };
+    }
+    macro_rules! xor {
+        ($a:expr, $b:expr) => {
+            _mm256_xor_si256($a, $b)
+        };
+    }
+    /// `_mm256_andnot_si256(a, b)` is `!a & b`, which is the `!b & c` of chi.
+    macro_rules! andnot {
+        ($a:expr, $b:expr) => {
+            _mm256_andnot_si256($a, $b)
+        };
+    }
+    macro_rules! xor4 {
+        ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr) => {
+            xor!(xor!(xor!($a, $b), xor!($c, $d)), $e)
+        };
+    }
+
+    /// One Keccak-p[1600] round for four states.
+    ///
+    /// The state goes in and comes out by value so that [`keccak_p1600_x4`]
+    /// expands the selected rounds into straight-line code. Chi writes a fresh
+    /// set of names instead of overwriting its inputs, so the round needs no
+    /// register-to-register copies of its own.
     #[inline(always)]
-    unsafe fn rotl(a: __m256i, n: u32) -> __m256i {
-        let l = _mm256_sllv_epi64(a, _mm256_set1_epi64x(n as i64));
-        let r = _mm256_srlv_epi64(a, _mm256_set1_epi64x((64 - n) as i64));
-        return _mm256_or_si256(l, r);
+    unsafe fn round(s: [__m256i; 25], rc: u64) -> [__m256i; 25] {
+        let [
+            s0,
+            s1,
+            s2,
+            s3,
+            s4,
+            s5,
+            s6,
+            s7,
+            s8,
+            s9,
+            s10,
+            s11,
+            s12,
+            s13,
+            s14,
+            s15,
+            s16,
+            s17,
+            s18,
+            s19,
+            s20,
+            s21,
+            s22,
+            s23,
+            s24,
+        ] = s;
+        let rc = _mm256_set1_epi64x(rc as i64);
+
+        let c0 = xor4!(s0, s5, s10, s15, s20);
+        let c1 = xor4!(s1, s6, s11, s16, s21);
+        let c2 = xor4!(s2, s7, s12, s17, s22);
+        let c3 = xor4!(s3, s8, s13, s18, s23);
+        let c4 = xor4!(s4, s9, s14, s19, s24);
+        let d0 = xor!(c4, rotl!(c1, 1));
+        let d1 = xor!(c0, rotl!(c2, 1));
+        let d2 = xor!(c1, rotl!(c3, 1));
+        let d3 = xor!(c2, rotl!(c4, 1));
+        let d4 = xor!(c3, rotl!(c0, 1));
+        let t0 = xor!(s0, d0);
+        let t1 = xor!(s1, d1);
+        let t2 = xor!(s2, d2);
+        let t3 = xor!(s3, d3);
+        let t4 = xor!(s4, d4);
+        let t5 = xor!(s5, d0);
+        let t6 = xor!(s6, d1);
+        let t7 = xor!(s7, d2);
+        let t8 = xor!(s8, d3);
+        let t9 = xor!(s9, d4);
+        let t10 = xor!(s10, d0);
+        let t11 = xor!(s11, d1);
+        let t12 = xor!(s12, d2);
+        let t13 = xor!(s13, d3);
+        let t14 = xor!(s14, d4);
+        let t15 = xor!(s15, d0);
+        let t16 = xor!(s16, d1);
+        let t17 = xor!(s17, d2);
+        let t18 = xor!(s18, d3);
+        let t19 = xor!(s19, d4);
+        let t20 = xor!(s20, d0);
+        let t21 = xor!(s21, d1);
+        let t22 = xor!(s22, d2);
+        let t23 = xor!(s23, d3);
+        let t24 = xor!(s24, d4);
+        let n10 = rotl!(t1, 1);
+        let n7 = rotl!(t10, 3);
+        let n11 = rotl!(t7, 6);
+        let n17 = rotl!(t11, 10);
+        let n18 = rotl!(t17, 15);
+        let n3 = rotl!(t18, 21);
+        let n5 = rotl!(t3, 28);
+        let n16 = rotl!(t5, 36);
+        let n8 = rotl!(t16, 45);
+        let n21 = rotl!(t8, 55);
+        let n24 = rotl!(t21, 2);
+        let n4 = rotl!(t24, 14);
+        let n15 = rotl!(t4, 27);
+        let n23 = rotl!(t15, 41);
+        let n19 = rotl!(t23, 56);
+        let n13 = rotl!(t19, 8);
+        let n12 = rotl!(t13, 25);
+        let n2 = rotl!(t12, 43);
+        let n20 = rotl!(t2, 62);
+        let n14 = rotl!(t20, 18);
+        let n22 = rotl!(t14, 39);
+        let n9 = rotl!(t22, 61);
+        let n6 = rotl!(t9, 20);
+        let n1 = rotl!(t6, 44);
+        let (p0, p1, p2, p3, p4) = (t0, n1, n2, n3, n4);
+        let o0 = xor!(p0, andnot!(p1, p2));
+        let o1 = xor!(p1, andnot!(p2, p3));
+        let o2 = xor!(p2, andnot!(p3, p4));
+        let o3 = xor!(p3, andnot!(p4, p0));
+        let o4 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n5, n6, n7, n8, n9);
+        let o5 = xor!(p0, andnot!(p1, p2));
+        let o6 = xor!(p1, andnot!(p2, p3));
+        let o7 = xor!(p2, andnot!(p3, p4));
+        let o8 = xor!(p3, andnot!(p4, p0));
+        let o9 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n10, n11, n12, n13, n14);
+        let o10 = xor!(p0, andnot!(p1, p2));
+        let o11 = xor!(p1, andnot!(p2, p3));
+        let o12 = xor!(p2, andnot!(p3, p4));
+        let o13 = xor!(p3, andnot!(p4, p0));
+        let o14 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n15, n16, n17, n18, n19);
+        let o15 = xor!(p0, andnot!(p1, p2));
+        let o16 = xor!(p1, andnot!(p2, p3));
+        let o17 = xor!(p2, andnot!(p3, p4));
+        let o18 = xor!(p3, andnot!(p4, p0));
+        let o19 = xor!(p4, andnot!(p0, p1));
+        let (p0, p1, p2, p3, p4) = (n20, n21, n22, n23, n24);
+        let o20 = xor!(p0, andnot!(p1, p2));
+        let o21 = xor!(p1, andnot!(p2, p3));
+        let o22 = xor!(p2, andnot!(p3, p4));
+        let o23 = xor!(p3, andnot!(p4, p0));
+        let o24 = xor!(p4, andnot!(p0, p1));
+        let o0 = xor!(o0, rc);
+
+        return [
+            o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16, o17, o18, o19, o20, o21, o22,
+            o23, o24,
+        ];
     }
 
     /// # Safety
     /// AVX2 must be available.
     #[target_feature(enable = "avx2")]
-    unsafe fn keccak_p1600_x4<const ROUNDS: usize>(s: &mut [__m256i; 25]) {
-        for &rc in ROUND_CONSTANTS[24 - ROUNDS..].iter() {
-            // theta
-            let mut c = [_mm256_setzero_si256(); 5];
-            for x in 0..5 {
-                c[x] = _mm256_xor_si256(
-                    _mm256_xor_si256(_mm256_xor_si256(_mm256_xor_si256(s[x], s[5 + x]), s[10 + x]), s[15 + x]),
-                    s[20 + x],
-                );
+    unsafe fn keccak_p1600_x4<const ROUNDS: usize>(st: &mut [__m256i; 25]) {
+        let mut s = *st;
+        match ROUNDS {
+            12 => {
+                s = round(s, ROUND_CONSTANTS[12]);
+                s = round(s, ROUND_CONSTANTS[13]);
+                s = round(s, ROUND_CONSTANTS[14]);
+                s = round(s, ROUND_CONSTANTS[15]);
+                s = round(s, ROUND_CONSTANTS[16]);
+                s = round(s, ROUND_CONSTANTS[17]);
+                s = round(s, ROUND_CONSTANTS[18]);
+                s = round(s, ROUND_CONSTANTS[19]);
+                s = round(s, ROUND_CONSTANTS[20]);
+                s = round(s, ROUND_CONSTANTS[21]);
+                s = round(s, ROUND_CONSTANTS[22]);
+                s = round(s, ROUND_CONSTANTS[23]);
             }
-            let mut d = [_mm256_setzero_si256(); 5];
-            for x in 0..5 {
-                d[x] = _mm256_xor_si256(c[(x + 4) % 5], rotl(c[(x + 1) % 5], 1));
+            24 => {
+                s = round(s, ROUND_CONSTANTS[0]);
+                s = round(s, ROUND_CONSTANTS[1]);
+                s = round(s, ROUND_CONSTANTS[2]);
+                s = round(s, ROUND_CONSTANTS[3]);
+                s = round(s, ROUND_CONSTANTS[4]);
+                s = round(s, ROUND_CONSTANTS[5]);
+                s = round(s, ROUND_CONSTANTS[6]);
+                s = round(s, ROUND_CONSTANTS[7]);
+                s = round(s, ROUND_CONSTANTS[8]);
+                s = round(s, ROUND_CONSTANTS[9]);
+                s = round(s, ROUND_CONSTANTS[10]);
+                s = round(s, ROUND_CONSTANTS[11]);
+                s = round(s, ROUND_CONSTANTS[12]);
+                s = round(s, ROUND_CONSTANTS[13]);
+                s = round(s, ROUND_CONSTANTS[14]);
+                s = round(s, ROUND_CONSTANTS[15]);
+                s = round(s, ROUND_CONSTANTS[16]);
+                s = round(s, ROUND_CONSTANTS[17]);
+                s = round(s, ROUND_CONSTANTS[18]);
+                s = round(s, ROUND_CONSTANTS[19]);
+                s = round(s, ROUND_CONSTANTS[20]);
+                s = round(s, ROUND_CONSTANTS[21]);
+                s = round(s, ROUND_CONSTANTS[22]);
+                s = round(s, ROUND_CONSTANTS[23]);
             }
-            for y in 0..5 {
-                for x in 0..5 {
-                    s[5 * y + x] = _mm256_xor_si256(s[5 * y + x], d[x]);
-                }
-            }
-
-            // rho and pi
-            let mut last = s[1];
-            for i in 0..24 {
-                let j = PI[i];
-                let tmp = s[j];
-                s[j] = rotl(last, RHO[i]);
-                last = tmp;
-            }
-
-            // chi: `b[x] ^ (!b[x + 1] & b[x + 2])`; `_mm256_andnot_si256(a, b)`
-            // is `!a & b`.
-            for y in 0..5 {
-                let b = [s[5 * y], s[5 * y + 1], s[5 * y + 2], s[5 * y + 3], s[5 * y + 4]];
-                s[5 * y] = _mm256_xor_si256(b[0], _mm256_andnot_si256(b[1], b[2]));
-                s[5 * y + 1] = _mm256_xor_si256(b[1], _mm256_andnot_si256(b[2], b[3]));
-                s[5 * y + 2] = _mm256_xor_si256(b[2], _mm256_andnot_si256(b[3], b[4]));
-                s[5 * y + 3] = _mm256_xor_si256(b[3], _mm256_andnot_si256(b[4], b[0]));
-                s[5 * y + 4] = _mm256_xor_si256(b[4], _mm256_andnot_si256(b[0], b[1]));
-            }
-
-            // iota
-            s[0] = _mm256_xor_si256(s[0], _mm256_set1_epi64x(rc as i64));
+            _ => unreachable!(),
         }
+        *st = s;
     }
 
     /// AVX2 counterpart of [`super::avx512::xor_lanes`]: a 4x4 transpose of
