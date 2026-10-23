@@ -13,7 +13,7 @@ RUN apt-get install -y --no-install-recommends \
     # dev tools. dnsutils for dig. bsdmainutils for hexdump.
     git vim make binutils coreutils build-essential pkg-config linux-perf ripgrep sqlite3 \
     zip htop wrk zstd gdb dnsutils jq b3sum gnupg libimage-exiftool-perl bsdmainutils lsof xxd net-tools iproute2 \
-    python3 python3-pip pipx tcpdump strace \
+    python3 python3-pip pipx tcpdump strace qemu-user \
     # Rust toolchain
     rustup openssl libssl-dev musl musl-dev musl-tools libc6-dev clang-22 llvm-22 llvm-22-dev libclang-22-dev lld-22 \
     # useful data. mailcap for mimetypes. tzdata for timezones.
