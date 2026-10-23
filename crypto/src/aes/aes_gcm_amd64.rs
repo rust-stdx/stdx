@@ -426,11 +426,38 @@ unsafe fn counter_pattern256(offset: i32) -> __m256i {
     _mm256_set_epi32(offset + 1, 0, 0, 0, offset, 0, 0, 0)
 }
 
+/// Memory layout of the byte-swapped counter offsets for one ZMM register.
+///
+/// Each 128-bit lane's GCM counter lives in its last 32-bit word, i.e. elements
+/// 3, 7, 11, and 15. Keeping this as a plain array makes the lane placement
+/// testable without executing AVX-512 instructions.
+#[inline]
+const fn counter_pattern512_values(offset: i32) -> [i32; 16] {
+    [
+        0,
+        0,
+        0,
+        offset,
+        0,
+        0,
+        0,
+        offset + 1,
+        0,
+        0,
+        0,
+        offset + 2,
+        0,
+        0,
+        0,
+        offset + 3,
+    ]
+}
+
 /// Byte-swapped counter offsets for one ZMM register (four blocks).
 #[inline]
 #[target_feature(enable = "avx512f")]
 unsafe fn counter_pattern512(offset: i32) -> __m512i {
-    _mm512_set_epi32(offset + 3, 0, 0, 0, offset + 2, 0, 0, 0, offset + 1, 0, 0, 0, offset, 0, 0, 0)
+    _mm512_loadu_si512(counter_pattern512_values(offset).as_ptr().cast())
 }
 
 /// Compute the final GCM tag from an authenticated GHASH state.
