@@ -72,40 +72,6 @@ pub(crate) enum PermuteBackend {
     Sha3,
 }
 
-/// Whether the single-state AVX2 kernel is expected to beat the scalar one.
-///
-/// The CRYPTOGAMS kernel leans on 256-bit shuffles and blends. AMD cores before
-/// Zen 2 split 256-bit instructions in two, and the reference implementation
-/// notes that the kernel then loses to a 64-bit scalar implementation. On those
-/// parts the dispatcher falls back to BMI1/BMI2 instead.
-#[cfg(all(target_arch = "x86_64", feature = "std"))]
-fn avx2_single_state_pays_off() -> bool {
-    let leaf0 = core::arch::x86_64::__cpuid(0);
-    let is_amd = leaf0.ebx == 0x6874_7541 && leaf0.edx == 0x6974_6e65 && leaf0.ecx == 0x444d_4163;
-    if !is_amd {
-        return true;
-    }
-
-    let leaf1 = core::arch::x86_64::__cpuid(1);
-    let base_family = (leaf1.eax >> 8) & 0xf;
-    let base_model = (leaf1.eax >> 4) & 0xf;
-    let ext_family = (leaf1.eax >> 20) & 0xff;
-    let ext_model = (leaf1.eax >> 16) & 0xf;
-    let family = if base_family == 0xf {
-        base_family + ext_family
-    } else {
-        base_family
-    };
-    let model = if base_family == 0x6 || base_family == 0xf {
-        (ext_model << 4) | base_model
-    } else {
-        base_model
-    };
-
-    // Excavator (0x15, 0x16) and Zen 1 / Zen+ (0x17, model < 0x30).
-    return !(family == 0x15 || family == 0x16 || (family == 0x17 && model < 0x30));
-}
-
 impl PermuteBackend {
     /// Detects the widest single-state backend the CPU supports.
     ///
@@ -131,7 +97,7 @@ impl PermuteBackend {
                 if std::arch::is_x86_feature_detected!("avx512f") {
                     return PermuteBackend::Avx512;
                 }
-                if std::arch::is_x86_feature_detected!("avx2") && avx2_single_state_pays_off() {
+                if std::arch::is_x86_feature_detected!("avx2") {
                     return PermuteBackend::Avx2;
                 }
                 if std::arch::is_x86_feature_detected!("bmi1") && std::arch::is_x86_feature_detected!("bmi2") {
