@@ -3,8 +3,9 @@
 /// The software implementation is **constant-time**: it uses no lookup tables
 /// and no secret-dependent branches, so it does not leak key or data bytes
 /// through cache or timing side channels (see [`super::aes_ct`]). Hardware
-/// paths (AES-NI / ARMv8) are used when available and are used in preference
-/// to this fallback.
+/// paths are used when available and are preferred over this fallback:
+/// AES-NI, VAES-256, and VAES-512 on x86-64, and ARMv8 Crypto Extensions on
+/// aarch64.
 #[cfg(test)]
 use super::ghash::gf128_mul;
 

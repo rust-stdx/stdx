@@ -372,7 +372,7 @@ mod tests {
     }
 
     fn make_h_powers(key: &[u8; 32]) -> [uint8x16_t; 8] {
-        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers::<15>(key);
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers_8::<15>(key);
         let mut hp = [unsafe { vdupq_n_u8(0) }; 8];
         for i in 0..8 {
             hp[i] = unsafe { vld1q_u8(bytes[i].as_ptr()) };

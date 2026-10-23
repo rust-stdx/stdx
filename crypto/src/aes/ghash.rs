@@ -22,8 +22,11 @@
 /// A 128-bit GCM element is stored as `[u8; 16]` in big-endian byte order.
 /// Multiplications use little-endian 32-bit words internally, matching the
 /// bit order expected by the carry-less reduction.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 use super::aes::{encrypt_block, expand_key};
-use crate::{Hash, aes::aes::RoundKeysSoftware, bytes::Bytes};
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+use crate::aes::aes::RoundKeysSoftware;
+use crate::{Hash, bytes::Bytes};
 
 /// Compute the GCM authentication tag (pure Rust).
 pub(crate) fn compute_tag(h: &[u8; 16], aad: &[u8], ciphertext: &[u8], ej0: &[u8; 16]) -> Hash {
@@ -72,6 +75,7 @@ fn ghash_block(state: &mut [u8; 16], h: &[u8; 16], block: &[u8; 16]) {
 /// Reverse bits in each byte of a 16-byte block.
 /// Converts from GCM's big-endian polynomial representation to
 /// PCLMULQDQ's little-endian domain (and vice versa).
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline(always)]
 pub(crate) fn bitreverse_bytes(block: &[u8; 16]) -> [u8; 16] {
     let mut out = [0u8; 16];
@@ -238,48 +242,60 @@ pub(crate) fn gf128_mul(x: &[u8; 16], h: &[u8; 16]) -> [u8; 16] {
 
 /// Precomputed GHASH powers for AES-GCM — hardware-native or software.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
+// The x86 variant stores 16 powers (256 bytes) so the 512-bit GCM path can use
+// a single descheduled table. Keeping it inline avoids an allocation on no_std
+// targets; the other variants are much smaller.
+#[allow(clippy::large_enum_variant)]
 pub enum GHashPowers {
+    /// H¹ through H¹⁶ in bit-reversed-per-byte form. The extra powers are used
+    /// by the 512-bit (16-block) GCM path; the 128-bit and 256-bit paths use
+    /// the first eight.
     #[cfg(target_arch = "x86_64")]
-    X86_64([core::arch::x86_64::__m128i; 8]),
+    X86_64([core::arch::x86_64::__m128i; 16]),
     #[cfg(target_arch = "aarch64")]
     Armv8([core::arch::aarch64::uint8x16_t; 8]),
     /// The platform doesn't support hardware GHASH; stores `H` only.
     Software([u8; 16]),
 }
 
-/// Precompute GHASH powers H¹ through H⁸ in bit-reversed-per-byte form.
+/// Precompute GHASH powers H¹ through H¹⁶ in bit-reversed-per-byte form.
 ///
-/// Returns `([h1_br..h8_br], h_natural)` where:
-/// - `h1_br`..`h8_br` are in the bit-reversed domain used by hardware GHASH
+/// Returns `([h1_br..h16_br], h_natural)` where:
+/// - `h1_br`..`h16_br` are in the bit-reversed domain used by hardware GHASH
 /// - `h_natural` is H in the natural big-endian byte order (for software fallback / E(J0))
 ///
 /// `N` is the number of AES round keys: `11` for AES-128, `15` for AES-256.
-pub(crate) fn precompute_ghash_powers<const N: usize>(key: &[u8]) -> ([[u8; 16]; 8], [u8; 16]) {
+#[cfg(target_arch = "x86_64")]
+pub(crate) fn precompute_ghash_powers<const N: usize>(key: &[u8]) -> ([[u8; 16]; 16], [u8; 16]) {
+    precompute_ghash_powers_impl::<N, 16>(key)
+}
+
+/// Precompute GHASH powers H¹ through H⁸.
+///
+/// The 128-bit and 256-bit GCM paths only need eight powers. Using this entry
+/// point avoids eight extra constant-time GF(2¹²⁸) multiplications when a
+/// cipher is constructed on hardware that cannot use the 512-bit path.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+pub(crate) fn precompute_ghash_powers_8<const N: usize>(key: &[u8]) -> ([[u8; 16]; 8], [u8; 16]) {
+    precompute_ghash_powers_impl::<N, 8>(key)
+}
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn precompute_ghash_powers_impl<const N: usize, const COUNT: usize>(key: &[u8]) -> ([[u8; 16]; COUNT], [u8; 16]) {
     const {
         assert!(N == 11 || N == 15);
+        assert!(COUNT >= 1);
     }
     let rk: RoundKeysSoftware<N> = expand_key::<N>(key);
     let h = encrypt_block::<N>(&rk, &[0u8; 16]);
-    let h2 = gf128_mul(&h, &h);
-    let h3 = gf128_mul(&h2, &h);
-    let h4 = gf128_mul(&h3, &h);
-    let h5 = gf128_mul(&h4, &h);
-    let h6 = gf128_mul(&h5, &h);
-    let h7 = gf128_mul(&h6, &h);
-    let h8 = gf128_mul(&h7, &h);
-    (
-        [
-            bitreverse_bytes(&h),
-            bitreverse_bytes(&h2),
-            bitreverse_bytes(&h3),
-            bitreverse_bytes(&h4),
-            bitreverse_bytes(&h5),
-            bitreverse_bytes(&h6),
-            bitreverse_bytes(&h7),
-            bitreverse_bytes(&h8),
-        ],
-        h,
-    )
+    let mut powers = [[0u8; 16]; COUNT];
+    powers[0] = bitreverse_bytes(&h);
+    let mut cur = h;
+    for p in powers.iter_mut().skip(1) {
+        cur = gf128_mul(&cur, &h);
+        *p = bitreverse_bytes(&cur);
+    }
+    (powers, h)
 }
 
 #[cfg(test)]

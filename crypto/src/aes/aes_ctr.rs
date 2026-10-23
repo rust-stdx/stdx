@@ -14,6 +14,10 @@ use crate::{StreamCipher, aes::RoundKeys};
 /// whole (NIST SP 800-38A §5.1) after every block, so the keystream would only
 /// repeat after 2¹²⁸ blocks. Encrypting more than 2³² blocks under one key and
 /// counter is therefore not silently truncated at the 32-bit boundary.
+///
+/// On x86-64 the implementation uses VAES-512, VAES-256, or AES-NI when the
+/// CPU supports them, in that order; otherwise it uses the constant-time
+/// software path.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Ctr(pub(crate) AesCtr<11>);
 
@@ -52,6 +56,10 @@ impl StreamCipher for Aes128Ctr {
 /// The counter is a full 128-bit big-endian block and is incremented as a
 /// whole (NIST SP 800-38A §5.1) after every block, so the keystream would only
 /// repeat after 2¹²⁸ blocks.
+///
+/// On x86-64 the implementation uses VAES-512, VAES-256, or AES-NI when the
+/// CPU supports them, in that order; otherwise it uses the constant-time
+/// software path.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Ctr(pub(crate) AesCtr<15>);
 
@@ -89,6 +97,9 @@ impl StreamCipher for Aes256Ctr {
 pub(crate) struct AesCtr<const N: usize> {
     round_keys: RoundKeys<N>,
     counter: [u8; 16],
+    #[cfg(target_arch = "x86_64")]
+    #[cfg_attr(feature = "zeroize", zeroize(skip))]
+    backend: super::aes_amd64::X86Backend,
 }
 
 impl AesCtr<11> {
@@ -137,6 +148,7 @@ impl<const N: usize> AesCtr<N> {
                 return AesCtr {
                     round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
                     counter: [0u8; 16],
+                    backend: super::aes_amd64::X86Backend::detect(),
                 };
             }
 
@@ -149,12 +161,15 @@ impl<const N: usize> AesCtr<N> {
             return AesCtr {
                 round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
                 counter: [0u8; 16],
+                backend: super::aes_amd64::X86Backend::detect(),
             };
         }
 
         AesCtr {
             round_keys: RoundKeys::Software(round_keys_software),
             counter: [0u8; 16],
+            #[cfg(target_arch = "x86_64")]
+            backend: super::aes_amd64::X86Backend::AesNi,
         }
     }
 
@@ -167,8 +182,15 @@ impl<const N: usize> AesCtr<N> {
             },
             #[cfg(target_arch = "x86_64")]
             RoundKeys::X86_64(round_keys) => unsafe {
-                use super::aes_ctr_amd64::xor_keystream_aesni;
-                xor_keystream_aesni(round_keys, &mut self.counter, in_out);
+                use super::{
+                    aes_amd64::X86Backend,
+                    aes_ctr_amd64::{xor_keystream_aesni, xor_keystream_vaes256, xor_keystream_vaes512},
+                };
+                match self.backend {
+                    X86Backend::AesNi => xor_keystream_aesni(round_keys, &mut self.counter, in_out),
+                    X86Backend::Vaes256 => xor_keystream_vaes256(round_keys, &mut self.counter, in_out),
+                    X86Backend::Vaes512 => xor_keystream_vaes512(round_keys, &mut self.counter, in_out),
+                }
             },
             RoundKeys::Software(round_keys) => xor_keystream_soft(round_keys, &mut self.counter, in_out),
         }
@@ -377,6 +399,31 @@ mod tests {
         xor_keystream_soft(&rk, &mut ctr_soft, &mut buf_soft);
         assert_eq!(buf_soft, expected_ct, "AES-256-CTR soft multi-block mismatch");
         assert_eq!(buf, buf_soft, "dispatch and soft xor_keystream differ on multi-block");
+    }
+
+    #[test]
+    fn x86_backend_selection_is_consistent() {
+        #[cfg(target_arch = "x86_64")]
+        {
+            use crate::aes::aes_amd64::X86Backend;
+
+            let cipher = Aes256Ctr::new(&[0u8; 32]);
+            let vaes = std::arch::is_x86_feature_detected!("vaes") && std::arch::is_x86_feature_detected!("avx2");
+            let avx512 = vaes
+                && std::arch::is_x86_feature_detected!("avx512f")
+                && std::arch::is_x86_feature_detected!("avx512bw");
+
+            let expected = if avx512 {
+                X86Backend::Vaes512
+            } else if vaes {
+                X86Backend::Vaes256
+            } else {
+                X86Backend::AesNi
+            };
+
+            assert_eq!(cipher.0.backend, expected);
+            eprintln!("AES-CTR x86 backend: {:?} (vaes={vaes} avx512={avx512})", cipher.0.backend);
+        }
     }
 
     #[test]

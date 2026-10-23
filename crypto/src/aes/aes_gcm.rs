@@ -1,8 +1,12 @@
 use constant_time_eq::constant_time_eq;
 
+#[cfg(target_arch = "x86_64")]
+use super::ghash::precompute_ghash_powers;
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+use super::ghash::precompute_ghash_powers_8;
 use super::{
     aes::{GCM_MAX_LEN, encrypt_block, expand_key},
-    ghash::{GHashPowers, compute_tag, precompute_ghash_powers},
+    ghash::{GHashPowers, compute_tag},
 };
 use crate::{
     Aead, AeadError, Hash,
@@ -108,8 +112,10 @@ impl Aead for Aes256Gcm {
 ///
 /// `N = 11` for AES-128-GCM, `N = 15` for AES-256-GCM.
 ///
-/// On x86-64 machines with AES-NI + PCLMULQDQ the methods automatically
-/// dispatch to the hardware-accelerated path (see `aes_gcm_amd64`).
+/// On x86-64 machines the methods automatically dispatch to the best available
+/// hardware path (see `aes_gcm_amd64`): VAES-512 + 512-bit VPCLMULQDQ GHASH,
+/// VAES-256 + 256-bit VPCLMULQDQ GHASH, VAES-256 + 128-bit PCLMULQDQ GHASH, or
+/// AES-NI + PCLMULQDQ.
 ///
 /// The struct stores **only** the round keys native to the target architecture.
 /// - x86_64: stores `round_keys_ni` (`[__m128i; N]`) + precomputed GHASH powers
@@ -119,6 +125,13 @@ impl Aead for Aes256Gcm {
 pub(crate) struct AesGcm<const N: usize> {
     pub(crate) round_keys: RoundKeys<N>,
     pub(crate) h_powers: GHashPowers,
+    #[cfg(target_arch = "x86_64")]
+    #[cfg_attr(feature = "zeroize", zeroize(skip))]
+    pub(crate) backend: super::aes_amd64::X86Backend,
+    /// Whether the 128-bit/256-bit VPCLMULQDQ GHASH path may be used.
+    #[cfg(target_arch = "x86_64")]
+    #[cfg_attr(feature = "zeroize", zeroize(skip))]
+    pub(crate) vpclmul: bool,
 }
 
 impl AesGcm<11> {
@@ -137,6 +150,30 @@ impl AesGcm<15> {
     }
 }
 
+/// Load H¹..H¹⁶ for the selected x86 backend, computing only the powers that
+/// the backend can use.
+#[cfg(target_arch = "x86_64")]
+fn x86_h_powers<const N: usize>(
+    key: &[u8],
+    backend: super::aes_amd64::X86Backend,
+) -> [core::arch::x86_64::__m128i; 16] {
+    use core::arch::x86_64::*;
+
+    let mut bytes = [[0u8; 16]; 16];
+    if backend == super::aes_amd64::X86Backend::Vaes512 {
+        bytes = precompute_ghash_powers::<N>(key).0;
+    } else {
+        let (powers8, _) = precompute_ghash_powers_8::<N>(key);
+        bytes[..8].copy_from_slice(&powers8);
+    }
+
+    let mut h_powers = unsafe { [_mm_setzero_si128(); 16] };
+    for (i, power) in bytes.iter().enumerate() {
+        h_powers[i] = unsafe { _mm_loadu_si128(power.as_ptr().cast()) };
+    }
+    h_powers
+}
+
 impl<const N: usize> AesGcm<N> {
     fn new_inner(key: &[u8]) -> Self {
         const { assert!(N == 11 || N == 15) };
@@ -147,7 +184,7 @@ impl<const N: usize> AesGcm<N> {
         {
             use core::arch::aarch64::*;
 
-            let (h_powers_bytes, _h) = precompute_ghash_powers::<N>(key);
+            let (h_powers_bytes, _h) = precompute_ghash_powers_8::<N>(key);
             let mut h_powers = [unsafe { vdupq_n_u8(0) }; 8];
             for i in 0..8 {
                 h_powers[i] = unsafe { vld1q_u8(h_powers_bytes[i].as_ptr()) };
@@ -171,23 +208,25 @@ impl<const N: usize> AesGcm<N> {
 
         #[cfg(target_arch = "x86_64")]
         {
-            use core::arch::x86_64::*;
-
-            let (h_powers_bytes, _h) = precompute_ghash_powers::<N>(key);
-            let mut h_powers = unsafe { [_mm_setzero_si128(); 8] };
-            for i in 0..8 {
-                h_powers[i] = unsafe { _mm_loadu_si128(h_powers_bytes[i].as_ptr().cast()) };
-            }
-
             #[cfg(feature = "std")]
             if std::arch::is_x86_feature_detected!("aes")
                 && std::arch::is_x86_feature_detected!("pclmulqdq")
                 && std::arch::is_x86_feature_detected!("ssse3")
                 && std::arch::is_x86_feature_detected!("sse4.1")
             {
+                let vpclmul = std::arch::is_x86_feature_detected!("vpclmulqdq");
+                let mut backend = super::aes_amd64::X86Backend::detect();
+                // The 512-bit GCM path uses 512-bit VPCLMULQDQ for GHASH. If a
+                // CPU ever exposes VAES-512 without VPCLMUL, use the 256-bit
+                // VAES path with 128-bit PCLMUL GHASH instead.
+                if backend == super::aes_amd64::X86Backend::Vaes512 && !vpclmul {
+                    backend = super::aes_amd64::X86Backend::Vaes256;
+                }
                 return AesGcm {
                     round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
-                    h_powers: GHashPowers::X86_64(h_powers),
+                    h_powers: GHashPowers::X86_64(x86_h_powers::<N>(key, backend)),
+                    backend,
+                    vpclmul,
                 };
             }
 
@@ -198,15 +237,28 @@ impl<const N: usize> AesGcm<N> {
                 target_feature = "ssse3",
                 target_feature = "sse4.1"
             ))]
-            return AesGcm {
-                round_keys: RoundKeys::X86_64(super::super::aes_amd64::expand_key_x86_64(round_keys_software)),
-                h_powers: GHashPowers::X86_64(h_powers),
-            };
+            {
+                let vpclmul = cfg!(target_feature = "vpclmulqdq");
+                let mut backend = super::aes_amd64::X86Backend::detect();
+                if backend == super::aes_amd64::X86Backend::Vaes512 && !vpclmul {
+                    backend = super::aes_amd64::X86Backend::Vaes256;
+                }
+                return AesGcm {
+                    round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
+                    h_powers: GHashPowers::X86_64(x86_h_powers::<N>(key, backend)),
+                    backend,
+                    vpclmul,
+                };
+            }
         }
 
         AesGcm {
             round_keys: RoundKeys::Software(round_keys_software),
             h_powers: GHashPowers::Software(encrypt_block(&round_keys_software, &[0u8; 16])),
+            #[cfg(target_arch = "x86_64")]
+            backend: super::aes_amd64::X86Backend::AesNi,
+            #[cfg(target_arch = "x86_64")]
+            vpclmul: false,
         }
     }
 
@@ -224,8 +276,21 @@ impl<const N: usize> AesGcm<N> {
             },
             #[cfg(target_arch = "x86_64")]
             (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
-                use crate::aes::aes_gcm_amd64::gcm_encrypt_aesni;
-                gcm_encrypt_aesni(round_keys, h_powers, in_out, nonce, aad)
+                use super::{
+                    aes_amd64::X86Backend,
+                    aes_gcm_amd64::{gcm_encrypt_aesni, gcm_encrypt_vaes256, gcm_encrypt_vaes512},
+                };
+                match self.backend {
+                    X86Backend::AesNi => gcm_encrypt_aesni(round_keys, h_powers, in_out, nonce, aad),
+                    X86Backend::Vaes256 => {
+                        if self.vpclmul {
+                            gcm_encrypt_vaes256::<N, true>(round_keys, h_powers, in_out, nonce, aad)
+                        } else {
+                            gcm_encrypt_vaes256::<N, false>(round_keys, h_powers, in_out, nonce, aad)
+                        }
+                    }
+                    X86Backend::Vaes512 => gcm_encrypt_vaes512(round_keys, h_powers, in_out, nonce, aad),
+                }
             },
             (RoundKeys::Software(round_keys), GHashPowers::Software(h)) => {
                 self.encrypt_in_place_soft(in_out, round_keys, h, nonce, aad)
@@ -253,8 +318,21 @@ impl<const N: usize> AesGcm<N> {
             },
             #[cfg(target_arch = "x86_64")]
             (RoundKeys::X86_64(round_keys), GHashPowers::X86_64(h_powers)) => unsafe {
-                use crate::aes::aes_gcm_amd64::gcm_decrypt_aesni;
-                gcm_decrypt_aesni(round_keys, h_powers, in_out, tag, nonce, aad)
+                use super::{
+                    aes_amd64::X86Backend,
+                    aes_gcm_amd64::{gcm_decrypt_aesni, gcm_decrypt_vaes256, gcm_decrypt_vaes512},
+                };
+                match self.backend {
+                    X86Backend::AesNi => gcm_decrypt_aesni(round_keys, h_powers, in_out, tag, nonce, aad),
+                    X86Backend::Vaes256 => {
+                        if self.vpclmul {
+                            gcm_decrypt_vaes256::<N, true>(round_keys, h_powers, in_out, tag, nonce, aad)
+                        } else {
+                            gcm_decrypt_vaes256::<N, false>(round_keys, h_powers, in_out, tag, nonce, aad)
+                        }
+                    }
+                    X86Backend::Vaes512 => gcm_decrypt_vaes512(round_keys, h_powers, in_out, tag, nonce, aad),
+                }
             },
             (RoundKeys::Software(round_keys), GHashPowers::Software(h)) => {
                 self.decrypt_in_place_soft(in_out, round_keys, h, tag, nonce, aad)
@@ -547,6 +625,36 @@ mod tests_256 {
     fn nist_gcm_test_vectors_soft() {
         for v in NIST_GCM_VECTORS.iter().chain(EXTRA_GCM_VECTORS.iter()) {
             run_gcm_vector_soft(v);
+        }
+    }
+
+    #[test]
+    fn x86_backend_selection_is_consistent() {
+        #[cfg(target_arch = "x86_64")]
+        {
+            use crate::aes::aes_amd64::X86Backend;
+
+            let cipher = Aes256Gcm::new(&[0u8; 32]);
+            let vaes = std::arch::is_x86_feature_detected!("vaes") && std::arch::is_x86_feature_detected!("avx2");
+            let avx512 = vaes
+                && std::arch::is_x86_feature_detected!("avx512f")
+                && std::arch::is_x86_feature_detected!("avx512bw");
+            let vpclmul = std::arch::is_x86_feature_detected!("vpclmulqdq");
+
+            let expected = if avx512 && vpclmul {
+                X86Backend::Vaes512
+            } else if vaes {
+                X86Backend::Vaes256
+            } else {
+                X86Backend::AesNi
+            };
+
+            assert_eq!(cipher.0.backend, expected);
+            assert_eq!(cipher.0.vpclmul, vpclmul);
+            eprintln!(
+                "AES-GCM x86 backend: {:?} (vaes={vaes} avx512={avx512} vpclmul={vpclmul})",
+                cipher.0.backend
+            );
         }
     }
 

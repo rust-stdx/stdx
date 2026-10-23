@@ -16,7 +16,7 @@
 ///
 /// The caller (via `gcm_encrypt_aesni` / `gcm_decrypt_aesni`) supplies the precomputed
 /// AES round keys (`rk: &[__m128i; 15]`) and precomputed GHASH powers
-/// (`h_powers: &[__m128i; 4]` where index 0 = H¹, 1 = H², 2 = H³, 3 = H⁴,
+/// (`h_powers: &[__m128i; 16]` where index 0 = H¹, 1 = H², … 15 = H¹⁶,
 /// all in bit-reversed-per-byte form). This eliminates key expansion and
 /// GHASH-subkey derivation from every encrypt/decrypt call.
 ///
@@ -26,6 +26,14 @@
 /// to allow cheap `_mm_add_epi32` increments without per-block byte-reversal
 /// round-trips. Four successive counters are unswapped via `pshufb`, encrypted
 /// in an interleaved 4-way AES pipeline, then XOR'd with the plaintext.
+///
+/// ## VAES paths
+///
+/// `gcm_encrypt_vaes256` / `gcm_decrypt_vaes256` use VAES over 256-bit
+/// registers (eight blocks per iteration) and either 256-bit VPCLMULQDQ
+/// GHASH or the 128-bit PCLMULQDQ fallback. `gcm_encrypt_vaes512` /
+/// `gcm_decrypt_vaes512` use 512-bit registers (sixteen blocks) with 512-bit
+/// VPCLMULQDQ GHASH. Both delegate their tails to the 256-bit helpers.
 ///
 /// ## 4-block aggregated GHASH
 ///
@@ -38,9 +46,14 @@ use core::arch::x86_64::*;
 
 use super::{
     aes::GCM_MAX_LEN,
-    aes_amd64::{aes_encrypt_4blocks, aes_encrypt_8blocks, aes_encrypt_block},
+    aes_amd64::{
+        aes_encrypt_4blocks, aes_encrypt_8blocks, aes_encrypt_block, aes_encrypt_vaes256, aes_encrypt_vaes512,
+    },
     aes_ctr_amd64::{SWAP_BYTES, increment_counter},
-    ghash_amd64::{bitreverse_per_byte, clmul_gcm, ghash_4blocks, ghash_8blocks, ghash_update},
+    ghash_amd64::{
+        bitreverse_per_byte, clmul_gcm, ghash_4blocks, ghash_8blocks, ghash_8blocks_vpclmul, ghash_16blocks_vpclmul512,
+        ghash_update,
+    },
 };
 use crate::{AeadError, Hash, bytes::Bytes};
 
@@ -56,7 +69,7 @@ use crate::{AeadError, Hash, bytes::Bytes};
 #[target_feature(enable = "aes,pclmulqdq,ssse3,sse4.1,sse2")]
 pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
     rk: &[__m128i; N],
-    h_powers: &[__m128i; 8],
+    h_powers: &[__m128i; 16],
     in_out: &mut [u8],
     nonce: &[u8; 12],
     aad: &[u8],
@@ -230,7 +243,7 @@ pub(crate) unsafe fn gcm_encrypt_aesni<const N: usize>(
 #[target_feature(enable = "aes,pclmulqdq,ssse3,sse4.1,sse2")]
 pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
     rk: &[__m128i; N],
-    h_powers: &[__m128i; 8],
+    h_powers: &[__m128i; 16],
     in_out: &mut [u8],
     tag: &[u8; 16],
     nonce: &[u8; 12],
@@ -404,6 +417,533 @@ pub(crate) unsafe fn gcm_decrypt_aesni<const N: usize>(
     Ok(())
 }
 
+// ── VAES GCM helpers ─────────────────────────────────────────────────────────
+
+/// Byte-swapped counter offsets for one YMM register (two blocks).
+#[inline]
+#[target_feature(enable = "avx2")]
+unsafe fn counter_pattern256(offset: i32) -> __m256i {
+    _mm256_set_epi32(offset + 1, 0, 0, 0, offset, 0, 0, 0)
+}
+
+/// Byte-swapped counter offsets for one ZMM register (four blocks).
+#[inline]
+#[target_feature(enable = "avx512f")]
+unsafe fn counter_pattern512(offset: i32) -> __m512i {
+    _mm512_set_epi32(offset + 3, 0, 0, 0, offset + 2, 0, 0, 0, offset + 1, 0, 0, 0, offset, 0, 0, 0)
+}
+
+/// Compute the final GCM tag from an authenticated GHASH state.
+#[target_feature(enable = "pclmulqdq,ssse3,sse2")]
+unsafe fn gcm_finish_tag(state: __m128i, h: __m128i, ej0_bytes: &[u8; 16], aad: &[u8], data_len: usize) -> Hash {
+    let mut len_block = [0u8; 16];
+    len_block[..8].copy_from_slice(&((aad.len() as u64) * 8).to_be_bytes());
+    len_block[8..].copy_from_slice(&((data_len as u64) * 8).to_be_bytes());
+    let len_br = bitreverse_per_byte(_mm_loadu_si128(len_block.as_ptr().cast()));
+    let state = clmul_gcm(_mm_xor_si128(state, len_br), h);
+
+    let mut tag = Bytes::<64>::with_length(16);
+    let tag_xmm = _mm_xor_si128(bitreverse_per_byte(state), _mm_loadu_si128(ej0_bytes.as_ptr().cast()));
+    _mm_storeu_si128(tag.as_mut().as_mut_ptr().cast(), tag_xmm);
+    Hash(tag)
+}
+
+/// Encrypt/authenticate the remaining GCM blocks with 8/4/1-block VAES-256
+/// groups and a padded partial tail.
+///
+/// `state` and `base` are carried across calls; `base` is in the byte-swapped
+/// GCM counter domain and is advanced by `inc32` for every complete block.
+#[target_feature(enable = "vaes,avx2,pclmulqdq,ssse3,sse4.1")]
+#[inline]
+unsafe fn gcm_encrypt_tail_vaes256<const N: usize, const VPCLMUL: bool>(
+    rk: &[__m128i; N],
+    h_powers: &[__m128i; 16],
+    state: &mut __m128i,
+    base: &mut __m128i,
+    in_out: &mut [u8],
+) {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    let n = in_out.len();
+    let mut i = 0usize;
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let swap256 = _mm256_broadcastsi128_si256(swap128);
+    let add1 = _mm_set_epi32(1, 0, 0, 0);
+    let add4 = _mm_set_epi32(4, 0, 0, 0);
+    let add8 = _mm_set_epi32(8, 0, 0, 0);
+
+    while i + 128 <= n {
+        let b = _mm256_broadcastsi128_si256(*base);
+        let c0 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(0)), swap256);
+        let c1 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(2)), swap256);
+        let c2 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(4)), swap256);
+        let c3 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(6)), swap256);
+
+        let k = aes_encrypt_vaes256::<N, 4>(rk, [c0, c1, c2, c3]);
+        let ct0 = _mm256_xor_si256(_mm256_loadu_si256(in_out.as_ptr().add(i).cast()), k[0]);
+        let ct1 = _mm256_xor_si256(_mm256_loadu_si256(in_out.as_ptr().add(i + 32).cast()), k[1]);
+        let ct2 = _mm256_xor_si256(_mm256_loadu_si256(in_out.as_ptr().add(i + 64).cast()), k[2]);
+        let ct3 = _mm256_xor_si256(_mm256_loadu_si256(in_out.as_ptr().add(i + 96).cast()), k[3]);
+        _mm256_storeu_si256(in_out.as_mut_ptr().add(i).cast(), ct0);
+        _mm256_storeu_si256(in_out.as_mut_ptr().add(i + 32).cast(), ct1);
+        _mm256_storeu_si256(in_out.as_mut_ptr().add(i + 64).cast(), ct2);
+        _mm256_storeu_si256(in_out.as_mut_ptr().add(i + 96).cast(), ct3);
+
+        if VPCLMUL {
+            *state = ghash_8blocks_vpclmul(*state, ct0, ct1, ct2, ct3, h_powers);
+        } else {
+            *state = ghash_8blocks(
+                *state,
+                _mm256_castsi256_si128(ct0),
+                _mm256_extracti128_si256::<1>(ct0),
+                _mm256_castsi256_si128(ct1),
+                _mm256_extracti128_si256::<1>(ct1),
+                _mm256_castsi256_si128(ct2),
+                _mm256_extracti128_si256::<1>(ct2),
+                _mm256_castsi256_si128(ct3),
+                _mm256_extracti128_si256::<1>(ct3),
+                h_powers,
+            );
+        }
+
+        *base = _mm_add_epi32(*base, add8);
+        i += 128;
+    }
+
+    while i + 64 <= n {
+        let b = _mm256_broadcastsi128_si256(*base);
+        let c0 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(0)), swap256);
+        let c1 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(2)), swap256);
+
+        let k = aes_encrypt_vaes256::<N, 2>(rk, [c0, c1]);
+        let ct0 = _mm256_xor_si256(_mm256_loadu_si256(in_out.as_ptr().add(i).cast()), k[0]);
+        let ct1 = _mm256_xor_si256(_mm256_loadu_si256(in_out.as_ptr().add(i + 32).cast()), k[1]);
+        _mm256_storeu_si256(in_out.as_mut_ptr().add(i).cast(), ct0);
+        _mm256_storeu_si256(in_out.as_mut_ptr().add(i + 32).cast(), ct1);
+
+        *state = ghash_4blocks(
+            *state,
+            _mm256_castsi256_si128(ct0),
+            _mm256_extracti128_si256::<1>(ct0),
+            _mm256_castsi256_si128(ct1),
+            _mm256_extracti128_si256::<1>(ct1),
+            h_powers,
+        );
+
+        *base = _mm_add_epi32(*base, add4);
+        i += 64;
+    }
+
+    while i + 16 <= n {
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(*base, swap128));
+        let ct = _mm_xor_si128(_mm_loadu_si128(in_out.as_ptr().add(i).cast()), k);
+        _mm_storeu_si128(in_out.as_mut_ptr().add(i).cast(), ct);
+
+        let block = bitreverse_per_byte(ct);
+        *state = clmul_gcm(_mm_xor_si128(*state, block), h_powers[0]);
+
+        *base = _mm_add_epi32(*base, add1);
+        i += 16;
+    }
+
+    if i < n {
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(*base, swap128));
+        let mut buf = [0u8; 16];
+        buf[..n - i].copy_from_slice(&in_out[i..]);
+        let ct = _mm_xor_si128(_mm_loadu_si128(buf.as_ptr().cast()), k);
+        let mut out_buf = [0u8; 16];
+        _mm_storeu_si128(out_buf.as_mut_ptr().cast(), ct);
+        in_out[i..].copy_from_slice(&out_buf[..n - i]);
+
+        let mut padded = [0u8; 16];
+        padded[..n - i].copy_from_slice(&in_out[i..]);
+        let block = bitreverse_per_byte(_mm_loadu_si128(padded.as_ptr().cast()));
+        *state = clmul_gcm(_mm_xor_si128(*state, block), h_powers[0]);
+    }
+}
+
+/// Authenticate the remaining GCM ciphertext blocks with 8/4/1-block groups.
+#[target_feature(enable = "vaes,avx2,pclmulqdq,ssse3,sse4.1")]
+#[inline]
+unsafe fn gcm_ghash_tail_vaes256<const VPCLMUL: bool>(h_powers: &[__m128i; 16], state: &mut __m128i, in_out: &[u8]) {
+    let n = in_out.len();
+    let mut i = 0usize;
+
+    while i + 128 <= n {
+        let ct0 = _mm256_loadu_si256(in_out.as_ptr().add(i).cast());
+        let ct1 = _mm256_loadu_si256(in_out.as_ptr().add(i + 32).cast());
+        let ct2 = _mm256_loadu_si256(in_out.as_ptr().add(i + 64).cast());
+        let ct3 = _mm256_loadu_si256(in_out.as_ptr().add(i + 96).cast());
+
+        if VPCLMUL {
+            *state = ghash_8blocks_vpclmul(*state, ct0, ct1, ct2, ct3, h_powers);
+        } else {
+            *state = ghash_8blocks(
+                *state,
+                _mm256_castsi256_si128(ct0),
+                _mm256_extracti128_si256::<1>(ct0),
+                _mm256_castsi256_si128(ct1),
+                _mm256_extracti128_si256::<1>(ct1),
+                _mm256_castsi256_si128(ct2),
+                _mm256_extracti128_si256::<1>(ct2),
+                _mm256_castsi256_si128(ct3),
+                _mm256_extracti128_si256::<1>(ct3),
+                h_powers,
+            );
+        }
+        i += 128;
+    }
+
+    while i + 64 <= n {
+        let ct0 = _mm256_loadu_si256(in_out.as_ptr().add(i).cast());
+        let ct1 = _mm256_loadu_si256(in_out.as_ptr().add(i + 32).cast());
+        *state = ghash_4blocks(
+            *state,
+            _mm256_castsi256_si128(ct0),
+            _mm256_extracti128_si256::<1>(ct0),
+            _mm256_castsi256_si128(ct1),
+            _mm256_extracti128_si256::<1>(ct1),
+            h_powers,
+        );
+        i += 64;
+    }
+
+    while i + 16 <= n {
+        let block = bitreverse_per_byte(_mm_loadu_si128(in_out.as_ptr().add(i).cast()));
+        *state = clmul_gcm(_mm_xor_si128(*state, block), h_powers[0]);
+        i += 16;
+    }
+    if i < n {
+        let mut padded = [0u8; 16];
+        padded[..n - i].copy_from_slice(&in_out[i..]);
+        let block = bitreverse_per_byte(_mm_loadu_si128(padded.as_ptr().cast()));
+        *state = clmul_gcm(_mm_xor_si128(*state, block), h_powers[0]);
+    }
+}
+
+/// XOR the GCM CTR keystream over `in_out` with 8/4/1-block VAES-256 groups.
+///
+/// `base` is the byte-swapped GCM counter and uses `inc32`.
+#[target_feature(enable = "vaes,avx2,ssse3,sse2")]
+#[inline]
+unsafe fn ctr32_vaes256<const N: usize>(rk: &[__m128i; N], base: &mut __m128i, in_out: &mut [u8]) {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    let n = in_out.len();
+    let mut i = 0usize;
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let swap256 = _mm256_broadcastsi128_si256(swap128);
+    let add1 = _mm_set_epi32(1, 0, 0, 0);
+    let add4 = _mm_set_epi32(4, 0, 0, 0);
+    let add8 = _mm_set_epi32(8, 0, 0, 0);
+
+    while i + 128 <= n {
+        let b = _mm256_broadcastsi128_si256(*base);
+        let c0 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(0)), swap256);
+        let c1 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(2)), swap256);
+        let c2 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(4)), swap256);
+        let c3 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(6)), swap256);
+        let k = aes_encrypt_vaes256::<N, 4>(rk, [c0, c1, c2, c3]);
+        for (j, ks) in k.into_iter().enumerate() {
+            let off = i + j * 32;
+            let p = _mm256_loadu_si256(in_out.as_ptr().add(off).cast());
+            _mm256_storeu_si256(in_out.as_mut_ptr().add(off).cast(), _mm256_xor_si256(p, ks));
+        }
+        *base = _mm_add_epi32(*base, add8);
+        i += 128;
+    }
+
+    while i + 64 <= n {
+        let b = _mm256_broadcastsi128_si256(*base);
+        let c0 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(0)), swap256);
+        let c1 = _mm256_shuffle_epi8(_mm256_add_epi32(b, counter_pattern256(2)), swap256);
+        let k = aes_encrypt_vaes256::<N, 2>(rk, [c0, c1]);
+        for (j, ks) in k.into_iter().enumerate() {
+            let off = i + j * 32;
+            let p = _mm256_loadu_si256(in_out.as_ptr().add(off).cast());
+            _mm256_storeu_si256(in_out.as_mut_ptr().add(off).cast(), _mm256_xor_si256(p, ks));
+        }
+        *base = _mm_add_epi32(*base, add4);
+        i += 64;
+    }
+
+    while i + 16 <= n {
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(*base, swap128));
+        let p = _mm_loadu_si128(in_out.as_ptr().add(i).cast());
+        _mm_storeu_si128(in_out.as_mut_ptr().add(i).cast(), _mm_xor_si128(p, k));
+        *base = _mm_add_epi32(*base, add1);
+        i += 16;
+    }
+
+    if i < n {
+        let k = aes_encrypt_block::<N>(rk, _mm_shuffle_epi8(*base, swap128));
+        let mut buf = [0u8; 16];
+        buf[..n - i].copy_from_slice(&in_out[i..]);
+        let p = _mm_xor_si128(_mm_loadu_si128(buf.as_ptr().cast()), k);
+        let mut out = [0u8; 16];
+        _mm_storeu_si128(out.as_mut_ptr().cast(), p);
+        in_out[i..].copy_from_slice(&out[..n - i]);
+    }
+}
+
+/// XOR the GCM CTR keystream with 16-block VAES-512 groups, delegating the
+/// remainder (including the partial block) to the 256-bit helper.
+#[target_feature(enable = "vaes,avx512f,avx512bw,avx2,ssse3,sse2")]
+#[inline]
+unsafe fn ctr32_vaes512<const N: usize>(rk: &[__m128i; N], base: &mut __m128i, in_out: &mut [u8]) {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    let n = in_out.len();
+    let mut i = 0usize;
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let swap512 = _mm512_broadcast_i32x4(swap128);
+    let add16 = _mm_set_epi32(16, 0, 0, 0);
+
+    while i + 256 <= n {
+        let b = _mm512_broadcast_i32x4(*base);
+        let c0 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(0)), swap512);
+        let c1 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(4)), swap512);
+        let c2 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(8)), swap512);
+        let c3 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(12)), swap512);
+        let k = aes_encrypt_vaes512::<N, 4>(rk, [c0, c1, c2, c3]);
+        for (j, ks) in k.into_iter().enumerate() {
+            let off = i + j * 64;
+            let p = _mm512_loadu_si512(in_out.as_ptr().add(off).cast());
+            _mm512_storeu_si512(in_out.as_mut_ptr().add(off).cast(), _mm512_xor_si512(p, ks));
+        }
+        *base = _mm_add_epi32(*base, add16);
+        i += 256;
+    }
+
+    if i < n {
+        ctr32_vaes256::<N>(rk, base, &mut in_out[i..]);
+    }
+}
+
+// ── VAES-256 GCM ─────────────────────────────────────────────────────────────
+
+/// AES-GCM encryption using VAES-256.
+///
+/// `VPCLMUL` selects the vectorized GHASH implementation. It is a compile-time
+/// parameter so the main loop contains no per-block feature branch.
+#[target_feature(enable = "vaes,avx2,pclmulqdq,ssse3,sse4.1")]
+pub(crate) unsafe fn gcm_encrypt_vaes256<const N: usize, const VPCLMUL: bool>(
+    rk: &[__m128i; N],
+    h_powers: &[__m128i; 16],
+    in_out: &mut [u8],
+    nonce: &[u8; 12],
+    aad: &[u8],
+) -> Hash {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    assert!(
+        in_out.len() as u64 <= GCM_MAX_LEN,
+        "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
+    );
+
+    let mut j0_bytes = [0u8; 16];
+    j0_bytes[..12].copy_from_slice(nonce);
+    j0_bytes[15] = 0x01;
+    let j0 = _mm_loadu_si128(j0_bytes.as_ptr().cast());
+    let ej0 = aes_encrypt_block::<N>(rk, j0);
+    let mut ej0_bytes = [0u8; 16];
+    _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
+
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let mut base = _mm_shuffle_epi8(increment_counter(j0), swap128);
+    let mut state = ghash_update(_mm_setzero_si128(), h_powers[0], aad);
+
+    gcm_encrypt_tail_vaes256::<N, VPCLMUL>(rk, h_powers, &mut state, &mut base, in_out);
+
+    let tag = gcm_finish_tag(state, h_powers[0], &ej0_bytes, aad, in_out.len());
+    _mm256_zeroupper();
+    tag
+}
+
+/// AES-GCM decryption using VAES-256.
+#[target_feature(enable = "vaes,avx2,pclmulqdq,ssse3,sse4.1")]
+pub(crate) unsafe fn gcm_decrypt_vaes256<const N: usize, const VPCLMUL: bool>(
+    rk: &[__m128i; N],
+    h_powers: &[__m128i; 16],
+    in_out: &mut [u8],
+    tag: &[u8; 16],
+    nonce: &[u8; 12],
+    aad: &[u8],
+) -> Result<(), AeadError> {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    if in_out.len() as u64 > GCM_MAX_LEN {
+        return Err(AeadError::InvalidCiphertext);
+    }
+
+    let mut j0_bytes = [0u8; 16];
+    j0_bytes[..12].copy_from_slice(nonce);
+    j0_bytes[15] = 0x01;
+    let j0 = _mm_loadu_si128(j0_bytes.as_ptr().cast());
+    let ej0 = aes_encrypt_block::<N>(rk, j0);
+    let mut ej0_bytes = [0u8; 16];
+    _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
+
+    let mut state = ghash_update(_mm_setzero_si128(), h_powers[0], aad);
+    gcm_ghash_tail_vaes256::<VPCLMUL>(h_powers, &mut state, in_out);
+
+    let expected = gcm_finish_tag(state, h_powers[0], &ej0_bytes, aad, in_out.len());
+    let expected: [u8; 16] = expected.as_ref().try_into().unwrap();
+    let mut diff = 0u8;
+    for k in 0..16 {
+        diff |= expected[k] ^ tag[k];
+    }
+    if diff != 0 {
+        _mm256_zeroupper();
+        return Err(AeadError::InvalidCiphertext);
+    }
+
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let mut base = _mm_shuffle_epi8(increment_counter(j0), swap128);
+    ctr32_vaes256::<N>(rk, &mut base, in_out);
+    _mm256_zeroupper();
+
+    Ok(())
+}
+
+// ── VAES-512 GCM ─────────────────────────────────────────────────────────────
+
+/// AES-GCM encryption using VAES-512 for the bulk and VAES-256 for the tail.
+///
+/// The 512-bit path requires 512-bit VPCLMULQDQ for GHASH; dispatch only selects
+/// it when both are available.
+#[target_feature(enable = "vaes,avx512f,avx512bw,avx2,vpclmulqdq,pclmulqdq,ssse3,sse4.1")]
+pub(crate) unsafe fn gcm_encrypt_vaes512<const N: usize>(
+    rk: &[__m128i; N],
+    h_powers: &[__m128i; 16],
+    in_out: &mut [u8],
+    nonce: &[u8; 12],
+    aad: &[u8],
+) -> Hash {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    assert!(
+        in_out.len() as u64 <= GCM_MAX_LEN,
+        "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
+    );
+
+    let mut j0_bytes = [0u8; 16];
+    j0_bytes[..12].copy_from_slice(nonce);
+    j0_bytes[15] = 0x01;
+    let j0 = _mm_loadu_si128(j0_bytes.as_ptr().cast());
+    let ej0 = aes_encrypt_block::<N>(rk, j0);
+    let mut ej0_bytes = [0u8; 16];
+    _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
+
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let swap512 = _mm512_broadcast_i32x4(swap128);
+    let mut base = _mm_shuffle_epi8(increment_counter(j0), swap128);
+    let mut state = ghash_update(_mm_setzero_si128(), h_powers[0], aad);
+
+    let n = in_out.len();
+    let mut i = 0usize;
+    let add16 = _mm_set_epi32(16, 0, 0, 0);
+
+    while i + 256 <= n {
+        let b = _mm512_broadcast_i32x4(base);
+        let c0 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(0)), swap512);
+        let c1 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(4)), swap512);
+        let c2 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(8)), swap512);
+        let c3 = _mm512_shuffle_epi8(_mm512_add_epi32(b, counter_pattern512(12)), swap512);
+
+        let k = aes_encrypt_vaes512::<N, 4>(rk, [c0, c1, c2, c3]);
+        let ct0 = _mm512_xor_si512(_mm512_loadu_si512(in_out.as_ptr().add(i).cast()), k[0]);
+        let ct1 = _mm512_xor_si512(_mm512_loadu_si512(in_out.as_ptr().add(i + 64).cast()), k[1]);
+        let ct2 = _mm512_xor_si512(_mm512_loadu_si512(in_out.as_ptr().add(i + 128).cast()), k[2]);
+        let ct3 = _mm512_xor_si512(_mm512_loadu_si512(in_out.as_ptr().add(i + 192).cast()), k[3]);
+        _mm512_storeu_si512(in_out.as_mut_ptr().add(i).cast(), ct0);
+        _mm512_storeu_si512(in_out.as_mut_ptr().add(i + 64).cast(), ct1);
+        _mm512_storeu_si512(in_out.as_mut_ptr().add(i + 128).cast(), ct2);
+        _mm512_storeu_si512(in_out.as_mut_ptr().add(i + 192).cast(), ct3);
+
+        state = ghash_16blocks_vpclmul512(state, ct0, ct1, ct2, ct3, h_powers);
+        base = _mm_add_epi32(base, add16);
+        i += 256;
+    }
+
+    gcm_encrypt_tail_vaes256::<N, true>(rk, h_powers, &mut state, &mut base, &mut in_out[i..]);
+
+    let tag = gcm_finish_tag(state, h_powers[0], &ej0_bytes, aad, n);
+    _mm256_zeroupper();
+    tag
+}
+
+/// AES-GCM decryption using VAES-512 for the bulk and VAES-256 for the tail.
+#[target_feature(enable = "vaes,avx512f,avx512bw,avx2,vpclmulqdq,pclmulqdq,ssse3,sse4.1")]
+pub(crate) unsafe fn gcm_decrypt_vaes512<const N: usize>(
+    rk: &[__m128i; N],
+    h_powers: &[__m128i; 16],
+    in_out: &mut [u8],
+    tag: &[u8; 16],
+    nonce: &[u8; 12],
+    aad: &[u8],
+) -> Result<(), AeadError> {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    if in_out.len() as u64 > GCM_MAX_LEN {
+        return Err(AeadError::InvalidCiphertext);
+    }
+
+    let mut j0_bytes = [0u8; 16];
+    j0_bytes[..12].copy_from_slice(nonce);
+    j0_bytes[15] = 0x01;
+    let j0 = _mm_loadu_si128(j0_bytes.as_ptr().cast());
+    let ej0 = aes_encrypt_block::<N>(rk, j0);
+    let mut ej0_bytes = [0u8; 16];
+    _mm_storeu_si128(ej0_bytes.as_mut_ptr().cast(), ej0);
+
+    let n = in_out.len();
+    let mut i = 0usize;
+    let mut state = ghash_update(_mm_setzero_si128(), h_powers[0], aad);
+
+    while i + 256 <= n {
+        let ct0 = _mm512_loadu_si512(in_out.as_ptr().add(i).cast());
+        let ct1 = _mm512_loadu_si512(in_out.as_ptr().add(i + 64).cast());
+        let ct2 = _mm512_loadu_si512(in_out.as_ptr().add(i + 128).cast());
+        let ct3 = _mm512_loadu_si512(in_out.as_ptr().add(i + 192).cast());
+        state = ghash_16blocks_vpclmul512(state, ct0, ct1, ct2, ct3, h_powers);
+        i += 256;
+    }
+    gcm_ghash_tail_vaes256::<true>(h_powers, &mut state, &in_out[i..]);
+
+    let expected = gcm_finish_tag(state, h_powers[0], &ej0_bytes, aad, n);
+    let expected: [u8; 16] = expected.as_ref().try_into().unwrap();
+    let mut diff = 0u8;
+    for k in 0..16 {
+        diff |= expected[k] ^ tag[k];
+    }
+    if diff != 0 {
+        _mm256_zeroupper();
+        return Err(AeadError::InvalidCiphertext);
+    }
+
+    let swap128 = _mm_loadu_si128(SWAP_BYTES.as_ptr().cast());
+    let mut base = _mm_shuffle_epi8(increment_counter(j0), swap128);
+    ctr32_vaes512::<N>(rk, &mut base, in_out);
+    _mm256_zeroupper();
+
+    Ok(())
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -436,10 +976,10 @@ mod tests {
         rk
     }
 
-    fn make_h_powers(key: &[u8; 32]) -> [__m128i; 8] {
+    fn make_h_powers(key: &[u8; 32]) -> [__m128i; 16] {
         let (bytes, _) = crate::aes::ghash::precompute_ghash_powers::<15>(key);
-        let mut hp = [unsafe { _mm_setzero_si128() }; 8];
-        for i in 0..8 {
+        let mut hp = [unsafe { _mm_setzero_si128() }; 16];
+        for i in 0..16 {
             hp[i] = unsafe { _mm_loadu_si128(bytes[i].as_ptr().cast()) };
         }
         hp
@@ -506,5 +1046,111 @@ mod tests {
         unsafe { super::gcm_decrypt_aesni(&rk, &hp, &mut buf, &tag_bytes, &nonce, aad) }
             .expect("large roundtrip decrypt failed");
         assert_eq!(buf, pt);
+    }
+    fn have_vaes256() -> bool {
+        std::arch::is_x86_feature_detected!("vaes") && std::arch::is_x86_feature_detected!("avx2")
+    }
+
+    fn have_vaes512() -> bool {
+        have_vaes256()
+            && std::arch::is_x86_feature_detected!("avx512f")
+            && std::arch::is_x86_feature_detected!("avx512bw")
+    }
+
+    fn have_vpclmul() -> bool {
+        std::arch::is_x86_feature_detected!("vpclmulqdq")
+    }
+
+    fn gcm_pattern(len: usize, mul: u8, add: u8) -> Vec<u8> {
+        (0..len)
+            .map(|i| (i as u8).wrapping_mul(mul).wrapping_add(add))
+            .collect()
+    }
+
+    fn check_vaes256<const VPCLMUL: bool>(key: &[u8; 32]) {
+        let cipher = crate::aes::aes_gcm::Aes256Gcm::new(key);
+        let round_keys = crate::aes::aes::expand_key::<15>(key);
+        let (_, h) = crate::aes::ghash::precompute_ghash_powers::<15>(key);
+        let rk = make_rk(key);
+        let hp = make_h_powers(key);
+        let nonce = [0x99u8; 12];
+
+        for pt_len in 0..=300usize {
+            for aad_len in [0usize, 1, 15, 16, 17, 31, 32, 33, 64, 127, 128, 129] {
+                let pt = gcm_pattern(pt_len, 53, 7);
+                let aad = gcm_pattern(aad_len, 29, 3);
+
+                let mut soft = pt.clone();
+                let soft_tag = cipher.0.encrypt_in_place_soft(&mut soft, &round_keys, &h, &nonce, &aad);
+
+                let mut vaes = pt.clone();
+                let vaes_tag = unsafe { gcm_encrypt_vaes256::<15, VPCLMUL>(&rk, &hp, &mut vaes, &nonce, &aad) };
+
+                assert_eq!(soft, vaes, "ct mismatch pt={pt_len} aad={aad_len}");
+                assert_eq!(soft_tag.as_ref(), vaes_tag.as_ref(), "tag mismatch pt={pt_len} aad={aad_len}");
+
+                let tag: [u8; 16] = soft_tag.as_ref().try_into().unwrap();
+                let mut back = vaes.clone();
+                unsafe { gcm_decrypt_vaes256::<15, VPCLMUL>(&rk, &hp, &mut back, &tag, &nonce, &aad) }
+                    .expect("decrypt failed");
+                assert_eq!(back, pt, "roundtrip mismatch pt={pt_len} aad={aad_len}");
+
+                let mut bad = tag;
+                bad[pt_len % 16] ^= 0x80;
+                let mut untouched = vaes.clone();
+                assert!(
+                    unsafe { gcm_decrypt_vaes256::<15, VPCLMUL>(&rk, &hp, &mut untouched, &bad, &nonce, &aad) }
+                        .is_err()
+                );
+                assert_eq!(untouched, vaes, "buffer modified on tag failure");
+            }
+        }
+    }
+
+    #[test]
+    fn vaes256_gcm_matches_soft() {
+        if !have_vaes256() {
+            eprintln!("skipping vaes256_gcm_matches_soft: VAES/AVX2 not available");
+            return;
+        }
+        check_vaes256::<false>(&[0x3cu8; 32]);
+        if have_vpclmul() {
+            check_vaes256::<true>(&[0x3cu8; 32]);
+        } else {
+            eprintln!("skipping VAES-256 VPCLMUL GCM tests: VPCLMULQDQ not available");
+        }
+    }
+
+    #[test]
+    fn vaes512_gcm_matches_soft() {
+        if !have_vaes512() || !have_vpclmul() {
+            eprintln!("skipping vaes512_gcm_matches_soft: VAES/AVX-512/VPCLMUL not available");
+            return;
+        }
+        let key = [0x77u8; 32];
+        let cipher = crate::aes::aes_gcm::Aes256Gcm::new(&key);
+        let round_keys = crate::aes::aes::expand_key::<15>(&key);
+        let (_, h) = crate::aes::ghash::precompute_ghash_powers::<15>(&key);
+        let rk = make_rk(&key);
+        let hp = make_h_powers(&key);
+        let nonce = [0x42u8; 12];
+
+        for pt_len in 0..=600usize {
+            for aad_len in [0usize, 1, 16, 17, 64, 128, 129] {
+                let pt = gcm_pattern(pt_len, 41, 5);
+                let aad = gcm_pattern(aad_len, 17, 9);
+                let mut soft = pt.clone();
+                let soft_tag = cipher.0.encrypt_in_place_soft(&mut soft, &round_keys, &h, &nonce, &aad);
+                let mut vaes = pt.clone();
+                let vaes_tag = unsafe { gcm_encrypt_vaes512(&rk, &hp, &mut vaes, &nonce, &aad) };
+                assert_eq!(soft, vaes, "ct mismatch pt={pt_len} aad={aad_len}");
+                assert_eq!(soft_tag.as_ref(), vaes_tag.as_ref(), "tag mismatch pt={pt_len} aad={aad_len}");
+
+                let tag: [u8; 16] = soft_tag.as_ref().try_into().unwrap();
+                let mut back = vaes.clone();
+                unsafe { gcm_decrypt_vaes512(&rk, &hp, &mut back, &tag, &nonce, &aad) }.expect("decrypt");
+                assert_eq!(back, pt);
+            }
+        }
     }
 }
