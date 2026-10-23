@@ -13,6 +13,15 @@ use url::Url;
 
 pub(crate) const EMPTY_PAYLOAD_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
+/// Default upper bound, in bytes, for a response body that the client buffers
+/// in memory (XML listings, tagging, error bodies, ...).
+///
+/// S3 responses are server-controlled; without a bound a malicious or
+/// misbehaving endpoint can exhaust the client's memory. Use
+/// [`Client::set_max_response_bytes`] or [`Client::with_max_response_bytes`] to
+/// change the limit.
+pub const DEFAULT_MAX_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
+
 #[derive(Debug, Clone)]
 pub struct StaticCredentials<'a> {
     pub access_key_id: &'a str,
@@ -41,6 +50,7 @@ pub struct Client<H: HttpClient> {
     pub(crate) region: String,
     pub(crate) credentials: OwnedCredentials,
     pub(crate) virtual_hosted: bool,
+    pub(crate) max_response_bytes: usize,
     pub(crate) http: H,
 }
 
@@ -50,7 +60,15 @@ pub enum Error {
     Http(Box<dyn core::error::Error + Send + Sync>),
     Time(std::time::SystemTimeError),
     Xml(quick_xml::DeError),
-    Api { status: u16, body: String },
+    Api {
+        status: u16,
+        body: String,
+    },
+    /// A response body exceeded the configured buffering limit.
+    ResponseTooLarge {
+        /// The configured limit, in bytes.
+        limit: usize,
+    },
 }
 
 impl fmt::Display for Error {
@@ -64,6 +82,9 @@ impl fmt::Display for Error {
                 status,
                 body,
             } => write!(f, "s3 api error (status {status}): {body}"),
+            Error::ResponseTooLarge {
+                limit,
+            } => write!(f, "s3 response body exceeds the {limit} byte limit"),
         }
     }
 }
@@ -235,8 +256,33 @@ impl<H: HttpClient> Client<H> {
                 },
             },
             virtual_hosted: config.virtual_hosted,
+            max_response_bytes: DEFAULT_MAX_RESPONSE_BYTES,
             http,
         })
+    }
+
+    /// Returns the maximum number of bytes buffered from a single response.
+    pub fn max_response_bytes(&self) -> usize {
+        self.max_response_bytes
+    }
+
+    /// Sets the maximum number of bytes buffered from a single response.
+    ///
+    /// The default is [`DEFAULT_MAX_RESPONSE_BYTES`]. A response larger than
+    /// this fails with [`Error::ResponseTooLarge`] instead of growing the
+    /// client's buffers without bound. Streaming object downloads
+    /// ([`crate::GetObjectOutput`]) are not affected.
+    pub fn set_max_response_bytes(&mut self, max: usize) {
+        self.max_response_bytes = max;
+    }
+
+    /// Consuming variant of [`Client::set_max_response_bytes`].
+    ///
+    /// Useful right after [`Client::new`]:
+    /// `Client::new(&cfg)?.with_max_response_bytes(8 * 1024 * 1024)`.
+    pub fn with_max_response_bytes(mut self, max: usize) -> Self {
+        self.max_response_bytes = max;
+        self
     }
 
     pub(crate) async fn execute(
@@ -382,7 +428,9 @@ impl<H: HttpClient> Client<H> {
         }
 
         let status = response.status_code;
-        let body_bytes = collect_body(response.body).await.unwrap_or_default();
+        let body_bytes = collect_body(response.body, self.max_response_bytes)
+            .await
+            .unwrap_or_default();
         let body = String::from_utf8_lossy(&body_bytes).into_owned();
         Err(Error::Api {
             status,
@@ -509,10 +557,15 @@ fn civil_from_days(days_since_unix_epoch: i64) -> (i32, i64, i64) {
     (year as i32, month, day)
 }
 
-pub(crate) async fn collect_body(mut stream: ByteStream) -> Result<Vec<u8>, Error> {
+pub(crate) async fn collect_body(mut stream: ByteStream, max_bytes: usize) -> Result<Vec<u8>, Error> {
     let mut out = Vec::new();
     while let Some(chunk) = stream.next().await {
         let bytes = chunk.map_err(Error::Http)?;
+        if out.len().saturating_add(bytes.len()) > max_bytes {
+            return Err(Error::ResponseTooLarge {
+                limit: max_bytes,
+            });
+        }
         out.extend_from_slice(&bytes);
     }
     Ok(out)
@@ -628,5 +681,103 @@ mod tests {
     #[test]
     fn empty_payload_sha256_constant_is_correct() {
         assert_eq!(EMPTY_PAYLOAD_SHA256, hex::encode(sha256(b"")));
+    }
+
+    fn stream_of(chunks: &[&'static [u8]]) -> ByteStream {
+        let chunks: Vec<Result<Bytes, HttpError>> = chunks.iter().map(|c| Ok(Bytes::from_static(c))).collect();
+        Box::pin(futures_util::stream::iter(chunks))
+    }
+
+    #[tokio::test]
+    async fn collect_body_accepts_a_body_at_the_limit() {
+        let body = collect_body(stream_of(&[b"abcde", b"fghij"]), 10).await.unwrap();
+        assert_eq!(body, b"abcdefghij");
+    }
+
+    #[tokio::test]
+    async fn collect_body_rejects_a_body_over_the_limit() {
+        // The limit is checked before appending, including across chunks, so a
+        // malicious server cannot grow the buffer past the configured bound.
+        let cases: &[&[&'static [u8]]] = &[
+            &[b"abcdefghijk" as &'static [u8]],
+            &[b"abcde" as &'static [u8], b"fghijk" as &'static [u8]],
+            &[b"abcdefghij" as &'static [u8], b"k" as &'static [u8]],
+        ];
+        for chunks in cases {
+            let err = collect_body(stream_of(chunks), 10).await.unwrap_err();
+            assert!(
+                matches!(
+                    err,
+                    Error::ResponseTooLarge {
+                        limit: 10
+                    }
+                ),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn client_response_limit_is_configurable() {
+        let cfg = ClientConfig {
+            endpoint: "http://127.0.0.1:9000",
+            credentials: StaticCredentials {
+                access_key_id: "a",
+                secret_access_key: "b",
+                session_token: "",
+            },
+            region: "auto",
+            virtual_hosted: false,
+        };
+        let mut client = Client::with_http_client(&cfg, NoopHttpClient).unwrap();
+        assert_eq!(client.max_response_bytes(), DEFAULT_MAX_RESPONSE_BYTES);
+        client.set_max_response_bytes(1024);
+        assert_eq!(client.max_response_bytes(), 1024);
+
+        let client = Client::with_http_client(&cfg, NoopHttpClient)
+            .unwrap()
+            .with_max_response_bytes(2048);
+        assert_eq!(client.max_response_bytes(), 2048);
+    }
+
+    struct HugeBodyHttpClient;
+
+    impl HttpClient for HugeBodyHttpClient {
+        async fn send(&self, _request: HttpRequest) -> Result<HttpResponseData, HttpError> {
+            Ok(HttpResponseData {
+                status_code: 200,
+                headers: Vec::new(),
+                body: Box::pin(futures_util::stream::iter(vec![Ok(Bytes::from_static(
+                    b"<ListAllMyBucketsResult><Buckets></Buckets></ListAllMyBucketsResult>",
+                ))])),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn public_api_enforces_the_response_limit() {
+        let cfg = ClientConfig {
+            endpoint: "http://127.0.0.1:9000",
+            credentials: StaticCredentials {
+                access_key_id: "a",
+                secret_access_key: "b",
+                session_token: "",
+            },
+            region: "auto",
+            virtual_hosted: false,
+        };
+        let client = Client::with_http_client(&cfg, HugeBodyHttpClient)
+            .unwrap()
+            .with_max_response_bytes(8);
+        let err = client.list_buckets().await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::ResponseTooLarge {
+                    limit: 8
+                }
+            ),
+            "{err}"
+        );
     }
 }

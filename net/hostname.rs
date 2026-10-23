@@ -9,9 +9,12 @@ pub fn hostname() -> OsString {
     use libc::{_SC_HOST_NAME_MAX, c_char, sysconf};
 
     // Get the maximum size of host names on this system, and account for the
-    // trailing NUL byte.
+    // trailing NUL byte. `sysconf` returns -1 on error; fall back to the
+    // traditional 255-byte limit instead of casting -1 to a huge `usize` (which
+    // would overflow on `+ 1` and abort in overflow-checks builds).
     let hostname_max = unsafe { sysconf(_SC_HOST_NAME_MAX) };
-    let mut buffer = vec![0; (hostname_max as usize) + 1];
+    let hostname_max = usize::try_from(hostname_max).unwrap_or(255).min(64 * 1024);
+    let mut buffer = vec![0; hostname_max.saturating_add(1)];
     let returncode = unsafe { libc::gethostname(buffer.as_mut_ptr() as *mut c_char, buffer.len()) };
     if returncode != 0 {
         // There are no reasonable failures, so lets panic

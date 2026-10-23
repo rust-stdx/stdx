@@ -605,6 +605,10 @@ impl Value {
                                     items.get(idx as usize).cloned().unwrap_or(Value::Null).into()
                                 }
                                 (Value::String(str), Value::Int(idx)) => {
+                                    // TODO: `idx + 1` overflows for `i64::MAX` (panics in
+                                    // overflow-checks builds). The index also addresses bytes rather
+                                    // than characters. Both should be handled before BEL is exposed
+                                    // to untrusted expressions again.
                                     match str.get(idx as usize..(idx + 1) as usize) {
                                         None => Ok(Value::Null),
                                         Some(str) => Ok(Value::String(str.to_string().into())),

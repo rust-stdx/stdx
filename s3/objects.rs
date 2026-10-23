@@ -154,7 +154,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute_with_headers(HttpMethod::Post, &canonical_uri, "delete=", &body, &checksum_headers, bucket)
             .await?;
-        let xml_text = bytes_to_string(collect_body(response.body).await?)?;
+        let xml_text = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: DeleteResultXml = from_str(&xml_text)?;
         Ok(DeleteObjectsOutput {
             deleted: xml
@@ -181,7 +181,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Post, &canonical_uri, "uploads=", b"", bucket)
             .await?;
-        let xml_text = bytes_to_string(collect_body(response.body).await?)?;
+        let xml_text = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: InitiateMultipartUploadResultXml = from_str(&xml_text)?;
         Ok(xml.upload_id)
     }
@@ -233,7 +233,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Post, &canonical_uri, &canonical_query, &xml_body, bucket)
             .await?;
-        let xml_text = bytes_to_string(collect_body(response.body).await?)?;
+        let xml_text = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: CompleteMultipartUploadResultXml = from_str(&xml_text)?;
         Ok(CompleteMultipartUploadOutput {
             e_tag: xml.e_tag,
@@ -264,7 +264,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Get, &canonical_uri, "uploads=", b"", bucket)
             .await?;
-        let xml_text = bytes_to_string(collect_body(response.body).await?)?;
+        let xml_text = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: ListMultipartUploadsResultXml = from_str(&xml_text)?;
         Ok(ListMultipartUploadsOutput {
             uploads: xml
@@ -292,7 +292,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Get, &canonical_uri, &canonical_query, b"", bucket)
             .await?;
-        let xml_text = bytes_to_string(collect_body(response.body).await?)?;
+        let xml_text = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: ListPartsResultXml = from_str(&xml_text)?;
         Ok(ListPartsOutput {
             parts: xml
@@ -338,7 +338,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Get, &canonical_uri, "tagging=", b"", bucket)
             .await?;
-        let xml_text = bytes_to_string(collect_body(response.body).await?)?;
+        let xml_text = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: TaggingXml = from_str(&xml_text)?;
         Ok(GetObjectTaggingOutput {
             tags: xml

@@ -125,7 +125,10 @@ impl Ipv4Network {
     /// addresses.
     pub fn iter(self) -> Ipv4NetworkIterator {
         let start = u32::from(self.network());
-        let end = start + (self.size() - 1);
+        // Use the broadcast address directly instead of `start + size - 1`:
+        // `size()` saturates to `u32::MAX` for a `/0` network, which made the
+        // iterator stop at 255.255.255.254 and skip the last address.
+        let end = u32::from(self.broadcast());
         Ipv4NetworkIterator {
             next: Some(start),
             end,
@@ -278,12 +281,13 @@ impl Ipv4Network {
     /// assert_eq!(net2.nth(256).unwrap(), Ipv4Addr::new(10, 0, 1, 0));
     /// ```
     pub fn nth(self, n: u32) -> Option<Ipv4Addr> {
-        if n < self.size() {
-            let net = u32::from(self.network());
-            Some(Ipv4Addr::from(net + n))
-        } else {
-            None
+        // `size()` saturates to `u32::MAX` for a `/0` network even though the
+        // network contains 2^32 addresses, so allow every `u32` index there.
+        if self.prefix != 0 && n >= self.size() {
+            return None;
         }
+        let net = u32::from(self.network());
+        net.checked_add(n).map(Ipv4Addr::from)
     }
 }
 
@@ -359,8 +363,13 @@ impl Iterator for Ipv4NetworkIterator {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         if let Some(n) = self.next {
-            let elms = (self.end - n + 1) as usize;
-            (elms, Some(elms))
+            // A `/0` network contains 2^32 addresses, which does not fit the
+            // saturated `size()` value. Compute in `u64` and cap the hint.
+            let remaining = u64::from(self.end) - u64::from(n) + 1;
+            match usize::try_from(remaining) {
+                Ok(elms) => (elms, Some(elms)),
+                Err(_) => (usize::MAX, None),
+            }
         } else {
             (0, None)
         }
@@ -594,7 +603,19 @@ mod test {
 
         let cidr: Ipv4Network = "192.168.0.0/0".parse().unwrap();
         let iter = cidr.iter();
-        assert_eq!((4294967295, Some(4294967295)), iter.size_hint());
+        // A /0 network has 2^32 addresses; the hint is capped when `usize`
+        // cannot represent it (32-bit targets).
+        match usize::try_from(1u64 << 32) {
+            Ok(count) => assert_eq!((count, Some(count)), iter.size_hint()),
+            Err(_) => assert_eq!((usize::MAX, None), iter.size_hint()),
+        }
+    }
+
+    #[test]
+    fn iterator_v4_zero_prefix_reaches_the_last_address() {
+        let cidr: Ipv4Network = "0.0.0.0/0".parse().unwrap();
+        assert_eq!(cidr.nth(u32::MAX), Some(Ipv4Addr::new(255, 255, 255, 255)));
+        assert_eq!(cidr.nth(0), Some(Ipv4Addr::new(0, 0, 0, 0)));
     }
 
     #[test]

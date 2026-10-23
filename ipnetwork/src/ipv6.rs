@@ -301,12 +301,13 @@ impl Ipv6Network {
     /// assert!(net.nth(net.size()).is_none());
     /// ```
     pub fn nth(self, n: u128) -> Option<Ipv6Addr> {
-        if n < self.size() {
-            let net = u128::from(self.network());
-            Some(Ipv6Addr::from(net + n))
-        } else {
-            None
+        // `size()` saturates to `u128::MAX` for a `/0` network even though the
+        // network contains 2^128 addresses, so allow every `u128` index there.
+        if self.prefix != 0 && n >= self.size() {
+            return None;
         }
+        let net = u128::from(self.network());
+        net.checked_add(n).map(Ipv6Addr::from)
     }
 }
 
@@ -367,8 +368,15 @@ impl Iterator for Ipv6NetworkIterator {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         if let Some(n) = self.next {
-            let elms = (self.end - n + 1) as usize;
-            (elms, Some(elms))
+            // For `::/0`, `end - n + 1` is 2^128 and does not fit `u128`.
+            // Compute the hint without overflowing and cap it to `usize`.
+            match (self.end - n)
+                .checked_add(1)
+                .and_then(|elms| usize::try_from(elms).ok())
+            {
+                Some(elms) => (elms, Some(elms)),
+                None => (usize::MAX, None),
+            }
         } else {
             (0, None)
         }
@@ -604,6 +612,18 @@ mod test {
         assert_eq!((1, Some(1)), iter.size_hint());
         assert_eq!(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0), iter.next().unwrap());
         assert_eq!((0, None), iter.size_hint());
+    }
+
+    #[test]
+    fn iterator_v6_zero_prefix_size_hint_does_not_overflow() {
+        let cidr: Ipv6Network = "::/0".parse().unwrap();
+        // 2^128 addresses cannot be represented by `usize`; the lower bound
+        // saturates and the upper bound must be `None` instead of wrapping to 0.
+        assert_eq!((usize::MAX, None), cidr.iter().size_hint());
+
+        let cidr: Ipv6Network = "::/0".parse().unwrap();
+        assert_eq!(cidr.nth(u128::MAX), Some(Ipv6Addr::from(u128::MAX)));
+        assert_eq!(cidr.nth(0), Some(Ipv6Addr::from(0)));
     }
 
     #[test]

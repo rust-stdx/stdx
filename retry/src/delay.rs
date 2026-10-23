@@ -123,7 +123,11 @@ impl Exponential {
         // ±25% → multiplier in range [7500, 12500] per 10000
         let offset = (self.rng_state % 5001) as u128;
         let multiplier = 7500 + offset;
-        Duration::from_nanos((nanos * multiplier / 10000) as u64)
+        // Saturate instead of wrapping: a duration so large that the scaled
+        // value does not fit `u64` nanoseconds becomes the longest representable
+        // delay rather than an arbitrary shorter one.
+        let scaled = nanos.saturating_mul(multiplier) / 10000;
+        Duration::from_nanos(u64::try_from(scaled).unwrap_or(u64::MAX))
     }
 }
 
@@ -135,7 +139,7 @@ impl Delay for Exponential {
         let current_nanos = self.current.as_nanos();
         let next = current_nanos.saturating_mul(self.multiplier as u128);
         let max_nanos = self.max.as_nanos();
-        self.current = Duration::from_nanos(std::cmp::min(next, max_nanos) as u64);
+        self.current = Duration::from_nanos(u64::try_from(std::cmp::min(next, max_nanos)).unwrap_or(u64::MAX));
 
         if self.jitter { self.jitter(delay) } else { delay }
     }

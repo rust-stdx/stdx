@@ -433,6 +433,35 @@ fn saturating_arithmetic() {
 }
 
 #[test]
+fn add_days_extreme_offsets_return_error() {
+    // These offsets used to reach `civil_from_days` with an `i64` so close to
+    // `i64::MAX` that its internal `days + EPOCH_DAYS` overflowed: debug builds
+    // panicked instead of returning `Err`.
+    let dates = [
+        DateTime::from_parts(1970, 1, 1, 0, 0, 0, 0, TimeZone::UTC).unwrap(),
+        DateTime::from_parts(2024, 1, 1, 0, 0, 0, 0, TimeZone::UTC).unwrap(),
+        DateTime::from_parts(9999, 12, 31, 0, 0, 0, 0, TimeZone::UTC).unwrap(),
+        DateTime::from_parts(-9999, 1, 1, 0, 0, 0, 0, TimeZone::UTC).unwrap(),
+    ];
+
+    for date in dates {
+        for offset in [
+            i64::MAX,
+            i64::MAX - 1,
+            i64::MAX - 100_000,
+            i64::MAX - 500_000,
+            i64::MAX - 719_000,
+            i64::MAX - 1_000_000,
+            i64::MIN,
+            i64::MIN + 1,
+            i64::MIN + 100_000,
+        ] {
+            assert!(date.add_days(offset).is_err(), "{date} + {offset} days");
+        }
+    }
+}
+
+#[test]
 fn tzif_malformed_input_is_safe() {
     use crate::tzif::Tzif;
 

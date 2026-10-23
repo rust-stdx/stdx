@@ -139,6 +139,15 @@ async fn exponential_jitter_in_range() {
 }
 
 #[tokio::test]
+async fn jitter_does_not_wrap_huge_durations() {
+    // The scaled nanosecond value does not fit `u64`; it must clamp to the
+    // longest representable delay instead of wrapping to an arbitrary short one.
+    let mut d = Exponential::new(Duration::MAX).with_max(Duration::MAX).with_jitter();
+    let delay = d.next_delay();
+    assert!(delay.as_secs() > 1_000_000_000, "huge jittered delay wrapped to {delay:?}");
+}
+
+#[tokio::test]
 async fn fixed_delay_does_not_jitter() {
     let mut d = Fixed::new(Duration::from_millis(100));
     for _ in 0..10 {

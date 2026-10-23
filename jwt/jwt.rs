@@ -608,7 +608,11 @@ pub fn parse_and_verify<C: DeserializeOwned>(
                             Some(exp_value) => {
                                 if let Some(exp) = exp_value.as_u64() {
                                     let now = verify_options.clock.unwrap().now();
-                                    if exp < (now - verify_options.allowed_time_drift.as_secs()) {
+                                    // `now` and the drift are both caller-controlled; saturate so
+                                    // a clock before the drift (or before the Unix epoch) cannot
+                                    // underflow into a huge deadline.
+                                    let oldest_valid = now.saturating_sub(verify_options.allowed_time_drift.as_secs());
+                                    if exp < oldest_valid {
                                         return Err(Error::InvalidToken);
                                     }
                                 } else {
@@ -624,7 +628,10 @@ pub fn parse_and_verify<C: DeserializeOwned>(
                             Some(nbf_value) => {
                                 if let Some(nbf) = nbf_value.as_u64() {
                                     let now = verify_options.clock.unwrap().now();
-                                    if nbf > (now + verify_options.allowed_time_drift.as_secs()) {
+                                    // Saturate: a near-`u64::MAX` clock plus a large drift must
+                                    // reject the token, not wrap to a tiny deadline.
+                                    let newest_valid = now.saturating_add(verify_options.allowed_time_drift.as_secs());
+                                    if nbf > newest_valid {
                                         return Err(Error::InvalidToken);
                                     }
                                 } else {

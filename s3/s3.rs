@@ -35,8 +35,8 @@ pub use buckets::{Bucket, GetBucketLocationOutput, ListBucketsOutput, ListObject
 #[cfg(feature = "reqwest")]
 pub use client::ReqwestHttpClient;
 pub use client::{
-    ByteStream, Client, ClientConfig, Error, HttpClient, HttpError, HttpMethod, HttpRequest, HttpResponseData,
-    StaticCredentials,
+    ByteStream, Client, ClientConfig, DEFAULT_MAX_RESPONSE_BYTES, Error, HttpClient, HttpError, HttpMethod,
+    HttpRequest, HttpResponseData, StaticCredentials,
 };
 pub use objects::{
     CompleteMultipartUploadOutput, CompletedPart, DeleteObjectsError, DeleteObjectsOutput, DeletedObject,

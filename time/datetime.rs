@@ -23,6 +23,11 @@ pub(crate) const MIN_SECS: i64 = civil::days_from_civil(MIN_YEAR, 1, 1) * civil:
 pub(crate) const MAX_SECS: i64 =
     civil::days_from_civil(MAX_YEAR, 12, 31) * civil::SECS_PER_DAY + (civil::SECS_PER_DAY - 1);
 
+/// First supported day, as days since the Unix epoch.
+const MIN_DAYS: i64 = civil::days_from_civil(MIN_YEAR, 1, 1);
+/// Last supported day, as days since the Unix epoch.
+const MAX_DAYS: i64 = civil::days_from_civil(MAX_YEAR, 12, 31);
+
 /// Validates civil fields and returns the local wall-clock time as seconds
 /// since the Unix epoch.
 ///
@@ -795,6 +800,12 @@ impl DateTime {
         let target = civil::days_from_civil(year, month, day)
             .checked_add(days)
             .ok_or_else(|| error::out_of_range("result is outside the supported range"))?;
+        // Check before `civil_from_days`, whose internal `days + EPOCH_DAYS` is
+        // unchecked: a caller-supplied `days` can otherwise push `target` to the
+        // edge of `i64` and panic in overflow-checks builds.
+        if !(MIN_DAYS..=MAX_DAYS).contains(&target) {
+            return Err(error::out_of_range("result is outside the supported range"));
+        }
         let (year, month, day) = civil::civil_from_days(target);
         DateTime::from_parts(year, month, day, hour, minute, second, nanos, self.zone)
     }

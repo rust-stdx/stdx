@@ -232,7 +232,9 @@ impl Config {
                 "sslrootcert" => sslrootcert = Some(value.into_owned()),
                 "application_name" => application_name = Some(value.into_owned()),
                 "options" => options = Some(value.into_owned()),
-                "connect_timeout" => connect_timeout = Duration::from_secs(parse_secs("connect_timeout", &value)?),
+                "connect_timeout" => {
+                    connect_timeout = Duration::from_secs(u64::from(parse_secs("connect_timeout", &value)?))
+                }
                 "timezone" => timezone = Some(value.into_owned()),
                 "statement_cache_size" => {
                     statement_cache_size = parse_count("statement_cache_size", &value)? as usize;
@@ -242,9 +244,15 @@ impl Config {
                 "max_scram_iterations" => max_scram_iterations = parse_iterations("max_scram_iterations", &value)?,
                 "pool_size" => pool.pool_size = parse_count("pool_size", &value)?,
                 "min_connections" => pool.min_connections = parse_count("min_connections", &value)?,
-                "acquire_timeout" => pool.acquire_timeout = Duration::from_secs(parse_secs("acquire_timeout", &value)?),
-                "idle_timeout" => pool.idle_timeout = Duration::from_secs(parse_secs("idle_timeout", &value)?),
-                "max_lifetime" => pool.max_lifetime = Duration::from_secs(parse_secs("max_lifetime", &value)?),
+                "acquire_timeout" => {
+                    pool.acquire_timeout = Duration::from_secs(u64::from(parse_secs("acquire_timeout", &value)?))
+                }
+                "idle_timeout" => {
+                    pool.idle_timeout = Duration::from_secs(u64::from(parse_secs("idle_timeout", &value)?))
+                }
+                "max_lifetime" => {
+                    pool.max_lifetime = Duration::from_secs(u64::from(parse_secs("max_lifetime", &value)?))
+                }
                 other => {
                     return Err(Error::Config(format!("unsupported connection parameter `{other}`")));
                 }
@@ -337,10 +345,20 @@ fn parse_iterations(name: &str, value: &str) -> Result<u32, Error> {
     Ok(n)
 }
 
-fn parse_secs(name: &str, value: &str) -> Result<u64, Error> {
-    value
+/// Longest accepted connect/acquire/idle/lifetime timeout, in seconds.
+///
+/// A week is far beyond any sane deployment and keeps every timeout a `u32`
+/// that can be converted to `Duration` without a range check at use sites.
+pub const MAX_TIMEOUT_SECS: u32 = 7 * 24 * 60 * 60;
+
+fn parse_secs(name: &str, value: &str) -> Result<u32, Error> {
+    let secs: u32 = value
         .parse()
-        .map_err(|_| Error::Config(format!("`{name}` must be an integer number of seconds")))
+        .map_err(|_| Error::Config(format!("`{name}` must be an integer number of seconds")))?;
+    if secs > MAX_TIMEOUT_SECS {
+        return Err(Error::Config(format!("`{name}` must be at most {MAX_TIMEOUT_SECS} seconds")));
+    }
+    Ok(secs)
 }
 
 fn parse_count(name: &str, value: &str) -> Result<u32, Error> {
@@ -437,6 +455,18 @@ impl PoolConfig {
         if let Some(max_message_len) = self.max_message_len {
             check_len("max_message_len", max_message_len)?;
         }
+        let max_timeout = Duration::from_secs(u64::from(MAX_TIMEOUT_SECS));
+        for (name, value) in [
+            ("acquire_timeout", self.acquire_timeout),
+            ("idle_timeout", self.idle_timeout),
+            ("max_lifetime", self.max_lifetime),
+            ("reap_interval", self.reap_interval),
+            ("test_on_checkout_after", self.test_on_checkout_after),
+        ] {
+            if value > max_timeout {
+                return Err(Error::Config(format!("`{name}` must be at most {MAX_TIMEOUT_SECS} seconds")));
+            }
+        }
         Ok(())
     }
 }
@@ -509,6 +539,25 @@ mod tests {
         assert!(Config::parse("postgres://bob@localhost/db?max_message_len=100").is_err());
         assert!(Config::parse("postgres://bob@localhost/db?max_message_len=99999999999").is_err());
         assert!(Config::parse("postgres://bob@localhost/db?max_scram_iterations=0").is_err());
+    }
+
+    #[test]
+    fn rejects_excessive_timeouts() {
+        let over = MAX_TIMEOUT_SECS + 1;
+        for parameter in ["connect_timeout", "acquire_timeout", "idle_timeout", "max_lifetime"] {
+            let url = format!("postgres://bob@localhost/db?{parameter}={over}");
+            let err = Config::parse(&url).unwrap_err();
+            assert!(err.to_string().contains("at most"), "{parameter}: {err}");
+        }
+
+        let mut pool = PoolConfig {
+            acquire_timeout: Duration::from_secs(u64::from(MAX_TIMEOUT_SECS) + 1),
+            ..PoolConfig::default()
+        };
+        assert!(pool.validate().is_err());
+
+        pool.acquire_timeout = Duration::from_secs(u64::from(MAX_TIMEOUT_SECS));
+        assert!(pool.validate().is_ok());
     }
 
     #[test]

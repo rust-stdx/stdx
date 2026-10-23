@@ -532,15 +532,26 @@ const fn decoded_length(encoded_content_len: usize) -> Result<usize, DecodeError
     let full_blocks = encoded_content_len / 8;
     let rem = encoded_content_len % 8;
 
-    let base = full_blocks * 5;
+    // `full_blocks * 5` cannot overflow for any `usize` (5/8 < 1), but keep the
+    // arithmetic checked so a future change to the ratios cannot introduce a
+    // wrap that sizing code later trusts.
+    let base = match full_blocks.checked_mul(5) {
+        Some(base) => base,
+        None => return Err(DecodeError::InvalidLength),
+    };
 
-    match rem {
-        0 => Ok(base),
-        2 => Ok(base + 1),
-        4 => Ok(base + 2),
-        5 => Ok(base + 3),
-        7 => Ok(base + 4),
-        _ => Err(DecodeError::InvalidLength),
+    let extra = match rem {
+        0 => 0,
+        2 => 1,
+        4 => 2,
+        5 => 3,
+        7 => 4,
+        _ => return Err(DecodeError::InvalidLength),
+    };
+
+    match base.checked_add(extra) {
+        Some(len) => Ok(len),
+        None => Err(DecodeError::InvalidLength),
     }
 }
 
@@ -1122,6 +1133,28 @@ mod tests {
         for &(data_len, padding, expected, desc) in ENCODED_LENGTH_VECTORS {
             let result = encoded_length(data_len, padding);
             assert_eq!(result, expected, "encoded_length: {desc}");
+        }
+    }
+
+    #[test]
+    fn test_decoded_length_does_not_overflow() {
+        // The size computation is checked: even the largest possible content
+        // length must be accepted or rejected explicitly, never wrap.
+        let max = usize::MAX;
+        let expected = (max / 8) * 5
+            + match max % 8 {
+                0 => 0,
+                2 => 1,
+                4 => 2,
+                5 => 3,
+                7 => 4,
+                _ => unreachable!(),
+            };
+        assert_eq!(decoded_length(max), Ok(expected));
+
+        // Invalid remainders are still rejected.
+        for rem in [1usize, 3, 6] {
+            assert_eq!(decoded_length(rem), Err(DecodeError::InvalidLength));
         }
     }
 

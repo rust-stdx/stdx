@@ -641,3 +641,69 @@ fn jwk_kid_serializes_as_plain_json_string() {
     assert!(json.contains(r#""kid":"kid-123""#), "{json}");
     assert!(!json.contains("Inline"), "{json}");
 }
+
+// ---------------------------------------------------------------------------
+// Time-check arithmetic at the edges of the clock range.
+// ---------------------------------------------------------------------------
+
+struct FixedClock(u64);
+
+impl Clock for FixedClock {
+    fn now(&self) -> u64 {
+        self.0
+    }
+}
+
+#[test]
+fn exp_check_does_not_underflow_before_the_epoch() {
+    // A clock at the Unix epoch and a non-zero drift used to make
+    // `now - drift` underflow, panicking in overflow-checks builds.
+    let secret = [7u8; 32];
+    let key = SecretKey::new(Algorithm::HS256, &secret);
+    let header = Header {
+        alg: Algorithm::HS256,
+        ..Default::default()
+    };
+    let token = sign(&key, &header, &serde_json::json!({ "exp": 1u64 })).unwrap();
+    let parsed = parse_header(&token).unwrap();
+
+    let clock = FixedClock(0);
+    let options = VerifyOptions {
+        allowed_time_drift: core::time::Duration::from_secs(30),
+        exp: true,
+        nbf: false,
+        clock: Some(&clock),
+        ..Default::default()
+    };
+
+    // The token is not expired: `exp` is after the saturated lower bound.
+    let verified: serde_json::Value = parse_and_verify(&key, &parsed, &token, &options).unwrap();
+    assert_eq!(verified["exp"], 1);
+}
+
+#[test]
+fn nbf_check_does_not_overflow_near_u64_max() {
+    // A clock near `u64::MAX` plus a drift used to wrap `now + drift` to a
+    // tiny value, which rejected every token (and panicked with overflow
+    // checks enabled).
+    let secret = [7u8; 32];
+    let key = SecretKey::new(Algorithm::HS256, &secret);
+    let header = Header {
+        alg: Algorithm::HS256,
+        ..Default::default()
+    };
+    let token = sign(&key, &header, &serde_json::json!({ "nbf": 1u64 })).unwrap();
+    let parsed = parse_header(&token).unwrap();
+
+    let clock = FixedClock(u64::MAX);
+    let options = VerifyOptions {
+        allowed_time_drift: core::time::Duration::from_secs(30),
+        exp: false,
+        nbf: true,
+        clock: Some(&clock),
+        ..Default::default()
+    };
+
+    let verified: serde_json::Value = parse_and_verify(&key, &parsed, &token, &options).unwrap();
+    assert_eq!(verified["nbf"], 1);
+}

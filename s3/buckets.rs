@@ -47,7 +47,7 @@ pub struct GetBucketLocationOutput {
 impl<H: HttpClient> Client<H> {
     pub async fn list_buckets(&self) -> Result<ListBucketsOutput, crate::client::Error> {
         let response = self.execute(HttpMethod::Get, "/", "", b"", "").await?;
-        let body = bytes_to_string(collect_body(response.body).await?)?;
+        let body = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: ListAllMyBucketsResultXml = from_str(&body)?;
 
         Ok(ListBucketsOutput {
@@ -122,7 +122,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Get, &canonical_uri, &canonical_query, b"", bucket)
             .await?;
-        let body = bytes_to_string(collect_body(response.body).await?)?;
+        let body = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: ListBucketResultXml = from_str(&body)?;
 
         Ok(ListObjectsOutput {
@@ -151,7 +151,7 @@ impl<H: HttpClient> Client<H> {
         let response = self
             .execute(HttpMethod::Get, &canonical_uri, "location=", b"", bucket)
             .await?;
-        let body = bytes_to_string(collect_body(response.body).await?)?;
+        let body = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
         let xml: LocationConstraintXml = from_str(&body)?;
         Ok(GetBucketLocationOutput {
             location_constraint: xml.location_constraint.and_then(|s| {
