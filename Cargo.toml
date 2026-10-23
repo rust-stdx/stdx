@@ -132,7 +132,7 @@ libc = "0.2"
 memchr = { version = "2", default-features = false }
 nom = "8"
 paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
-quick-xml = { version = "0.38", features = ["serialize"] }
+quick-xml = { version = "0.42", features = ["serialize"] }
 rand = "0.10"
 regex = { version = "1" }
 reqwest = { version = "0.13", default-features = false, features = ["gzip", "http2", "json", "rustls-no-provider"] }

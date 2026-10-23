@@ -75,12 +75,12 @@ check_no_std:
 WASM_SIMD_PKGS = -p base64 -p hex -p xxhash -p crypto
 
 check_all:
-	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu
-	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
-	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
-	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu
-	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
-	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-avx512bw,-vaes,-vpclmulqdq,-pclmulqdq,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu
+	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-avx512bw,-vaes,-vpclmulqdq,-pclmulqdq,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
+	RUSTFLAGS="-C target-feature=-avx2,-avx512f,-avx512bw,-vaes,-vpclmulqdq,-pclmulqdq,-aes,-sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+avx512bw,+vaes,+vpclmulqdq,+pclmulqdq,+ssse3,+sse4.1,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu
+	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+avx512bw,+vaes,+vpclmulqdq,+pclmulqdq,+ssse3,+sse4.1,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --all-features
+	RUSTFLAGS="-C target-feature=+avx2,+avx512f,+avx512bw,+vaes,+vpclmulqdq,+pclmulqdq,+ssse3,+sse4.1,+aes,+sha512" cargo check --target=x86_64-unknown-linux-gnu --no-default-features
 
 	# aarch64 assumes that NEON instructions are always present
 	RUSTFLAGS="-C target-feature=-aes,-sha2,-sha3" cargo check --target=aarch64-unknown-linux-gnu --all-features
