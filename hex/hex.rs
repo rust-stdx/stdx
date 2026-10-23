@@ -48,7 +48,7 @@ mod serde;
 // Re-export the `#[serde(with = "hex")]` helpers so they are reachable from outside the crate
 // (and therefore not dead code).
 #[cfg(feature = "serde")]
-pub use self::serde::{FromEncoded, deserialize, serialize};
+pub use self::serde::{FromEncoded, FromEncodedError, deserialize, serialize};
 
 // SIMD kernels are only reachable through the compile-time dispatch in `encode_into` /
 // `decode_into` below, so they are compiled only when the matching target feature is

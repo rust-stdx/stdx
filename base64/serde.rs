@@ -22,13 +22,19 @@
 //!   [`SmallVec<u8, N>`](small_collections::SmallVec) (implies `serde` and
 //!   `alloc`)
 //!
+//! `&[u8]` and `Cow<[u8]>` can borrow decoded bytes from binary formats.
+//! Human-readable formats cannot borrow decoded bytes out of encoded text, so
+//! `&[u8]` returns an error there; use `Cow<[u8]>` or an owned container instead.
+//! Borrowed fields must opt in with `#[serde(borrow, with = "base64")]` so
+//! serde adds the required lifetime bound.
+//!
 //! Values whose encoded form fits in 256 bytes are encoded into a stack
 //! buffer, so serialization does not allocate. Larger values use one
 //! allocation when `alloc` is enabled, or stream through
 //! [`Serializer::collect_str`] when it is not.
 
 #[cfg(feature = "alloc")]
-use alloc::vec::Vec;
+use alloc::{borrow::Cow, vec::Vec};
 use core::{fmt, marker::PhantomData};
 
 use serde::{
@@ -48,6 +54,38 @@ const STACK_BUFFER_SIZE: usize = 256;
 /// Input bytes processed per streaming chunk.
 #[cfg(any(not(feature = "alloc"), test))]
 const STREAM_INPUT_CHUNK: usize = STACK_BUFFER_SIZE / 4 * 3;
+
+/// Error returned by [`FromEncoded`] implementations.
+///
+/// This is an implementation detail of the serde helpers.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FromEncodedError {
+    /// Decoding the input failed.
+    Decode(DecodeError),
+    /// The target requires borrowed bytes, but the format only provides an
+    /// encoded string or an ephemeral byte slice.
+    BorrowedNotSupported,
+}
+
+impl From<DecodeError> for FromEncodedError {
+    fn from(error: DecodeError) -> Self {
+        Self::Decode(error)
+    }
+}
+
+impl fmt::Display for FromEncodedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Decode(error) => error.fmt(f),
+            Self::BorrowedNotSupported => f.write_str(
+                "borrowed byte slices can only be deserialized from binary formats; use Vec<u8> or Cow<[u8]> instead",
+            ),
+        }
+    }
+}
+
+impl core::error::Error for FromEncodedError {}
 
 /// Serializes `data` to a base64 string (human-readable) or raw bytes (binary
 /// formats).
@@ -102,7 +140,7 @@ fn serialize_fallback<S: Serializer>(data: &[u8], serializer: S) -> Result<S::Ok
 pub fn deserialize<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
-    T: FromEncoded,
+    T: FromEncoded<'de>,
 {
     if deserializer.is_human_readable() {
         deserializer.deserialize_str(BytesVisitor(PhantomData))
@@ -113,7 +151,7 @@ where
 
 struct BytesVisitor<T>(PhantomData<T>);
 
-impl<'de, T: FromEncoded> Visitor<'de> for BytesVisitor<T> {
+impl<'de, T: FromEncoded<'de>> Visitor<'de> for BytesVisitor<T> {
     type Value = T;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -125,7 +163,11 @@ impl<'de, T: FromEncoded> Visitor<'de> for BytesVisitor<T> {
     }
 
     fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<T, E> {
-        T::from_decoded(v).map_err(|_| E::invalid_length(v.len(), &self))
+        T::from_decoded(v).map_err(de::Error::custom)
+    }
+
+    fn visit_borrowed_bytes<E: de::Error>(self, v: &'de [u8]) -> Result<T, E> {
+        T::from_borrowed(v).map_err(de::Error::custom)
     }
 }
 
@@ -135,57 +177,76 @@ impl<'de, T: FromEncoded> Visitor<'de> for BytesVisitor<T> {
 /// need to be imported to use `#[serde(with = "base64")]`. The target type is
 /// inferred from the field.
 ///
-/// It is implemented for `Vec<u8>`, `[u8; N]`, and
+/// It is implemented for `Vec<u8>`, `[u8; N]`, `&[u8]`, and
 /// [`SmallVec<u8, N>`](small_collections::SmallVec), depending on the enabled
-/// features.
+/// features. Some care is required for borrowed slices:
+///
+/// * `&[u8]` and `Cow<[u8]>` can only borrow from binary formats that provide
+///   borrowed bytes. Human-readable formats return
+///   [`FromEncodedError::BorrowedNotSupported`] for `&[u8]`.
+/// * `Cow<[u8]>` owns the decoded data in human-readable formats and can borrow
+///   it in binary formats.
 #[doc(hidden)]
-pub trait FromEncoded: Sized {
+pub trait FromEncoded<'de>: Sized {
     /// Creates a value from a base64-encoded string.
     ///
     /// # Errors
     ///
-    /// Returns an error if `encoded` is not valid base64 or if `Self` has a
-    /// fixed length that does not match the decoded input.
-    fn from_encoded(encoded: &[u8]) -> Result<Self, DecodeError>;
+    /// Returns an error if `encoded` is not valid base64, if `Self` has a
+    /// fixed length that does not match the decoded input, or if `Self` can
+    /// only be built from borrowed bytes.
+    fn from_encoded(encoded: &[u8]) -> Result<Self, FromEncodedError>;
 
     /// Creates a value from already-decoded bytes (binary formats).
     ///
     /// # Errors
     ///
     /// Returns an error if `Self` has a fixed length that does not match
-    /// `decoded`.
-    fn from_decoded(decoded: &[u8]) -> Result<Self, DecodeError>;
+    /// `decoded`, or if `Self` can only be built from borrowed bytes.
+    fn from_decoded(decoded: &[u8]) -> Result<Self, FromEncodedError>;
+
+    /// Creates a value from bytes borrowed from the deserializer.
+    ///
+    /// The default implementation delegates to [`Self::from_decoded`], which
+    /// copies the input for owned containers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the decoded input does not match the target type.
+    fn from_borrowed(decoded: &'de [u8]) -> Result<Self, FromEncodedError> {
+        Self::from_decoded(decoded)
+    }
 }
 
 #[cfg(feature = "alloc")]
-impl FromEncoded for Vec<u8> {
-    fn from_encoded(encoded: &[u8]) -> Result<Self, DecodeError> {
-        decode(encoded, Alphabet::Standard)
+impl<'de> FromEncoded<'de> for Vec<u8> {
+    fn from_encoded(encoded: &[u8]) -> Result<Self, FromEncodedError> {
+        Ok(decode(encoded, Alphabet::Standard)?)
     }
 
-    fn from_decoded(decoded: &[u8]) -> Result<Self, DecodeError> {
+    fn from_decoded(decoded: &[u8]) -> Result<Self, FromEncodedError> {
         Ok(decoded.to_vec())
     }
 }
 
-impl<const N: usize> FromEncoded for [u8; N] {
-    fn from_encoded(encoded: &[u8]) -> Result<Self, DecodeError> {
+impl<'de, const N: usize> FromEncoded<'de> for [u8; N] {
+    fn from_encoded(encoded: &[u8]) -> Result<Self, FromEncodedError> {
         if decoded_len(encoded)? != N {
-            return Err(DecodeError::InvalidOutputLength);
+            return Err(DecodeError::InvalidOutputLength.into());
         }
         let mut output = [0u8; N];
         decode_into(&mut output, encoded, Alphabet::Standard)?;
         Ok(output)
     }
 
-    fn from_decoded(decoded: &[u8]) -> Result<Self, DecodeError> {
-        decoded.try_into().map_err(|_| DecodeError::InvalidOutputLength)
+    fn from_decoded(decoded: &[u8]) -> Result<Self, FromEncodedError> {
+        decoded.try_into().map_err(|_| DecodeError::InvalidOutputLength.into())
     }
 }
 
 #[cfg(feature = "small_collections")]
-impl<const N: usize> FromEncoded for SmallVec<u8, N> {
-    fn from_encoded(encoded: &[u8]) -> Result<Self, DecodeError> {
+impl<'de, const N: usize> FromEncoded<'de> for SmallVec<u8, N> {
+    fn from_encoded(encoded: &[u8]) -> Result<Self, FromEncodedError> {
         let len = decoded_len(encoded)?;
         let mut output = SmallVec::with_capacity(len);
         output.resize(len, 0);
@@ -193,8 +254,37 @@ impl<const N: usize> FromEncoded for SmallVec<u8, N> {
         Ok(output)
     }
 
-    fn from_decoded(decoded: &[u8]) -> Result<Self, DecodeError> {
+    fn from_decoded(decoded: &[u8]) -> Result<Self, FromEncodedError> {
         Ok(SmallVec::from_slice(decoded))
+    }
+}
+
+impl<'de> FromEncoded<'de> for &'de [u8] {
+    fn from_encoded(_: &[u8]) -> Result<Self, FromEncodedError> {
+        Err(FromEncodedError::BorrowedNotSupported)
+    }
+
+    fn from_decoded(_: &[u8]) -> Result<Self, FromEncodedError> {
+        Err(FromEncodedError::BorrowedNotSupported)
+    }
+
+    fn from_borrowed(decoded: &'de [u8]) -> Result<Self, FromEncodedError> {
+        Ok(decoded)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'de> FromEncoded<'de> for Cow<'de, [u8]> {
+    fn from_encoded(encoded: &[u8]) -> Result<Self, FromEncodedError> {
+        Ok(Cow::Owned(decode(encoded, Alphabet::Standard)?))
+    }
+
+    fn from_decoded(decoded: &[u8]) -> Result<Self, FromEncodedError> {
+        Ok(Cow::Owned(decoded.to_vec()))
+    }
+
+    fn from_borrowed(decoded: &'de [u8]) -> Result<Self, FromEncodedError> {
+        Ok(Cow::Borrowed(decoded))
     }
 }
 
@@ -385,6 +475,83 @@ mod tests {
                     name: "Data",
                 },
                 Token::Bytes(&LARGE),
+            ],
+        );
+    }
+
+    #[test]
+    fn borrowed_slice_supports_binary_only() {
+        use serde_test::{Configure, Token, assert_tokens};
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct Borrowed<'a>(#[serde(borrow, with = "crate")] &'a [u8]);
+
+        let json = serde_json::to_string(&Borrowed(b"abcd")).unwrap();
+        assert_eq!(json, "\"YWJjZA==\"");
+
+        let error = serde_json::from_str::<Borrowed>(&json).unwrap_err().to_string();
+        assert!(error.contains("borrowed byte slices"), "{error}");
+
+        let borrowed = <&[u8] as FromEncoded<'_>>::from_borrowed(b"abcd").unwrap();
+        assert_eq!(borrowed.as_ptr(), b"abcd".as_ptr());
+        assert!(<&[u8] as FromEncoded<'_>>::from_encoded(b"YWJjZA==").is_err());
+        assert!(<&[u8] as FromEncoded<'_>>::from_decoded(b"abcd").is_err());
+
+        assert_tokens(
+            &Borrowed(b"abcd").compact(),
+            &[
+                Token::NewtypeStruct {
+                    name: "Borrowed",
+                },
+                Token::BorrowedBytes(b"abcd"),
+            ],
+        );
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn cow_borrows_in_binary_and_owns_in_json() {
+        use std::borrow::Cow;
+
+        use serde_test::{Configure, Token, assert_tokens};
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct Data<'a>(#[serde(borrow, with = "crate")] Cow<'a, [u8]>);
+
+        let json = serde_json::to_string(&Data(Cow::Borrowed(b"abcd"))).unwrap();
+        assert_eq!(json, "\"YWJjZA==\"");
+        let decoded: Data = serde_json::from_str(&json).unwrap();
+        assert!(matches!(decoded.0, Cow::Owned(_)));
+        assert_eq!(&*decoded.0, b"abcd");
+
+        let borrowed = <Cow<'_, [u8]> as FromEncoded<'_>>::from_borrowed(b"abcd").unwrap();
+        assert!(matches!(borrowed, Cow::Borrowed(_)));
+        assert_eq!(borrowed.as_ptr(), b"abcd".as_ptr());
+
+        let owned = <Cow<'_, [u8]> as FromEncoded<'_>>::from_encoded(b"YWJjZA==").unwrap();
+        assert!(matches!(owned, Cow::Owned(_)));
+        assert_eq!(&*owned, b"abcd");
+
+        let owned = <Cow<'_, [u8]> as FromEncoded<'_>>::from_decoded(b"abcd").unwrap();
+        assert!(matches!(owned, Cow::Owned(_)));
+        assert_eq!(&*owned, b"abcd");
+
+        assert_tokens(
+            &Data(Cow::Borrowed(b"abcd")).compact(),
+            &[
+                Token::NewtypeStruct {
+                    name: "Data",
+                },
+                Token::BorrowedBytes(b"abcd"),
+            ],
+        );
+        assert_tokens(
+            &Data(Cow::Borrowed(b"abcd")).compact(),
+            &[
+                Token::NewtypeStruct {
+                    name: "Data",
+                },
+                Token::Bytes(b"abcd"),
             ],
         );
     }
