@@ -1,22 +1,21 @@
 //! Keccak-p[1600] for a single state on x86-64.
 //!
-//! Three kernels live here, selected once per sponge by `PermuteBackend`:
+//! Two kernels live here, selected once per sponge by `PermuteBackend`:
 //!
 //! | Backend    | State layout                              | Instructions/round |
 //! |------------|-------------------------------------------|--------------------|
-//! | BMI1/BMI2  | 25 scalar registers                       | 187                |
 //! | AVX2       | 25 lanes in 7 YMM, CRYPTOGAMS order       | 108                |
 //! | AVX-512F   | 5 rows in 5 ZMM, 5 lanes each             | ~40                |
 //!
-//! The three are ports of the BMI2 scalar round, the CRYPTOGAMS/OpenSSL AVX2
-//! kernel and the Keccak team's two-rounds-per-iteration AVX-512 kernel. They
-//! all apply Keccak-p[1600, `ROUNDS`] to the same plain `[u64; 25]` state; only
-//! the AVX2 submodule reshuffles it internally, and it undoes that on entry and
-//! exit, so callers never see the difference.
+//! The two are ports of the CRYPTOGAMS/OpenSSL AVX2 kernel and the Keccak
+//! team's two-rounds-per-iteration AVX-512 kernel. They both apply
+//! Keccak-p[1600, `ROUNDS`] to the same plain `[u64; 25]` state; only the AVX2
+//! submodule reshuffles it internally, and it undoes that on entry and exit, so
+//! callers never see the difference.
 //!
-//! None of these instruction sets is baseline on x86-64, so each function may
-//! only be called after the matching `std::arch::is_x86_feature_detected!`
-//! check, or when the feature is enabled at compile time.
+//! Neither instruction set is baseline on x86-64, so each function may only be
+//! called after the matching `std::arch::is_x86_feature_detected!` check, or
+//! when the feature is enabled at compile time.
 #![allow(unsafe_op_in_unsafe_fn)]
 
 /// The Keccak-p[`ROUNDS`] permutation of one 1600-bit state, single-state AVX2.
@@ -32,210 +31,119 @@ pub(crate) use avx2::p1600_avx2;
 /// The CPU must implement AVX-512F.
 #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
 pub(crate) use avx512::p1600_avx512;
-/// The Keccak-p[`ROUNDS`] permutation of one 1600-bit state, BMI1/BMI2.
-///
-/// # Safety
-/// The CPU must implement BMI1 and BMI2.
-#[cfg(all(
-    target_arch = "x86_64",
-    any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
-))]
-pub(crate) use bmi::p1600_bmi;
 
+#[cfg(feature = "std")]
+use super::keccak::PermuteBackend;
 use super::keccak::ROUND_CONSTANTS;
 
-/// Portable scalar round using the BMI1/BMI2 instructions.
+/// Process-wide cache of the backend selected for this x86-64 CPU.
+#[cfg(feature = "std")]
+static BACKEND: std::sync::OnceLock<PermuteBackend> = std::sync::OnceLock::new();
+
+/// Detects the single-state backend once per process.
 ///
-/// `rorx` is a three-operand rotate, so a rotation no longer needs a register
-/// copy, and `andn` computes `!a & b` in one instruction, which is exactly the
-/// operand chi needs for each of the 25 lanes. Measured on x86-64 this removes
-/// about a quarter of the round's instructions compared with the portable code.
-#[cfg(all(
-    target_arch = "x86_64",
-    any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
-))]
-mod bmi {
-    #![allow(unsafe_op_in_unsafe_fn)]
+/// The expensive vendor/family `cpuid` probe therefore runs at most once
+/// instead of once per sponge.
+#[cfg(feature = "std")]
+#[inline]
+pub(crate) fn detect_amd64() -> PermuteBackend {
+    return *BACKEND.get_or_init(detect_amd64_uncached);
+}
 
-    use super::ROUND_CONSTANTS;
-
-    /// One Keccak-p[1600] round.
-    #[inline(always)]
-    fn round(s: [u64; 25], rc: u64) -> [u64; 25] {
-        let [
-            s0,
-            s1,
-            s2,
-            s3,
-            s4,
-            s5,
-            s6,
-            s7,
-            s8,
-            s9,
-            s10,
-            s11,
-            s12,
-            s13,
-            s14,
-            s15,
-            s16,
-            s17,
-            s18,
-            s19,
-            s20,
-            s21,
-            s22,
-            s23,
-            s24,
-        ] = s;
-
-        // theta
-        let c0 = s0 ^ s5 ^ s10 ^ s15 ^ s20;
-        let c1 = s1 ^ s6 ^ s11 ^ s16 ^ s21;
-        let c2 = s2 ^ s7 ^ s12 ^ s17 ^ s22;
-        let c3 = s3 ^ s8 ^ s13 ^ s18 ^ s23;
-        let c4 = s4 ^ s9 ^ s14 ^ s19 ^ s24;
-        let d0 = c4 ^ c1.rotate_left(1);
-        let d1 = c0 ^ c2.rotate_left(1);
-        let d2 = c1 ^ c3.rotate_left(1);
-        let d3 = c2 ^ c4.rotate_left(1);
-        let d4 = c3 ^ c0.rotate_left(1);
-        let t0 = s0 ^ d0;
-        let t1 = s1 ^ d1;
-        let t2 = s2 ^ d2;
-        let t3 = s3 ^ d3;
-        let t4 = s4 ^ d4;
-        let t5 = s5 ^ d0;
-        let t6 = s6 ^ d1;
-        let t7 = s7 ^ d2;
-        let t8 = s8 ^ d3;
-        let t9 = s9 ^ d4;
-        let t10 = s10 ^ d0;
-        let t11 = s11 ^ d1;
-        let t12 = s12 ^ d2;
-        let t13 = s13 ^ d3;
-        let t14 = s14 ^ d4;
-        let t15 = s15 ^ d0;
-        let t16 = s16 ^ d1;
-        let t17 = s17 ^ d2;
-        let t18 = s18 ^ d3;
-        let t19 = s19 ^ d4;
-        let t20 = s20 ^ d0;
-        let t21 = s21 ^ d1;
-        let t22 = s22 ^ d2;
-        let t23 = s23 ^ d3;
-        let t24 = s24 ^ d4;
-
-        // rho and pi
-        let n1 = t6.rotate_left(44);
-        let n2 = t12.rotate_left(43);
-        let n3 = t18.rotate_left(21);
-        let n4 = t24.rotate_left(14);
-        let n5 = t3.rotate_left(28);
-        let n6 = t9.rotate_left(20);
-        let n7 = t10.rotate_left(3);
-        let n8 = t16.rotate_left(45);
-        let n9 = t22.rotate_left(61);
-        let n10 = t1.rotate_left(1);
-        let n11 = t7.rotate_left(6);
-        let n12 = t13.rotate_left(25);
-        let n13 = t19.rotate_left(8);
-        let n14 = t20.rotate_left(18);
-        let n15 = t4.rotate_left(27);
-        let n16 = t5.rotate_left(36);
-        let n17 = t11.rotate_left(10);
-        let n18 = t17.rotate_left(15);
-        let n19 = t23.rotate_left(56);
-        let n20 = t2.rotate_left(62);
-        let n21 = t8.rotate_left(55);
-        let n22 = t14.rotate_left(39);
-        let n23 = t15.rotate_left(41);
-        let n24 = t21.rotate_left(2);
-
-        // chi
-        let (p0, p1, p2, p3, p4) = (t0, n1, n2, n3, n4);
-        let o0 = p0 ^ (!p1 & p2);
-        let o1 = p1 ^ (!p2 & p3);
-        let o2 = p2 ^ (!p3 & p4);
-        let o3 = p3 ^ (!p4 & p0);
-        let o4 = p4 ^ (!p0 & p1);
-        let (p0, p1, p2, p3, p4) = (n5, n6, n7, n8, n9);
-        let o5 = p0 ^ (!p1 & p2);
-        let o6 = p1 ^ (!p2 & p3);
-        let o7 = p2 ^ (!p3 & p4);
-        let o8 = p3 ^ (!p4 & p0);
-        let o9 = p4 ^ (!p0 & p1);
-        let (p0, p1, p2, p3, p4) = (n10, n11, n12, n13, n14);
-        let o10 = p0 ^ (!p1 & p2);
-        let o11 = p1 ^ (!p2 & p3);
-        let o12 = p2 ^ (!p3 & p4);
-        let o13 = p3 ^ (!p4 & p0);
-        let o14 = p4 ^ (!p0 & p1);
-        let (p0, p1, p2, p3, p4) = (n15, n16, n17, n18, n19);
-        let o15 = p0 ^ (!p1 & p2);
-        let o16 = p1 ^ (!p2 & p3);
-        let o17 = p2 ^ (!p3 & p4);
-        let o18 = p3 ^ (!p4 & p0);
-        let o19 = p4 ^ (!p0 & p1);
-        let (p0, p1, p2, p3, p4) = (n20, n21, n22, n23, n24);
-        let o20 = p0 ^ (!p1 & p2);
-        let o21 = p1 ^ (!p2 & p3);
-        let o22 = p2 ^ (!p3 & p4);
-        let o23 = p3 ^ (!p4 & p0);
-        let o24 = p4 ^ (!p0 & p1);
-
-        // iota
-        return [
-            o0 ^ rc,
-            o1,
-            o2,
-            o3,
-            o4,
-            o5,
-            o6,
-            o7,
-            o8,
-            o9,
-            o10,
-            o11,
-            o12,
-            o13,
-            o14,
-            o15,
-            o16,
-            o17,
-            o18,
-            o19,
-            o20,
-            o21,
-            o22,
-            o23,
-            o24,
-        ];
+#[cfg(feature = "std")]
+fn detect_amd64_uncached() -> PermuteBackend {
+    if std::arch::is_x86_feature_detected!("avx512f") {
+        return PermuteBackend::Avx512;
+    }
+    if !std::arch::is_x86_feature_detected!("avx2") {
+        return PermuteBackend::Soft;
     }
 
-    /// The Keccak-p[`ROUNDS`] permutation of one 1600-bit state.
-    ///
-    /// `ROUNDS` is the number of final Keccak-f[1600] rounds to apply and must not
-    /// exceed 24; a larger value aborts in debug builds and is unsupported
-    /// otherwise.
-    ///
-    /// # Safety
-    ///
-    /// The CPU must implement BMI1 and BMI2.
-    #[target_feature(enable = "bmi1,bmi2")]
-    pub(crate) unsafe fn p1600_bmi<const ROUNDS: usize>(state: &mut [u64; 25]) {
-        const {
-            assert!(ROUNDS <= 24, "A round count greater than 24 is not supported.");
-        }
+    let (vendor, family) = cpu_vendor_and_family();
+    return select_amd64_backend(vendor, family, false, true);
+}
 
-        let mut s = *state;
-        for r in (24 - ROUNDS)..24 {
-            s = round(s, ROUND_CONSTANTS[r]);
-        }
-        *state = s;
+#[cfg(feature = "std")]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Vendor {
+    Intel,
+    Amd,
+    Other,
+}
+
+/// Chooses the single-state backend for an x86-64 CPU.
+///
+/// The single-state AVX2 kernel is the CRYPTOGAMS/OpenSSL kernel. Measured in
+/// October 2026:
+///
+/// * AMD EPYC 7543 (Zen 3): the portable implementation and BMI were roughly
+///   equal, with the portable one slightly faster; AVX2 was slower than both.
+/// * AMD Zen 5: AVX-512F was about 20% faster than AVX2, AVX2 was 20-40% faster
+///   than BMI, and BMI was 20-40% faster than the portable implementation. The
+///   exception was 12-round TurboSHAKE/KT256, where the portable implementation
+///   was about 20% faster than BMI.
+/// * On Intel, the CRYPTOGAMS kernel is the reference implementation and wins.
+///
+/// AVX2 is therefore only selected on Intel and AMD family 0x1A and later
+/// (Zen 5+). AMD Zen 1-4 (families 0x17 and 0x19) and other vendors, including
+/// Hygon (family 0x18), use the portable implementation. Zen 4 normally exposes
+/// AVX-512 and takes that path; if AVX-512 is masked, family 0x19 conservatively
+/// falls back to the portable implementation.
+///
+/// The BMI kernel was removed after these measurements: it was never the winner
+/// when AVX2 was available, and it lost to the portable implementation for
+/// 12-round permutations.
+///
+/// `avx512f` and `avx2` are passed explicitly so the policy can be tested with
+/// synthetic CPUID data.
+#[cfg(feature = "std")]
+fn select_amd64_backend(vendor: Vendor, family: u32, avx512f: bool, avx2: bool) -> PermuteBackend {
+    if avx512f {
+        return PermuteBackend::Avx512;
     }
+
+    if avx2 {
+        match vendor {
+            Vendor::Intel => return PermuteBackend::Avx2,
+            Vendor::Amd if family >= 0x1A => return PermuteBackend::Avx2,
+            Vendor::Amd | Vendor::Other => {}
+        }
+    }
+
+    return PermuteBackend::Soft;
+}
+
+/// Returns the x86-64 vendor and, for AMD, its family.
+///
+/// This executes `cpuid`, which is serializing, so it must only be called from
+/// [`detect_amd64_uncached`], whose result is cached for the lifetime of the
+/// process. Intel and other vendors need one leaf; AMD needs a second one for
+/// the family.
+#[cfg(feature = "std")]
+fn cpu_vendor_and_family() -> (Vendor, u32) {
+    let leaf0 = core::arch::x86_64::__cpuid(0);
+    let vendor = if leaf0.ebx == 0x756E_6547 && leaf0.edx == 0x4965_6E69 && leaf0.ecx == 0x6C65_746E {
+        Vendor::Intel
+    } else if leaf0.ebx == 0x6874_7541 && leaf0.edx == 0x6974_6E65 && leaf0.ecx == 0x444D_4163 {
+        Vendor::Amd
+    } else {
+        return (Vendor::Other, 0);
+    };
+
+    if vendor != Vendor::Amd {
+        return (vendor, 0);
+    }
+
+    let leaf1 = core::arch::x86_64::__cpuid(1);
+    let base_family = (leaf1.eax >> 8) & 0xF;
+    let ext_family = (leaf1.eax >> 20) & 0xFF;
+    let family = if base_family == 0xF {
+        base_family + ext_family
+    } else {
+        base_family
+    };
+
+    return (vendor, family);
 }
 
 /// Single-state AVX2 kernel, in the CRYPTOGAMS "magic" lane order.
@@ -701,6 +609,40 @@ mod avx512 {
             for x in 0..5 {
                 state[5 * y + x] = buf.0[8 * y + x];
             }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+    use super::{Vendor, select_amd64_backend};
+    use crate::sha3::keccak::PermuteBackend;
+
+    /// The policy must keep the single-state AVX2 kernel away from CPUs where
+    /// it is known to be slower than the portable implementation.
+    #[test]
+    fn amd64_backend_policy() {
+        let cases: [(Vendor, u32, bool, bool, PermuteBackend); 12] = [
+            (Vendor::Intel, 0x6, false, true, PermuteBackend::Avx2),
+            (Vendor::Intel, 0x6, true, true, PermuteBackend::Avx512),
+            (Vendor::Intel, 0x6, false, false, PermuteBackend::Soft),
+            (Vendor::Amd, 0x17, false, true, PermuteBackend::Soft),
+            (Vendor::Amd, 0x19, false, true, PermuteBackend::Soft),
+            (Vendor::Amd, 0x19, false, false, PermuteBackend::Soft),
+            (Vendor::Amd, 0x19, true, true, PermuteBackend::Avx512),
+            (Vendor::Amd, 0x1A, false, true, PermuteBackend::Avx2),
+            (Vendor::Amd, 0x1A, true, true, PermuteBackend::Avx512),
+            (Vendor::Other, 0x18, false, true, PermuteBackend::Soft),
+            (Vendor::Other, 0x6, false, true, PermuteBackend::Soft),
+            (Vendor::Other, 0x6, true, true, PermuteBackend::Avx512),
+        ];
+
+        for (vendor, family, avx512f, avx2, expected) in cases {
+            assert_eq!(
+                select_amd64_backend(vendor, family, avx512f, avx2),
+                expected,
+                "vendor={vendor:?} family={family:#x} avx512f={avx512f} avx2={avx2}"
+            );
         }
     }
 }

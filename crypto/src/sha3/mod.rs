@@ -17,12 +17,7 @@ mod turboshake;
 // probed at run time, without it the feature must be enabled at compile time.
 #[cfg(all(
     target_arch = "x86_64",
-    any(
-        feature = "std",
-        target_feature = "bmi1",
-        target_feature = "avx2",
-        target_feature = "avx512f"
-    )
+    any(feature = "std", target_feature = "avx2", target_feature = "avx512f")
 ))]
 mod keccak_amd64;
 #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]

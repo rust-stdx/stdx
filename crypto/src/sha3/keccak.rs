@@ -47,20 +47,17 @@ enum SpongeMode {
 
 /// The single-state permutation implementation a sponge uses.
 ///
-/// Detection happens once, when the sponge is created, so the hot path never
-/// probes the CPU. This mirrors [`super::keccak_batch::Backend`], which does
-/// the same for the batched permutation.
+/// With `std`, the x86-64 backend is detected once per process and cached
+/// again in each sponge; other targets use their compile-time or cached feature
+/// detection. Neither the permutation nor the sponge construction probes the
+/// CPU after the first detection. This mirrors
+/// [`super::keccak_batch::Backend`], which does the same for the batched
+/// permutation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize))]
 pub(crate) enum PermuteBackend {
     /// Portable 64-bit implementation.
     Soft,
-    /// x86-64 with BMI1 and BMI2 (`andn`, `rorx`).
-    #[cfg(all(
-        target_arch = "x86_64",
-        any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
-    ))]
-    Bmi,
     /// x86-64 single-state AVX2, in the CRYPTOGAMS "magic" lane order.
     #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
     Avx2,
@@ -73,46 +70,27 @@ pub(crate) enum PermuteBackend {
 }
 
 impl PermuteBackend {
-    /// Detects the widest single-state backend the CPU supports.
+    /// Detects the single-state backend once per process.
     ///
-    /// Statically enabled `target_feature`s win over the runtime probe, for the
-    /// same reason as in the batched backend: a binary built for a specific CPU
-    /// may be run where the probe is masked.
+    /// With `std` on x86-64 the result is cached in the `keccak_amd64` module,
+    /// so the vendor/family `cpuid` probe runs at most once instead of once
+    /// per sponge. `no_std` builds trust the compile-time `target_feature`s,
+    /// since there is no runtime probe.
     #[allow(unreachable_code)]
     #[inline]
     pub(crate) fn detect() -> Self {
+        #[cfg(all(target_arch = "x86_64", feature = "std"))]
+        {
+            return super::keccak_amd64::detect_amd64();
+        }
+
         #[cfg(target_arch = "x86_64")]
         {
-            #[cfg(feature = "std")]
-            {
-                #[cfg(target_feature = "avx512f")]
-                return PermuteBackend::Avx512;
-
-                #[cfg(target_feature = "avx2")]
-                return PermuteBackend::Avx2;
-
-                #[cfg(all(target_feature = "bmi1", target_feature = "bmi2"))]
-                return PermuteBackend::Bmi;
-
-                if std::arch::is_x86_feature_detected!("avx512f") {
-                    return PermuteBackend::Avx512;
-                }
-                if std::arch::is_x86_feature_detected!("avx2") {
-                    return PermuteBackend::Avx2;
-                }
-                if std::arch::is_x86_feature_detected!("bmi1") && std::arch::is_x86_feature_detected!("bmi2") {
-                    return PermuteBackend::Bmi;
-                }
-            }
-
             #[cfg(all(not(feature = "std"), target_feature = "avx512f"))]
             return PermuteBackend::Avx512;
 
             #[cfg(all(not(feature = "std"), target_feature = "avx2"))]
             return PermuteBackend::Avx2;
-
-            #[cfg(all(not(feature = "std"), target_feature = "bmi1", target_feature = "bmi2"))]
-            return PermuteBackend::Bmi;
         }
 
         #[cfg(target_arch = "aarch64")]
@@ -133,11 +111,6 @@ impl PermuteBackend {
     pub(crate) const fn name(self) -> &'static str {
         match self {
             PermuteBackend::Soft => "scalar",
-            #[cfg(all(
-                target_arch = "x86_64",
-                any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
-            ))]
-            PermuteBackend::Bmi => "bmi2",
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
             PermuteBackend::Avx2 => "avx2",
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
@@ -280,9 +253,10 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
 
 /// The Keccak-p permutation of a 1600-bit state.
 ///
-/// The best implementation the CPU supports is detected at run time when the
-/// `std` feature is enabled and the extension is not already enabled at compile
-/// time: BMI1/BMI2 on x86-64 and FEAT_SHA3 on aarch64. Everywhere else the
+/// With `std`, the best implementation the CPU supports is selected at run
+/// time: AVX-512F or AVX2 on x86-64 (detected once per process and cached; see
+/// [`PermuteBackend::detect`]) and FEAT_SHA3 on aarch64. Without `std`, the
+/// compile-time `target_feature`s are used instead. Everywhere else the
 /// portable implementation is used.
 ///
 /// Callers that permute more than one block should detect once with
@@ -303,12 +277,6 @@ pub(crate) fn p1600_with<const ROUNDS: usize>(state: &mut [u64; 25], backend: Pe
 
     match backend {
         PermuteBackend::Soft => p1600_soft::<ROUNDS>(state),
-        #[cfg(all(
-            target_arch = "x86_64",
-            any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
-        ))]
-        // SAFETY: the backend was detected at construction.
-        PermuteBackend::Bmi => unsafe { super::keccak_amd64::p1600_bmi::<ROUNDS>(state) },
         #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
         // SAFETY: the backend was detected at construction.
         PermuteBackend::Avx2 => unsafe { super::keccak_amd64::p1600_avx2::<ROUNDS>(state) },
@@ -523,40 +491,6 @@ mod tests {
                     let mut portable = state;
                     // SAFETY: FEAT_SHA3 was detected above.
                     unsafe { p1600_armv8::<$rounds>(&mut hardware) };
-                    p1600_soft::<$rounds>(&mut portable);
-                    assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
-                })*
-            };
-        }
-
-        check!(
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-        );
-    }
-
-    /// The BMI1/BMI2 permutation must agree with the portable one for every
-    /// round count, not just for the 24 rounds covered by the XKCP vectors.
-    #[cfg(all(
-        target_arch = "x86_64",
-        any(feature = "std", all(target_feature = "bmi1", target_feature = "bmi2"))
-    ))]
-    #[test]
-    fn keccak_f1600_bmi_matches_soft() {
-        use crate::sha3::keccak_amd64::p1600_bmi;
-
-        #[cfg(feature = "std")]
-        if !(std::arch::is_x86_feature_detected!("bmi1") && std::arch::is_x86_feature_detected!("bmi2")) {
-            return;
-        }
-
-        let state = random_state(0x0123_4567_89ab_cdef);
-        macro_rules! check {
-            ($($rounds:literal),* $(,)?) => {
-                $({
-                    let mut hardware = state;
-                    let mut portable = state;
-                    // SAFETY: BMI1 and BMI2 were detected above.
-                    unsafe { p1600_bmi::<$rounds>(&mut hardware) };
                     p1600_soft::<$rounds>(&mut portable);
                     assert_eq!(hardware, portable, "ROUNDS = {}", $rounds);
                 })*
