@@ -435,8 +435,9 @@ mod avx512 {
 
     /// The Keccak-p[`ROUNDS`] permutation of one 1600-bit state.
     ///
-    /// `ROUNDS` must be even and at most 24; a larger or odd value aborts in debug
-    /// builds and is unsupported otherwise.
+    /// `ROUNDS` must be at most 24; a larger value aborts in debug builds and is
+    /// unsupported otherwise. The body applies rounds in pairs, so an odd count
+    /// leaves the final round to the portable implementation.
     ///
     /// # Safety
     ///
@@ -445,7 +446,6 @@ mod avx512 {
     pub(crate) unsafe fn p1600_avx512<const ROUNDS: usize>(state: &mut [u64; 25]) {
         const {
             assert!(ROUNDS <= 24, "A round count greater than 24 is not supported.");
-            assert!(ROUNDS.is_multiple_of(2), "the AVX-512 kernel applies rounds in pairs");
         }
 
         // Spread each row of five lanes over eight lanes so a whole row lives in
@@ -609,6 +609,13 @@ mod avx512 {
             for x in 0..5 {
                 state[5 * y + x] = buf.0[8 * y + x];
             }
+        }
+
+        // The pairs cover rounds `24 - ROUNDS .. 23`, so an odd count is missing
+        // round 23. That is exactly the last round of Keccak-f, which
+        // Keccak-p[1600, 1] applies, so finish it with the portable one.
+        if !ROUNDS.is_multiple_of(2) {
+            crate::sha3::keccak::p1600_soft::<1>(state);
         }
     }
 }

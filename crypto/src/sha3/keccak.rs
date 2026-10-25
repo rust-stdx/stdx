@@ -281,15 +281,8 @@ pub(crate) fn p1600_with<const ROUNDS: usize>(state: &mut [u64; 25], backend: Pe
         // SAFETY: the backend was detected at construction.
         PermuteBackend::Avx2 => unsafe { super::keccak_amd64::p1600_avx2::<ROUNDS>(state) },
         #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
-        PermuteBackend::Avx512 => {
-            // The kernel applies rounds in pairs; fall back for odd counts.
-            if ROUNDS.is_multiple_of(2) {
-                // SAFETY: the backend was detected at construction.
-                unsafe { super::keccak_amd64::p1600_avx512::<ROUNDS>(state) }
-            } else {
-                p1600_soft::<ROUNDS>(state)
-            }
-        }
+        // SAFETY: the backend was detected at construction.
+        PermuteBackend::Avx512 => unsafe { super::keccak_amd64::p1600_avx512::<ROUNDS>(state) },
         #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
         // SAFETY: FEAT_SHA3 was detected at construction.
         PermuteBackend::Sha3 => unsafe { super::keccak_arm64::p1600_armv8::<ROUNDS>(state) },
@@ -298,7 +291,7 @@ pub(crate) fn p1600_with<const ROUNDS: usize>(state: &mut [u64; 25], backend: Pe
 
 /// Portable implementation of the Keccak-p permutation of a 1600-bit state.
 #[inline]
-fn p1600_soft<const ROUNDS: usize>(state: &mut [u64; 25]) {
+pub(super) fn p1600_soft<const ROUNDS: usize>(state: &mut [u64; 25]) {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf#page=25
     // "the rounds of KECCAK-p[b, nr] match the last rounds of KECCAK-f[b]"
     let round_consts: &[u64] = &ROUND_CONSTANTS[(24 - ROUNDS)..];
@@ -534,7 +527,7 @@ mod tests {
     }
 
     /// The single-state AVX-512 permutation must agree with the portable one
-    /// for every even round count.
+    /// for every round count.
     #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
     #[test]
     fn keccak_f1600_avx512_matches_soft() {
@@ -559,7 +552,9 @@ mod tests {
             };
         }
 
-        check!(2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24);
+        check!(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        );
     }
 
     /// The backend selected by [`super::PermuteBackend::detect`] must agree with
