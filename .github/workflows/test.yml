@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
+      - run: cat /proc/cpuinfo
       # .gitmodules sets `update = none` so Cargo doesn't fetch the submodules
       # when stdx is used as a git dependency. Force-fetch the test data needed
       # to compile and run `cargo test --workspace`.
