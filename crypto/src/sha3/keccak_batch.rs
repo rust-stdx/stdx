@@ -137,12 +137,22 @@ const MAX_LANES: usize = 25 * MAX_BATCH;
 /// (states 0 and 1 in the low and high half), with `W = 4` a 256-bit AVX2
 /// register, and with `W = 8` a 512-bit AVX-512 register. The array is 64-byte
 /// aligned so every backend can load it with aligned accesses.
-#[repr(align(64))]
+#[repr(C, align(64))]
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub(crate) struct KeccakX<const W: usize, const ROUNDS: usize> {
     lanes: [u64; MAX_LANES],
 }
+
+const _: () = assert!(
+    core::mem::offset_of!(KeccakX<2, 24>, lanes) % 64 == 0,
+    "the batched Keccak state must be 64-byte aligned for the SIMD views"
+);
+#[cfg(target_arch = "x86_64")]
+const _: () = assert!(
+    core::mem::offset_of!(KeccakX<8, 24>, lanes) % 64 == 0,
+    "the x86-64 batched Keccak state must be 64-byte aligned for the SIMD views"
+);
 
 impl<const W: usize, const ROUNDS: usize> KeccakX<W, ROUNDS> {
     #[inline]
@@ -1069,6 +1079,10 @@ pub(crate) struct SpongeX<const W: usize, const ROUNDS: usize> {
 impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
     #[inline]
     pub(crate) const fn new(rate: usize, pad: u8, backend: Backend) -> Self {
+        assert!(
+            rate > 0 && rate < 200 && rate.is_multiple_of(8),
+            "the batched Keccak rate must be a positive multiple of 8 bytes below 200"
+        );
         return SpongeX {
             state: KeccakX::zero(),
             rate,
@@ -1206,7 +1220,12 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
     /// tree-hash constructions use 64-byte chaining values with a 136-byte
     /// rate.
     pub(crate) fn squeeze_cvs<const CV_LEN: usize>(&mut self, out: &mut [[u8; CV_LEN]; W]) {
-        debug_assert!(CV_LEN.is_multiple_of(8));
+        const {
+            assert!(
+                CV_LEN.is_multiple_of(8),
+                "the chaining-value length must be a multiple of 8 bytes"
+            );
+        }
         debug_assert!(CV_LEN <= self.rate);
         debug_assert!(self.pos < self.rate);
 
@@ -1388,7 +1407,7 @@ impl<const ROUNDS: usize> Leaves<ROUNDS> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sha3::{Shake128, Shake256, TurboShake256, keccak::ROUND_CONSTANTS};
+    use crate::sha3::keccak::{ROUND_CONSTANTS, test_util::sponge};
 
     fn next_u64(state: &mut u64) -> u64 {
         // xorshift64*, adequate for test data.
@@ -1655,6 +1674,79 @@ mod tests {
         }
     }
 
+    /// Directly checks the AVX2 4x4 transpose used by the batched absorb path.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+    #[test]
+    fn avx2_xor_lanes_matches_scalar_transpose() {
+        if !std::arch::is_x86_feature_detected!("avx2") {
+            return;
+        }
+
+        let mut rng = 0x7f4a_7c15_9e37_79b9u64;
+        let msgs: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(192, &mut rng));
+        let refs: [&[u8]; 4] = core::array::from_fn(|w| &msgs[w][..]);
+
+        for &off in &[0usize, 8, 32] {
+            let mut x = KeccakX::<4, 12>::zero();
+            for value in &mut x.lanes[..32] {
+                *value = next_u64(&mut rng);
+            }
+            let before = x.lanes;
+
+            // SAFETY: AVX2 was detected above, `x` is 64-byte aligned and
+            // holds `MAX_LANES` words.
+            unsafe { avx2::xor_lanes(&mut x.lanes, &refs, off) };
+
+            for lane in 0..4 {
+                for w in 0..4 {
+                    let bytes = &msgs[w][off + lane * 8..off + lane * 8 + 8];
+                    let word = u64::from_le_bytes(bytes.try_into().unwrap());
+                    assert_eq!(
+                        x.lanes[4 * lane + w],
+                        before[4 * lane + w] ^ word,
+                        "off {off}, lane {lane}, state {w}"
+                    );
+                }
+            }
+
+            assert_eq!(&x.lanes[32..], &before[32..], "off {off} wrote past the transpose");
+        }
+    }
+
+    /// Directly checks the NEON 2x2 transpose used by the batched absorb path.
+    #[cfg(target_arch = "aarch64")]
+    #[test]
+    fn neon_xor_lanes_matches_scalar_transpose() {
+        let mut rng = 0x243f_6a88_85a3_08d3u64;
+        let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(64, &mut rng));
+        let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
+
+        for &off in &[0usize, 8] {
+            let mut x = KeccakX::<2, 12>::zero();
+            for value in &mut x.lanes[..4] {
+                *value = next_u64(&mut rng);
+            }
+            let before = x.lanes;
+
+            // SAFETY: NEON is baseline on aarch64, and `x` is 64-byte aligned.
+            unsafe { neon::xor_lanes(&mut x.lanes, &refs, off) };
+
+            for lane in 0..2 {
+                for w in 0..2 {
+                    let bytes = &msgs[w][off + lane * 8..off + lane * 8 + 8];
+                    let word = u64::from_le_bytes(bytes.try_into().unwrap());
+                    assert_eq!(
+                        x.lanes[2 * lane + w],
+                        before[2 * lane + w] ^ word,
+                        "off {off}, lane {lane}, state {w}"
+                    );
+                }
+            }
+
+            assert_eq!(&x.lanes[4..], &before[4..], "off {off} wrote past the transpose");
+        }
+    }
+
     fn check_batch<const W: usize, const ROUNDS: usize>(
         msgs: &[std::vec::Vec<u8>],
         expected: &[std::vec::Vec<u8>],
@@ -1678,11 +1770,7 @@ mod tests {
 
         let expected: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| {
             let mut out = std::vec![0u8; LEN];
-            if rate == 168 {
-                Shake128::hash(&msgs[w], &mut out);
-            } else {
-                Shake256::hash(&msgs[w], &mut out);
-            }
+            sponge::<24>(&msgs[w], rate, pad, &mut out);
             out
         });
 
@@ -1726,7 +1814,7 @@ mod tests {
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
         let expected: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| {
             let mut out = std::vec![0u8; 999];
-            Shake128::hash(&msgs[w], &mut out);
+            sponge::<24>(&msgs[w], 168, 0x1f, &mut out);
             out
         });
 
@@ -1745,6 +1833,78 @@ mod tests {
         }
     }
 
+    fn check_incremental_absorb<const W: usize, const ROUNDS: usize>(rate: usize, pad: u8, backend: Backend) {
+        const LEN: usize = 1000;
+        let mut rng = 0x3c6e_f372_fe94_f82bu64;
+        let msgs: [std::vec::Vec<u8>; W] = core::array::from_fn(|_| random_bytes(LEN, &mut rng));
+
+        let mut expected = [[0u8; 64]; W];
+        for w in 0..W {
+            sponge::<ROUNDS>(&msgs[w], rate, pad, &mut expected[w]);
+        }
+
+        for &chunk in &[1usize, 7, 135, 136, 137, 500, LEN] {
+            let mut sponge = SpongeX::<W, ROUNDS>::new(rate, pad, backend);
+            for offset in (0..LEN).step_by(chunk) {
+                let end = core::cmp::min(offset + chunk, LEN);
+                let parts: [&[u8]; W] = core::array::from_fn(|w| &msgs[w][offset..end]);
+                sponge.absorb_batch(&parts);
+            }
+            let mut cvs = [[0u8; 64]; W];
+            sponge.squeeze_cvs::<64>(&mut cvs);
+            for w in 0..W {
+                assert_eq!(cvs[w], expected[w], "rate={rate}, chunk={chunk}, width={W}, state={w}");
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "the batched Keccak rate must be a positive multiple of 8 bytes below 200")]
+    fn sponge_x_rejects_non_word_aligned_rate() {
+        let _ = SpongeX::<2, 24>::new(135, 0x1f, Backend::Scalar);
+    }
+
+    #[test]
+    fn sponge_x_incremental_absorb_matches_reference() {
+        check_incremental_absorb::<2, 24>(136, 0x1f, Backend::detect());
+        check_incremental_absorb::<2, 12>(136, 0x1f, Backend::detect());
+        check_incremental_absorb::<2, 24>(168, 0x1f, Backend::detect());
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    #[test]
+    fn sponge_x_avx2_incremental_absorb_matches_reference() {
+        if !std::arch::is_x86_feature_detected!("avx2") {
+            return;
+        }
+        check_incremental_absorb::<4, 24>(136, 0x1f, Backend::Avx2);
+        check_incremental_absorb::<4, 12>(136, 0x1f, Backend::Avx2);
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    #[test]
+    fn sponge_x_avx512_incremental_absorb_matches_reference() {
+        if !std::arch::is_x86_feature_detected!("avx512f") {
+            return;
+        }
+        check_incremental_absorb::<8, 24>(136, 0x1f, Backend::Avx512);
+        check_incremental_absorb::<8, 12>(136, 0x1f, Backend::Avx512);
+    }
+
+    /// A backend wider than the sponge must fall back to the scalar path
+    /// without changing the result.
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    #[test]
+    fn sponge_x_falls_back_to_scalar_for_narrow_widths() {
+        if std::arch::is_x86_feature_detected!("avx2") {
+            check_incremental_absorb::<2, 24>(136, 0x1f, Backend::Avx2);
+        }
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            check_incremental_absorb::<2, 24>(136, 0x1f, Backend::Avx512);
+            check_incremental_absorb::<4, 24>(136, 0x1f, Backend::Avx512);
+        }
+    }
+
     #[test]
     fn batched_sponge_matches_one_way_hash() {
         let mut rng = 0x4528_21e6_38d0_1377u64;
@@ -1755,12 +1915,12 @@ mod tests {
 
             let expected_shake: [std::vec::Vec<u8>; 8] = core::array::from_fn(|w| {
                 let mut out = std::vec![0u8; 64];
-                Shake256::hash(&msgs[w], &mut out);
+                sponge::<24>(&msgs[w], 136, 0x1f, &mut out);
                 out
             });
             let expected_turbo: [std::vec::Vec<u8>; 8] = core::array::from_fn(|w| {
                 let mut out = std::vec![0u8; 64];
-                TurboShake256::hash(&msgs[w], &mut out);
+                sponge::<12>(&msgs[w], 136, 0x1f, &mut out);
                 out
             });
 

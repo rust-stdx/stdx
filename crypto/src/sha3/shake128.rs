@@ -142,4 +142,32 @@ mod tests {
 
         assert_eq!(combined, one_shot);
     }
+
+    #[test]
+    fn squeeze_across_rate_boundaries() {
+        let data: Vec<u8> = (0..500).map(|i| (i % 251) as u8).collect();
+        let mut expected = vec![0u8; 2 * 168 + 17];
+        crate::sha3::keccak::test_util::sponge::<24>(&data, 168, 0x1f, &mut expected);
+
+        let mut hasher = Shake128::new();
+        hasher.absorb(&data);
+        hasher.squeeze(&mut []);
+
+        let mut actual = vec![0u8; expected.len()];
+        let mut offset = 0usize;
+        let mut chunk = 1usize;
+        while offset < actual.len() {
+            let take = core::cmp::min(chunk, actual.len() - offset);
+            hasher.squeeze(&mut actual[offset..offset + take]);
+            offset += take;
+            chunk = match chunk {
+                1 => 7,
+                7 => 167,
+                167 => 168,
+                168 => 169,
+                _ => 1,
+            };
+        }
+        assert_eq!(actual, expected);
+    }
 }

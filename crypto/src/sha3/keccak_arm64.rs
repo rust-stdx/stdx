@@ -24,7 +24,7 @@ use super::keccak::ROUND_CONSTANTS;
 /// Only the lower 64-bit lane of each 128-bit register carries state; the
 /// upper lane is zero and is discarded. The two lanes are independent, so the
 /// result does not depend on it. A CPU without FEAT_SHA3 cannot run this
-/// function, and `ROUNDS` greater than 24 is rejected in debug builds.
+/// function. Instantiating it with `ROUNDS > 24` fails to compile.
 ///
 /// # Safety
 ///
@@ -32,7 +32,9 @@ use super::keccak::ROUND_CONSTANTS;
 #[target_feature(enable = "sha3")]
 #[inline]
 pub(crate) unsafe fn p1600_armv8<const ROUNDS: usize>(state: &mut [u64; 25]) {
-    debug_assert!(ROUNDS <= 24, "A round count greater than 24 is not supported!");
+    const {
+        assert!(ROUNDS <= 24, "A round count greater than 24 is not supported.");
+    }
 
     let mut lanes: [uint64x2_t; 25] = core::array::from_fn(|i| {
         // `vld1q_lane` is a plain `ldr d`; `vdupq_n_u64` would let LLVM merge
@@ -49,7 +51,7 @@ pub(crate) unsafe fn p1600_armv8<const ROUNDS: usize>(state: &mut [u64; 25]) {
 
 /// The Keccak-p[`ROUNDS`] permutation of two independent states, one per lane.
 ///
-/// `ROUNDS` greater than 24 is rejected in debug builds.
+/// Instantiating this function with `ROUNDS > 24` fails to compile.
 ///
 /// # Safety
 ///
@@ -58,7 +60,9 @@ pub(crate) unsafe fn p1600_armv8<const ROUNDS: usize>(state: &mut [u64; 25]) {
 #[target_feature(enable = "sha3")]
 #[inline]
 pub(crate) unsafe fn permute_lanes<const ROUNDS: usize>(lanes: &mut [uint64x2_t; 25]) {
-    debug_assert!(ROUNDS <= 24, "A round count greater than 24 is not supported!");
+    const {
+        assert!(ROUNDS <= 24, "A round count greater than 24 is not supported.");
+    }
 
     let mut v0 = lanes[0];
     let mut v1 = lanes[1];

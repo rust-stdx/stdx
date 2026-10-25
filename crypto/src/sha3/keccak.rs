@@ -124,9 +124,10 @@ impl PermuteBackend {
 /// A sponge construction based on Keccak p1600
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
-// the struct requires 8-byte alignment for `ptr::copy_nonoverlapping` UB check on wasm32:
-// `state` is transmuted to `&mut [u64; 25]` in `permute_and_reset_pos`, which needs 8-byte alignment.
-#[repr(align(8))]
+// `state` is transmuted to `&mut [u64; 25]` on little-endian targets, which
+// requires the field itself (not just the struct) to be 8-byte aligned.
+// `repr(C)` guarantees that `state`, the first field, has offset zero.
+#[repr(C, align(8))]
 pub struct KeccakSponge<const ROUNDS: usize> {
     state: [u8; 200],
     rate: usize,
@@ -138,6 +139,58 @@ pub struct KeccakSponge<const ROUNDS: usize> {
     backend: PermuteBackend,
 }
 
+const _: () = assert!(
+    core::mem::offset_of!(KeccakSponge<24>, state) % 8 == 0,
+    "the Keccak sponge state must be 8-byte aligned for the u64 view"
+);
+
+/// Loads the 25 little-endian lanes of a serialized Keccak state.
+///
+/// Keccak interprets each eight-byte lane in little-endian order regardless of
+/// the host byte order. This helper is only needed on big-endian targets and by
+/// tests, but keeping it target-independent makes the conversion testable on
+/// little-endian machines.
+#[cfg(any(target_endian = "big", test))]
+#[inline]
+fn load_state_le(bytes: &[u8; 200]) -> [u64; 25] {
+    let mut lanes = [0u64; 25];
+    for (i, lane) in lanes.iter_mut().enumerate() {
+        let mut lane_bytes = [0u8; 8];
+        lane_bytes.copy_from_slice(&bytes[8 * i..8 * i + 8]);
+        *lane = u64::from_le_bytes(lane_bytes);
+    }
+    return lanes;
+}
+
+/// Serializes 25 lanes as little-endian bytes.
+#[cfg(any(target_endian = "big", test))]
+#[inline]
+fn store_state_le(lanes: &[u64; 25], bytes: &mut [u8; 200]) {
+    for (i, lane) in lanes.iter().enumerate() {
+        bytes[8 * i..8 * i + 8].copy_from_slice(&lane.to_le_bytes());
+    }
+}
+
+/// Applies the permutation to a byte-serialized state.
+#[inline]
+fn permute_state_bytes<const ROUNDS: usize>(state: &mut [u8; 200], backend: PermuteBackend) {
+    #[cfg(target_endian = "little")]
+    {
+        // SAFETY: `state` is 8-byte aligned (see the `repr(C, align(8))` and
+        // the compile-time assertion above), has the same size as `[u64; 25]`,
+        // and no other reference to it exists for the duration of the call.
+        let state: &mut [u64; 25] = unsafe { core::mem::transmute(state) };
+        p1600_with::<ROUNDS>(state, backend);
+    }
+
+    #[cfg(target_endian = "big")]
+    {
+        let mut lanes = load_state_le(state);
+        p1600_with::<ROUNDS>(&mut lanes, backend);
+        store_state_le(&lanes, state);
+    }
+}
+
 impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
     /// Creates a sponge with the given rate (in bytes) and padding delimiter.
     ///
@@ -146,12 +199,10 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
     ///
     /// # Panics
     ///
-    /// In debug builds, panics if `rate` is zero or `>= 200`. The bound is only
-    /// checked by a `debug_assert!`; passing an invalid rate in a release build
-    /// is unsupported and can panic later or produce meaningless output.
+    /// Panics if `rate` is zero or `>= 200`.
     #[inline]
     pub fn new(rate: usize, delimiter: u8) -> Self {
-        debug_assert!(rate > 0 && rate < 200);
+        assert!(rate > 0 && rate < 200, "the Keccak rate must be in 1..200 bytes");
         return KeccakSponge {
             state: [0u8; 200],
             rate,
@@ -243,10 +294,7 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
 
     #[inline]
     fn permute_and_reset_pos(&mut self) {
-        // this is totally safe as long as state.len() == 200 and state remains a [u8]. We are just
-        // playing with the memory representation of the array, from [u8] to [u64].
-        let state: &mut [u64; 200 / 8] = unsafe { core::mem::transmute(&mut self.state) };
-        p1600_with::<ROUNDS>(state, self.backend);
+        permute_state_bytes::<ROUNDS>(&mut self.state, self.backend);
         self.pos = 0;
     }
 }
@@ -262,14 +310,15 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
 /// Callers that permute more than one block should detect once with
 /// [`PermuteBackend::detect`] and call [`p1600_with`] instead; [`KeccakSponge`]
 /// already does.
+///
+/// Instantiating this function with `ROUNDS > 24` fails to compile.
 pub fn p1600<const ROUNDS: usize>(state: &mut [u64; 25]) {
     p1600_with::<ROUNDS>(state, PermuteBackend::detect());
 }
 
 /// Applies Keccak-p[1600, `ROUNDS`] with an already-detected `backend`.
 ///
-/// `ROUNDS` must not exceed 24; a larger value aborts in debug builds and is
-/// unsupported otherwise.
+/// Instantiating this function with `ROUNDS > 24` fails to compile.
 pub(crate) fn p1600_with<const ROUNDS: usize>(state: &mut [u64; 25], backend: PermuteBackend) {
     const {
         assert!(ROUNDS <= 24, "A round_count greater than 24 is not supported.");
@@ -348,6 +397,145 @@ fn xor(dest: &mut [u8], source: &[u8]) {
     dest.iter_mut()
         .zip(source.iter())
         .for_each(|(dest, source)| *dest ^= *source);
+}
+
+/// Independent, test-only reference implementations of the sponge and the
+/// SP 800-185 encodings.
+///
+/// These are deliberately built from the FIPS 202/SP 800-185 definitions
+/// instead of the production sponge, so a bug in one layer cannot silently
+/// become the oracle for another layer. They still use `p1600_soft`, which is
+/// pinned by the external XKCP test vectors.
+#[cfg(test)]
+pub(crate) mod test_util {
+    use super::p1600_soft;
+
+    /// Encodes a `usize` as the SP 800-185 `left_encode` bit string.
+    ///
+    /// Returns the buffer and the number of valid leading bytes.
+    pub(crate) fn left_encode(x: usize) -> ([u8; 9], usize) {
+        let bytes = x.to_be_bytes();
+        let mut first = 0;
+        while first < bytes.len() - 1 && bytes[first] == 0 {
+            first += 1;
+        }
+        let n = bytes.len() - first;
+
+        let mut out = [0u8; 9];
+        out[0] = n as u8;
+        out[1..1 + n].copy_from_slice(&bytes[first..]);
+        return (out, 1 + n);
+    }
+
+    /// Encodes a `usize` as the SP 800-185 `right_encode` bit string.
+    pub(crate) fn right_encode(x: usize) -> ([u8; 9], usize) {
+        let (left, len) = left_encode(x);
+        let n = left[0] as usize;
+        debug_assert_eq!(len, n + 1);
+
+        let mut out = [0u8; 9];
+        out[..n].copy_from_slice(&left[1..1 + n]);
+        out[n] = n as u8;
+        return (out, n + 1);
+    }
+
+    /// Incremental reference sponge built directly on `p1600_soft`.
+    pub(crate) struct RefSponge<const ROUNDS: usize> {
+        state: [u64; 25],
+        rate: usize,
+        delimiter: u8,
+        pos: usize,
+        squeezing: bool,
+    }
+
+    impl<const ROUNDS: usize> RefSponge<ROUNDS> {
+        pub(crate) fn new(rate: usize, delimiter: u8) -> Self {
+            assert!(rate > 0 && rate < 200);
+            return RefSponge {
+                state: [0u64; 25],
+                rate,
+                delimiter,
+                pos: 0,
+                squeezing: false,
+            };
+        }
+
+        pub(crate) fn absorb(&mut self, data: &[u8]) {
+            assert!(!self.squeezing);
+            for &byte in data {
+                self.state[self.pos / 8] ^= (byte as u64) << (8 * (self.pos % 8));
+                self.pos += 1;
+                if self.pos == self.rate {
+                    p1600_soft::<ROUNDS>(&mut self.state);
+                    self.pos = 0;
+                }
+            }
+        }
+
+        /// Pads and starts squeezing.
+        pub(crate) fn finish_absorb(&mut self) {
+            if self.squeezing {
+                return;
+            }
+            self.state[self.pos / 8] ^= (self.delimiter as u64) << (8 * (self.pos % 8));
+            let last = self.rate - 1;
+            self.state[last / 8] ^= 0x80u64 << (8 * (last % 8));
+            p1600_soft::<ROUNDS>(&mut self.state);
+            self.pos = 0;
+            self.squeezing = true;
+        }
+
+        pub(crate) fn squeeze(&mut self, out: &mut [u8]) {
+            self.finish_absorb();
+            let mut written = 0usize;
+            while written < out.len() {
+                if self.pos == self.rate {
+                    p1600_soft::<ROUNDS>(&mut self.state);
+                    self.pos = 0;
+                }
+                let take = core::cmp::min(self.rate - self.pos, out.len() - written);
+                for i in 0..take {
+                    out[written + i] = (self.state[(self.pos + i) / 8] >> (8 * ((self.pos + i) % 8))) as u8;
+                }
+                written += take;
+                self.pos += take;
+            }
+        }
+    }
+
+    /// One-shot sponge with `ROUNDS` Keccak-p rounds.
+    pub(crate) fn sponge<const ROUNDS: usize>(data: &[u8], rate: usize, delimiter: u8, out: &mut [u8]) {
+        let mut sponge = RefSponge::<ROUNDS>::new(rate, delimiter);
+        sponge.absorb(data);
+        sponge.squeeze(out);
+    }
+
+    /// One-shot cSHAKE256 reference.
+    pub(crate) fn cshake256(data: &[u8], function_name: &[u8], customization: &[u8], out: &mut [u8]) {
+        if function_name.is_empty() && customization.is_empty() {
+            sponge::<24>(data, 136, 0x1f, out);
+            return;
+        }
+
+        let mut sponge = RefSponge::<24>::new(136, 0x04);
+
+        // bytepad(encode_string(N) || encode_string(S), 136)
+        let (w, w_len) = left_encode(136);
+        sponge.absorb(&w[..w_len]);
+        let (n_bits, n_bits_len) = left_encode(function_name.len() * 8);
+        sponge.absorb(&n_bits[..n_bits_len]);
+        sponge.absorb(function_name);
+        let (s_bits, s_bits_len) = left_encode(customization.len() * 8);
+        sponge.absorb(&s_bits[..s_bits_len]);
+        sponge.absorb(customization);
+
+        let total = w_len + n_bits_len + function_name.len() + s_bits_len + customization.len();
+        let pad = (136 - (total % 136)) % 136;
+        sponge.absorb(&[0u8; 136][..pad]);
+
+        sponge.absorb(data);
+        sponge.squeeze(out);
+    }
 }
 
 #[cfg(test)]
@@ -437,17 +625,14 @@ mod tests {
         keccak_f(p1600_soft::<24>, state_first, state_second);
     }
 
-    /// The rate bound is enforced by a `debug_assert!` only.
-    #[cfg(debug_assertions)]
     #[test]
-    #[should_panic(expected = "rate > 0 && rate < 200")]
+    #[should_panic(expected = "the Keccak rate must be in 1..200 bytes")]
     fn sponge_rejects_zero_rate() {
         let _ = super::KeccakSponge::<24>::new(0, 0x06);
     }
 
-    #[cfg(debug_assertions)]
     #[test]
-    #[should_panic(expected = "rate > 0 && rate < 200")]
+    #[should_panic(expected = "the Keccak rate must be in 1..200 bytes")]
     fn sponge_rejects_oversized_rate() {
         let _ = super::KeccakSponge::<24>::new(201, 0x06);
     }
@@ -578,5 +763,194 @@ mod tests {
         check!(
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
         );
+    }
+
+    /// The round constants are generated by the FIPS 202 LFSR, not copied from
+    /// a table. This catches a typo even if all backends share the same table.
+    #[test]
+    fn round_constants_match_lfsr() {
+        fn rc(t: usize) -> u64 {
+            let t = t % 255;
+            if t == 0 {
+                return 1;
+            }
+            let mut r: u16 = 1;
+            for _ in 1..=t {
+                r <<= 1;
+                if r & 0x100 != 0 {
+                    r ^= 0x171;
+                }
+            }
+            return (r & 1) as u64;
+        }
+
+        for (i, &expected) in super::ROUND_CONSTANTS.iter().enumerate() {
+            let mut actual = 0u64;
+            for j in 0..7 {
+                if rc(7 * i + j) != 0 {
+                    actual |= 1 << ((1 << j) - 1);
+                }
+            }
+            assert_eq!(actual, expected, "RC[{i}]");
+        }
+    }
+
+    /// The rho rotation offsets and pi lane mapping are generated by the
+    /// FIPS 202 formulas. This pins `RHO`/`PI` independently of the table.
+    #[test]
+    fn rho_pi_tables_match_formulas() {
+        let mut x = 1usize;
+        let mut y = 0usize;
+        for t in 0..24 {
+            let expected_rotation = ((t + 1) * (t + 2) / 2) % 64;
+            assert_eq!(super::RHO[t] as usize, expected_rotation, "RHO[{t}]");
+
+            let expected_destination = y + 5 * ((2 * x + 3 * y) % 5);
+            assert_eq!(super::PI[t], expected_destination, "PI[{t}]");
+
+            let next_x = y;
+            let next_y = (2 * x + 3 * y) % 5;
+            x = next_x;
+            y = next_y;
+        }
+    }
+
+    /// The byte-serialized permutation must use the FIPS 202 little-endian
+    /// lane convention on every host.
+    #[test]
+    fn state_byte_conversion_is_little_endian() {
+        let (state_first, state_second) = keccak_f1600_vectors();
+
+        let mut bytes = [0u8; 200];
+        super::store_state_le(&state_first, &mut bytes);
+        let lanes = super::load_state_le(&bytes);
+        assert_eq!(lanes, state_first, "load/store round-trip");
+
+        super::permute_state_bytes::<24>(&mut bytes, super::PermuteBackend::Soft);
+        let mut expected = [0u8; 200];
+        super::store_state_le(&state_second, &mut expected);
+        assert_eq!(bytes, expected, "serialized Keccak-f[1600] output");
+    }
+
+    fn sponge_reference<const ROUNDS: usize>(data: &[u8], rate: usize, delimiter: u8, out: &mut [u8]) {
+        super::test_util::sponge::<ROUNDS>(data, rate, delimiter, out);
+    }
+
+    /// Directly differential-tests the sponge construction, including rates
+    /// that are not a multiple of eight and both padding bytes landing in the
+    /// same position.
+    #[test]
+    fn sponge_matches_reference_across_rates_and_boundaries() {
+        let rates = [1usize, 7, 8, 71, 72, 135, 136, 137, 167, 168, 199];
+        let delimiters = [0x00u8, 0x01, 0x06, 0x07, 0x0b, 0x1f, 0x7f, 0x80, 0xff];
+
+        for &rate in &rates {
+            let lengths = [
+                0usize,
+                1,
+                rate.saturating_sub(2),
+                rate - 1,
+                rate,
+                rate + 1,
+                2 * rate - 1,
+                2 * rate,
+                2 * rate + 1,
+            ];
+            let output_len = 2 * rate + 7;
+
+            for &delimiter in &delimiters {
+                for &len in &lengths {
+                    let data: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+                    let mut expected = vec![0u8; output_len];
+                    sponge_reference::<24>(&data, rate, delimiter, &mut expected);
+
+                    // One-shot.
+                    let mut sponge = super::KeccakSponge::<24>::new(rate, delimiter);
+                    sponge.absorb(&data);
+                    let mut actual = vec![0u8; output_len];
+                    sponge.squeeze(&mut actual);
+                    assert_eq!(actual, expected, "one-shot rate={rate} delimiter={delimiter:#04x} len={len}");
+
+                    // Chunked absorb + chunked squeeze.
+                    let chunks = [1usize, 2, 3, 7, rate.saturating_sub(1).max(1), rate, rate + 1];
+                    let squeeze_chunks = [1usize, 7, rate.saturating_sub(1).max(1), rate, rate + 1];
+                    for &chunk in &chunks {
+                        let mut sponge = super::KeccakSponge::<24>::new(rate, delimiter);
+                        for part in data.chunks(chunk) {
+                            sponge.absorb(part);
+                        }
+                        let mut actual = vec![0u8; output_len];
+                        let mut offset = 0usize;
+                        let mut squeeze_index = 0usize;
+                        while offset < actual.len() {
+                            let squeeze_chunk = squeeze_chunks[squeeze_index % squeeze_chunks.len()];
+                            let take = core::cmp::min(squeeze_chunk, actual.len() - offset);
+                            sponge.squeeze(&mut actual[offset..offset + take]);
+                            offset += take;
+                            squeeze_index += 1;
+                        }
+                        assert_eq!(
+                            actual, expected,
+                            "chunked rate={rate} delimiter={delimiter:#04x} len={len} chunk={chunk}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sponge_zero_length_output_then_squeeze() {
+        let rate = 136usize;
+        let delimiter = 0x1fu8;
+        let data: Vec<u8> = (0..300).map(|i| (i % 251) as u8).collect();
+
+        let mut expected = vec![0u8; 2 * rate + 3];
+        sponge_reference::<24>(&data, rate, delimiter, &mut expected);
+
+        let mut sponge = super::KeccakSponge::<24>::new(rate, delimiter);
+        sponge.absorb(&data);
+        sponge.squeeze(&mut []);
+        let mut actual = vec![0u8; expected.len()];
+        sponge.squeeze(&mut actual);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn sponge_delimiter_switch_matches_fresh_sponge() {
+        for &len in &[0usize, 1, 135, 136, 137, 500] {
+            let data: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+
+            let mut switched = super::KeccakSponge::<24>::new(136, 0x06);
+            switched.absorb(&data);
+            switched.set_delimiter(0x07);
+            let mut a = [0u8; 64];
+            switched.squeeze(&mut a);
+
+            let mut fresh = super::KeccakSponge::<24>::new(136, 0x07);
+            fresh.absorb(&data);
+            let mut b = [0u8; 64];
+            fresh.squeeze(&mut b);
+
+            assert_eq!(a, b, "len={len}");
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "absorb can't be called after squeezing")]
+    fn sponge_rejects_absorb_after_squeeze() {
+        let mut sponge = super::KeccakSponge::<24>::new(136, 0x1f);
+        sponge.absorb(b"prefix");
+        sponge.squeeze(&mut [0u8; 1]);
+        sponge.absorb(b"suffix");
+    }
+
+    #[test]
+    #[should_panic(expected = "the delimiter can only be changed while absorbing")]
+    fn sponge_rejects_delimiter_change_after_squeeze() {
+        let mut sponge = super::KeccakSponge::<24>::new(136, 0x1f);
+        sponge.absorb(b"prefix");
+        sponge.squeeze(&mut [0u8; 1]);
+        sponge.set_delimiter(0x06);
     }
 }

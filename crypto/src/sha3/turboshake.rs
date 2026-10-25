@@ -35,13 +35,15 @@ pub const TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR: u8 = 0x1f;
 /// # One-shot API
 ///
 /// ```ignore
-/// use crypto::sha3::TurboShake256;
+/// use crypto::{Xof, sha3::TurboShake256};
 ///
 /// let mut output = [0u8; 64];
 /// TurboShake256::hash(b"hello world", &mut output);
 ///
 /// // Or with an explicit domain separator for domain separation.
-/// TurboShake256::hash(b"hello world", 0x07, &mut output);
+/// let mut hasher = TurboShake256::new(0x07);
+/// hasher.absorb(b"hello world");
+/// hasher.squeeze(&mut output);
 /// ```
 ///
 /// # Incremental XOF API
@@ -529,5 +531,20 @@ mod tests {
         p1600::<12>(&mut twelve);
         p1600::<24>(&mut full);
         assert_ne!(twelve, full);
+    }
+
+    #[test]
+    fn zero_length_output_then_squeeze() {
+        let data = ptn(500);
+        let domain = 0x07u8;
+        let mut expected = [0u8; 2 * 136 + 9];
+        crate::sha3::keccak::test_util::sponge::<12>(&data, 136, domain, &mut expected);
+
+        let mut hasher = TurboShake256::new(domain);
+        hasher.absorb(&data);
+        hasher.squeeze(&mut []);
+        let mut actual = [0u8; 2 * 136 + 9];
+        hasher.squeeze(&mut actual);
+        assert_eq!(actual, expected);
     }
 }

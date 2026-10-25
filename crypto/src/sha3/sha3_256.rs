@@ -112,4 +112,19 @@ mod tests {
             assert_eq!(hex::encode(digest), expected);
         }
     }
+
+    /// Message lengths around the 136-byte rate, where the padding block must
+    /// be handled correctly. Cross-checked with Python `hashlib` (OpenSSL).
+    #[test]
+    fn rate_boundary_vectors() {
+        let cases = [
+            (135usize, "fded8fd9d6551c601eeb3b7c6bc5e5cfd8aad1d015b7e9aaa9c9b9475231d5e2"),
+            (136, "cf3ccff92480a29160c2d38317c430e14749bfee1788106957dfe73f8c4930e5"),
+            (137, "ce9d7dc90913ee5d92745019479a5352c6d6279bef18ed07dc0a83ee8084daca"),
+        ];
+        for (len, expected) in cases {
+            let data: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+            assert_eq!(hex::encode(<Sha3_256 as Hasher>::hash(&data)), expected, "len={len}");
+        }
+    }
 }

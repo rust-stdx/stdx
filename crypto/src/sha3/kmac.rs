@@ -1,4 +1,4 @@
-use super::shake256::{CShake256, left_encode, right_encode};
+use super::shake256::{CShake256, bit_len, left_encode, right_encode};
 use crate::Xof;
 
 const KMAC256_RATE: usize = 136;
@@ -43,7 +43,7 @@ impl Kmac256 {
         let enc_w = left_encode(KMAC256_RATE);
         cshake.absorb(enc_w.as_ref());
 
-        let enc_key = left_encode(key.len() * 8);
+        let enc_key = left_encode(bit_len(key.len()));
         cshake.absorb(enc_key.as_ref());
         cshake.absorb(key);
 
@@ -140,6 +140,46 @@ mod tests {
         let mut incremental = [0u8; 64];
         kmac.finalize_into(&mut incremental);
         assert_eq!(incremental, one_shot);
+    }
+
+    fn pattern(len: usize) -> Vec<u8> {
+        return (0..len).map(|i| (i % 251) as u8).collect();
+    }
+
+    /// Regression test for SP 800-185 `bytepad(encode_string(K), 136)` when the
+    /// encoded key already ends on the block boundary (enc_w=2,
+    /// enc_key_len=3, key=131 -> 136 bytes).
+    ///
+    /// The vector was produced by an independent FIPS 202/SP 800-185
+    /// reference implementation.
+    #[test]
+    fn kmac256_bytepad_exact_block_alignment() {
+        let key = pattern(131);
+        let mut out = [0u8; 64];
+        Kmac256::mac(&key, b"abc", b"", &mut out);
+        assert_eq!(
+            hex::encode(out),
+            "68ce322eba94f97c6ef881948fbec03a12e1bd4c648d11e4ee2177cb73db5400\
+             fd2229335a20bd6f83a75a03b922cd70ce6f58e9740e9e5dd29e86f3fabc7874"
+        );
+    }
+
+    #[test]
+    fn kmac256_zero_length_output_and_length_binding() {
+        let key = b"key";
+        let data = b"message";
+
+        let mut one = [0u8; 1];
+        Kmac256::mac(key, data, b"", &mut one);
+
+        let mut zero = [0u8; 0];
+        Kmac256::mac(key, data, b"", &mut zero);
+
+        let mut two = [0u8; 2];
+        Kmac256::mac(key, data, b"", &mut two);
+
+        assert_eq!(zero.len(), 0);
+        assert_ne!(&two[..1], &one[..]);
     }
 
     #[test]

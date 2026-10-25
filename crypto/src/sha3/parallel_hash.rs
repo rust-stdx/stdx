@@ -66,7 +66,7 @@ use core::cmp::min;
 use super::{
     keccak::KeccakSponge,
     keccak_batch::{Backend, Leaves, MAX_BATCH},
-    shake256::{Shake256, left_encode, right_encode},
+    shake256::{Shake256, bit_len, left_encode, right_encode},
 };
 use crate::Xof;
 
@@ -111,7 +111,7 @@ fn cshake_node(rate: usize, customization: &[u8]) -> KeccakSponge<24> {
 
     let enc_w = left_encode(rate);
     let enc_n = left_encode(PARALLEL_HASH_NAME.len() * 8);
-    let enc_s = left_encode(customization.len() * 8);
+    let enc_s = left_encode(bit_len(customization.len()));
 
     sponge.absorb(enc_w.as_ref());
     sponge.absorb(enc_n.as_ref());
@@ -638,15 +638,18 @@ mod tests {
     /// right_encode(L), L, "ParallelHash", S)`.
     fn spec_single_leaf(data: &[u8], block_size: usize, customization: &[u8]) -> [u8; 64] {
         let mut z = std::vec::Vec::new();
-        z.extend_from_slice(left_encode(block_size).as_ref());
+        let (encoded_block_size, encoded_len) = crate::sha3::keccak::test_util::left_encode(block_size);
+        z.extend_from_slice(&encoded_block_size[..encoded_len]);
         let mut cv = [0u8; 64];
-        Shake256::hash(data, &mut cv);
+        crate::sha3::keccak::test_util::sponge::<24>(data, PH256_RATE, SHAKE_PAD, &mut cv);
         z.extend_from_slice(&cv);
-        z.extend_from_slice(right_encode(1).as_ref());
-        z.extend_from_slice(right_encode(64 * 8).as_ref());
+        let (encoded_blocks, encoded_len) = crate::sha3::keccak::test_util::right_encode(1);
+        z.extend_from_slice(&encoded_blocks[..encoded_len]);
+        let (encoded_bits, encoded_len) = crate::sha3::keccak::test_util::right_encode(64 * 8);
+        z.extend_from_slice(&encoded_bits[..encoded_len]);
 
         let mut out = [0u8; 64];
-        crate::sha3::CShake256::hash(&z, PARALLEL_HASH_NAME, customization, &mut out);
+        crate::sha3::keccak::test_util::cshake256(&z, PARALLEL_HASH_NAME, customization, &mut out);
         return out;
     }
 
@@ -694,6 +697,42 @@ mod tests {
         ParallelHash256::hash(&data, 16, b"one", &mut a);
         ParallelHash256::hash(&data, 16, b"two", &mut b);
         assert_ne!(a, b);
+    }
+
+    /// The final cSHAKE node bytepads `encode_string("ParallelHash") ||
+    /// encode_string(S)`. A customization string of 117 bytes makes that
+    /// prefix exactly one rate block, exercising the "do not add a full zero
+    /// block" branch. The vectors come from an independent reference.
+    #[test]
+    fn cshake_node_bytepad_exact_block_alignment() {
+        let cases = [
+            (
+                8usize,
+                24usize,
+                117usize,
+                "a744b1b58d0a1f98107d419b2f58b38c4b676379c19d5666f74292c98e02a8b27173a776726fd91c4ccd487140732f973b80404bd1ebbe78b724e41a426ea0d7",
+            ),
+            (
+                136,
+                300,
+                117,
+                "7db6c977e9cbf88c21ca634d833309bf571a7d7747a7b2e12de380186e2c3238e2d5d7c2e642549f7123f1aa27bdbd3f50428be04cbd2b40e01ccea4da7ac4b6",
+            ),
+            (
+                1024,
+                5000,
+                0,
+                "4930af8b50ec17bdd88ad6f6e6bd872651f8d97dca0413bf2700fb204d2f729494bc8c68adb720b9a2352b23c5e42e32544a4255af60ed6f49d5b5d88724254a",
+            ),
+        ];
+
+        for (block_size, data_len, customization_len, expected) in cases {
+            let data = pattern_data(data_len);
+            let customization = pattern_data(customization_len);
+            let mut out = [0u8; 64];
+            ParallelHash256::hash(&data, block_size, &customization, &mut out);
+            assert_eq!(hex::encode(out), expected, "B={block_size} len={data_len}");
+        }
     }
 
     #[test]

@@ -8,6 +8,20 @@ const SHAKE256_DOMAIN_SEPARATOR: u8 = 0x1f;
 // fixed-size buffer to avoid allocations when encoding inputs
 type EncodedBytes = Bytes<9>;
 
+/// Converts a byte length to the bit length used by SP 800-185.
+///
+/// # Panics
+///
+/// Panics if `bytes * 8` overflows `usize`. This cannot happen on 64-bit
+/// targets for any slice that fits in memory, but it is reachable on 32-bit
+/// targets for inputs larger than 512 MiB.
+#[inline]
+pub(crate) fn bit_len(bytes: usize) -> usize {
+    return bytes
+        .checked_mul(8)
+        .expect("input length too large for SP 800-185 bit-length encoding");
+}
+
 /// SHAKE256 extensible-output function (XOF) as defined in FIPS 202.
 ///
 /// Implements both the [`Xof`] and [`Hasher`] traits.
@@ -15,7 +29,7 @@ type EncodedBytes = Bytes<9>;
 /// # One-shot API
 ///
 /// ```ignore
-/// use crypto{Hasher, sha3::Shake256};
+/// use crypto::{Hasher, sha3::Shake256};
 ///
 /// let mut output = [0u8; 64];
 /// Shake256::hash(b"hello world", &mut output);
@@ -146,12 +160,12 @@ impl CShake256 {
         keccak.absorb(enc_w.as_ref());
 
         // encode_string(N): left_encode(bitlen(N)) || N
-        let enc_n = left_encode(function_name.len() * 8);
+        let enc_n = left_encode(bit_len(function_name.len()));
         keccak.absorb(enc_n.as_ref());
         keccak.absorb(function_name);
 
         // encode_string(S): left_encode(bitlen(S)) || S
-        let enc_s = left_encode(customization.len() * 8);
+        let enc_s = left_encode(bit_len(customization.len()));
         keccak.absorb(enc_s.as_ref());
         keccak.absorb(customization);
 
@@ -233,7 +247,7 @@ pub(crate) fn right_encode(x: usize) -> EncodedBytes {
 
 #[cfg(test)]
 mod tests {
-    use super::{CShake256, Shake256};
+    use super::{CShake256, Shake256, left_encode, right_encode};
     use crate::{Hasher, Xof};
 
     // ── Shake256 vectors ──────────────────────────────────────────────────────
@@ -380,5 +394,128 @@ mod tests {
             hex::encode(out),
             "483366601360a8771c6863080cc4114d8db44530f8f1e1ee4f94ea37e78b5739d5a15bef186a5386c75744c0527e1faa9f8726e462a12a4feb06bd8801e751e4"
         );
+    }
+
+    fn pattern(len: usize) -> Vec<u8> {
+        return (0..len).map(|i| (i % 251) as u8).collect();
+    }
+
+    #[test]
+    fn left_encode_edge_cases() {
+        assert_eq!(left_encode(0).as_ref(), &[0x01, 0x00]);
+        assert_eq!(left_encode(1).as_ref(), &[0x01, 0x01]);
+        assert_eq!(left_encode(255).as_ref(), &[0x01, 0xff]);
+        assert_eq!(left_encode(256).as_ref(), &[0x02, 0x01, 0x00]);
+        assert_eq!(left_encode(65535).as_ref(), &[0x02, 0xff, 0xff]);
+        assert_eq!(left_encode(65536).as_ref(), &[0x03, 0x01, 0x00, 0x00]);
+
+        let encoded = left_encode(usize::MAX);
+        let n = encoded[0] as usize;
+        assert_eq!(n, core::mem::size_of::<usize>());
+        assert_eq!(encoded.as_ref().len(), n + 1);
+        assert!(encoded.as_ref()[1..].iter().all(|&b| b == 0xff));
+    }
+
+    #[test]
+    fn right_encode_edge_cases() {
+        assert_eq!(right_encode(0).as_ref(), &[0x00, 0x01]);
+        assert_eq!(right_encode(1).as_ref(), &[0x01, 0x01]);
+        assert_eq!(right_encode(255).as_ref(), &[0xff, 0x01]);
+        assert_eq!(right_encode(256).as_ref(), &[0x01, 0x00, 0x02]);
+        assert_eq!(right_encode(65535).as_ref(), &[0xff, 0xff, 0x02]);
+        assert_eq!(right_encode(65536).as_ref(), &[0x01, 0x00, 0x00, 0x03]);
+
+        let encoded = right_encode(usize::MAX);
+        let n = core::mem::size_of::<usize>();
+        assert_eq!(encoded.as_ref().len(), n + 1);
+        assert!(encoded.as_ref()[..n].iter().all(|&b| b == 0xff));
+        assert_eq!(encoded.as_ref()[n], n as u8);
+    }
+
+    /// Regression test for the SP 800-185 bytepad rule: when
+    /// `encode_string(N) || encode_string(S)` already ends on a block boundary,
+    /// no extra block of zeros may be added.
+    ///
+    /// The vector was produced by an independent FIPS 202/SP 800-185
+    /// reference implementation.
+    #[test]
+    fn cshake256_bytepad_exact_block_alignment() {
+        let customization = pattern(129); // 2 + 2 + 3 + 129 == 136 bytes
+        let mut out = [0u8; 64];
+        CShake256::hash(b"abc", b"", &customization, &mut out);
+        assert_eq!(
+            hex::encode(out),
+            "ebd66d921269e6d4934758b436a2d9bf1b7a2a6eef8dceee72896b2737c630c8\
+             7eb525680a90f206f0daff29f148e6829e51ef2b122c804f8ac297dc8af71906"
+        );
+    }
+
+    #[test]
+    fn cshake256_function_name_is_bound_into_the_hash() {
+        let data = pattern(200);
+        let mut one = [0u8; 64];
+        let mut two = [0u8; 64];
+        CShake256::hash(&data, b"FunctionOne", b"custom", &mut one);
+        CShake256::hash(&data, b"FunctionTwo", b"custom", &mut two);
+        assert_ne!(one, two);
+    }
+
+    #[test]
+    fn cshake256_long_name_and_customization_match_reference() {
+        let data = pattern(500);
+        let name = pattern(300);
+        let customization = pattern(200);
+
+        let mut actual = [0u8; 2 * 136 + 7];
+        CShake256::hash(&data, &name, &customization, &mut actual);
+
+        let mut expected = [0u8; 2 * 136 + 7];
+        crate::sha3::keccak::test_util::cshake256(&data, &name, &customization, &mut expected);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn cshake256_zero_length_output_then_squeeze() {
+        let data = pattern(300);
+        let name = b"Function";
+        let customization = pattern(200);
+        let mut expected = [0u8; 2 * 136 + 9];
+        crate::sha3::keccak::test_util::cshake256(&data, name, &customization, &mut expected);
+
+        let mut hasher = CShake256::new(name, &customization);
+        hasher.absorb(&data);
+        hasher.squeeze(&mut []);
+        let mut actual = [0u8; 2 * 136 + 9];
+        hasher.squeeze(&mut actual);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn shake256_squeeze_across_rate_boundaries() {
+        let data = pattern(500);
+        let mut expected = vec![0u8; 2 * 136 + 17];
+        crate::sha3::keccak::test_util::sponge::<24>(&data, 136, 0x1f, &mut expected);
+
+        let mut hasher = Shake256::new();
+        hasher.absorb(&data);
+        hasher.squeeze(&mut []);
+
+        let mut actual = vec![0u8; expected.len()];
+        let mut offset = 0usize;
+        let mut chunk = 1usize;
+        while offset < actual.len() {
+            let take = core::cmp::min(chunk, actual.len() - offset);
+            hasher.squeeze(&mut actual[offset..offset + take]);
+            offset += take;
+            chunk = match chunk {
+                1 => 7,
+                7 => 135,
+                135 => 136,
+                136 => 137,
+                _ => 1,
+            };
+        }
+        assert_eq!(actual, expected);
     }
 }

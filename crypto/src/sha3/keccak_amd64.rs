@@ -162,8 +162,13 @@ mod avx2 {
     use super::ROUND_CONSTANTS;
 
     /// Rotation amounts used before pi, one vector per state register.
-    #[repr(align(32))]
+    #[repr(C, align(32))]
     struct Rotations([u64; 4]);
+
+    const _: () = assert!(
+        core::mem::offset_of!(Rotations, 0) % 32 == 0,
+        "the AVX2 rotation tables must be 32-byte aligned"
+    );
 
     static RHO_LEFT: [Rotations; 6] = [
         Rotations([3, 18, 36, 41]),
@@ -335,8 +340,7 @@ mod avx2 {
 
     /// The Keccak-p[`ROUNDS`] permutation of one 1600-bit state.
     ///
-    /// `ROUNDS` must not exceed 24. A larger value panics in debug builds and is
-    /// unsupported otherwise.
+    /// Instantiating this function with `ROUNDS > 24` fails to compile.
     ///
     /// # Safety
     ///
@@ -370,6 +374,45 @@ mod avx2 {
             state[INTERNAL[k]] = buf[1 + (k - 1) / 4][(k - 1) % 4];
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{INTERNAL, RHO_LEFT, RHO_RIGHT};
+
+        /// The magic lane order and the two variable-shift tables are
+        /// transcribed from CRYPTOGAMS' `keccak1600-avx2.pl`. Pinning them
+        /// catches a typo even on machines where the AVX2 kernel is not
+        /// exercised.
+        #[test]
+        fn tables_match_cryptogams() {
+            const EXPECTED_LEFT: [[u64; 4]; 6] = [
+                [3, 18, 36, 41],
+                [1, 62, 28, 27],
+                [45, 6, 56, 39],
+                [10, 61, 55, 8],
+                [2, 15, 25, 20],
+                [44, 43, 21, 14],
+            ];
+            const EXPECTED_INTERNAL: [usize; 25] = [
+                0, 1, 2, 3, 4, 10, 20, 5, 15, 16, 7, 23, 14, 11, 22, 8, 19, 21, 17, 13, 9, 6, 12, 18, 24,
+            ];
+
+            for i in 0..6 {
+                assert_eq!(RHO_LEFT[i].0, EXPECTED_LEFT[i], "RHO_LEFT[{i}]");
+                let mut expected_right = [0u64; 4];
+                for j in 0..4 {
+                    expected_right[j] = 64 - EXPECTED_LEFT[i][j];
+                }
+                assert_eq!(RHO_RIGHT[i].0, expected_right, "RHO_RIGHT[{i}]");
+            }
+            assert_eq!(INTERNAL, EXPECTED_INTERNAL);
+            let mut seen = [false; 25];
+            for &lane in &INTERNAL {
+                assert!(!seen[lane], "INTERNAL contains lane {lane} twice");
+                seen[lane] = true;
+            }
+        }
+    }
 }
 
 /// Single-state AVX-512F kernel, two rounds per iteration.
@@ -388,14 +431,24 @@ mod avx512 {
     use super::ROUND_CONSTANTS;
 
     /// A 512-bit constant vector, aligned so it can be loaded with an aligned move.
-    #[repr(align(64))]
+    #[repr(C, align(64))]
     struct V8([u64; 8]);
+
+    const _: () = assert!(
+        core::mem::offset_of!(V8, 0) % 64 == 0,
+        "the AVX-512 constant tables must be 64-byte aligned"
+    );
 
     /// The state, padded to eight lanes per row.
     ///
     /// Row `y` occupies `0[8 * y..8 * y + 5]`; the remaining lanes stay zero.
-    #[repr(align(64))]
+    #[repr(C, align(64))]
     struct Columns([u64; 40]);
+
+    const _: () = assert!(
+        core::mem::offset_of!(Columns, 0) % 64 == 0,
+        "the AVX-512 state buffer must be 64-byte aligned"
+    );
 
     /// Column-rotation indices used by theta.
     static THETA_PERM: [V8; 5] = [
@@ -433,11 +486,17 @@ mod avx512 {
         V8([4, 2, 0, 3, 1, 5, 6, 7]),
     ];
 
+    /// Single-lane blend masks used by the even-to-odd-round harmonize step.
+    ///
+    /// These are the `k2`..`k5` masks built by the reference implementation's
+    /// `kshiftlw $1`..`$4`: one lane each, not cumulative ranges.
+    const HARMONIZE_MASKS: [u8; 4] = [0x02, 0x04, 0x08, 0x10];
+
     /// The Keccak-p[`ROUNDS`] permutation of one 1600-bit state.
     ///
-    /// `ROUNDS` must be at most 24; a larger value aborts in debug builds and is
-    /// unsupported otherwise. The body applies rounds in pairs, so an odd count
-    /// leaves the final round to the portable implementation.
+    /// Instantiating this function with `ROUNDS > 24` fails to compile. The
+    /// body applies rounds in pairs, so an odd count leaves the final round to
+    /// the portable implementation.
     ///
     /// # Safety
     ///
@@ -539,26 +598,26 @@ mod avx512 {
             // is a single lane bit (`1 << lane`), matching `k2`..`k5` from the
             // reference implementation's `kshiftlw $1`..`$4`; they are not
             // cumulative.
-            t1 = _mm512_mask_blend_epi64(0x02, y1, y2);
-            t2 = _mm512_mask_blend_epi64(0x02, y2, y3);
-            t3 = _mm512_mask_blend_epi64(0x02, y3, y4);
-            t0 = _mm512_mask_blend_epi64(0x02, y0, y1);
-            t4 = _mm512_mask_blend_epi64(0x02, y4, y0);
-            t1 = _mm512_mask_blend_epi64(0x04, t1, y3);
-            t2 = _mm512_mask_blend_epi64(0x04, t2, y4);
-            t0 = _mm512_mask_blend_epi64(0x04, t0, y2);
-            t3 = _mm512_mask_blend_epi64(0x04, t3, y0);
-            t4 = _mm512_mask_blend_epi64(0x04, t4, y1);
-            t1 = _mm512_mask_blend_epi64(0x08, t1, y4);
-            t0 = _mm512_mask_blend_epi64(0x08, t0, y3);
-            t2 = _mm512_mask_blend_epi64(0x08, t2, y0);
-            t3 = _mm512_mask_blend_epi64(0x08, t3, y1);
-            t4 = _mm512_mask_blend_epi64(0x08, t4, y2);
-            t0 = _mm512_mask_blend_epi64(0x10, t0, y4);
-            t1 = _mm512_mask_blend_epi64(0x10, t1, y0);
-            t2 = _mm512_mask_blend_epi64(0x10, t2, y1);
-            t3 = _mm512_mask_blend_epi64(0x10, t3, y2);
-            t4 = _mm512_mask_blend_epi64(0x10, t4, y3);
+            t1 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[0], y1, y2);
+            t2 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[0], y2, y3);
+            t3 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[0], y3, y4);
+            t0 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[0], y0, y1);
+            t4 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[0], y4, y0);
+            t1 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[1], t1, y3);
+            t2 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[1], t2, y4);
+            t0 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[1], t0, y2);
+            t3 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[1], t3, y0);
+            t4 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[1], t4, y1);
+            t1 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[2], t1, y4);
+            t0 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[2], t0, y3);
+            t2 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[2], t2, y0);
+            t3 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[2], t3, y1);
+            t4 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[2], t4, y2);
+            t0 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[3], t0, y4);
+            t1 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[3], t1, y0);
+            t2 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[3], t2, y1);
+            t3 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[3], t3, y2);
+            t4 = _mm512_mask_blend_epi64(HARMONIZE_MASKS[3], t4, y3);
             y1 = _mm512_permutexvar_epi64(c13, t1);
             y2 = _mm512_permutexvar_epi64(c14, t2);
             y3 = _mm512_permutexvar_epi64(c15, t3);
@@ -618,6 +677,64 @@ mod avx512 {
         // Keccak-p[1600, 1] applies, so finish it with the portable one.
         if !ROUNDS.is_multiple_of(2) {
             crate::sha3::keccak::p1600_soft::<1>(state);
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{HARMONIZE_MASKS, PI0_PERM, RHO_EVEN, RHO_ODD, THETA_PERM};
+
+        /// The tables are transcribed from XKCP's
+        /// `KeccakP-1600-AVX512.s`. Pinning them catches a typo even on
+        /// machines where the AVX-512 kernel is not exercised.
+        #[test]
+        fn tables_match_xkcp() {
+            const EXPECTED_THETA: [[u64; 8]; 5] = [
+                [0, 1, 2, 3, 4, 5, 6, 7],
+                [4, 0, 1, 2, 3, 5, 6, 7],
+                [3, 4, 0, 1, 2, 5, 6, 7],
+                [2, 3, 4, 0, 1, 5, 6, 7],
+                [1, 2, 3, 4, 0, 5, 6, 7],
+            ];
+            const EXPECTED_RHO_EVEN: [[u64; 8]; 5] = [
+                [0, 1, 62, 28, 27, 0, 0, 0],
+                [36, 44, 6, 55, 20, 0, 0, 0],
+                [3, 10, 43, 25, 39, 0, 0, 0],
+                [41, 45, 15, 21, 8, 0, 0, 0],
+                [18, 2, 61, 56, 14, 0, 0, 0],
+            ];
+            const EXPECTED_RHO_ODD: [[u64; 8]; 5] = [
+                [0, 44, 43, 21, 14, 0, 0, 0],
+                [18, 1, 6, 25, 8, 0, 0, 0],
+                [41, 2, 62, 55, 39, 0, 0, 0],
+                [3, 45, 61, 28, 20, 0, 0, 0],
+                [36, 10, 15, 56, 27, 0, 0, 0],
+            ];
+            const EXPECTED_PI0: [[u64; 8]; 5] = [
+                [0, 3, 1, 4, 2, 5, 6, 7],
+                [1, 4, 2, 0, 3, 5, 6, 7],
+                [2, 0, 3, 1, 4, 5, 6, 7],
+                [3, 1, 4, 2, 0, 5, 6, 7],
+                [4, 2, 0, 3, 1, 5, 6, 7],
+            ];
+
+            for i in 0..5 {
+                assert_eq!(THETA_PERM[i].0, EXPECTED_THETA[i], "THETA_PERM[{i}]");
+                assert_eq!(RHO_EVEN[i].0, EXPECTED_RHO_EVEN[i], "RHO_EVEN[{i}]");
+                assert_eq!(RHO_ODD[i].0, EXPECTED_RHO_ODD[i], "RHO_ODD[{i}]");
+                assert_eq!(PI0_PERM[i].0, EXPECTED_PI0[i], "PI0_PERM[{i}]");
+            }
+        }
+
+        /// The harmonize masks must select one lane each; cumulative masks
+        /// were the original AVX-512 correctness bug.
+        #[test]
+        fn harmonize_masks_are_single_lane_bits() {
+            assert_eq!(HARMONIZE_MASKS, [0x02, 0x04, 0x08, 0x10]);
+            for (i, &mask) in HARMONIZE_MASKS.iter().enumerate() {
+                assert_eq!(mask.count_ones(), 1, "HARMONIZE_MASKS[{i}] = {mask:#04x}");
+                assert_eq!(mask, 1 << (i + 1), "HARMONIZE_MASKS[{i}] = {mask:#04x}");
+            }
         }
     }
 }

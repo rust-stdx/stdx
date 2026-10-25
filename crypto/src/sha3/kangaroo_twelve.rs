@@ -648,9 +648,7 @@ mod tests {
 
         if s.len() <= KT256_CHUNK_SIZE {
             let mut out = vec![0u8; out_len];
-            let mut xof = TurboShake256::new(SINGLE_PAD);
-            xof.absorb(&s);
-            xof.squeeze(&mut out);
+            crate::sha3::keccak::test_util::sponge::<12>(&s, KT256_RATE, SINGLE_PAD, &mut out);
             return out;
         }
 
@@ -660,9 +658,7 @@ mod tests {
         let mut chunks = 0;
         for chunk in s[KT256_CHUNK_SIZE..].chunks(KT256_CHUNK_SIZE) {
             let mut cv = [0u8; KT256_CV_LEN];
-            let mut leaf = TurboShake256::new(INTERMEDIATE_PAD);
-            leaf.absorb(chunk);
-            leaf.squeeze(&mut cv);
+            crate::sha3::keccak::test_util::sponge::<12>(chunk, KT256_RATE, INTERMEDIATE_PAD, &mut cv);
             final_node.extend_from_slice(&cv);
             chunks += 1;
         }
@@ -671,9 +667,7 @@ mod tests {
         final_node.extend_from_slice(&END);
 
         let mut out = vec![0u8; out_len];
-        let mut xof = TurboShake256::new(FINAL_PAD);
-        xof.absorb(&final_node);
-        xof.squeeze(&mut out);
+        crate::sha3::keccak::test_util::sponge::<12>(&final_node, KT256_RATE, FINAL_PAD, &mut out);
         return out;
     }
 
