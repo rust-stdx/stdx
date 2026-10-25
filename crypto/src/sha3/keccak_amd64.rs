@@ -535,28 +535,30 @@ mod avx512 {
             y0 = _mm512_mask_xor_epi64(y0, 0x01, y0, _mm512_set1_epi64(rc0 as i64));
 
             // harmonize: move lane 1..4 of each register into the row where the
-            // odd round expects it, then put the rows back in order. The mask
-            // selects the lane being replaced.
+            // odd round expects it, then put the rows back in order. Each mask
+            // is a single lane bit (`1 << lane`), matching `k2`..`k5` from the
+            // reference implementation's `kshiftlw $1`..`$4`; they are not
+            // cumulative.
             t1 = _mm512_mask_blend_epi64(0x02, y1, y2);
             t2 = _mm512_mask_blend_epi64(0x02, y2, y3);
             t3 = _mm512_mask_blend_epi64(0x02, y3, y4);
             t0 = _mm512_mask_blend_epi64(0x02, y0, y1);
             t4 = _mm512_mask_blend_epi64(0x02, y4, y0);
-            t1 = _mm512_mask_blend_epi64(0x03, t1, y3);
-            t2 = _mm512_mask_blend_epi64(0x03, t2, y4);
-            t0 = _mm512_mask_blend_epi64(0x03, t0, y2);
-            t3 = _mm512_mask_blend_epi64(0x03, t3, y0);
-            t4 = _mm512_mask_blend_epi64(0x03, t4, y1);
-            t1 = _mm512_mask_blend_epi64(0x04, t1, y4);
-            t0 = _mm512_mask_blend_epi64(0x04, t0, y3);
-            t2 = _mm512_mask_blend_epi64(0x04, t2, y0);
-            t3 = _mm512_mask_blend_epi64(0x04, t3, y1);
-            t4 = _mm512_mask_blend_epi64(0x04, t4, y2);
-            t0 = _mm512_mask_blend_epi64(0x05, t0, y4);
-            t1 = _mm512_mask_blend_epi64(0x05, t1, y0);
-            t2 = _mm512_mask_blend_epi64(0x05, t2, y1);
-            t3 = _mm512_mask_blend_epi64(0x05, t3, y2);
-            t4 = _mm512_mask_blend_epi64(0x05, t4, y3);
+            t1 = _mm512_mask_blend_epi64(0x04, t1, y3);
+            t2 = _mm512_mask_blend_epi64(0x04, t2, y4);
+            t0 = _mm512_mask_blend_epi64(0x04, t0, y2);
+            t3 = _mm512_mask_blend_epi64(0x04, t3, y0);
+            t4 = _mm512_mask_blend_epi64(0x04, t4, y1);
+            t1 = _mm512_mask_blend_epi64(0x08, t1, y4);
+            t0 = _mm512_mask_blend_epi64(0x08, t0, y3);
+            t2 = _mm512_mask_blend_epi64(0x08, t2, y0);
+            t3 = _mm512_mask_blend_epi64(0x08, t3, y1);
+            t4 = _mm512_mask_blend_epi64(0x08, t4, y2);
+            t0 = _mm512_mask_blend_epi64(0x10, t0, y4);
+            t1 = _mm512_mask_blend_epi64(0x10, t1, y0);
+            t2 = _mm512_mask_blend_epi64(0x10, t2, y1);
+            t3 = _mm512_mask_blend_epi64(0x10, t3, y2);
+            t4 = _mm512_mask_blend_epi64(0x10, t4, y3);
             y1 = _mm512_permutexvar_epi64(c13, t1);
             y2 = _mm512_permutexvar_epi64(c14, t2);
             y3 = _mm512_permutexvar_epi64(c15, t3);

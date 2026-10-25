@@ -1439,7 +1439,9 @@ mod tests {
     fn expected_permuted<const W: usize, const ROUNDS: usize>(states: &[[u64; 25]; W]) -> [[u64; 25]; W] {
         let mut expected = *states;
         for state in expected.iter_mut() {
-            crate::sha3::keccak::p1600::<ROUNDS>(state);
+            // Use the portable implementation so the oracle cannot be poisoned
+            // by a broken single-state backend on the machine running the tests.
+            crate::sha3::keccak::p1600_soft::<ROUNDS>(state);
         }
         return expected;
     }
