@@ -1,6 +1,6 @@
 //! The SHA-3 family of hashing functions (FIPS 202, NIST SP 800-185 and RFC
-//! 9861), including SHA-3, SHAKE, cSHAKE, KMAC, TurboSHAKE256 and
-//! KangarooTwelve-256 (KT256).
+//! 9861), including SHA-3, SHAKE, cSHAKE, KMAC, TurboSHAKE256,
+//! KangarooTwelve-256 (KT256) and HopMAC256.
 
 mod kangaroo_twelve;
 pub mod keccak;
@@ -22,8 +22,10 @@ mod turboshake;
 mod keccak_amd64;
 #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
 mod keccak_arm64;
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+mod keccak_wasm32_simd128;
 
-pub use kangaroo_twelve::{KT256_CHUNK_SIZE, Kt256, Kt256Reader, kt256_backend_name};
+pub use kangaroo_twelve::{HopMac256, KT256_CHUNK_SIZE, Kt256, Kt256Reader, kt256_backend_name};
 pub use kmac::Kmac256;
 pub use parallel_hash::{ParallelHash256, ParallelHashReader, backend_name as parallel_hash_backend_name};
 pub use sha3_256::Sha3_256;

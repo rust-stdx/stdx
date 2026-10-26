@@ -14,11 +14,14 @@
 //! | `x86_64`      | AVX2 (runtime)       | 4                      |
 //! | `aarch64`     | Armv8.4-A SHA-3      | 2                      |
 //! | `aarch64`     | NEON                 | 2                      |
+//! | `wasm32`      | `simd128` (compile-time) | 2                  |
 //! | anything else | portable scalar      | 2                      |
 //!
 //! On `x86_64`, runtime detection requires the `std` feature; without it the
-//! backend is chosen at compile time from `target_feature`. A backend that is
-//! narrower than the requested batch width falls back to the portable code.
+//! backend is chosen at compile time from `target_feature`. WebAssembly has no
+//! runtime feature detection, so `simd128` is used only when it is enabled at
+//! build time (`-C target-feature=+simd128`). A backend that is narrower than
+//! the requested batch width falls back to the portable code.
 
 #![allow(unsafe_op_in_unsafe_fn)]
 
@@ -43,6 +46,12 @@ pub(crate) enum Backend {
     Avx2,
     #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
     Avx512,
+    /// WebAssembly `simd128`, two states per 128-bit vector.
+    ///
+    /// Wasm has no runtime feature detection: this variant only exists when
+    /// `-C target-feature=+simd128` was passed at build time.
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    WasmSimd128,
 }
 
 impl Backend {
@@ -92,6 +101,9 @@ impl Backend {
             return Backend::Neon;
         }
 
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        return Backend::WasmSimd128;
+
         Backend::Scalar
     }
 
@@ -107,6 +119,8 @@ impl Backend {
             Backend::Avx2 => "avx2",
             #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
             Backend::Avx512 => "avx512",
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            Backend::WasmSimd128 => "wasm-simd128",
         }
     }
 }
@@ -212,6 +226,16 @@ impl<const W: usize, const ROUNDS: usize> KeccakX<W, ROUNDS> {
                     let state: &mut [u64; 50] = (&mut self.lanes[..50]).try_into().unwrap();
                     // SAFETY: NEON (ASIMD) is mandatory on AArch64.
                     unsafe { neon::permute::<ROUNDS>(state) };
+                    return;
+                }
+            }
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            Backend::WasmSimd128 => {
+                if W == 2 {
+                    let state: &mut [u64; 50] = (&mut self.lanes[..50]).try_into().unwrap();
+                    // SAFETY: the module is only compiled with `simd128` and
+                    // `KeccakX` is 64-byte aligned.
+                    unsafe { super::keccak_wasm32_simd128::permute::<ROUNDS>(state) };
                     return;
                 }
             }
@@ -1172,6 +1196,7 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
     /// The caller guarantees that `off + W * 8 <= msgs[w].len()` and that
     /// `lane + W` lanes fit in the rate, so the slice below is in bounds.
     #[inline]
+    #[allow(unused_variables)]
     fn xor_wide(&mut self, lane: usize, msgs: &[&[u8]; W], off: usize) -> bool {
         let dst = &mut self.state.lanes[W * lane..];
 
@@ -1198,6 +1223,14 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
             // SAFETY: `dst` holds at least `W * W` words and is 16-byte
             // aligned.
             unsafe { neon::xor_lanes(dst, msgs.as_slice().try_into().unwrap(), off) };
+            return true;
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        if W == 2 && self.backend == Backend::WasmSimd128 {
+            // SAFETY: `dst` holds at least `W * W` words and is 16-byte
+            // aligned; the module is only compiled with `simd128`.
+            unsafe { super::keccak_wasm32_simd128::xor_lanes(dst, msgs.as_slice().try_into().unwrap(), off) };
             return true;
         }
 
@@ -1745,6 +1778,84 @@ mod tests {
 
             assert_eq!(&x.lanes[4..], &before[4..], "off {off} wrote past the transpose");
         }
+    }
+
+    /// The wasm `simd128` backend must agree with two independent portable
+    /// permutations, including the four-wide case, which has no wasm kernel and
+    /// must fall back to scalar.
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    #[test]
+    fn wasm_simd128_dispatched_permutation_matches_reference() {
+        check_dispatched::<2, 12>(0x243f_6a88_85a3_08d3, Backend::WasmSimd128);
+        check_dispatched::<2, 24>(0xa409_3822_299f_31d0, Backend::WasmSimd128);
+        check_dispatched::<4, 12>(0x1319_8a2e_0370_7344, Backend::WasmSimd128);
+        check_dispatched::<4, 24>(0x082e_fa98_ec4e_6c89, Backend::WasmSimd128);
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    #[test]
+    fn wasm_simd128_backend_name() {
+        assert_eq!(Backend::WasmSimd128.name(), "wasm-simd128");
+        assert_eq!(Backend::detect(), Backend::WasmSimd128);
+    }
+
+    /// Exercises the wasm permutation and the 2x2 transpose through the
+    /// production `SpongeX` path, including chunk sizes that force the byte
+    /// head, wide vector body and scalar tail.
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    #[test]
+    fn sponge_x_wasm_simd128_incremental_absorb_matches_reference() {
+        check_incremental_absorb::<2, 24>(136, 0x1f, Backend::WasmSimd128);
+        check_incremental_absorb::<2, 12>(136, 0x1f, Backend::WasmSimd128);
+        check_incremental_absorb::<2, 24>(168, 0x1f, Backend::WasmSimd128);
+    }
+
+    /// Drives the batched absorb path at every starting offset in a word, so
+    /// the byte head, the 2x2 wide transpose and the scalar tail are all
+    /// exercised for each alignment and each rate.
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    #[test]
+    fn sponge_x_wasm_simd128_absorb_alignment_offsets_match_reference() {
+        const LEN: usize = 400;
+        let mut rng = 0x3c6e_f372_fe94_f82bu64;
+        let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(LEN, &mut rng));
+
+        macro_rules! check {
+            ($rounds:literal, $rate:literal) => {{
+                let mut expected = [[0u8; 64]; 2];
+                for w in 0..2 {
+                    sponge::<$rounds>(&msgs[w], $rate, 0x1f, &mut expected[w]);
+                }
+
+                for prefix in 0..=17usize {
+                    let mut sponge = SpongeX::<2, $rounds>::new($rate, 0x1f, Backend::WasmSimd128);
+                    sponge.absorb_batch(&[&msgs[0][..prefix], &msgs[1][..prefix]]);
+                    sponge.absorb_batch(&[&msgs[0][prefix..], &msgs[1][prefix..]]);
+                    let mut cvs = [[0u8; 64]; 2];
+                    sponge.squeeze_cvs::<64>(&mut cvs);
+                    for w in 0..2 {
+                        assert_eq!(
+                            cvs[w], expected[w],
+                            "rounds={}, rate={}, prefix={prefix}, state={w}",
+                            $rounds, $rate
+                        );
+                    }
+                }
+            }};
+        }
+
+        check!(24, 136);
+        check!(12, 136);
+        check!(24, 168);
+    }
+
+    /// The scalar fallback must remain bit-exact when `simd128` is compiled in
+    /// but a caller explicitly asks for it.
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    #[test]
+    fn sponge_x_wasm_scalar_fallback_matches_reference() {
+        check_incremental_absorb::<2, 24>(136, 0x1f, Backend::Scalar);
+        check_incremental_absorb::<2, 12>(136, 0x1f, Backend::Scalar);
     }
 
     fn check_batch<const W: usize, const ROUNDS: usize>(

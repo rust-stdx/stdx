@@ -6,7 +6,7 @@ use crypto::{
     hmac::Hmac,
     poly1305::Poly1305,
     sha2::{Sha256, Sha512},
-    sha3::Kmac256,
+    sha3::{HopMac256, Kmac256},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
@@ -48,6 +48,16 @@ fn bench_macs(c: &mut Criterion) {
                 kmac.update(black_box(data.as_slice()));
                 let mut out = [0u8; 32];
                 kmac.finalize_into(&mut out);
+                black_box(out);
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("HopMAC256"), &data, |b, data| {
+            b.iter(|| {
+                let mut mac = HopMac256::new(black_box(&KEY), black_box(customization));
+                mac.update(black_box(data.as_slice()));
+                let mut out = [0u8; 32];
+                mac.finalize_into(&mut out);
                 black_box(out);
             });
         });

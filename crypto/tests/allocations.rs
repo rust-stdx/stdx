@@ -309,6 +309,42 @@ fn parallel_hash_does_not_leak() {
 }
 
 #[test]
+fn hopmac256_does_not_allocate() {
+    use crypto::sha3::HopMac256;
+
+    // Built outside the measured closures so the input buffers themselves are
+    // not counted.
+    let data = vec![0x5au8; 64 * 1024];
+    let key = b"hopmac allocation key";
+    let customization = b"alloc";
+
+    assert_no_alloc("hopmac256 one-shot", || {
+        let mut out = [0u8; 64];
+        HopMac256::mac(key, &data, customization, &mut out);
+        out[0]
+    });
+
+    assert_no_alloc("hopmac256 streaming", || {
+        let mut mac = HopMac256::new(key, customization);
+        for chunk in data.chunks(7) {
+            mac.update(chunk);
+        }
+        let mut out = [0u8; 64];
+        mac.finalize_into(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("hopmac256 xof", || {
+        let mut mac = HopMac256::new(key, customization);
+        mac.update(&data);
+        let mut reader = mac.finalize_xof();
+        let mut out = [0u8; 512];
+        reader.squeeze(&mut out);
+        out[0]
+    });
+}
+
+#[test]
 fn kt256_does_not_allocate() {
     use crypto::sha3::Kt256;
 

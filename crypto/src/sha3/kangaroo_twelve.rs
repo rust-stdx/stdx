@@ -1,4 +1,4 @@
-//! KangarooTwelve-256 (KT256), as defined in RFC 9861.
+//! KangarooTwelve-256 (KT256) and HopMAC256, as defined in RFC 9861.
 //!
 //! KangarooTwelve is a tree hash built on TurboSHAKE. It splits
 //! `S = M || C || length_encode(|C|)` into 8192-byte chunks, hashes every chunk
@@ -16,7 +16,11 @@
 //! | `x86_64`      | AVX2 (runtime)       | 4                      |
 //! | `aarch64`     | Armv8.4-A SHA-3      | 2                      |
 //! | `aarch64`     | NEON                 | 2                      |
+//! | `wasm32`      | `simd128` (compile-time) | 2                  |
 //! | anything else | portable scalar      | 2                      |
+//!
+//! WebAssembly has no runtime feature detection, so `simd128` is used only
+//! when it is enabled at build time (`-C target-feature=+simd128`).
 //!
 //! The first chunk is always absorbed serially and the final node is a single
 //! sponge, so messages of at most 8192 bytes see no tree parallelism at all.
@@ -43,6 +47,18 @@
 //! same message and customization string. [`Kt256::finalize_xof`] returns a
 //! reader for incremental output; [`Kt256::finalize_into`] writes a one-shot
 //! output of any length.
+//!
+//! # HopMAC256
+//!
+//! [`HopMac256`] is the hash-then-MAC construction recommended by RFC 9861,
+//! section 4:
+//!
+//! `HopMAC256(Key, M, C, L) = KT256(Key, KT256(M, C, 64), L)`.
+//!
+//! The inner call is keyless and compresses the message and customization
+//! string to a 64-byte digest; the outer call authenticates that digest with
+//! the key. Only the outer call processes the key, so a side-channel-protected
+//! implementation only has to protect that part.
 //!
 //! # Example
 //!
@@ -398,6 +414,124 @@ impl Drop for Kt256<'_> {
     }
 }
 
+/// HopMAC256, as recommended by RFC 9861, section 4.
+///
+/// `HopMAC256(Key, M, C, L) = KT256(Key, KT256(M, C, 64), L)`: the message `M`
+/// and customization string `C` are first compressed by a keyless KT256 call,
+/// and the resulting 64-byte digest becomes the customization string of an
+/// outer KT256 call whose message is `Key`.
+///
+/// `key` and `customization` are borrowed, not copied, and must stay alive and
+/// unchanged until the hasher is finalized.
+///
+/// # One-shot API
+///
+/// ```ignore
+/// use crypto::sha3::HopMac256;
+///
+/// let key = b"super secret key";
+/// let mut tag = [0u8; 64];
+/// HopMac256::mac(key, b"message", b"application", &mut tag);
+/// ```
+///
+/// # Incremental API
+///
+/// ```ignore
+/// use crypto::sha3::HopMac256;
+///
+/// let key = b"super secret key";
+/// let mut mac = HopMac256::new(key, b"application");
+/// mac.update(b"hello ");
+/// mac.update(b"world");
+/// let mut tag = [0u8; 64];
+/// mac.finalize_into(&mut tag);
+/// ```
+///
+/// # Output
+///
+/// Like KT256, the tag length is not bound into the computation: a shorter tag
+/// is a prefix of a longer one for the same key, message, and customization
+/// string. [`finalize_xof`](Self::finalize_xof) returns an incremental reader
+/// for long or streamed output.
+///
+/// # Security
+///
+/// Unlike HMAC, the inner KT256 call is keyless, so only the outer call needs
+/// protection against side-channel attacks when the key is secret.
+#[derive(Clone)]
+pub struct HopMac256<'a> {
+    key: &'a [u8],
+    inner: Kt256<'a>,
+}
+
+impl<'a> HopMac256<'a> {
+    /// Creates a HopMAC256 hasher with the given `key` and customization
+    /// string `C`.
+    ///
+    /// Pass `&[]` for `customization` when no domain separation is needed.
+    #[inline]
+    pub fn new(key: &'a [u8], customization: &'a [u8]) -> Self {
+        return HopMac256 {
+            key,
+            inner: Kt256::new(customization),
+        };
+    }
+
+    /// Absorbs message bytes.
+    #[inline]
+    pub fn update(&mut self, data: &[u8]) {
+        self.inner.update(data);
+    }
+
+    /// Finalizes the MAC and writes `output.len()` bytes.
+    ///
+    /// `output` may have any length, including zero. As with every XOF, the
+    /// output length does not change the tag: a shorter output is a prefix of
+    /// a longer one. See [`Self::finalize_xof`] for an incremental reader.
+    pub fn finalize_into(self, output: &mut [u8]) {
+        let mut digest = [0u8; KT256_CV_LEN];
+        let HopMac256 {
+            key,
+            inner,
+        } = self;
+        inner.finalize_into(&mut digest);
+        Kt256::hash(key, &digest, output);
+    }
+
+    /// Finalizes the MAC and returns an incremental output reader.
+    pub fn finalize_xof(self) -> Kt256Reader {
+        let mut digest = [0u8; KT256_CV_LEN];
+        let HopMac256 {
+            key,
+            inner,
+        } = self;
+        inner.finalize_into(&mut digest);
+
+        // The reader owns the finalized sponge, so borrowing the local digest
+        // as the outer customization string is safe.
+        let mut outer = Kt256::new(&digest);
+        outer.update(key);
+        return outer.finalize_xof();
+    }
+
+    /// Computes `HopMAC256(key, message, customization, output)` in one call.
+    ///
+    /// `output` may have any length, including zero.
+    pub fn mac(key: &[u8], message: &[u8], customization: &[u8], output: &mut [u8]) {
+        let mut hasher = HopMac256::new(key, customization);
+        hasher.update(message);
+        hasher.finalize_into(output);
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl zeroize::Zeroize for HopMac256<'_> {
+    fn zeroize(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.inner);
+        // `key` is borrowed from the caller and must not be wiped.
+    }
+}
+
 /// Returns the name of the batched Keccak backend KT256 uses on this CPU.
 ///
 /// Useful in benchmarks and CI logs. Detection is cached by the standard
@@ -460,6 +594,285 @@ mod tests {
         let mut explicit = [0u8; 64];
         Kt256::hash(b"default", &[], &mut explicit);
         assert_eq!(from_default, explicit);
+    }
+
+    /// Known-answer vectors for HopMAC256.
+    ///
+    /// RFC 9861 defines HopMAC but does not publish vectors for it. These tags
+    /// were produced with XKCP/K12's independent Python KT256 implementation,
+    /// composed as `KT256(Key, KT256(M, C, 64), L)`, and cross-checked against
+    /// this module's `Kt256`.
+    #[test]
+    fn hopmac256_known_answer_vectors() {
+        struct Vector {
+            key: Vec<u8>,
+            message: Vec<u8>,
+            customization: Vec<u8>,
+            output_len: usize,
+            expected: &'static str,
+        }
+
+        let vectors = [
+            Vector {
+                key: ptn(32),
+                message: vec![],
+                customization: vec![],
+                output_len: 32,
+                expected: "137d48ca2fc05854533ddfce3c5e0acb\
+                           1888488f651cbe5940b0f1e87321c52c",
+            },
+            Vector {
+                key: ptn(32),
+                message: vec![],
+                customization: vec![],
+                output_len: 64,
+                expected: "137d48ca2fc05854533ddfce3c5e0acb\
+                           1888488f651cbe5940b0f1e87321c52c\
+                           85f7ce0a325d9864f75fa9d07dcaa834\
+                           642fe922c504856a92049f3790508bb1",
+            },
+            Vector {
+                key: ptn(32),
+                message: ptn(17),
+                customization: vec![],
+                output_len: 64,
+                expected: "398819a1b1a2bc5d809713fa22c21284\
+                           e360562a6ee17840816e66be84bc7dbd\
+                           d028886d493a57a33f38d6596afc5cf5\
+                           7ad7224650374af90d9fff65506af127",
+            },
+            Vector {
+                key: ptn(32),
+                message: vec![],
+                customization: ptn(1),
+                output_len: 64,
+                expected: "58a613d2dd1638a04cd8fd62b198a794\
+                           9531310eb51bab6cc7ac710d537618bc\
+                           df4bc9b2470f10378cf491922871c7ee\
+                           b16ea48103925faf40abdbbac7fa06a9",
+            },
+            Vector {
+                key: ptn(32),
+                message: ptn(8191),
+                customization: vec![],
+                output_len: 64,
+                expected: "fba827592baf98f827290d970299f3ee\
+                           26f4eac7287b2a9fb222eb15ec0a04d8\
+                           c7b347da65ead88064b92d86c69ec16c\
+                           529aa6ff53ad2aca3b28512005d05e86",
+            },
+            Vector {
+                key: ptn(32),
+                message: ptn(8192),
+                customization: vec![],
+                output_len: 64,
+                expected: "55bfce4e56df0f1c8289793c69205f71\
+                           fed60653d81daf4ff9e54ce36b45b26f\
+                           d86c40691e39cc6f6ad5fcfc6ebbe69b\
+                           93d42afbe0b85bfe6064bea71ee14279",
+            },
+            Vector {
+                key: ptn(32),
+                message: ptn(8192),
+                customization: ptn(8189),
+                output_len: 64,
+                expected: "0f76ea0a8b1d77c67785473e501acf80\
+                           a6e3eb0c406943863c47f5cb23146112\
+                           17b45144f1a1d697603d695d016ce46e\
+                           bb31986495b75540ec00a144c888bb4d",
+            },
+            Vector {
+                key: ptn(32),
+                message: ptn(8192),
+                customization: ptn(8190),
+                output_len: 64,
+                expected: "80b774368a06069cf715dbdec65ef9ed\
+                           c27c467ca8efeb15d5facb89027b3002\
+                           0c1ed1af1d7b46daf9066cffbccda4b2\
+                           f4872cca204a5b5899d3c2d365fe8bd0",
+            },
+            Vector {
+                key: ptn(131),
+                message: ptn(17),
+                customization: ptn(41),
+                output_len: 64,
+                expected: "90f208c103e2b2445be8bae68b8ecc2e\
+                           44af85fb30ede8cc9d0c6c407cafe25b\
+                           867d1c34ffd92d220e4058e11e90fabd\
+                           9553ca84938b7caef41ee818d210fcbf",
+            },
+            Vector {
+                key: ptn(200),
+                message: ptn(17usize.pow(3)),
+                customization: ptn(41usize.pow(2)),
+                output_len: 64,
+                expected: "bfaea92418ed6b3c2d14ae2a518f9703\
+                           d20170cabd5b290829385a469510340f\
+                           a4dcad1383c587f29eefe12e402bc2a2\
+                           085cfc5c4327c4eb5d6ec554257a30c5",
+            },
+        ];
+
+        for (i, vector) in vectors.iter().enumerate() {
+            let mut output = vec![0u8; vector.output_len];
+            HopMac256::mac(&vector.key, &vector.message, &vector.customization, &mut output);
+            assert_eq!(
+                hex::encode(&output),
+                vector.expected.replace(['\n', ' '], ""),
+                "vector {i}: key {}, message {}, customization {}",
+                vector.key.len(),
+                vector.message.len(),
+                vector.customization.len()
+            );
+        }
+    }
+
+    #[test]
+    fn hopmac256_long_output_is_a_prefix_stream() {
+        const OUTPUT_LEN: usize = 10064;
+        let key = ptn(32);
+
+        let mut output = vec![0u8; OUTPUT_LEN];
+        HopMac256::mac(&key, &[], &[], &mut output);
+        assert_eq!(
+            hex::encode(&output[OUTPUT_LEN - 64..]),
+            "92122d35b17f6ade0790f24437ddc1c3\
+             eee008b7f736331ef8fc259574b3f513\
+             70f9d8db8baa2fc8231aec4805be00cb\
+             dc9951043ae80aab609a70b1368ed622"
+        );
+
+        let mut short = [0u8; 32];
+        HopMac256::mac(&key, &[], &[], &mut short);
+        assert_eq!(short, output[..32]);
+    }
+
+    #[test]
+    fn hopmac256_matches_spec_composition() {
+        let cases = [
+            (0usize, 0usize, 0usize, 32usize),
+            (1, 1, 1, 64),
+            (69, 8191, 0, 64),
+            (131, 8192, 41, 64),
+            (200, 16385, 8189, 32),
+        ];
+
+        for (key_len, message_len, customization_len, output_len) in cases {
+            let key = ptn(key_len);
+            let message = ptn(message_len);
+            let customization = ptn(customization_len);
+
+            let inner = spec_kt256(&message, &customization, KT256_CV_LEN);
+            let expected = spec_kt256(&key, &inner, output_len);
+
+            let mut output = vec![0u8; output_len];
+            HopMac256::mac(&key, &message, &customization, &mut output);
+            assert_eq!(
+                output, expected,
+                "key length {key_len}, message length {message_len}, \
+                 customization length {customization_len}"
+            );
+        }
+    }
+
+    #[test]
+    fn hopmac256_streaming_matches_one_shot() {
+        let key = ptn(32);
+        let customization = ptn(41);
+
+        for &len in &[0usize, 1, 8191, 8192, 8193, 2 * 8192, 2 * 8192 + 1] {
+            let data = ptn(len);
+
+            let mut one_shot = [0u8; 64];
+            HopMac256::mac(&key, &data, &customization, &mut one_shot);
+
+            for &chunk_size in &[1usize, 3, 7, 136, 8192, 2 * 8192 + 1] {
+                let mut hasher = HopMac256::new(&key, &customization);
+                for chunk in data.chunks(chunk_size) {
+                    hasher.update(chunk);
+                }
+
+                let mut streamed = [0u8; 64];
+                hasher.finalize_into(&mut streamed);
+                assert_eq!(one_shot, streamed, "len {len}, chunk {chunk_size}");
+            }
+        }
+    }
+
+    #[test]
+    fn hopmac256_xof_squeeze_is_chunk_independent() {
+        let key = ptn(32);
+        let customization = ptn(5);
+        let data = ptn(2 * KT256_CHUNK_SIZE + 11);
+
+        let mut one_shot = [0u8; 1000];
+        HopMac256::mac(&key, &data, &customization, &mut one_shot);
+
+        let mut hasher = HopMac256::new(&key, &customization);
+        hasher.update(&data);
+        let mut reader = hasher.finalize_xof();
+
+        let mut streamed = [0u8; 1000];
+        let mut offset = 0;
+        for chunk in [1usize, 7, 63, 135, 137, 1, 500] {
+            let n = chunk.min(streamed.len() - offset);
+            reader.squeeze(&mut streamed[offset..offset + n]);
+            offset += n;
+        }
+        reader.squeeze(&mut streamed[offset..]);
+
+        assert_eq!(one_shot, streamed);
+    }
+
+    #[test]
+    fn hopmac256_clone_mid_stream_matches_linear() {
+        let key = ptn(32);
+        let customization = ptn(13);
+        let data = ptn(3 * KT256_CHUNK_SIZE + 7);
+
+        let mut expected = [0u8; 64];
+        HopMac256::mac(&key, &data, &customization, &mut expected);
+
+        for split in [0usize, 8191, 8192, 8193, 2 * 8192 + 5] {
+            let mut hasher = HopMac256::new(&key, &customization);
+            hasher.update(&data[..split]);
+            let mut clone = hasher.clone();
+            hasher.update(&data[split..]);
+            clone.update(&data[split..]);
+
+            let mut from_original = [0u8; 64];
+            let mut from_clone = [0u8; 64];
+            hasher.finalize_into(&mut from_original);
+            clone.finalize_into(&mut from_clone);
+
+            assert_eq!(from_original, expected, "split {split}");
+            assert_eq!(from_clone, expected, "split {split}");
+        }
+    }
+
+    #[test]
+    fn hopmac256_binds_key_and_customization() {
+        let message = ptn(3 * KT256_CHUNK_SIZE + 1);
+
+        let mut a = [0u8; 64];
+        let mut b = [0u8; 64];
+        let mut c = [0u8; 64];
+        HopMac256::mac(b"key one", &message, b"custom", &mut a);
+        HopMac256::mac(b"key two", &message, b"custom", &mut b);
+        HopMac256::mac(b"key one", &message, b"other", &mut c);
+
+        assert_ne!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn hopmac256_accepts_empty_key_and_empty_output() {
+        let mut empty_output = [0u8; 0];
+        HopMac256::mac(&[], b"data", b"", &mut empty_output);
+
+        let mut output = [0u8; 32];
+        HopMac256::mac(&[], b"data", b"", &mut output);
+        assert_ne!(output, [0u8; 32]);
     }
 
     #[test]

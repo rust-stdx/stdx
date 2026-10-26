@@ -12,11 +12,14 @@
 //! | `x86_64`      | AVX2 (runtime)       | 4                      |
 //! | `aarch64`     | Armv8.4-A SHA-3      | 2                      |
 //! | `aarch64`     | NEON                 | 2                      |
+//! | `wasm32`      | `simd128` (compile-time) | 2                  |
 //! | anything else | portable scalar      | 2                      |
 //!
 //! On `x86_64`, runtime detection requires the `std` feature; without it the
-//! backend is chosen at compile time from `target_feature`. A backend that is
-//! narrower than the requested batch width falls back to the portable code.
+//! backend is chosen at compile time from `target_feature`. WebAssembly has no
+//! runtime feature detection, so `simd128` is used only when it is enabled at
+//! build time. A backend that is narrower than the requested batch width falls
+//! back to the portable code.
 //!
 //! # Throughput
 //!
@@ -668,7 +671,12 @@ mod tests {
         // Regression test: `2 * block_size` used to overflow for large block
         // sizes, panicking in debug (multiply overflow) and release tests
         // (`split_at`, "mid > len"). These must hash as a single leaf instead.
-        for &block_size in &[1usize << 62, 1 << 63, usize::MAX] {
+        #[cfg(target_pointer_width = "64")]
+        const HUGE_BLOCK_SIZES: &[usize] = &[1usize << 62, 1 << 63, usize::MAX];
+        #[cfg(target_pointer_width = "32")]
+        const HUGE_BLOCK_SIZES: &[usize] = &[usize::MAX / 2 + 1, usize::MAX - 1, usize::MAX];
+
+        for &block_size in HUGE_BLOCK_SIZES {
             let mut out = [0u8; 64];
             ParallelHash256::hash(b"hello world", block_size, b"", &mut out);
             assert_ne!(out, [0u8; 64], "B={block_size}");

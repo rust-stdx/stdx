@@ -991,12 +991,17 @@ mod tests {
         // `salt_len` is caller-controlled. Values near `usize::MAX` used to
         // overflow `hash_len + salt_len + 2` (debug panic) or wrap the
         // subsequent subtraction (release). They must return an error.
+        #[cfg(target_pointer_width = "64")]
+        const LARGE_SALT_LEN: usize = 1usize << 32;
+        #[cfg(target_pointer_width = "32")]
+        const LARGE_SALT_LEN: usize = usize::MAX / 4;
+
         for salt_len in [
             usize::MAX,
             usize::MAX - 1,
             usize::MAX - 32,
             usize::MAX / 2,
-            1usize << 32,
+            LARGE_SALT_LEN,
         ] {
             assert_eq!(
                 key.verify_pss::<crate::sha2::Sha256>(&sig, msg, salt_len),

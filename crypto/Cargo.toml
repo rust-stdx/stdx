@@ -16,6 +16,7 @@ default = ["std", "zeroize"]
 
 alloc = ["dep:small_collections", "memchr/alloc", "base64/alloc", "big_number/alloc", "zeroize?/alloc"]
 random = ["dep:getrandom"]
+random_wasm = ["random", "getrandom/wasm_js"]
 std = ["alloc", "small_collections?/std", "memchr/std", "random", "big_number/std", "constant_time_eq/std"]
 zeroize = ["dep:zeroize", "big_number/zeroize"]
 
