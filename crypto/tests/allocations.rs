@@ -7,7 +7,7 @@
 
 use alloc_counter::measure;
 use crypto::{
-    mldsa::{MlDsa44SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
+    mldsa::{MlDsa44SecretKey, MlDsa65Ed25519Sha512SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
     mlkem::{SecretKey768, SecretKey1024},
 };
 
@@ -69,6 +69,34 @@ fn ml_dsa_does_not_allocate() {
 }
 
 #[test]
+fn mldsa65_ed25519_does_not_allocate() {
+    let seed = [3u8; 64];
+    let rnd = [1u8; 32];
+    let msg = b"composite allocation regression";
+
+    let key = MlDsa65Ed25519Sha512SecretKey::new(&seed);
+    let public_key = key.public_key();
+    let signature = key.sign_derand(msg, b"ctx", &rnd).unwrap();
+    assert!(public_key.verify(msg, &signature, b"ctx").is_ok());
+
+    assert_no_alloc("mldsa65-ed25519 keygen", || MlDsa65Ed25519Sha512SecretKey::new(&seed));
+    assert_no_alloc("mldsa65-ed25519 sign", || key.sign_derand(msg, b"ctx", &rnd));
+    assert_no_alloc("mldsa65-ed25519 verify", || public_key.verify(msg, &signature, b"ctx"));
+
+    let ctx = [0u8; 256];
+    assert_no_alloc("mldsa65-ed25519 sign context too long", || key.sign_derand(msg, &ctx, &rnd));
+    assert_no_alloc("mldsa65-ed25519 verify context too long", || {
+        public_key.verify(msg, &signature, &ctx)
+    });
+
+    let mut bad_signature = signature;
+    bad_signature[0] ^= 1;
+    assert_no_alloc("mldsa65-ed25519 verify reject", || {
+        public_key.verify(msg, &bad_signature, b"ctx")
+    });
+}
+
+#[test]
 fn pqc_error_paths_do_not_allocate() {
     let seed = [3u8; 32];
     let rnd = [1u8; 32];
@@ -107,6 +135,10 @@ fn repeated_operations_do_not_leak() {
         let k = MlDsa65SecretKey::new(&[3u8; 32]);
         let sig = k.sign_derand(b"m", b"", &[4u8; 32]).unwrap();
         let _ = k.public_key().verify(b"m", &sig, b"");
+
+        let ck = MlDsa65Ed25519Sha512SecretKey::new(&[5u8; 64]);
+        let csig = ck.sign_derand(b"m", b"", &[6u8; 32]).unwrap();
+        let _ = ck.public_key().verify(b"m", &csig, b"");
     }
     let after = alloc_counter::counters().live_bytes;
     assert_eq!(before, after, "post-quantum operations retained heap memory");
