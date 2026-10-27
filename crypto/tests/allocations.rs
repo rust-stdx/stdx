@@ -540,12 +540,12 @@ fn turbohash_does_not_allocate() {
 
     assert_no_alloc("turbohash keyed one-shot", || {
         let mut out = [0u8; 64];
-        TurboHash::mac(key, context, &data, &mut out);
+        TurboHash::mac(&key, context, &data, &mut out);
         out[0]
     });
 
     assert_no_alloc("turbohash keyed streaming", || {
-        let mut hasher = TurboHash::new_keyed(key, context);
+        let mut hasher = TurboHash::new_keyed(&key, context);
         for chunk in data.chunks(7) {
             hasher.update(chunk);
         }
@@ -555,7 +555,7 @@ fn turbohash_does_not_allocate() {
     });
 
     assert_no_alloc("turbohash keyed xof", || {
-        let mut hasher = TurboHash::new_keyed(key, context);
+        let mut hasher = TurboHash::new_keyed(&key, context);
         hasher.update(&data);
         let mut reader = hasher.finalize_xof();
         let mut out = [0u8; 512];
@@ -579,7 +579,7 @@ fn turbohash_does_not_leak() {
         let context = vec![0xa5u8; i % 41];
         let mut out = [0u8; 64];
         TurboHash::hash(&context, &data, &mut out);
-        TurboHash::mac(key, &context, &data, &mut out);
+        TurboHash::mac(&key, &context, &data, &mut out);
     }
 
     assert_eq!(

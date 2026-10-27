@@ -66,7 +66,7 @@ fn bench_macs(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("TurboHash-keyed-32"), &data, |b, data| {
             b.iter(|| {
                 let mut out = [0u8; 32];
-                TurboHash::mac(black_box(KEY), black_box(customization), black_box(data.as_slice()), &mut out);
+                TurboHash::mac(black_box(&KEY), black_box(customization), black_box(data.as_slice()), &mut out);
                 black_box(out);
             });
         });

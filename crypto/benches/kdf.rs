@@ -51,7 +51,10 @@ fn bench_kdfs(c: &mut Criterion) {
 
     group.bench_function("TurboHash-32", |b| {
         let mut out = [0u8; 32];
-        b.iter(|| black_box(TurboHash::mac(black_box(KEY), b"KDF", black_box(INFO.as_bytes()), &mut out)));
+        b.iter(|| {
+            TurboHash::mac(black_box(KEY), b"KDF", black_box(INFO.as_bytes()), &mut out);
+            black_box(())
+        });
     });
 
     group.bench_function("ChaCha20", |b| {
