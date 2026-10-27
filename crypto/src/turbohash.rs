@@ -85,7 +85,7 @@
 //!
 //! let key = [0x42; 32];
 //! let mut tag = [0u8; 32];
-//! TurboHash::mac(key, b"application", b"hello world", &mut tag);
+//! TurboHash::mac(&key, b"application", b"hello world", &mut tag);
 //! ```
 
 use core::cmp::min;
