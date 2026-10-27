@@ -3,7 +3,9 @@
 //! `time` provides a small, correct, `no_std`-friendly date and time API built
 //! around a single value type, [`DateTime`], plus [`TimeZone`] and [`Error`].
 //! Durations are the standard [`core::time::Duration`]; there is no dedicated
-//! duration type.
+//! elapsed-duration type. Calendar periods used for bucket truncation are
+//! represented by [`Period`], which is not a duration: a month or a year has
+//! no fixed length.
 //!
 //! # Design
 //!
@@ -22,6 +24,9 @@
 //!   [`DateTime::format`]: RFC 3339, RFC 9557, RFC 2822, HTTP dates, and more.
 //!   Strict, allocation-free output is available through
 //!   [`DateTime::try_format`] and [`DateTime::format_to`].
+//! * [`DateTime::truncate`] returns the start of a calendar-aware [`Period`]
+//!   in the value's time zone. It is infallible and handles the supported
+//!   date range boundaries without returning an error.
 //! * The embedded IANA database ([`TimeZone::named`]) is available by default,
 //!   is pre-parsed at build time, and works without `alloc`. Future
 //!   daylight-saving transitions are materialized up to a rolling horizon (the
@@ -116,6 +121,7 @@ mod posix;
 #[cfg(feature = "serde")]
 mod serde;
 mod timezone;
+mod truncate;
 mod tzdb;
 mod tzif;
 
@@ -131,5 +137,6 @@ pub use crate::{
     error::{Error, ErrorKind},
     format::{Format, Formatted},
     timezone::{Ambiguity, Disambiguation, TimeZone},
+    truncate::Period,
     tzdb::TZDB_VERSION,
 };

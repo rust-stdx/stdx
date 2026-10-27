@@ -24,9 +24,9 @@ pub(crate) const MAX_SECS: i64 =
     civil::days_from_civil(MAX_YEAR, 12, 31) * civil::SECS_PER_DAY + (civil::SECS_PER_DAY - 1);
 
 /// First supported day, as days since the Unix epoch.
-const MIN_DAYS: i64 = civil::days_from_civil(MIN_YEAR, 1, 1);
+pub(crate) const MIN_DAYS: i64 = civil::days_from_civil(MIN_YEAR, 1, 1);
 /// Last supported day, as days since the Unix epoch.
-const MAX_DAYS: i64 = civil::days_from_civil(MAX_YEAR, 12, 31);
+pub(crate) const MAX_DAYS: i64 = civil::days_from_civil(MAX_YEAR, 12, 31);
 
 /// Validates civil fields and returns the local wall-clock time as seconds
 /// since the Unix epoch.

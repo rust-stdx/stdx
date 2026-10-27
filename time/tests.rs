@@ -8,7 +8,7 @@ use alloc::{format, string::ToString, vec};
 use core::time::Duration;
 
 use crate::{
-    Ambiguity, Disambiguation, ErrorKind, Format, TimeZone, civil,
+    Ambiguity, Disambiguation, ErrorKind, Format, Period, TimeZone, civil,
     datetime::{DateTime, Weekday},
 };
 
@@ -1159,5 +1159,286 @@ fn disambiguation_matches_classification() {
             cursor = end;
         }
         assert!(folds + gaps > 0, "{name} produced no ambiguous civil time");
+    }
+}
+
+#[test]
+fn truncate_utc_units() {
+    let dt = parse("2024-02-29T13:45:06.123456789Z");
+
+    assert_eq!(
+        dt.truncate(Period::nanoseconds(1)).to_string(),
+        "2024-02-29T13:45:06.123456789Z"
+    );
+    assert_eq!(dt.truncate(Period::microseconds(1)).to_string(), "2024-02-29T13:45:06.123456Z");
+    assert_eq!(dt.truncate(Period::milliseconds(1)).to_string(), "2024-02-29T13:45:06.123Z");
+    assert_eq!(dt.truncate(Period::seconds(1)).to_string(), "2024-02-29T13:45:06Z");
+    assert_eq!(dt.truncate(Period::seconds(30)).to_string(), "2024-02-29T13:45:00Z");
+    assert_eq!(dt.truncate(Period::minutes(1)).to_string(), "2024-02-29T13:45:00Z");
+    assert_eq!(dt.truncate(Period::minutes(30)).to_string(), "2024-02-29T13:30:00Z");
+    assert_eq!(dt.truncate(Period::hours(1)).to_string(), "2024-02-29T13:00:00Z");
+    assert_eq!(dt.truncate(Period::hours(6)).to_string(), "2024-02-29T12:00:00Z");
+    assert_eq!(dt.truncate(Period::hours(12)).to_string(), "2024-02-29T12:00:00Z");
+    assert_eq!(dt.truncate(Period::days(1)).to_string(), "2024-02-29T00:00:00Z");
+    assert_eq!(dt.truncate(Period::months(1)).to_string(), "2024-02-01T00:00:00Z");
+    assert_eq!(dt.truncate(Period::months(3)).to_string(), "2024-01-01T00:00:00Z");
+    assert_eq!(dt.truncate(Period::months(6)).to_string(), "2024-01-01T00:00:00Z");
+    assert_eq!(dt.truncate(Period::months(12)).to_string(), "2024-01-01T00:00:00Z");
+    assert_eq!(dt.truncate(Period::years(1)).to_string(), "2024-01-01T00:00:00Z");
+    assert_eq!(dt.truncate(Period::years(5)).to_string(), "2020-01-01T00:00:00Z");
+}
+
+#[test]
+fn truncate_calendar_boundaries() {
+    assert_eq!(
+        parse("2024-07-11T12:00:00Z").truncate(Period::months(6)).to_string(),
+        "2024-07-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("2024-12-31T12:00:00Z").truncate(Period::months(6)).to_string(),
+        "2024-07-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("2023-12-31T12:00:00Z").truncate(Period::months(6)).to_string(),
+        "2023-07-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("1969-12-31T12:00:00Z").truncate(Period::months(6)).to_string(),
+        "1969-07-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("2024-05-15T12:00:00Z").truncate(Period::months(3)).to_string(),
+        "2024-04-01T00:00:00Z"
+    );
+    // Five-month buckets are continuous but do not align with year boundaries.
+    assert_eq!(
+        parse("2024-09-01T12:00:00Z").truncate(Period::months(5)).to_string(),
+        "2024-08-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("2023-01-01T12:00:00Z").truncate(Period::years(3)).to_string(),
+        "2021-01-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("2024-01-01T12:00:00Z").truncate(Period::years(3)).to_string(),
+        "2024-01-01T00:00:00Z"
+    );
+}
+
+#[test]
+fn truncate_day_anchoring_and_no_iso_weeks() {
+    assert_eq!(
+        parse("1970-01-03T12:00:00Z").truncate(Period::days(2)).to_string(),
+        "1970-01-03T00:00:00Z"
+    );
+    assert_eq!(
+        parse("1970-01-02T12:00:00Z").truncate(Period::days(2)).to_string(),
+        "1970-01-01T00:00:00Z"
+    );
+    // 1970-01-01 was a Thursday, so seven-day buckets do not start on Monday.
+    assert_eq!(
+        parse("1970-01-07T12:00:00Z").truncate(Period::days(7)).to_string(),
+        "1970-01-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("1969-12-31T12:00:00Z").truncate(Period::days(1)).to_string(),
+        "1969-12-31T00:00:00Z"
+    );
+}
+
+#[test]
+fn truncate_uses_local_wall_clock() {
+    let zone = TimeZone::fixed(5 * 3600 + 30 * 60).unwrap();
+    let dt = parse("2024-01-01T13:45:06Z").in_timezone(zone);
+
+    assert_eq!(dt.hour(), 19);
+    assert_eq!(dt.minute(), 15);
+    assert_eq!(dt.truncate(Period::hours(1)).to_string(), "2024-01-01T19:00:00+05:30");
+    assert_eq!(dt.truncate(Period::hours(6)).to_string(), "2024-01-01T18:00:00+05:30");
+    assert_eq!(dt.truncate(Period::minutes(30)).to_string(), "2024-01-01T19:00:00+05:30");
+    assert_eq!(dt.truncate(Period::days(1)).to_string(), "2024-01-01T00:00:00+05:30");
+    assert_eq!(dt.truncate(Period::months(6)).to_string(), "2024-01-01T00:00:00+05:30");
+    assert_eq!(dt.truncate(Period::hours(1)).timezone(), zone);
+    assert_eq!(dt.truncate(Period::hours(1)).offset(), 5 * 3600 + 30 * 60);
+}
+
+#[test]
+fn truncate_clock_periods_drift_when_they_do_not_divide_a_day() {
+    // Five-hour buckets are anchored at local 1970-01-01T00:00:00, so the
+    // boundary on the second local day is 20:00 on the first day, not local
+    // midnight.
+    assert_eq!(
+        parse("1970-01-02T00:30:00Z").truncate(Period::hours(5)).to_string(),
+        "1970-01-01T20:00:00Z"
+    );
+    // Six-hour and 24-hour periods do divide a day and stay on local midnight.
+    assert_eq!(
+        parse("1970-01-02T00:30:00Z").truncate(Period::hours(6)).to_string(),
+        "1970-01-02T00:00:00Z"
+    );
+    assert_eq!(
+        parse("1970-01-02T00:30:00Z").truncate(Period::hours(24)).to_string(),
+        "1970-01-02T00:00:00Z"
+    );
+}
+
+#[cfg(feature = "timezone-db")]
+#[test]
+fn truncate_across_dst_transitions() {
+    let zone = TimeZone::named("America/New_York").unwrap();
+
+    let first = DateTime::from_parts(2024, 11, 3, 1, 30, 0, 0, zone).unwrap();
+    let second = DateTime::from_parts_with(2024, 11, 3, 1, 30, 0, 0, zone, Disambiguation::Later).unwrap();
+    assert_eq!(
+        first.truncate(Period::hours(1)).to_string(),
+        "2024-11-03T01:00:00-04:00[America/New_York]"
+    );
+    assert_eq!(
+        second.truncate(Period::hours(1)).to_string(),
+        "2024-11-03T01:00:00-05:00[America/New_York]"
+    );
+    // Calendar days select the earliest midnight, which is still EDT.
+    assert_eq!(
+        second.truncate(Period::days(1)).to_string(),
+        "2024-11-03T00:00:00-04:00[America/New_York]"
+    );
+
+    let after_gap = DateTime::from_parts(2024, 3, 10, 3, 30, 0, 0, zone).unwrap();
+    assert_eq!(
+        after_gap.truncate(Period::hours(1)).to_string(),
+        "2024-03-10T03:00:00-04:00[America/New_York]"
+    );
+    assert_eq!(
+        after_gap.truncate(Period::days(1)).to_string(),
+        "2024-03-10T00:00:00-05:00[America/New_York]"
+    );
+
+    // Lord Howe has a 30-minute spring-forward gap, so the nominal 02:00
+    // hour boundary does not exist.
+    let lord_howe = TimeZone::named("Australia/Lord_Howe").unwrap();
+    let gap = DateTime::from_parts(2024, 10, 6, 2, 45, 0, 0, lord_howe).unwrap();
+    assert_eq!(
+        gap.truncate(Period::hours(1)).to_string(),
+        "2024-10-06T02:30:00+11:00[Australia/Lord_Howe]"
+    );
+    assert_eq!(
+        gap.truncate(Period::days(1)).to_string(),
+        "2024-10-06T00:00:00+10:30[Australia/Lord_Howe]"
+    );
+    let gap_minute = DateTime::from_parts(2024, 10, 6, 2, 35, 0, 0, lord_howe).unwrap();
+    assert_eq!(
+        gap_minute.truncate(Period::minutes(20)).to_string(),
+        "2024-10-06T02:30:00+11:00[Australia/Lord_Howe]"
+    );
+
+    // And a 30-minute fall-back fold.
+    let fold_first = DateTime::from_parts(2024, 4, 7, 1, 45, 0, 0, lord_howe).unwrap();
+    let fold_second = DateTime::from_parts_with(2024, 4, 7, 1, 45, 0, 0, lord_howe, Disambiguation::Later).unwrap();
+    assert_eq!(
+        fold_first.truncate(Period::minutes(20)).to_string(),
+        "2024-04-07T01:40:00+11:00[Australia/Lord_Howe]"
+    );
+    assert_eq!(
+        fold_second.truncate(Period::minutes(20)).to_string(),
+        "2024-04-07T01:40:00+10:30[Australia/Lord_Howe]"
+    );
+}
+
+#[test]
+fn truncate_zero_period_and_monotonic() {
+    let mut dt = parse("2024-06-01T12:34:56.123456789Z");
+    dt.monotonic = Some(std::time::Instant::now());
+
+    let truncated = dt.truncate(Period::days(1));
+    assert_eq!(truncated.to_string(), "2024-06-01T00:00:00Z");
+    assert!(!truncated.has_monotonic());
+
+    // Already aligned: the value, including its monotonic reading, is kept.
+    let aligned = dt.truncate(Period::nanoseconds(1));
+    assert_eq!(aligned, dt);
+    assert!(aligned.has_monotonic());
+    assert_eq!(aligned.to_string(), dt.to_string());
+
+    // A zero period is a no-op in every respect.
+    let zero = dt.truncate(Period::years(0));
+    assert_eq!(zero, dt);
+    assert!(zero.has_monotonic());
+}
+
+#[test]
+fn truncate_is_infallible_at_boundaries() {
+    let zone = TimeZone::fixed(3600).unwrap();
+    let min = DateTime::from_parts(-9999, 1, 1, 0, 0, 0, 0, TimeZone::UTC)
+        .unwrap()
+        .in_timezone(zone);
+    let truncated = min.truncate(Period::days(1));
+    assert_eq!(truncated.unix(), min.unix());
+    assert_eq!(truncated.timezone(), zone);
+
+    // Near the upper boundary a large positive offset can make the local year
+    // 10000. Truncation must still remain representable and must not move
+    // forward.
+    let max = DateTime::from_parts(9999, 12, 31, 23, 59, 59, 0, TimeZone::UTC)
+        .unwrap()
+        .in_timezone(zone);
+    let truncated = max.truncate(Period::days(1));
+    assert!(truncated <= max);
+    assert_eq!(truncated.timezone(), zone);
+    assert_eq!(truncated.year(), 10000);
+    assert_eq!((truncated.month(), truncated.day()), (1, 1));
+    assert_eq!((truncated.hour(), truncated.minute(), truncated.second()), (0, 0, 0));
+
+    // Huge counts saturate or fall back to the epoch rather than panicking.
+    assert_eq!(
+        parse("2024-01-01T00:00:00Z")
+            .truncate(Period::years(u64::MAX))
+            .to_string(),
+        "1970-01-01T00:00:00Z"
+    );
+    assert_eq!(
+        parse("2024-01-01T00:00:00Z")
+            .truncate(Period::nanoseconds(u64::MAX))
+            .to_string(),
+        "1970-01-01T00:00:00Z"
+    );
+    let earliest = parse("1969-01-01T00:00:00Z").truncate(Period::years(u64::MAX));
+    assert_eq!(
+        earliest.unix(),
+        DateTime::from_parts(-9999, 1, 1, 0, 0, 0, 0, TimeZone::UTC)
+            .unwrap()
+            .unix()
+    );
+}
+
+#[test]
+fn truncate_is_idempotent_and_never_moves_forward() {
+    let periods = [
+        Period::nanoseconds(250),
+        Period::milliseconds(250),
+        Period::seconds(30),
+        Period::minutes(90),
+        Period::hours(5),
+        Period::hours(6),
+        Period::days(2),
+        Period::days(7),
+        Period::months(5),
+        Period::years(3),
+    ];
+    let fixed = TimeZone::fixed(-7 * 3600).unwrap();
+
+    for text in [
+        "1970-01-01T00:00:00Z",
+        "1969-12-31T23:59:59.999999999Z",
+        "2024-02-29T13:45:06.123456789Z",
+        "2024-12-31T23:59:59.999999999Z",
+    ] {
+        for zone in [TimeZone::UTC, fixed] {
+            let dt = parse(text).in_timezone(zone);
+            for period in periods {
+                let truncated = dt.truncate(period);
+                assert!(truncated <= dt, "{text} {period:?}");
+                assert_eq!(truncated.truncate(period), truncated, "{text} {period:?}");
+            }
+        }
     }
 }
