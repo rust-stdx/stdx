@@ -548,7 +548,7 @@ pub fn kt256_backend_name() -> &'static str {
 /// RFC 9861 `length_encode`: the minimal big-endian bytes of `x` followed by
 /// the number of those bytes. In particular `length_encode(0) == [0x00]`.
 #[inline]
-fn length_encode(mut x: usize) -> Bytes<9> {
+pub(crate) fn length_encode(mut x: usize) -> Bytes<9> {
     let mut digits = [0u8; 8];
     let mut n = 0;
 

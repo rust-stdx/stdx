@@ -7,7 +7,10 @@
 
 use alloc_counter::measure;
 use crypto::{
-    mldsa::{MlDsa44SecretKey, MlDsa65Ed25519Sha512SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
+    mldsa::{
+        MlDsa44SecretKey, MlDsa65Ed25519Sha512SecretKey, MlDsa65SecretKey, MlDsa87Ed25519MessageRepresentative,
+        MlDsa87Ed25519SecretKey, MlDsa87Ed25519Signature, MlDsa87SecretKey,
+    },
     mlkem::{SecretKey768, SecretKey1024},
 };
 
@@ -97,6 +100,67 @@ fn mldsa65_ed25519_does_not_allocate() {
 }
 
 #[test]
+fn mldsa87_ed25519_parallelhash256_does_not_allocate() {
+    let seed = [3u8; 64];
+    let rnd = [1u8; 32];
+    let ctx = b"ctx";
+    let msg = vec![0x5au8; 10_000];
+
+    let key = MlDsa87Ed25519SecretKey::new(&seed);
+    let public_key = key.public_key();
+    let signature = key.sign_derand(&msg, ctx, &rnd).unwrap();
+    assert!(public_key.verify(&msg, &signature, ctx).is_ok());
+
+    let prehash = {
+        let mut hasher = MlDsa87Ed25519MessageRepresentative::hasher();
+        hasher.update(&msg);
+        let mut out = [0u8; 64];
+        hasher.finalize_into(&mut out);
+        out
+    };
+    let prehashed_signature = key.sign_prehashed_derand(&prehash, ctx, &rnd).unwrap();
+    assert_eq!(prehashed_signature, signature);
+
+    assert_no_alloc("mldsa87-ed25519 keygen", || MlDsa87Ed25519SecretKey::new(&seed));
+    assert_no_alloc("mldsa87-ed25519 sign", || key.sign_derand(&msg, ctx, &rnd));
+    assert_no_alloc("mldsa87-ed25519 verify", || public_key.verify(&msg, &signature, ctx));
+    assert_no_alloc("mldsa87-ed25519 streaming prehash", || {
+        let mut hasher = MlDsa87Ed25519MessageRepresentative::hasher();
+        hasher.update(&msg);
+        let mut out = [0u8; 64];
+        hasher.finalize_into(&mut out);
+        out
+    });
+    assert_no_alloc("mldsa87-ed25519 sign prehashed", || {
+        key.sign_prehashed_derand(&prehash, ctx, &rnd)
+    });
+    assert_no_alloc("mldsa87-ed25519 verify prehashed", || {
+        public_key.verify_prehashed(&prehash, &signature, ctx)
+    });
+
+    let long_ctx = [0u8; 256];
+    assert_no_alloc("mldsa87-ed25519 sign context too long", || {
+        key.sign_derand(msg.as_slice(), &long_ctx, &rnd)
+    });
+    assert_no_alloc("mldsa87-ed25519 verify context too long", || {
+        public_key.verify(msg.as_slice(), &signature, &long_ctx)
+    });
+    assert_no_alloc("mldsa87-ed25519 sign prehashed context too long", || {
+        key.sign_prehashed_derand(&prehash, &long_ctx, &rnd)
+    });
+    assert_no_alloc("mldsa87-ed25519 verify prehashed context too long", || {
+        public_key.verify_prehashed(&prehash, &signature, &long_ctx)
+    });
+
+    let mut bad_signature = signature.to_bytes();
+    bad_signature[0] ^= 1;
+    let bad_signature = MlDsa87Ed25519Signature::from_bytes(&bad_signature);
+    assert_no_alloc("mldsa87-ed25519 verify reject", || {
+        public_key.verify(msg.as_slice(), &bad_signature, ctx)
+    });
+}
+
+#[test]
 fn pqc_error_paths_do_not_allocate() {
     let seed = [3u8; 32];
     let rnd = [1u8; 32];
@@ -139,6 +203,10 @@ fn repeated_operations_do_not_leak() {
         let ck = MlDsa65Ed25519Sha512SecretKey::new(&[5u8; 64]);
         let csig = ck.sign_derand(b"m", b"", &[6u8; 32]).unwrap();
         let _ = ck.public_key().verify(b"m", &csig, b"");
+
+        let ck87 = MlDsa87Ed25519SecretKey::new(&[7u8; 64]);
+        let csig87 = ck87.sign_derand(b"m", b"", &[8u8; 32]).unwrap();
+        let _ = ck87.public_key().verify(b"m", &csig87, b"");
     }
     let after = alloc_counter::counters().live_bytes;
     assert_eq!(before, after, "post-quantum operations retained heap memory");
@@ -432,5 +500,96 @@ fn kt256_does_not_leak() {
         before_allocs,
         alloc_counter::counters().live_allocations,
         "kt256 leaked allocations"
+    );
+}
+
+#[test]
+fn turbohash_does_not_allocate() {
+    use crypto::turbohash::TurboHash;
+
+    // Built outside the measured closures so the input buffers themselves are
+    // not counted.
+    let data = vec![0x5au8; 64 * 1024];
+    let context = b"alloc";
+    let key = [0x11u8; 32];
+
+    assert_no_alloc("turbohash one-shot", || {
+        let mut out = [0u8; 64];
+        TurboHash::hash(context, &data, &mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turbohash streaming", || {
+        let mut hasher = TurboHash::new(context);
+        for chunk in data.chunks(7) {
+            hasher.update(chunk);
+        }
+        let mut out = [0u8; 64];
+        hasher.finalize_into(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turbohash xof", || {
+        let mut hasher = TurboHash::new(context);
+        hasher.update(&data);
+        let mut reader = hasher.finalize_xof();
+        let mut out = [0u8; 512];
+        reader.squeeze(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turbohash keyed one-shot", || {
+        let mut out = [0u8; 64];
+        TurboHash::mac(key, context, &data, &mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turbohash keyed streaming", || {
+        let mut hasher = TurboHash::new_keyed(key, context);
+        for chunk in data.chunks(7) {
+            hasher.update(chunk);
+        }
+        let mut out = [0u8; 64];
+        hasher.finalize_into(&mut out);
+        out[0]
+    });
+
+    assert_no_alloc("turbohash keyed xof", || {
+        let mut hasher = TurboHash::new_keyed(key, context);
+        hasher.update(&data);
+        let mut reader = hasher.finalize_xof();
+        let mut out = [0u8; 512];
+        reader.squeeze(&mut out);
+        out[0]
+    });
+}
+
+#[test]
+fn turbohash_does_not_leak() {
+    use crypto::turbohash::TurboHash;
+
+    let data = vec![0x33u8; 2 * 4096 + 17];
+    let key = [0x22u8; 32];
+
+    let before_bytes = alloc_counter::counters().live_bytes;
+    let before_allocs = alloc_counter::counters().live_allocations;
+
+    for i in 0..1000usize {
+        // Vary the context length too: it must not be retained anywhere.
+        let context = vec![0xa5u8; i % 41];
+        let mut out = [0u8; 64];
+        TurboHash::hash(&context, &data, &mut out);
+        TurboHash::mac(key, &context, &data, &mut out);
+    }
+
+    assert_eq!(
+        before_bytes,
+        alloc_counter::counters().live_bytes,
+        "turbohash retained heap memory"
+    );
+    assert_eq!(
+        before_allocs,
+        alloc_counter::counters().live_allocations,
+        "turbohash leaked allocations"
     );
 }

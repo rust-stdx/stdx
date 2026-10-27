@@ -1,6 +1,11 @@
 //! The SHA-3 family of hashing functions (FIPS 202, NIST SP 800-185 and RFC
 //! 9861), including SHA-3, SHAKE, cSHAKE, KMAC, TurboSHAKE256,
 //! KangarooTwelve-256 (KT256) and HopMAC256.
+//!
+//! [`TurboHash`](crate::turbohash::TurboHash) lives in its own top-level module
+//! because it is a custom construction, not an RFC 9861 function. It reuses the
+//! Keccak permutation and the batched tree-hash backend implemented here, but
+//! with a 16-round permutation and a 4096-byte chunk size.
 
 mod kangaroo_twelve;
 pub mod keccak;
@@ -25,21 +30,25 @@ mod keccak_arm64;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod keccak_wasm32_simd128;
 
+pub(crate) use kangaroo_twelve::length_encode;
 pub use kangaroo_twelve::{HopMac256, KT256_CHUNK_SIZE, Kt256, Kt256Reader, kt256_backend_name};
 pub use kmac::Kmac256;
 pub use parallel_hash::{ParallelHash256, ParallelHashReader, backend_name as parallel_hash_backend_name};
 pub use sha3_256::Sha3_256;
 pub use sha3_512::Sha3_512;
 pub use shake128::Shake128;
+pub(crate) use shake256::left_encode;
 pub use shake256::{CShake256, Shake256};
 pub use turboshake::{TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256};
 
-/// Returns the name of the single-state Keccak-p[1600] backend in use.
+/// Returns the name of the single-state `Keccak-p[1600]` backend in use.
 ///
 /// This is the permutation behind [`Sha3_256`], [`Sha3_512`], [`Shake128`],
-/// [`Shake256`], [`TurboShake256`] and the serial first and final node of
-/// [`Kt256`]. The batched backends reported by [`kt256_backend_name`] and
-/// [`parallel_hash_backend_name`] are detected independently.
+/// [`Shake256`], [`TurboShake256`], the serial first and final node of
+/// [`Kt256`], and the final node of
+/// [`TurboHash`](crate::turbohash::TurboHash). The batched backends reported by
+/// [`kt256_backend_name`], [`parallel_hash_backend_name`] and
+/// [`crate::turbohash::backend_name`] are detected independently.
 ///
 /// ```
 /// println!("Keccak backend: {}", crypto::sha3::keccak_backend_name());

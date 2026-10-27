@@ -8,7 +8,8 @@
 //! | ML-DSA-44 | [`MlDsa44SecretKey`] | [`MlDsa44PublicKey`] | 1312 B | 2420 B |
 //! | ML-DSA-65 | [`MlDsa65SecretKey`] | [`MlDsa65PublicKey`] | 1952 B | 3309 B |
 //! | ML-DSA-87 | [`MlDsa87SecretKey`] | [`MlDsa87PublicKey`] | 2592 B | 4627 B |
-//! | ML-DSA-65-Ed25519-SHA512 | [`MlDsa65Ed25519SecretKeySha512`] | [`MlDsa65Ed25519PublicKeySha512`] | 1984 B | 3373 B |
+//! | ML-DSA-65-Ed25519-SHA512 | [`MlDsa65Ed25519Sha512SecretKey`] | [`MlDsa65Ed25519Sha512PublicKey`] | 1984 B | 3373 B |
+//! | ML-DSA-87-Ed25519-ParallelHash256 | [`MlDsa87Ed25519SecretKey`] | [`MlDsa87Ed25519PublicKey`] | 2624 B | 4691 B |
 //!
 //! # Signing
 //!
@@ -48,11 +49,38 @@
 //!
 //! # Composite signatures
 //!
-//! [`MlDsa65Ed25519SecretKeySha512`] and [`MlDsa65Ed25519PublicKeySha512`]
+//! [`MlDsa65Ed25519Sha512SecretKey`] and [`MlDsa65Ed25519Sha512PublicKey`]
 //! implement the ML-DSA-65 + Ed25519 composite signature scheme
-//! (`id-MLDSA65-Ed25519-SHA512`) from
-//! draft-ietf-lamps-pq-composite-sigs. Composite public keys, private keys and
-//! signatures are 1984, 64 and 3373 bytes respectively.
+//! (`id-MLDSA65-Ed25519-SHA512`) from draft-ietf-lamps-pq-composite-sigs.
+//! Composite public keys, private keys and signatures are 1984, 64 and 3373
+//! bytes respectively.
+//!
+//! [`MlDsa87Ed25519SecretKey`] and [`MlDsa87Ed25519PublicKey`] implement a
+//! local ML-DSA-87 + Ed25519 extension that uses ParallelHash256 (4096-byte
+//! blocks, 64-byte output) and the label
+//! `COMPSIG-MLDSA87-Ed25519-PARALLELHASH256`. Draft-19 does not define this
+//! pairing or pre-hash, and no OID has been assigned, so it is interoperable
+//! only between peers that agree on those exact parameters. Composite public
+//! keys, private keys and signatures are 2624, 64 and 4691 bytes respectively.
+//! The ML-DSA-87 scheme exposes `sign_prehashed`/`verify_prehashed` and a
+//! [`hasher`](MlDsa87Ed25519MessageRepresentative::hasher) helper for
+//! streaming large messages.
+//!
+//! Either component signature can be produced by an external module:
+//! [`MlDsa87Ed25519MessageRepresentative`] builds the domain-separated `M'`
+//! that both components sign, [`MlDsa87Ed25519Signature::from_parts`] combines
+//! externally produced components, and
+//! [`MlDsa87Ed25519SecretKey::sign_mldsa_component`] /
+//! [`MlDsa87Ed25519SecretKey::sign_ed25519_component`] sign `M'` with the
+//! component that stays local. The ML-DSA-87 module must sign `M'` with
+//! [`MlDsa87Ed25519MessageRepresentative::LABEL`] as its FIPS 204 context
+//! string.
+//!
+//! Sizes and scheme parameters are associated constants on the dedicated
+//! types, for example [`MlDsa87Ed25519PublicKey::SIZE`],
+//! [`MlDsa87Ed25519Signature::SIZE`], and
+//! [`MlDsa87Ed25519MessageRepresentative`]'s `CONTEXT_MAX_LEN`, `LABEL` and
+//! `MAX_SIZE`.
 
 mod mldsa;
 mod mldsa44;
@@ -62,10 +90,8 @@ mod mldsa_composite;
 
 pub use mldsa::MlDsaError;
 pub use mldsa_composite::{
-    ML_DSA_65_ED25519_SHA512_CONTEXT_MAX_LEN, ML_DSA_65_ED25519_SHA512_EXPANDED_SECRET_KEY_SIZE,
-    ML_DSA_65_ED25519_SHA512_PRIVATE_KEY_SIZE, ML_DSA_65_ED25519_SHA512_PUBLIC_KEY_SIZE,
-    ML_DSA_65_ED25519_SHA512_SIGNATURE_SIZE, MlDsa65Ed25519Error, MlDsa65Ed25519Sha512PublicKey,
-    MlDsa65Ed25519Sha512SecretKey,
+    MlDsa65Ed25519Error, MlDsa65Ed25519Sha512PublicKey, MlDsa65Ed25519Sha512SecretKey, MlDsa87Ed25519Error,
+    MlDsa87Ed25519MessageRepresentative, MlDsa87Ed25519PublicKey, MlDsa87Ed25519SecretKey, MlDsa87Ed25519Signature,
 };
 pub use mldsa44::{
     ML_DSA_44_CONTEXT_MAX_LEN, ML_DSA_44_PUBLIC_KEY_SIZE, ML_DSA_44_SECRET_KEY_SIZE, ML_DSA_44_SEED_SIZE,

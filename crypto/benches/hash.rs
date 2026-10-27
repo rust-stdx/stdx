@@ -11,6 +11,7 @@ use crypto::{
         Kt256, ParallelHash256, Sha3_256, Sha3_512, Shake256, TurboShake256, keccak_backend_name, kt256_backend_name,
         parallel_hash_backend_name,
     },
+    turbohash::{TurboHash, backend_name as turbohash_backend_name},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024, 10 * 1024 * 1024];
@@ -22,6 +23,7 @@ fn bench_hashes(c: &mut Criterion) {
     eprintln!("Keccak single-lane backend: {}", keccak_backend_name());
     eprintln!("ParallelHash backend: {}", parallel_hash_backend_name());
     eprintln!("KT256 backend: {}", kt256_backend_name());
+    eprintln!("TurboHash backend: {}", turbohash_backend_name());
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
@@ -69,6 +71,14 @@ fn bench_hashes(c: &mut Criterion) {
             b.iter(|| {
                 let mut out = [0u8; 32];
                 Kt256::hash(black_box(data.as_slice()), b"", &mut out);
+                black_box(out);
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter("TurboHash-64"), &data, |b, data| {
+            b.iter(|| {
+                let mut out = [0u8; 64];
+                TurboHash::hash(b"", black_box(data.as_slice()), &mut out);
                 black_box(out);
             });
         });
@@ -235,6 +245,30 @@ fn bench_kt256_xof(c: &mut Criterion) {
     group.finish();
 }
 
+/// Extended-output throughput for TurboHash: a fixed long input and a long
+/// squeezed stream, so the numbers include leaves and the final node.
+fn bench_turbohash_xof(c: &mut Criterion) {
+    const OUT_SIZES: &[usize] = &[64, 1024, 16 * 1024, 1024 * 1024];
+
+    let input = vec![0xA5_u8; 64 * 1024];
+    let mut group = c.benchmark_group("turbohash-xof");
+
+    for &size in OUT_SIZES {
+        let mut out = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
+            b.iter(|| {
+                let mut hasher = TurboHash::new(b"");
+                hasher.update(black_box(input.as_slice()));
+                let mut reader = hasher.finalize_xof();
+                reader.squeeze(black_box(&mut out));
+            });
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_hashes,
@@ -242,6 +276,7 @@ criterion_group!(
     bench_blake3_xof_chunked,
     bench_blake3_xof_oneshot,
     bench_turboshake_xof,
-    bench_kt256_xof
+    bench_kt256_xof,
+    bench_turbohash_xof
 );
 criterion_main!(benches);

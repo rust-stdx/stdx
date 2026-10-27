@@ -32,6 +32,7 @@ pub mod poly1305;
 pub mod random;
 pub mod sha2;
 pub mod sha3;
+pub mod turbohash;
 pub mod xwing;
 
 #[cfg(feature = "alloc")]

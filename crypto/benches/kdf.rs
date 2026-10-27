@@ -9,6 +9,7 @@ use crypto::{
     hkdf,
     sha2::{Sha256, Sha512},
     sha3::Shake256,
+    turbohash::TurboHash,
 };
 
 /// 32-byte input key material used by every KDF benchmark.
@@ -46,6 +47,11 @@ fn bench_kdfs(c: &mut Criterion) {
             hasher.update(black_box(INFO.as_bytes()));
             black_box(hasher.sum());
         });
+    });
+
+    group.bench_function("TurboHash-32", |b| {
+        let mut out = [0u8; 32];
+        b.iter(|| black_box(TurboHash::mac(black_box(KEY), b"KDF", black_box(INFO.as_bytes()), &mut out)));
     });
 
     group.bench_function("ChaCha20", |b| {

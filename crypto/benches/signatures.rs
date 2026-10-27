@@ -3,7 +3,9 @@ use std::hint::black_box;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::{
     curve25519::ed25519::SecretKey,
-    mldsa::{MlDsa44SecretKey, MlDsa65Ed25519Sha512SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
+    mldsa::{
+        MlDsa44SecretKey, MlDsa65Ed25519Sha512SecretKey, MlDsa65SecretKey, MlDsa87Ed25519SecretKey, MlDsa87SecretKey,
+    },
     p256, p521,
 };
 
@@ -17,6 +19,7 @@ fn bench_sign(c: &mut Criterion) {
     let mldsa65_sk = MlDsa65SecretKey::new(&[0u8; 32]);
     let mldsa87_sk = MlDsa87SecretKey::new(&[0u8; 32]);
     let mldsa65_ed25519_sk = MlDsa65Ed25519Sha512SecretKey::new(&[0u8; 64]);
+    let mldsa87_ed25519_sk = MlDsa87Ed25519SecretKey::new(&[0u8; 64]);
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(format!("sign/{size}"));
@@ -74,6 +77,17 @@ fn bench_sign(c: &mut Criterion) {
             });
         });
 
+        group.bench_with_input(
+            BenchmarkId::from_parameter("MLDSA87-Ed25519-PARALLELHASH256"),
+            data_slice,
+            |b, data| {
+                b.iter(|| {
+                    let signature = mldsa87_ed25519_sk.sign(black_box(data), &[]).unwrap();
+                    black_box(signature);
+                });
+            },
+        );
+
         group.finish();
     }
 }
@@ -95,6 +109,8 @@ fn bench_verify(c: &mut Criterion) {
     let mldsa87_pk = mldsa87_sk.public_key();
     let mldsa65_ed25519_sk = MlDsa65Ed25519Sha512SecretKey::new(&[0u8; 64]);
     let mldsa65_ed25519_pk = mldsa65_ed25519_sk.public_key();
+    let mldsa87_ed25519_sk = MlDsa87Ed25519SecretKey::new(&[0u8; 64]);
+    let mldsa87_ed25519_pk = mldsa87_ed25519_sk.public_key();
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(format!("verify/{size}"));
@@ -156,6 +172,21 @@ fn bench_verify(c: &mut Criterion) {
             });
         });
 
+        group.bench_with_input(
+            BenchmarkId::from_parameter("MLDSA87-Ed25519-PARALLELHASH256"),
+            data_slice,
+            |b, data| {
+                let signature = mldsa87_ed25519_sk.sign(data, &[]).unwrap();
+                b.iter(|| {
+                    black_box(
+                        mldsa87_ed25519_pk
+                            .verify(black_box(data), black_box(&signature), &[])
+                            .is_ok(),
+                    );
+                });
+            },
+        );
+
         group.finish();
     }
 }
@@ -175,6 +206,10 @@ fn bench_mldsa_keygen(c: &mut Criterion) {
     group.bench_function("MLDSA65-Ed25519-SHA512", |b| {
         let seed = [0u8; 64];
         b.iter(|| black_box(MlDsa65Ed25519Sha512SecretKey::new(&seed)));
+    });
+    group.bench_function("MLDSA87-Ed25519-PARALLELHASH256", |b| {
+        let seed = [0u8; 64];
+        b.iter(|| black_box(MlDsa87Ed25519SecretKey::new(&seed)));
     });
     group.finish();
 }

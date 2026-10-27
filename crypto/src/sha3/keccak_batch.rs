@@ -3,8 +3,8 @@
 //!
 //! `W` independent Keccak states are processed in lockstep, one state per SIMD
 //! lane. `ROUNDS` selects the Keccak-p round count: 24 for SHAKE-based
-//! constructions and 12 for the last twelve rounds used by TurboSHAKE and
-//! KangarooTwelve.
+//! constructions, 12 for the last twelve rounds used by TurboSHAKE and
+//! KangarooTwelve, and 16 for TurboHash.
 //!
 //! The batch width follows the widest backend the CPU supports:
 //!
@@ -186,8 +186,8 @@ impl<const W: usize, const ROUNDS: usize> KeccakX<W, ROUNDS> {
     fn permute(&mut self, backend: Backend) {
         const {
             assert!(
-                ROUNDS == 12 || ROUNDS == 24,
-                "only Keccak-p[1600, 12] and [1600, 24] are supported"
+                ROUNDS == 12 || ROUNDS == 16 || ROUNDS == 24,
+                "only Keccak-p[1600, 12], [1600, 16] and [1600, 24] are supported"
             );
         }
 
@@ -496,6 +496,24 @@ mod avx2 {
                 s = round(s, ROUND_CONSTANTS[22]);
                 s = round(s, ROUND_CONSTANTS[23]);
             }
+            16 => {
+                s = round(s, ROUND_CONSTANTS[8]);
+                s = round(s, ROUND_CONSTANTS[9]);
+                s = round(s, ROUND_CONSTANTS[10]);
+                s = round(s, ROUND_CONSTANTS[11]);
+                s = round(s, ROUND_CONSTANTS[12]);
+                s = round(s, ROUND_CONSTANTS[13]);
+                s = round(s, ROUND_CONSTANTS[14]);
+                s = round(s, ROUND_CONSTANTS[15]);
+                s = round(s, ROUND_CONSTANTS[16]);
+                s = round(s, ROUND_CONSTANTS[17]);
+                s = round(s, ROUND_CONSTANTS[18]);
+                s = round(s, ROUND_CONSTANTS[19]);
+                s = round(s, ROUND_CONSTANTS[20]);
+                s = round(s, ROUND_CONSTANTS[21]);
+                s = round(s, ROUND_CONSTANTS[22]);
+                s = round(s, ROUND_CONSTANTS[23]);
+            }
             _ => unreachable!(),
         }
         *st = s;
@@ -744,6 +762,24 @@ mod avx512 {
                 s = round(s, ROUND_CONSTANTS[5]);
                 s = round(s, ROUND_CONSTANTS[6]);
                 s = round(s, ROUND_CONSTANTS[7]);
+                s = round(s, ROUND_CONSTANTS[8]);
+                s = round(s, ROUND_CONSTANTS[9]);
+                s = round(s, ROUND_CONSTANTS[10]);
+                s = round(s, ROUND_CONSTANTS[11]);
+                s = round(s, ROUND_CONSTANTS[12]);
+                s = round(s, ROUND_CONSTANTS[13]);
+                s = round(s, ROUND_CONSTANTS[14]);
+                s = round(s, ROUND_CONSTANTS[15]);
+                s = round(s, ROUND_CONSTANTS[16]);
+                s = round(s, ROUND_CONSTANTS[17]);
+                s = round(s, ROUND_CONSTANTS[18]);
+                s = round(s, ROUND_CONSTANTS[19]);
+                s = round(s, ROUND_CONSTANTS[20]);
+                s = round(s, ROUND_CONSTANTS[21]);
+                s = round(s, ROUND_CONSTANTS[22]);
+                s = round(s, ROUND_CONSTANTS[23]);
+            }
+            16 => {
                 s = round(s, ROUND_CONSTANTS[8]);
                 s = round(s, ROUND_CONSTANTS[9]);
                 s = round(s, ROUND_CONSTANTS[10]);
@@ -1513,6 +1549,8 @@ mod tests {
     fn scalar_permutation_matches_reference() {
         check_scalar::<2, 12>(0x243f_6a88_85a3_08d3);
         check_scalar::<4, 12>(0x1319_8a2e_0370_7344);
+        check_scalar::<2, 16>(0x4528_21e6_38d0_1377);
+        check_scalar::<4, 16>(0xbe54_66cf_34e9_0c6c);
         check_scalar::<2, 24>(0xa409_3822_299f_31d0);
         check_scalar::<4, 24>(0x082e_fa98_ec4e_6c89);
     }
@@ -1533,12 +1571,15 @@ mod tests {
         let backend = Backend::detect();
         check_dispatched::<2, 12>(0x243f_6a88_85a3_08d3, backend);
         check_dispatched::<4, 12>(0x1319_8a2e_0370_7344, backend);
+        check_dispatched::<2, 16>(0x4528_21e6_38d0_1377, backend);
+        check_dispatched::<4, 16>(0xbe54_66cf_34e9_0c6c, backend);
         check_dispatched::<2, 24>(0xa409_3822_299f_31d0, backend);
         check_dispatched::<4, 24>(0x082e_fa98_ec4e_6c89, backend);
 
         #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
         if avx512_available() {
             check_dispatched::<8, 12>(0x5d2c_9f81_7a63_e40b, Backend::Avx512);
+            check_dispatched::<8, 16>(0x5d2c_9f81_7a63_e40b, Backend::Avx512);
             check_dispatched::<8, 24>(0x5d2c_9f81_7a63_e40b, Backend::Avx512);
         }
     }
@@ -1571,6 +1612,15 @@ mod tests {
         }
         for _ in 0..64 {
             let states = random_states::<2>(&mut rng);
+            let expected = expected_permuted::<2, 16>(&states);
+            let mut x = pack::<2, 16>(&states);
+            let state: &mut [u64; 50] = (&mut x.lanes[..50]).try_into().unwrap();
+            // SAFETY: NEON is baseline on aarch64.
+            unsafe { neon::permute::<16>(state) };
+            assert_packed(&x, &expected);
+        }
+        for _ in 0..64 {
+            let states = random_states::<2>(&mut rng);
             let expected = expected_permuted::<2, 24>(&states);
             let mut x = pack::<2, 24>(&states);
             let state: &mut [u64; 50] = (&mut x.lanes[..50]).try_into().unwrap();
@@ -1595,6 +1645,15 @@ mod tests {
             let state: &mut [u64; 50] = (&mut x.lanes[..50]).try_into().unwrap();
             // SAFETY: the SHA-3 extension was detected above.
             unsafe { sha3_ext::permute::<12>(state) };
+            assert_packed(&x, &expected);
+        }
+        for _ in 0..64 {
+            let states = random_states::<2>(&mut rng);
+            let expected = expected_permuted::<2, 16>(&states);
+            let mut x = pack::<2, 16>(&states);
+            let state: &mut [u64; 50] = (&mut x.lanes[..50]).try_into().unwrap();
+            // SAFETY: the SHA-3 extension was detected above.
+            unsafe { sha3_ext::permute::<16>(state) };
             assert_packed(&x, &expected);
         }
         for _ in 0..64 {
@@ -1628,6 +1687,15 @@ mod tests {
         }
         for _ in 0..64 {
             let states = random_states::<4>(&mut rng);
+            let expected = expected_permuted::<4, 16>(&states);
+            let mut x = pack::<4, 16>(&states);
+            // SAFETY: AVX2 was detected above, and `KeccakX<4, 16>` is 64-byte
+            // aligned with at least `MAX_LANES` lanes.
+            unsafe { avx2::permute::<16>(&mut x.lanes) };
+            assert_packed(&x, &expected);
+        }
+        for _ in 0..64 {
+            let states = random_states::<4>(&mut rng);
             let expected = expected_permuted::<4, 24>(&states);
             let mut x = pack::<4, 24>(&states);
             // SAFETY: AVX2 was detected above, and `KeccakX<4, 24>` is 64-byte
@@ -1653,6 +1721,15 @@ mod tests {
             // SAFETY: AVX-512F was detected above, and `KeccakX<8, 12>` is
             // 64-byte aligned with exactly `MAX_LANES` lanes.
             unsafe { avx512::permute::<12>(&mut x.lanes) };
+            assert_packed(&x, &expected);
+        }
+        for _ in 0..64 {
+            let states = random_states::<8>(&mut rng);
+            let expected = expected_permuted::<8, 16>(&states);
+            let mut x = pack::<8, 16>(&states);
+            // SAFETY: AVX-512F was detected above, and `KeccakX<8, 16>` is
+            // 64-byte aligned with exactly `MAX_LANES` lanes.
+            unsafe { avx512::permute::<16>(&mut x.lanes) };
             assert_packed(&x, &expected);
         }
         for _ in 0..64 {
@@ -1846,6 +1923,7 @@ mod tests {
 
         check!(24, 136);
         check!(12, 136);
+        check!(16, 136);
         check!(24, 168);
     }
 
@@ -1856,6 +1934,7 @@ mod tests {
     fn sponge_x_wasm_scalar_fallback_matches_reference() {
         check_incremental_absorb::<2, 24>(136, 0x1f, Backend::Scalar);
         check_incremental_absorb::<2, 12>(136, 0x1f, Backend::Scalar);
+        check_incremental_absorb::<2, 16>(136, 0x1f, Backend::Scalar);
     }
 
     fn check_batch<const W: usize, const ROUNDS: usize>(
@@ -1979,6 +2058,7 @@ mod tests {
     fn sponge_x_incremental_absorb_matches_reference() {
         check_incremental_absorb::<2, 24>(136, 0x1f, Backend::detect());
         check_incremental_absorb::<2, 12>(136, 0x1f, Backend::detect());
+        check_incremental_absorb::<2, 16>(136, 0x1f, Backend::detect());
         check_incremental_absorb::<2, 24>(168, 0x1f, Backend::detect());
     }
 
@@ -1990,6 +2070,7 @@ mod tests {
         }
         check_incremental_absorb::<4, 24>(136, 0x1f, Backend::Avx2);
         check_incremental_absorb::<4, 12>(136, 0x1f, Backend::Avx2);
+        check_incremental_absorb::<4, 16>(136, 0x1f, Backend::Avx2);
     }
 
     #[cfg(all(target_arch = "x86_64", feature = "std"))]
@@ -2000,6 +2081,7 @@ mod tests {
         }
         check_incremental_absorb::<8, 24>(136, 0x1f, Backend::Avx512);
         check_incremental_absorb::<8, 12>(136, 0x1f, Backend::Avx512);
+        check_incremental_absorb::<8, 16>(136, 0x1f, Backend::Avx512);
     }
 
     /// A backend wider than the sponge must fall back to the scalar path
