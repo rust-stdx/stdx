@@ -8,6 +8,15 @@
 //! ML-KEM-1024 with X25519 using the universal combiner from
 //! draft-irtf-cfrg-hybrid-kems. See [`MlKem1024X25519SecretKey`] for details.
 //!
+//! | Parameter set | Secret key | Public key | Public key size | Ciphertext size |
+//! | --- | --- | --- | --- | --- |
+//! | ML-KEM-768 | [`SecretKey768`] | [`PublicKey768`] | 1184 B | 1088 B |
+//! | ML-KEM-1024 | [`SecretKey1024`] | [`PublicKey1024`] | 1568 B | 1568 B |
+//! | MLKEM1024-X25519 | [`MlKem1024X25519SecretKey`] | [`MlKem1024X25519PublicKey`] | 1600 B | 1600 B |
+//!
+//! Shared secrets are always [`SHARED_SECRET_SIZE`] bytes (32 B). The composite
+//! secret key is a 32-byte seed.
+//!
 //! Encapsulation keys are validated when parsed with
 //! [`PublicKey768::from_bytes`] / [`PublicKey1024::from_bytes`] (FIPS 203
 //! Section 7.2 modulus check). Decapsulation keys are checked for consistency
