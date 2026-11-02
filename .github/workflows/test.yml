@@ -72,5 +72,6 @@ jobs:
       - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y lld
       - run: rustup update stable
-      - run: rustup target add wasm32-wasip1
+      - run: rustup target add wasm32-wasip1 wasm32-unknown-unknown
+      - run: node tools/wasm_test/wasm_test.js --target=wasm32-unknown-unknown --check
       - run: node tools/wasm_test/wasm_test.js

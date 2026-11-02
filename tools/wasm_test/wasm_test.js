@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 // Discover which crates of this workspace can be tested on WebAssembly and run
-// their test suites.
+// their test suites, or check which crates build for a target with `--check`.
 //
 // Usage:
-//   node tools/wasm_test/wasm_test.js [--target <triple>] [-p <crate>]... [--exclude <crate>]... [--list] [--help]
+//   node tools/wasm_test/wasm_test.js [--target <triple>] [--check] [-p <crate>]... [--exclude <crate>]... [--list] [--help]
 //
-//   --target <triple>  Rust target to test (default: wasm32-wasip1)
+//   --target <triple>  Rust target to test or check (default: wasm32-wasip1)
+//   --check            Only check which crates build for the target with
+//                      `cargo check --lib`, then report the result. Does not
+//                      run tests and does not need a wasm test runner.
 //   -p, --package <crate>
-//                      Only test the given crate (repeatable, comma-separated
+//                      Only select the given crate (repeatable, comma-separated
 //                      values allowed). Like `cargo test -p`.
 //   --exclude <crate>  Skip a crate (repeatable, comma-separated values allowed)
 //   --list             Only print the crates that were selected, then exit
@@ -22,12 +25,25 @@
 //   3. The crates that build are tested. A failing test makes the whole run
 //      fail and exits with a non-zero status; skipped crates do not.
 //
+// With `--check`, the script only performs the library build check:
+//   * Proc-macro-only crates and crates without a library target are skipped.
+//   * Every remaining crate is checked with `cargo check --lib` for the target,
+//     including tokio-dependent crates (they are only skipped when running
+//     tests).
+//   * `cargo check` type-checks the library but does not link it, so linker
+//     errors and native-library issues are not covered.
+//   * Each crate is checked with its default feature set; feature-gated wasm
+//     backends are not enabled automatically.
+//   * Passed and failed crates are reported. A failing crate does not make the
+//     script exit non-zero; the report is informational.
+//
 // `--exclude` can be used to force-skip a crate that would otherwise build and
 // run, for example a crate with known flaky wasm tests.
 //
-// Cargo output is streamed to stdout/stderr as it happens. The script exits
-// with a non-zero status if `cargo metadata` fails, if the target is missing,
-// or if any selected crate has a failing test.
+// When running tests, cargo output is streamed to stdout/stderr and the script
+// exits with a non-zero status if `cargo metadata` fails or if any selected
+// crate has a failing test. With `--check`, cargo output is captured and the
+// script exits zero after printing the report, even when some crates fail.
 
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -36,7 +52,14 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const options = { target: 'wasm32-wasip1', packages: new Set(), exclude: new Set(), list: false, help: false };
+  const options = {
+    target: 'wasm32-wasip1',
+    packages: new Set(),
+    exclude: new Set(),
+    check: false,
+    list: false,
+    help: false,
+  };
   const addPackages = (value) => {
     for (const name of value.split(',').map((name) => name.trim()).filter(Boolean)) {
       options.packages.add(name);
@@ -69,6 +92,8 @@ function parseArgs(argv) {
       addExcludes(value);
     } else if (arg.startsWith('--exclude=')) {
       addExcludes(arg.slice('--exclude='.length));
+    } else if (arg === '--check') {
+      options.check = true;
     } else if (arg === '--list') {
       options.list = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -82,10 +107,14 @@ function parseArgs(argv) {
 
 function help() {
   process.stdout.write(
-    `Usage: node tools/wasm_test/wasm_test.js [--target <triple>] [-p <crate>]... [--exclude <crate>]... [--list] [--help]\n\n` +
-      `  --target <triple>  Rust target to test (default: wasm32-wasip1)\n` +
+    `Usage: node tools/wasm_test/wasm_test.js [--target <triple>] [--check] [-p <crate>]... [--exclude <crate>]... [--list] [--help]\n\n` +
+      `  --target <triple>  Rust target to test or check (default: wasm32-wasip1)\n` +
+      `  --check            Only check which crates build for the target with\n` +
+      `                     \`cargo check --lib\`, then report the result. Uses\n` +
+      `                     default features. Does not run tests and does not\n` +
+      `                     need a wasm test runner.\n` +
       `  -p, --package <crate>\n` +
-      `                     Only test the given crate (repeatable, comma-separated\n` +
+      `                     Only select the given crate (repeatable, comma-separated\n` +
       `                     values allowed). Like \`cargo test -p\`.\n` +
       `  --exclude <crate>  Skip a crate (repeatable, comma-separated values allowed)\n` +
       `  --list             Only print the selected crates, then exit\n` +
@@ -116,6 +145,36 @@ function capture(command, args) {
   return result.stdout;
 }
 
+// Runs a command capturing its output without treating a non-zero exit as an
+// error. Used by `--check`, where a failing crate is part of the report.
+function tryCapture(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  if (result.error) throw result.error;
+  return {
+    success: result.status === 0,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+}
+
+// Returns the first `error` line from captured cargo output, truncated so a
+// report line stays readable.
+function firstError(output) {
+  const line = output
+    .split('\n')
+    .map((value) => value.replace(/\x1b\[[0-9;]*m/g, '').trim())
+    .find((value) => value.startsWith('error'));
+  if (!line) return '';
+  return line.length > 160 ? `${line.slice(0, 157)}...` : line;
+}
+
+function names(members) {
+  return members.map((member) => member.name).join(', ') || 'none';
+}
+
 // Returns the names of the workspace members and the set of workspace members
 // that transitively depend on tokio.
 function analyzeWorkspace() {
@@ -143,17 +202,81 @@ function analyzeWorkspace() {
     return false;
   };
 
-  const members = metadata.workspace_members.map((id) => ({
-    id,
-    name: nameById.get(id) ?? id,
-    procMacroOnly: (metadata.packages.find((pkg) => pkg.id === id)?.targets ?? []).every(
-      (target) => target.kind.includes('proc-macro'),
-    ),
-    tokio: usesTokio(id),
-  }));
+  const members = metadata.workspace_members.map((id) => {
+    const targets = metadata.packages.find((pkg) => pkg.id === id)?.targets ?? [];
+    return {
+      id,
+      name: nameById.get(id) ?? id,
+      lib: targets.some((target) => target.kind.includes('lib')),
+      procMacroOnly:
+        targets.length > 0 && targets.every((target) => target.kind.includes('proc-macro')),
+      tokio: usesTokio(id),
+    };
+  });
 
   members.sort((a, b) => a.name.localeCompare(b.name));
   return members;
+}
+
+// Reports which crates build their library for the target. No test runner or
+// browser is involved, and individual failures are informational.
+function checkCrates(members, selected, options) {
+  const skippedProcMacro = members.filter((member) => selected(member) && member.procMacroOnly);
+  const skippedNoLib = members.filter(
+    (member) => selected(member) && !member.procMacroOnly && !member.lib,
+  );
+  const skippedExcluded = members.filter(
+    (member) => selected(member) && !member.procMacroOnly && member.lib && options.exclude.has(member.name),
+  );
+  const candidates = members.filter(
+    (member) =>
+      selected(member) && !member.procMacroOnly && member.lib && !options.exclude.has(member.name),
+  );
+
+  process.stdout.write(`Target: ${options.target}\n`);
+  process.stdout.write(`Workspace members: ${members.length}\n`);
+  process.stdout.write(
+    `Skipping ${skippedProcMacro.length} proc-macro crate(s): ${names(skippedProcMacro)}\n`,
+  );
+  process.stdout.write(
+    `Skipping ${skippedNoLib.length} crate(s) without a library target: ${names(skippedNoLib)}\n`,
+  );
+  if (skippedExcluded.length > 0) {
+    process.stdout.write(`Skipping ${skippedExcluded.length} excluded crate(s): ${names(skippedExcluded)}\n`);
+  }
+  process.stdout.write(`Checking ${candidates.length} crate(s) with cargo check --lib...\n\n`);
+
+  const passed = [];
+  const failed = [];
+  for (const member of candidates) {
+    const result = tryCapture('cargo', ['check', '--lib', '--target', options.target, '-p', member.name]);
+    if (result.success) {
+      passed.push(member);
+      process.stdout.write(`  ok    ${member.name}\n`);
+    } else {
+      failed.push({ member, error: firstError(result.output) });
+      process.stdout.write(`  fail  ${member.name}\n`);
+    }
+  }
+
+  process.stdout.write(`${candidates.length > 0 ? '\n' : ''}Summary\n`);
+  process.stdout.write(`  passed: ${passed.length}\n`);
+  process.stdout.write(`  failed: ${failed.length}\n`);
+  if (passed.length > 0) {
+    process.stdout.write(`  passed crates: ${names(passed)}\n`);
+  }
+  if (failed.length > 0) {
+    process.stdout.write(`  failed crates: ${names(failed.map(({ member }) => member))}\n`);
+    for (const { member, error } of failed) {
+      if (error) process.stdout.write(`    ${member.name}: ${error}\n`);
+    }
+    if (passed.length === 0) {
+      process.stdout.write(
+        `\n  note: every check failed; if the errors mention missing \`core\` or \`std\`, ` +
+          `install the target: rustup target add ${options.target}\n`,
+      );
+    }
+  }
 }
 
 function main() {
@@ -161,6 +284,9 @@ function main() {
   if (options.help) {
     help();
     return;
+  }
+  if (options.list && options.check) {
+    throw new Error('--list and --check cannot be combined');
   }
 
   const members = analyzeWorkspace();
@@ -180,6 +306,11 @@ function main() {
   }
 
   const selected = (member) => options.packages.size === 0 || options.packages.has(member.name);
+
+  if (options.check) {
+    checkCrates(members, selected, options);
+    return;
+  }
 
   const skippedTokio = members.filter((member) => selected(member) && member.tokio);
   const skippedProcMacro = members.filter(
