@@ -57,6 +57,9 @@ use rand::Rng as _;
 
 mod hex;
 
+#[cfg(feature = "cbor")]
+mod cbor;
+
 #[cfg(feature = "serde")]
 mod serde;
 

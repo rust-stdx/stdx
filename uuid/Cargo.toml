@@ -15,9 +15,11 @@ path = "./uuid.rs"
 default = ["std"]
 std = ["dep:rand"]
 serde = ["dep:serde"]
+cbor = ["dep:minicbor"]
 
 [dependencies]
 heapless = { workspace = true }
+minicbor = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 
