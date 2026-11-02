@@ -1,0 +1,12 @@
+[package]
+name = "padme"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Padmé length-hiding padding"
+
+[lints]
+workspace = true
+
+[lib]
+path = "./padme.rs"
