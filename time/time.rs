@@ -46,6 +46,11 @@
 //! a serialization round trip is not monotonic. Use
 //! [`DateTime::has_monotonic`] to check.
 //!
+//! On `wasm32-unknown-unknown` values obtained from [`DateTime::now`] carry no
+//! monotonic reading because the target has no monotonic clock;
+//! `has_monotonic` returns `false` and elapsed-time measurement uses the wall
+//! clock.
+//!
 //! # Leap seconds
 //!
 //! The supported calendar has no leap seconds. A `:60` second is accepted on
@@ -84,7 +89,13 @@
 //! * `timezone-db` (default): embeds a copy of the IANA time zone database.
 //! * `timezone-system`: reads time zone rules from the system database
 //!   (implies `std`), detecting and caching the system zone once per process.
+//! * `wasm`: on `wasm32-unknown-unknown`, reads the wall clock from the browser
+//!   (`Date.now`) and, together with `timezone-system`, detects the local zone
+//!   through `Intl`. The `wasm-bindgen` JavaScript glue must be present.
+//!   Implies `std`.
 //! * `serde`: RFC 3339 / RFC 9557 serialization.
+//! * `cbor`: serialization using IANA tag 1 (epoch-based date/time) with
+//!   whole-second precision. Decoding also accepts tag 0 (RFC 3339 string).
 //!
 //! # Examples
 //!
@@ -112,7 +123,11 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
+#[cfg(feature = "cbor")]
+mod cbor;
 mod civil;
+#[cfg(feature = "std")]
+mod clock;
 mod datetime;
 mod error;
 mod format;

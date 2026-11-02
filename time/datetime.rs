@@ -6,6 +6,8 @@ use core::{
     hash::{Hash, Hasher},
 };
 
+#[cfg(feature = "std")]
+use crate::clock;
 use crate::{
     civil,
     error::{self, Error},
@@ -320,26 +322,17 @@ impl DateTime {
     }
 
     /// Returns the current time in the given time zone.
+    ///
+    /// On `wasm32-unknown-unknown` this requires the `wasm` feature and reads
+    /// the browser's `Date.now()`; without that feature it panics. The
+    /// returned value has no monotonic reading on that target (see
+    /// [`DateTime::has_monotonic`]).
     #[cfg(feature = "std")]
     #[must_use]
     pub fn now_in(zone: TimeZone) -> DateTime {
-        let now = std::time::SystemTime::now();
-        let (seconds, nanos) = match now.duration_since(std::time::UNIX_EPOCH) {
-            Ok(duration) => (duration.as_secs() as i64, duration.subsec_nanos()),
-            Err(err) => {
-                let duration = err.duration();
-                let seconds = duration.as_secs() as i64;
-                if duration.subsec_nanos() == 0 {
-                    (-seconds, 0)
-                } else {
-                    (-seconds - 1, 1_000_000_000 - duration.subsec_nanos())
-                }
-            }
-        };
-        let utc = DateTime::from_unix_nanos(i128::from(seconds) * 1_000_000_000 + i128::from(nanos))
-            .unwrap_or(DateTime::UNIX_EPOCH);
+        let utc = DateTime::from_unix_nanos(clock::unix_nanos()).unwrap_or(DateTime::UNIX_EPOCH);
         let mut result = utc.in_timezone(zone);
-        result.monotonic = Some(std::time::Instant::now());
+        result.monotonic = clock::monotonic();
         result
     }
 
@@ -347,6 +340,10 @@ impl DateTime {
     ///
     /// With the `timezone-system` feature the system zone is used, falling back
     /// to UTC if it cannot be determined. Without that feature this is UTC.
+    ///
+    /// On `wasm32-unknown-unknown` this requires the `wasm` feature. With
+    /// `timezone-system` it also detects the browser's local zone through
+    /// `Intl`, falling back to UTC when that is unavailable.
     #[cfg(feature = "std")]
     #[must_use]
     pub fn now() -> DateTime {
@@ -694,7 +691,9 @@ impl DateTime {
     /// When both values were produced by [`DateTime::now`] or
     /// [`DateTime::now_in`], the measurement uses the monotonic clock and is
     /// therefore robust against wall-clock adjustments (for example NTP
-    /// steps). Otherwise the wall clock is used.
+    /// steps). Otherwise the wall clock is used. On `wasm32-unknown-unknown`
+    /// values from `now` carry no monotonic reading, so the wall clock is
+    /// always used there.
     ///
     /// # Errors
     ///
@@ -743,6 +742,9 @@ impl DateTime {
 
     /// Returns the time elapsed since this value was created.
     ///
+    /// On `wasm32-unknown-unknown` the measurement uses the wall clock because
+    /// values from [`DateTime::now`] carry no monotonic reading there.
+    ///
     /// # Errors
     ///
     /// Returns an error if the system clock reports a value before this one
@@ -755,6 +757,9 @@ impl DateTime {
     /// Returns `true` if this value carries a monotonic clock reading, which
     /// [`DateTime::now`] and [`DateTime::now_in`] add so that elapsed-time
     /// measurement is robust against wall-clock adjustments.
+    ///
+    /// This is always `false` on `wasm32-unknown-unknown`, which has no
+    /// monotonic clock.
     #[cfg(feature = "std")]
     #[must_use]
     pub const fn has_monotonic(&self) -> bool {

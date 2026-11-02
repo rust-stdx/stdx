@@ -548,10 +548,131 @@ fn now_is_recent() {
     assert!(now.unix() > 1_700_000_000);
 }
 
+#[cfg(feature = "std")]
+#[test]
+fn now_in_uses_the_requested_zone() {
+    let zone = TimeZone::fixed(5 * 3600 + 30 * 60).unwrap();
+    let dt = DateTime::now_in(zone);
+    assert_eq!(dt.offset(), 19_800);
+    assert_eq!(dt.timezone_name(), None);
+    // The instant does not depend on the display zone.
+    assert_eq!(dt.unix(), dt.in_timezone(TimeZone::UTC).unix());
+    // Native targets attach a monotonic reading; wasm does not.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    assert!(dt.has_monotonic());
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    assert!(!dt.has_monotonic());
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn now_and_now_in_utc_are_close() {
+    let now = DateTime::now();
+    let utc = DateTime::now_in(TimeZone::UTC);
+    let (seconds, _) = now.signed_duration_since(utc);
+    assert!(seconds.abs() <= 2, "now and now_in(UTC) differ by {seconds}s");
+    assert_eq!(utc.offset(), 0);
+    // Without `timezone-system`, `now()` is documented to return UTC.
+    #[cfg(not(feature = "timezone-system"))]
+    assert_eq!(now.offset(), 0);
+}
+
 #[cfg(feature = "timezone-system")]
 #[test]
 fn system_timezone_does_not_panic() {
     let _ = TimeZone::system();
+}
+
+#[cfg(feature = "timezone-system")]
+#[test]
+fn local_zone_selection_uses_fixed_offset_for_unknown_names() {
+    use crate::timezone::zone_from_local;
+
+    // An unknown name falls back to the offset, which is positive east.
+    let zone = zone_from_local(Some("Not/AZone"), Some(-18_000)).unwrap();
+    assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), -18_000);
+    assert_eq!(zone.name(), None);
+
+    // An empty name behaves like a missing one.
+    let zone = zone_from_local(Some(""), Some(-18_000)).unwrap();
+    assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), -18_000);
+
+    // `TimeZone::named("local")` resolves the system zone and would recurse
+    // while the system zone is being detected; it must be treated as unknown.
+    for name in ["local", "LOCAL", "Local"] {
+        let zone = zone_from_local(Some(name), Some(-18_000)).unwrap();
+        assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), -18_000);
+        assert_eq!(zone.name(), None, "name: {name}");
+    }
+
+    // A missing name uses the offset directly.
+    let zone = zone_from_local(None, Some(19_800)).unwrap();
+    assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), 19_800);
+
+    // The offset boundary is inclusive.
+    let zone = zone_from_local(None, Some(93_599)).unwrap();
+    assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), 93_599);
+    let zone = zone_from_local(None, Some(-93_599)).unwrap();
+    assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), -93_599);
+}
+
+#[cfg(feature = "timezone-system")]
+#[test]
+fn local_zone_selection_errors_without_a_usable_value() {
+    use crate::timezone::zone_from_local;
+
+    assert_eq!(
+        zone_from_local(None, None).unwrap_err().kind(),
+        ErrorKind::UnknownSystemTimeZone
+    );
+    assert_eq!(
+        zone_from_local(Some("Not/AZone"), None).unwrap_err().kind(),
+        ErrorKind::UnknownSystemTimeZone
+    );
+    // An empty name is not a zone.
+    assert_eq!(
+        zone_from_local(Some(""), None).unwrap_err().kind(),
+        ErrorKind::UnknownSystemTimeZone
+    );
+    // Out-of-range fixed offsets are rejected.
+    assert_eq!(
+        zone_from_local(None, Some(93_600)).unwrap_err().kind(),
+        ErrorKind::UnknownSystemTimeZone
+    );
+    assert_eq!(
+        zone_from_local(None, Some(-93_600)).unwrap_err().kind(),
+        ErrorKind::UnknownSystemTimeZone
+    );
+}
+
+#[cfg(all(feature = "timezone-system", feature = "timezone-db"))]
+#[test]
+fn local_zone_selection_prefers_a_known_iana_name() {
+    use crate::timezone::zone_from_local;
+
+    let zone = zone_from_local(Some("America/New_York"), Some(0)).unwrap();
+    assert_eq!(zone.name(), Some("America/New_York"));
+    // The name wins over the supplied offset: 1970-01-01 was EST (-05:00).
+    assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), -5 * 3600);
+    // The name wins even when the supplied offset is unusable.
+    let zone = zone_from_local(Some("America/New_York"), Some(93_600)).unwrap();
+    assert_eq!(zone.name(), Some("America/New_York"));
+    // Lookup is case-insensitive and returns the canonical name.
+    let zone = zone_from_local(Some("america/new_york"), None).unwrap();
+    assert_eq!(zone.name(), Some("America/New_York"));
+}
+
+#[cfg(feature = "timezone-system")]
+#[test]
+fn local_zone_selection_accepts_utc_names() {
+    use crate::timezone::zone_from_local;
+
+    for name in ["UTC", "utc", "Etc/UTC"] {
+        let zone = zone_from_local(Some(name), None).unwrap();
+        assert_eq!(DateTime::from_unix(0).unwrap().in_timezone(zone).offset(), 0);
+        // With the embedded database `Etc/UTC` keeps its canonical name.
+        assert!(zone.name().is_some(), "name: {name}");
+    }
 }
 
 #[cfg(feature = "timezone-db")]
@@ -929,7 +1050,11 @@ fn parse_bytes_with_format_slice() {
 #[test]
 fn monotonic_measurement() {
     let start = DateTime::now();
+    // `wasm32-unknown-unknown` has no monotonic clock.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     assert!(start.has_monotonic());
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    assert!(!start.has_monotonic());
     let end = DateTime::now();
     let elapsed = end.duration_since(start).unwrap();
     assert!(elapsed < Duration::from_secs(60));
@@ -939,9 +1064,17 @@ fn monotonic_measurement() {
     // preserved through instant-preserving operations but not calendar ones.
     let parsed = parse("2024-01-01T00:00:00Z");
     assert!(!parsed.has_monotonic());
-    assert!(start.in_timezone(TimeZone::UTC).has_monotonic());
     let rounded = start.checked_add(Duration::from_secs(1)).unwrap();
-    assert!(rounded.has_monotonic());
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    {
+        assert!(start.in_timezone(TimeZone::UTC).has_monotonic());
+        assert!(rounded.has_monotonic());
+    }
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    {
+        assert!(!start.in_timezone(TimeZone::UTC).has_monotonic());
+        assert!(!rounded.has_monotonic());
+    }
     let calendar = start.add_days(1).unwrap();
     assert!(!calendar.has_monotonic());
 }

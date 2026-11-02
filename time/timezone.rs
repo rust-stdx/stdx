@@ -391,6 +391,12 @@ impl TimeZone {
     /// when no system zone can be determined, or
     /// [`ErrorKind::UnknownTimeZone`](crate::ErrorKind::UnknownTimeZone) when
     /// `TZ` names a zone that cannot be found.
+    ///
+    /// On `wasm32-unknown-unknown` this requires the `wasm` feature and asks
+    /// the browser for its IANA zone through `Intl.DateTimeFormat`. If that
+    /// name is not in the embedded database, the current fixed offset from
+    /// `Date.getTimezoneOffset()` is used instead. Without the `wasm` feature
+    /// it returns an error.
     #[cfg(feature = "timezone-system")]
     pub fn system() -> Result<TimeZone, Error> {
         static SYSTEM_ZONE: std::sync::OnceLock<Result<TimeZone, Error>> = std::sync::OnceLock::new();
@@ -566,7 +572,35 @@ impl core::hash::Hash for TimeZone {
     }
 }
 
-#[cfg(feature = "timezone-system")]
+/// Chooses a time zone from the values a browser exposes: an IANA name and the
+/// current UTC offset in seconds east of Greenwich.
+///
+/// The name wins when the embedded database knows it; otherwise the fixed
+/// offset is used. Returns [`ErrorKind::UnknownSystemTimeZone`] when neither
+/// value yields a usable zone.
+#[cfg(all(
+    feature = "timezone-system",
+    any(all(target_arch = "wasm32", target_os = "unknown", feature = "wasm"), test)
+))]
+pub(crate) fn zone_from_local(name: Option<&str>, offset_seconds: Option<i32>) -> Result<TimeZone, Error> {
+    // `TimeZone::named("local")` resolves the system zone, which would recurse
+    // into this function. A browser never reports that name, but guard against
+    // a spoofed or broken `Intl` implementation anyway.
+    if let Some(name) = name
+        && !name.eq_ignore_ascii_case("local")
+        && let Ok(zone) = TimeZone::named(name)
+    {
+        return Ok(zone);
+    }
+    if let Some(offset) = offset_seconds
+        && let Ok(zone) = TimeZone::fixed(offset)
+    {
+        return Ok(zone);
+    }
+    Err(error::unknown_system_time_zone("cannot determine the local time zone"))
+}
+
+#[cfg(all(feature = "timezone-system", not(all(target_arch = "wasm32", target_os = "unknown"))))]
 mod system {
     use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 
@@ -658,5 +692,26 @@ mod system {
             .map(name_from_path)
             .unwrap_or("localtime");
         leak_named(name, data)
+    }
+}
+
+#[cfg(all(feature = "timezone-system", all(target_arch = "wasm32", target_os = "unknown")))]
+mod system {
+    use super::TimeZone;
+    use crate::error::Error;
+
+    /// Detects the browser's local zone from `Intl` and, when the name is not
+    /// in the embedded database, falls back to the current fixed offset.
+    #[cfg(feature = "wasm")]
+    pub(super) fn detect() -> Result<TimeZone, Error> {
+        super::zone_from_local(crate::clock::local_zone_name().as_deref(), crate::clock::local_offset_seconds())
+    }
+
+    /// The `wasm` feature is required to reach the browser APIs.
+    #[cfg(not(feature = "wasm"))]
+    pub(super) fn detect() -> Result<TimeZone, Error> {
+        Err(crate::error::unknown_system_time_zone(
+            "detecting the local time zone on wasm32-unknown-unknown requires the `wasm` feature",
+        ))
     }
 }
