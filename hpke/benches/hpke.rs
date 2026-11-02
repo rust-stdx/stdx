@@ -5,7 +5,7 @@ use hpke::{
     self, Mode,
     aead::Aes256Gcm,
     kdf::HkdfSha256,
-    kem::{Kem, MLKEM768X25519, P256HkdfSha256, X25519HkdfSha256},
+    kem::{Kem, MLKEM768X25519, MLKEM1024X25519, P256HkdfSha256, X25519HkdfSha256},
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024];
@@ -37,6 +37,15 @@ fn bench_setup(c: &mut Criterion) {
         b.iter(|| {
             let _ = hpke::new_sender::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(&Mode::Base, &recipient_public_key, INFO)
                 .unwrap();
+        });
+    });
+
+    let (_recipient_secret_key, recipient_public_key) = MLKEM1024X25519::generate_keypair().unwrap();
+    group.bench_function(BenchmarkId::from_parameter("MLKEM1024-X25519-HKDF-SHA256-AES256GCM"), |b| {
+        b.iter(|| {
+            let _ =
+                hpke::new_sender::<MLKEM1024X25519, HkdfSha256, Aes256Gcm>(&Mode::Base, &recipient_public_key, INFO)
+                    .unwrap();
         });
     });
 
@@ -72,6 +81,25 @@ fn bench_seal(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let (encapped_key, context) = hpke::new_sender::<MLKEM768X25519, HkdfSha256, Aes256Gcm>(
+                        &Mode::Base,
+                        &recipient_public_key,
+                        INFO,
+                    )
+                    .unwrap();
+                    (encapped_key, context, vec![0xA5u8; size])
+                },
+                |(_encapped_key, mut context, mut data)| {
+                    let _tag = context.seal_in_place(&mut data, b"associated data").unwrap();
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        let (_recipient_secret_key, recipient_public_key) = MLKEM1024X25519::generate_keypair().unwrap();
+        group.bench_function(BenchmarkId::from_parameter("MLKEM1024-X25519-HKDF-SHA256-AES256GCM"), |b| {
+            b.iter_batched(
+                || {
+                    let (encapped_key, context) = hpke::new_sender::<MLKEM1024X25519, HkdfSha256, Aes256Gcm>(
                         &Mode::Base,
                         &recipient_public_key,
                         INFO,

@@ -7,7 +7,7 @@ use crate::{
     HpkeError, Mode,
     aead::{Aead, Aes256Gcm, ChaCha20Poly1305, ExportOnly},
     kdf::{Blake3, HkdfSha256, HkdfSha512, Kdf, Shake256},
-    kem::{Kem, MLKEM768X25519, P256HkdfSha256, P521HkdfSha512, X25519HkdfSha256},
+    kem::{Kem, MLKEM768X25519, MLKEM1024X25519, P256HkdfSha256, P521HkdfSha512, X25519HkdfSha256},
 };
 
 /// Decodes a hex field, treating a missing field as empty.
@@ -453,6 +453,164 @@ fn roundtrip_all_suites() {
     roundtrip::<MLKEM768X25519, Shake256, ChaCha20Poly1305>();
     roundtrip::<MLKEM768X25519, Blake3, Aes256Gcm>();
     roundtrip::<MLKEM768X25519, Blake3, ChaCha20Poly1305>();
+
+    roundtrip::<MLKEM1024X25519, HkdfSha256, Aes256Gcm>();
+    roundtrip::<MLKEM1024X25519, HkdfSha512, ChaCha20Poly1305>();
+    roundtrip::<MLKEM1024X25519, Shake256, Aes256Gcm>();
+    roundtrip::<MLKEM1024X25519, Shake256, ChaCha20Poly1305>();
+    roundtrip::<MLKEM1024X25519, Blake3, Aes256Gcm>();
+    roundtrip::<MLKEM1024X25519, Blake3, ChaCha20Poly1305>();
+}
+
+#[test]
+fn mlkem1024_x25519_constants_and_derivation() {
+    assert_eq!(MLKEM1024X25519::HPKE_KEM_ID, 0xFF01);
+    assert_eq!(MLKEM1024X25519::SHARED_SECRET_SIZE, 32);
+    assert_eq!(MLKEM1024X25519::ENCAPPED_KEY_SIZE, 1600);
+    assert_eq!(MLKEM1024X25519::PUBLIC_KEY_SIZE, 1600);
+    assert_eq!(MLKEM1024X25519::SECRET_KEY_SIZE, 32);
+    assert_eq!(MLKEM1024X25519::RANDOMNESS_SIZE, 64);
+
+    let input_keying_material = b"MLKEM1024-X25519 derive key pair test";
+    let (secret_key, public_key) = MLKEM1024X25519::derive_keypair(input_keying_material).unwrap();
+
+    // `derive_keypair` must use the private KEM identifier in the SHAKE256
+    // `LabeledDerive` suite id and then delegate to the composite KEM.
+    let mut seed = [0u8; crypto::mlkem::MLKEM_1024_X25519_SEED_SIZE];
+    Shake256::labeled_derive(&mut seed, &[input_keying_material], b"KEM\xff\x01", b"DeriveKeyPair", &[]).unwrap();
+    let (expected_secret_key, expected_public_key) = crypto::mlkem::MlKem1024X25519SecretKey::generate_derand(&seed);
+    assert_eq!(secret_key.to_bytes(), expected_secret_key.to_bytes());
+    assert_eq!(public_key, expected_public_key);
+
+    // Derivation is deterministic and depends on the input keying material.
+    let (secret_key_2, public_key_2) = MLKEM1024X25519::derive_keypair(input_keying_material).unwrap();
+    assert_eq!(secret_key.to_bytes(), secret_key_2.to_bytes());
+    assert_eq!(public_key, public_key_2);
+
+    let (secret_key_3, public_key_3) = MLKEM1024X25519::derive_keypair(b"other input keying material").unwrap();
+    assert_ne!(secret_key.to_bytes(), secret_key_3.to_bytes());
+    assert_ne!(public_key, public_key_3);
+}
+
+#[test]
+fn mlkem1024_x25519_encapsulation_roundtrips() {
+    let (secret_key, public_key) = MLKEM1024X25519::generate_keypair().unwrap();
+
+    // Random encapsulation.
+    let (shared_secret, encapped_key) = MLKEM1024X25519::encap(&public_key).unwrap();
+    assert_eq!(
+        MLKEM1024X25519::decap(&encapped_key, &secret_key).unwrap().as_ref(),
+        shared_secret.as_ref()
+    );
+
+    // Deterministic encapsulation matches the underlying composite KEM.
+    let randomness = [0x5au8; crypto::mlkem::MLKEM_1024_X25519_ENCAPS_RANDOMNESS_SIZE];
+    let (shared_secret, encapped_key) = MLKEM1024X25519::encap_deterministic(&public_key, &randomness).unwrap();
+    let (expected_shared_secret, expected_encapped_key) = public_key.encapsulate_derand(&randomness).unwrap();
+    assert_eq!(shared_secret.as_ref(), &expected_shared_secret);
+    assert_eq!(encapped_key, expected_encapped_key);
+    assert_eq!(
+        MLKEM1024X25519::decap(&encapped_key, &secret_key).unwrap().as_ref(),
+        shared_secret.as_ref()
+    );
+
+    // The deterministic interface rejects randomness of the wrong length.
+    assert_eq!(
+        MLKEM1024X25519::encap_deterministic(&public_key, &[0u8; 63]).err(),
+        Some(HpkeError::DeserializeError)
+    );
+
+    // `encap_with_ephemeral` is deterministic for a given ephemeral key.
+    let (ephemeral_secret_key, _) = MLKEM1024X25519::generate_keypair().unwrap();
+    let (shared_secret, encapped_key) =
+        MLKEM1024X25519::encap_with_ephemeral(&ephemeral_secret_key, &public_key).unwrap();
+    let (shared_secret_2, encapped_key_2) =
+        MLKEM1024X25519::encap_with_ephemeral(&ephemeral_secret_key, &public_key).unwrap();
+    assert_eq!(shared_secret.as_ref(), shared_secret_2.as_ref());
+    assert_eq!(encapped_key, encapped_key_2);
+    assert_eq!(
+        MLKEM1024X25519::decap(&encapped_key, &secret_key).unwrap().as_ref(),
+        shared_secret.as_ref()
+    );
+}
+
+#[test]
+fn mlkem1024_x25519_rejects_invalid_encodings() {
+    let (secret_key, public_key) = MLKEM1024X25519::generate_keypair().unwrap();
+
+    let mut public_key_bytes = vec![0u8; MLKEM1024X25519::PUBLIC_KEY_SIZE];
+    MLKEM1024X25519::public_key_to_bytes(&mut public_key_bytes, &public_key).unwrap();
+
+    // Wrong lengths.
+    assert!(matches!(
+        MLKEM1024X25519::public_key_from_bytes(&public_key_bytes[..1599]),
+        Err(HpkeError::DeserializeError)
+    ));
+    assert!(matches!(
+        MLKEM1024X25519::public_key_to_bytes(&mut [0u8; 1599], &public_key),
+        Err(HpkeError::DeserializeError)
+    ));
+
+    let mut secret_key_bytes = [0u8; MLKEM1024X25519::SECRET_KEY_SIZE];
+    MLKEM1024X25519::secret_key_to_bytes(&mut secret_key_bytes, &secret_key).unwrap();
+    assert!(matches!(
+        MLKEM1024X25519::secret_key_from_bytes(&secret_key_bytes[..31]),
+        Err(HpkeError::DeserializeError)
+    ));
+    assert!(matches!(
+        MLKEM1024X25519::secret_key_to_bytes(&mut [0u8; 31], &secret_key),
+        Err(HpkeError::DeserializeError)
+    ));
+
+    assert!(matches!(
+        MLKEM1024X25519::encapped_key_from_bytes(&[0u8; 1599]),
+        Err(HpkeError::DeserializeError)
+    ));
+    assert!(matches!(
+        MLKEM1024X25519::encapped_key_to_bytes(&mut [0u8; 1599], &[0u8; 1600]),
+        Err(HpkeError::DeserializeError)
+    ));
+
+    // The X25519 public-key component is validated when parsing.
+    let mut invalid_public_key = public_key_bytes;
+    invalid_public_key[crypto::mlkem::PUBLIC_KEY_SIZE_1024..].fill(0);
+    assert!(matches!(
+        MLKEM1024X25519::public_key_from_bytes(&invalid_public_key),
+        Err(HpkeError::DeserializeError)
+    ));
+
+    // A low-order X25519 ciphertext component is rejected during decapsulation.
+    let (_, mut encapped_key) = MLKEM1024X25519::encap(&public_key).unwrap();
+    encapped_key[crypto::mlkem::CIPHERTEXT_SIZE_1024..].fill(0);
+    assert!(matches!(
+        MLKEM1024X25519::decap(&encapped_key, &secret_key),
+        Err(HpkeError::DecapError)
+    ));
+}
+
+#[test]
+fn mlkem1024_x25519_pre_shared_key_mode() {
+    let (recipient_secret_key, recipient_public_key) = MLKEM1024X25519::generate_keypair().unwrap();
+    let pre_shared_key = [0x33u8; 32];
+    let pre_shared_key_id = b"mlkem1024-x25519 psk";
+    let mode = Mode::PreSharedKey {
+        pre_shared_key: &pre_shared_key,
+        pre_shared_key_id,
+    };
+
+    let (encapped_key, mut sender) =
+        crate::new_sender::<MLKEM1024X25519, Shake256, ChaCha20Poly1305>(&mode, &recipient_public_key, b"info")
+            .unwrap();
+    let ciphertext = sender.seal(b"psk message", b"aad").unwrap();
+
+    let mut recipient = crate::new_recipient::<MLKEM1024X25519, Shake256, ChaCha20Poly1305>(
+        &mode,
+        &recipient_secret_key,
+        &encapped_key,
+        b"info",
+    )
+    .unwrap();
+    assert_eq!(recipient.open(&ciphertext, b"aad").unwrap(), b"psk message");
 }
 
 #[test]
@@ -736,6 +894,7 @@ fn key_serialization_roundtrips() {
     roundtrip::<P256HkdfSha256>();
     roundtrip::<P521HkdfSha512>();
     roundtrip::<MLKEM768X25519>();
+    roundtrip::<MLKEM1024X25519>();
 }
 
 #[test]

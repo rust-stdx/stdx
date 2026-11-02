@@ -65,7 +65,7 @@ pub trait Kem: Sized {
     /// Defaults to [`Kem::SECRET_KEY_SIZE`], the size of an ephemeral secret
     /// key / the `DeriveKeyPair` input for the Diffie-Hellman KEMs. KEMs whose
     /// deterministic encapsulation takes a different amount of randomness (e.g.
-    /// [`MLKEM768X25519`]) override this.
+    /// [`MLKEM768X25519`] and [`MLKEM1024X25519`]) override this.
     const RANDOMNESS_SIZE: usize = Self::SECRET_KEY_SIZE;
 
     /// The public (encapsulation) key type.
@@ -216,9 +216,9 @@ pub trait Kem: Sized {
     /// The default implementation derives an ephemeral key pair from
     /// `randomness` and forwards to [`Kem::encap_with_ephemeral`], which is
     /// correct for the Diffie-Hellman KEMs. KEMs with a different
-    /// deterministic-encapsulation interface (e.g. [`MLKEM768X25519`], whose
-    /// randomness is the 64-byte encapsulation randomness rather than a secret
-    /// key) override this.
+    /// deterministic-encapsulation interface (e.g. [`MLKEM768X25519`] and
+    /// [`MLKEM1024X25519`], whose randomness is the 64-byte encapsulation
+    /// randomness rather than a secret key) override this.
     ///
     /// # Errors
     ///
@@ -389,6 +389,173 @@ impl Kem for MLKEM768X25519 {
         let (shared_secret, encapped_key) = recipient_public_key.encapsulate_derand(&encapsulation_seed);
         wipe(&mut encapsulation_seed);
         return Ok((Hash::from(shared_secret), encapped_key));
+    }
+
+    fn decap(encapped_key: &Self::EncappedKey, recipient_secret_key: &Self::SecretKey) -> Result<Hash, HpkeError> {
+        let shared_secret = recipient_secret_key
+            .decapsulate(encapped_key)
+            .map_err(|_| HpkeError::DecapError)?;
+        return Ok(Hash::from(shared_secret));
+    }
+}
+
+/// MLKEM1024-X25519 hybrid post-quantum KEM (ML-KEM-1024 with X25519).
+///
+/// This wraps the stdx composite KEM in `crypto::mlkem`, which composes
+/// ML-KEM-1024 with Curve25519 using the UG universal combiner from
+/// `draft-irtf-cfrg-hybrid-kems-12`. It is neither X-Wing nor the
+/// MLKEM1024-P384 KEM specified by `draft-ietf-hpke-pq-05`.
+///
+/// MLKEM1024-X25519 is usable with the Base and pre-shared key modes of HPKE.
+/// `draft-ietf-hpke-hpke-05` removed the authenticated modes, so no KEM is
+/// required to provide `AuthEncap`/`AuthDecap`; for sender authentication, sign
+/// the `(encapped_key, ciphertext)` tuple instead.
+///
+/// # Interoperability
+///
+/// MLKEM1024-X25519 is **not** registered in the IANA "HPKE KEM Identifiers"
+/// registry and is not specified by `draft-ietf-hpke-pq-05` (which defines
+/// MLKEM768-X25519 and MLKEM1024-P384 instead). The KEM identifier `0xFF01` is
+/// an stdx-private, unofficial value chosen to stay clear of the low IDs IANA
+/// is likely to assign to future official KEMs. Ciphertexts produced with this
+/// KEM only interoperate with implementations that adopt the same identifier
+/// and construction.
+///
+/// # Key encoding
+///
+/// A secret key is the 32-byte composite seed: [`Kem::secret_key_to_bytes`]
+/// returns that seed, and [`Kem::secret_key_from_bytes`] takes it and
+/// re-derives the full key pair (recomputing the public key). The seed is
+/// therefore the entire secret; treat it as such.
+///
+/// # Example
+///
+/// ```
+/// # #[cfg(all(feature = "alloc", feature = "random"))] {
+/// use hpke::kem::{Kem, MLKEM1024X25519};
+///
+/// let (secret_key, public_key) = MLKEM1024X25519::generate_keypair().unwrap();
+/// let (shared_secret, encapped_key) = MLKEM1024X25519::encap(&public_key).unwrap();
+/// let decapsulated = MLKEM1024X25519::decap(&encapped_key, &secret_key).unwrap();
+/// assert_eq!(shared_secret.as_ref(), decapsulated.as_ref());
+/// # }
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MLKEM1024X25519;
+
+impl Kem for MLKEM1024X25519 {
+    const HPKE_KEM_ID: u16 = 0xFF01;
+    const SHARED_SECRET_SIZE: usize = crypto::mlkem::MLKEM_1024_X25519_SHARED_SECRET_SIZE;
+    const ENCAPPED_KEY_SIZE: usize = crypto::mlkem::MLKEM_1024_X25519_CIPHERTEXT_SIZE;
+    const PUBLIC_KEY_SIZE: usize = crypto::mlkem::MLKEM_1024_X25519_PUBLIC_KEY_SIZE;
+    const SECRET_KEY_SIZE: usize = crypto::mlkem::MLKEM_1024_X25519_SECRET_KEY_SIZE;
+    const RANDOMNESS_SIZE: usize = crypto::mlkem::MLKEM_1024_X25519_ENCAPS_RANDOMNESS_SIZE;
+
+    type PublicKey = crypto::mlkem::MlKem1024X25519PublicKey;
+    type SecretKey = crypto::mlkem::MlKem1024X25519SecretKey;
+    type EncappedKey = [u8; crypto::mlkem::MLKEM_1024_X25519_CIPHERTEXT_SIZE];
+
+    fn derive_keypair(input_keying_material: &[u8]) -> Result<(Self::SecretKey, Self::PublicKey), HpkeError> {
+        // draft-ietf-hpke-pq-05 Section 4 (hybrid KEMs):
+        //   seed = SHAKE256.LabeledDerive(input_keying_material, "DeriveKeyPair", "", 32)
+        //   return KEM.DeriveKeyPair(seed)
+        let suite_id = kem_suite_id(Self::HPKE_KEM_ID);
+        let mut seed = [0u8; crypto::mlkem::MLKEM_1024_X25519_SEED_SIZE];
+        <Shake256Kdf as Kdf>::labeled_derive(&mut seed, &[input_keying_material], &suite_id, b"DeriveKeyPair", &[])?;
+
+        let keypair = crypto::mlkem::MlKem1024X25519SecretKey::generate_derand(&seed);
+        wipe(&mut seed);
+        return Ok(keypair);
+    }
+
+    #[cfg(feature = "random")]
+    fn generate_keypair() -> Result<(Self::SecretKey, Self::PublicKey), HpkeError> {
+        let mut seed = [0u8; crypto::mlkem::MLKEM_1024_X25519_SEED_SIZE];
+        crypto::random::fill(&mut seed)?;
+        let keypair = crypto::mlkem::MlKem1024X25519SecretKey::generate_derand(&seed);
+        wipe(&mut seed);
+        return Ok(keypair);
+    }
+
+    fn derive_public_key(secret_key: &Self::SecretKey) -> Self::PublicKey {
+        return secret_key.public_key();
+    }
+
+    fn public_key_to_bytes(out: &mut [u8], public_key: &Self::PublicKey) -> Result<(), HpkeError> {
+        if out.len() != Self::PUBLIC_KEY_SIZE {
+            return Err(HpkeError::DeserializeError);
+        }
+        out.copy_from_slice(&public_key.to_bytes());
+        return Ok(());
+    }
+
+    fn public_key_from_bytes(bytes: &[u8]) -> Result<Self::PublicKey, HpkeError> {
+        let bytes: &[u8; Self::PUBLIC_KEY_SIZE] = bytes.try_into().map_err(|_| HpkeError::DeserializeError)?;
+        return crypto::mlkem::MlKem1024X25519PublicKey::from_bytes(bytes).map_err(|_| HpkeError::DeserializeError);
+    }
+
+    fn secret_key_to_bytes(out: &mut [u8], secret_key: &Self::SecretKey) -> Result<(), HpkeError> {
+        if out.len() != Self::SECRET_KEY_SIZE {
+            return Err(HpkeError::DeserializeError);
+        }
+        out.copy_from_slice(&secret_key.to_bytes());
+        return Ok(());
+    }
+
+    fn secret_key_from_bytes(bytes: &[u8]) -> Result<Self::SecretKey, HpkeError> {
+        let bytes: &[u8; Self::SECRET_KEY_SIZE] = bytes.try_into().map_err(|_| HpkeError::DeserializeError)?;
+        return Ok(crypto::mlkem::MlKem1024X25519SecretKey::from_bytes(bytes));
+    }
+
+    fn encapped_key_to_bytes(out: &mut [u8], encapped_key: &Self::EncappedKey) -> Result<(), HpkeError> {
+        if out.len() != Self::ENCAPPED_KEY_SIZE {
+            return Err(HpkeError::DeserializeError);
+        }
+        out.copy_from_slice(encapped_key);
+        return Ok(());
+    }
+
+    fn encapped_key_from_bytes(bytes: &[u8]) -> Result<Self::EncappedKey, HpkeError> {
+        let bytes: &[u8; Self::ENCAPPED_KEY_SIZE] = bytes.try_into().map_err(|_| HpkeError::DeserializeError)?;
+        return Ok(*bytes);
+    }
+
+    #[cfg(feature = "random")]
+    fn encap(recipient_public_key: &Self::PublicKey) -> Result<(Hash, Self::EncappedKey), HpkeError> {
+        let mut randomness = [0u8; Self::RANDOMNESS_SIZE];
+        crypto::random::fill(&mut randomness)?;
+        let result = Self::encap_deterministic(recipient_public_key, &randomness);
+        wipe(&mut randomness);
+        return result;
+    }
+
+    fn encap_deterministic(
+        recipient_public_key: &Self::PublicKey,
+        randomness: &[u8],
+    ) -> Result<(Hash, Self::EncappedKey), HpkeError> {
+        // The composite KEM consumes the ML-KEM-1024 message followed by the
+        // ephemeral X25519 scalar seed.
+        let randomness: &[u8; crypto::mlkem::MLKEM_1024_X25519_ENCAPS_RANDOMNESS_SIZE] =
+            randomness.try_into().map_err(|_| HpkeError::DeserializeError)?;
+        let (shared_secret, encapped_key) = recipient_public_key
+            .encapsulate_derand(randomness)
+            .map_err(|_| HpkeError::EncapError)?;
+        return Ok((Hash::from(shared_secret), encapped_key));
+    }
+
+    fn encap_with_ephemeral(
+        ephemeral_secret_key: &Self::SecretKey,
+        recipient_public_key: &Self::PublicKey,
+    ) -> Result<(Hash, Self::EncappedKey), HpkeError> {
+        // The trait models the ephemeral secret as a KEM secret key, whereas
+        // MLKEM1024-X25519 encapsulation consumes 64 bytes of randomness.
+        // Expand the 32-byte ephemeral seed deterministically with SHAKE256.
+        let mut randomness = [0u8; Self::RANDOMNESS_SIZE];
+        crypto::sha3::Shake256::hash(&ephemeral_secret_key.to_bytes(), &mut randomness);
+
+        let result = Self::encap_deterministic(recipient_public_key, &randomness);
+        wipe(&mut randomness);
+        return result;
     }
 
     fn decap(encapped_key: &Self::EncappedKey, recipient_secret_key: &Self::SecretKey) -> Result<Hash, HpkeError> {

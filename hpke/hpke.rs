@@ -9,11 +9,14 @@
 //!
 //! A ciphersuite is a triple `(KEM, KDF, AEAD)` selected at compile time via
 //! type parameters. The crate ships the registered algorithms, the
-//! MLKEM768-X25519 hybrid post-quantum KEM (KEM id `0x647a`) and the SHAKE256
+//! MLKEM768-X25519 hybrid post-quantum KEM (KEM id `0x647a`) from
+//! `draft-ietf-hpke-pq-05`, the stdx-private MLKEM1024-X25519 hybrid KEM
+//! (KEM id `0xFF01`, see [`kem::MLKEM1024X25519`]), and the SHAKE256
 //! single-stage KDF (KDF id `0x0011`) from `draft-ietf-hpke-pq-05`:
 //!
-//! - KEMs: [`kem::MLKEM768X25519`], [`kem::X25519HkdfSha256`],
-//!   [`kem::P256HkdfSha256`], [`kem::P521HkdfSha512`]
+//! - KEMs: [`kem::MLKEM768X25519`], [`kem::MLKEM1024X25519`],
+//!   [`kem::X25519HkdfSha256`], [`kem::P256HkdfSha256`],
+//!   [`kem::P521HkdfSha512`]
 //! - KDFs: [`kdf::HkdfSha256`], [`kdf::HkdfSha512`], [`kdf::Shake256`],
 //!   [`kdf::Blake3`] (unofficial KDF id `0xFF01`, see the type docs)
 //! - AEADs: [`aead::Aes256Gcm`], [`aead::ChaCha20Poly1305`], [`aead::ExportOnly`]
