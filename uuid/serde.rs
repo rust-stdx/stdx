@@ -53,7 +53,7 @@ impl<'de> Visitor<'de> for UuidVisitor {
         // binary formats (bincode, msgpack) pass the raw 16-byte buffer.
         match v.len() {
             16 => Uuid::from_slice(v).map_err(de::Error::custom),
-            36 => Uuid::parse(v).map_err(de::Error::custom),
+            36 => Uuid::parse_bytes(v).map_err(de::Error::custom),
             _ => Err(de::Error::custom("expected 16 bytes (binary) or 36 bytes (hex string)")),
         }
     }

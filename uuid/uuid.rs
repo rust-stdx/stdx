@@ -12,6 +12,9 @@
 //! intentionally rejected, which avoids the lax-parsing pitfalls of some other
 //! UUID implementations.
 //!
+//! [`Uuid::parse`] is a `const fn` taking `&str`, so UUIDs can be parsed at
+//! compile time. `str::parse` and `Uuid::try_from` use the same parser.
+//!
 //! Version 7 UUIDs carry a per-thread monotonic counter. Values produced by a
 //! single thread are strictly increasing; ordering across threads is not
 //! guaranteed. If the system clock moves backwards the generator keeps the last
@@ -36,6 +39,10 @@
 //! // Parse a version-4 UUID from its canonical form
 //! let uuid = Uuid::parse("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap();
 //! assert_eq!(uuid.version(), Version::V4);
+//!
+//! // Or parse a string through `FromStr`
+//! let parsed: Uuid = "f47ac10b-58cc-4372-a567-0e02b2c3d479".parse().unwrap();
+//! assert_eq!(parsed, uuid);
 //!
 //! // Format it without allocating
 //! let text = uuid.to_heapless_string();
@@ -271,12 +278,17 @@ fn new_v7_at(now_ms: u64) -> Uuid {
 impl Uuid {
     /// Parse a UUID from its canonical 8-4-4-4-12 hexadecimal string form.
     ///
+    /// The input is taken as bytes, and this function is usable in `const`
+    /// contexts (for example to define a `const` UUID). Text callers pass
+    /// `str::as_bytes()`; a `&str` or `String` is therefore not accepted
+    /// directly.
+    ///
     /// Accepts both lowercase and uppercase hex characters.
     ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidUuid`] if the input is not exactly 36 bytes,
-    /// contains misplaced hyphens, or has non-hexadecimal bytes.
+    /// contains misplaced hyphens, or has non-hexadecimal characters.
     ///
     /// # Examples
     ///
@@ -285,25 +297,51 @@ impl Uuid {
     ///
     /// let uuid = Uuid::parse("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap();
     /// assert_eq!(uuid.to_string(), "f47ac10b-58cc-4372-a567-0e02b2c3d479");
+    ///
+    /// // Also usable at compile time.
+    /// const NIL: Uuid = match Uuid::parse("00000000-0000-0000-0000-000000000000") {
+    ///     Ok(uuid) => uuid,
+    ///     Err(_) => panic!("valid uuid"),
+    /// };
+    /// assert_eq!(NIL, Uuid::nil());
     /// ```
-    pub fn parse(input: impl AsRef<[u8]>) -> Result<Uuid, Error> {
-        let bytes = input.as_ref();
-        if bytes.len() != 36 {
+    pub const fn parse(input: &str) -> Result<Uuid, Error> {
+        Uuid::parse_bytes(input.as_bytes())
+    }
+
+    /// Parses the canonical form from raw bytes, without requiring valid UTF-8.
+    ///
+    /// This backs [`Uuid::parse`] and the byte-oriented entry points
+    /// (`TryFrom<&[u8]>` and `serde`'s `visit_bytes`).
+    const fn parse_bytes(input: &[u8]) -> Result<Uuid, Error> {
+        if input.len() != 36 {
             return Err(Error::InvalidUuid);
         }
 
-        if bytes[8] != b'-' || bytes[13] != b'-' || bytes[18] != b'-' || bytes[23] != b'-' {
+        if input[8] != b'-' || input[13] != b'-' || input[18] != b'-' || input[23] != b'-' {
             return Err(Error::InvalidUuid);
         }
 
         let positions: [usize; 8] = [0, 4, 9, 14, 19, 24, 28, 32];
         let mut buf = [0u8; 16];
 
-        for (j, &pos) in positions.iter().enumerate() {
-            let b0 = hex::decode_pair(bytes[pos], bytes[pos + 1]).ok_or(Error::InvalidUuid)?;
-            let b1 = hex::decode_pair(bytes[pos + 2], bytes[pos + 3]).ok_or(Error::InvalidUuid)?;
+        let mut j = 0;
+        while j < positions.len() {
+            let pos = positions[j];
+
+            let b0 = match hex::decode_pair(input[pos], input[pos + 1]) {
+                Some(b) => b,
+                None => return Err(Error::InvalidUuid),
+            };
+            let b1 = match hex::decode_pair(input[pos + 2], input[pos + 3]) {
+                Some(b) => b,
+                None => return Err(Error::InvalidUuid),
+            };
+
             buf[j * 2] = b0;
             buf[j * 2 + 1] = b1;
+
+            j += 1;
         }
 
         Ok(Uuid(buf))
@@ -622,7 +660,7 @@ impl TryFrom<&[u8]> for Uuid {
 
     #[inline]
     fn try_from(value: &[u8]) -> Result<Uuid, Error> {
-        Uuid::parse(value)
+        Uuid::parse_bytes(value)
     }
 }
 
@@ -668,7 +706,7 @@ mod tests {
         assert_eq!(uuid.version(), Version::Nil);
         assert_eq!(uuid.to_string(), "00000000-0000-0000-0000-000000000000");
         assert_eq!(Uuid::from_bytes(uuid.as_bytes()), uuid);
-        assert_eq!(Uuid::parse(uuid.to_string()).unwrap(), uuid);
+        assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);
     }
 
     #[test]
@@ -677,7 +715,7 @@ mod tests {
         assert_eq!(uuid.version(), Version::Max);
         assert_eq!(uuid.to_string(), "ffffffff-ffff-ffff-ffff-ffffffffffff");
         assert_eq!(Uuid::from_bytes(uuid.as_bytes()), uuid);
-        assert_eq!(Uuid::parse(uuid.to_string()).unwrap(), uuid);
+        assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);
     }
 
     #[test]
@@ -719,6 +757,28 @@ mod tests {
     #[test]
     fn parse_invalid_hex() {
         assert_eq!(Uuid::parse("f47ac10b-58cc-4372-a567-0e02b2c3d47g"), Err(Error::InvalidUuid));
+    }
+
+    /// `Uuid::parse` is a `const fn`: it must be callable at compile time.
+    #[test]
+    fn parse_is_const() {
+        // `Result::unwrap` is not const, hence the `match`.
+        const PARSED: Uuid = match Uuid::parse("f47ac10b-58cc-4372-a567-0e02b2c3d479") {
+            Ok(uuid) => uuid,
+            Err(_) => panic!("valid uuid"),
+        };
+        const NIL: Uuid = match Uuid::parse("00000000-0000-0000-0000-000000000000") {
+            Ok(uuid) => uuid,
+            Err(_) => panic!("valid uuid"),
+        };
+
+        assert_eq!(
+            PARSED,
+            Uuid::from_bytes([
+                0xf4, 0x7a, 0xc1, 0x0b, 0x58, 0xcc, 0x43, 0x72, 0xa5, 0x67, 0x0e, 0x02, 0xb2, 0xc3, 0xd4, 0x79,
+            ])
+        );
+        assert_eq!(NIL, Uuid::nil());
     }
 
     #[test]
@@ -990,7 +1050,7 @@ mod tests {
             b"00112233-4455-6677-8899-aabbccddee fffffffff",
         ];
         for input in rejected {
-            assert_eq!(Uuid::parse(*input), Err(Error::InvalidUuid), "should reject {input:?}");
+            assert_eq!(Uuid::parse_bytes(input), Err(Error::InvalidUuid), "should reject {input:?}");
             if let Ok(s) = std::str::from_utf8(input) {
                 assert_eq!(s.parse::<Uuid>(), Err(Error::InvalidUuid), "FromStr should reject {s:?}");
             }
@@ -1016,8 +1076,8 @@ mod tests {
             for byte in 0..=255u8 {
                 let mut buf = good;
                 buf[pos] = byte;
-                if let Ok(uuid) = Uuid::parse(&buf[..]) {
-                    assert_eq!(Uuid::parse(uuid.to_string()).unwrap(), uuid);
+                if let Ok(uuid) = Uuid::parse_bytes(&buf[..]) {
+                    assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);
                 }
             }
         }
@@ -1033,7 +1093,7 @@ mod tests {
                 *b = xorshift64(&mut state) as u8;
             }
             // Must not panic; result is intentionally ignored.
-            let _ = Uuid::parse(&buf[..len]);
+            let _ = Uuid::parse_bytes(&buf[..len]);
         }
     }
 
@@ -1044,7 +1104,7 @@ mod tests {
             let v = ((xorshift64(&mut state) as u128) << 64) | xorshift64(&mut state) as u128;
             let uuid = Uuid::from_u128(v);
             assert_eq!(uuid.as_u128(), v);
-            assert_eq!(Uuid::parse(uuid.to_string()).unwrap(), uuid);
+            assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);
             assert_eq!(Uuid::parse(uuid.to_heapless_string().as_str()).unwrap(), uuid);
         }
     }

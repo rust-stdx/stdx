@@ -14,7 +14,7 @@ pub const fn encode_nibble(nibble: u8) -> u8 {
 ///
 /// Maps each byte value to its decoded nibble (0–15) or `0xff` for invalid
 /// characters. Accepts both uppercase and lowercase hex digits.
-pub static HEX_DECODE: [u8; 256] = build_hex_decode_table();
+pub const HEX_DECODE: [u8; 256] = build_hex_decode_table();
 
 const fn build_hex_decode_table() -> [u8; 256] {
     let mut table = [0xffu8; 256];
@@ -35,8 +35,10 @@ const fn build_hex_decode_table() -> [u8; 256] {
 /// Decode two hex characters into a byte.
 ///
 /// Returns `None` if either character is not a valid hex digit.
+///
+/// Usable in `const` contexts, e.g. by [`Uuid::parse`](crate::Uuid::parse).
 #[inline]
-pub fn decode_pair(hi: u8, lo: u8) -> Option<u8> {
+pub const fn decode_pair(hi: u8, lo: u8) -> Option<u8> {
     let h = HEX_DECODE[hi as usize];
     let l = HEX_DECODE[lo as usize];
     if h == 0xff || l == 0xff {
