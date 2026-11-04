@@ -1,0 +1,15 @@
+[package]
+name = "passkey_aaguids"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Known passkey authenticator AAGUIDs and their display names"
+
+[lints]
+workspace = true
+
+[lib]
+path = "./passkey_aaguids.rs"
+
+[dependencies]
+uuid = { path = "../uuid", default-features = false }
