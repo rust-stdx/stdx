@@ -1,4 +1,4 @@
-//! CBOR serialization with [`minicbor`](https://docs.rs/minicbor).
+//! CBOR serialization with the workspace [`cbor`](https://docs.rs/cbor) crate.
 //!
 //! Enabled via the `cbor` feature flag.
 //!
@@ -20,15 +20,9 @@
 //! 3339 date-time with an offset; date-only strings, zone-less strings and RFC
 //! 9557 time zone annotations are rejected.
 //!
-//! The CBOR half-precision `half` feature of `minicbor` is deliberately not
-//! required: half-precision floats are decoded by this module directly.
+//! Half-precision floats are decoded directly by the shared codec.
 
-use minicbor::{
-    Decode, Encode,
-    data::{Tag, Type},
-    decode::{Decoder, Error as DecodeError},
-    encode::{Encoder, Error as EncodeError, Write},
-};
+use ::cbor::{Decode, Decoder, Encode, Encoder, Error as DecodeError, Tag, Type, Write};
 
 use crate::{DateTime, Format};
 
@@ -38,24 +32,25 @@ pub const DATE_TIME_STRING_TAG: u64 = 0;
 /// The IANA CBOR tag for an epoch-based date/time (RFC 8949 §3.4.2).
 pub const EPOCH_TAG: u64 = 1;
 
-impl<C> Encode<C> for DateTime {
-    fn encode<W: Write>(&self, encoder: &mut Encoder<W>, _: &mut C) -> Result<(), EncodeError<W::Error>> {
-        encoder.tag(Tag::new(EPOCH_TAG))?.i64(self.unix())?;
+impl Encode for DateTime {
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> Result<(), W::Error> {
+        encoder.tag(Tag::new(EPOCH_TAG))?;
+        encoder.i64(self.unix())?;
         Ok(())
     }
 }
 
-impl<'b, C> Decode<'b, C> for DateTime {
-    fn decode(decoder: &mut Decoder<'b>, _: &mut C) -> Result<Self, DecodeError> {
+impl<'b> Decode<'b> for DateTime {
+    fn decode(decoder: &mut Decoder<'b>) -> Result<Self, DecodeError> {
         let datatype = decoder.datatype()?;
         if datatype != Type::Tag {
-            return Err(DecodeError::type_mismatch(datatype).with_message("expected date/time tag 0 or 1"));
+            return Err(DecodeError::message("expected date/time tag 0 or 1").at(decoder.position()));
         }
         let tag = decoder.tag()?;
-        match tag.as_u64() {
+        match tag.get() {
             DATE_TIME_STRING_TAG => decode_string(decoder),
             EPOCH_TAG => decode_epoch_content(decoder),
-            _ => Err(DecodeError::tag_mismatch(tag)),
+            _ => Err(DecodeError::message("unsupported date/time tag").at(decoder.position())),
         }
     }
 }
@@ -66,56 +61,35 @@ impl<'b, C> Decode<'b, C> for DateTime {
 /// or if it is not a valid RFC 3339 date-time within the supported calendar
 /// range.
 fn decode_string(decoder: &mut Decoder<'_>) -> Result<DateTime, DecodeError> {
-    let text = decoder.str()?;
-    DateTime::parse_with_format(text, Format::Rfc3339).map_err(DecodeError::message)
+    let text = decoder.text()?;
+    DateTime::parse_with_format(text, Format::Rfc3339).map_err(|_| DecodeError::message("invalid RFC 3339 date/time"))
 }
 
 fn decode_epoch_content(decoder: &mut Decoder<'_>) -> Result<DateTime, DecodeError> {
     let seconds = match decoder.datatype()? {
-        Type::F16 => decode_f16(decoder)?,
-        Type::F32 | Type::F64 => decoder.f64()?,
-        _ => return DateTime::from_unix(decoder.i64()?).map_err(DecodeError::message),
+        Type::F16 | Type::F32 | Type::F64 => decoder.f64()?,
+        _ => {
+            return DateTime::from_unix(decoder.i64()?)
+                .map_err(|_| DecodeError::message("timestamp is outside the supported range"));
+        }
     };
-    if !seconds.is_finite() {
-        return Err(DecodeError::message("timestamp is not finite"));
+    let seconds =
+        floor_to_i64(seconds).ok_or_else(|| DecodeError::message("timestamp is outside the supported range"))?;
+    DateTime::from_unix(seconds).map_err(|_| DecodeError::message("timestamp is outside the supported range"))
+}
+
+/// Rounds a finite `f64` down to the containing integer without using `std`
+/// floating-point helpers.
+fn floor_to_i64(value: f64) -> Option<i64> {
+    if !value.is_finite() || value < i64::MIN as f64 || value > i64::MAX as f64 {
+        return None;
     }
-    // Round down to the containing second. The cast saturates for values
-    // outside `i64`, which `DateTime::from_unix` then rejects.
-    let whole_seconds = seconds.floor();
-    let seconds = if whole_seconds < i64::MIN as f64 || whole_seconds > i64::MAX as f64 {
-        return Err(DecodeError::message("timestamp is outside the supported range"));
+    let truncated = value as i64;
+    Some(if (truncated as f64) > value {
+        truncated - 1
     } else {
-        whole_seconds as i64
-    };
-    DateTime::from_unix(seconds).map_err(DecodeError::message)
-}
-
-/// Decodes a CBOR half-precision float without pulling in `minicbor`'s `half`
-/// feature.
-fn decode_f16(decoder: &mut Decoder<'_>) -> Result<f64, DecodeError> {
-    let position = decoder.position();
-    let input = decoder.input();
-    let bytes = input
-        .get(position..position + 3)
-        .ok_or_else(|| DecodeError::message("unexpected end of CBOR input"))?;
-    if bytes[0] != 0xf9 {
-        return Err(DecodeError::type_mismatch(decoder.datatype()?).with_message("expected f16"));
-    }
-    decoder.set_position(position + 3);
-    Ok(f16_to_f64(u16::from_be_bytes([bytes[1], bytes[2]])))
-}
-
-/// Converts the bits of an IEEE 754 binary16 value into an `f64`.
-fn f16_to_f64(bits: u16) -> f64 {
-    let sign = if bits & 0x8000 == 0 { 1.0 } else { -1.0 };
-    let exponent = i32::from((bits >> 10) & 0x1f);
-    let fraction = f64::from(bits & 0x03ff);
-    match exponent {
-        0 => sign * fraction * 2f64.powi(-24),
-        31 if fraction == 0.0 => sign * f64::INFINITY,
-        31 => f64::NAN,
-        _ => sign * (1.0 + fraction / 1024.0) * 2f64.powi(exponent - 15),
-    }
+        truncated
+    })
 }
 
 #[cfg(test)]
@@ -135,19 +109,19 @@ mod tests {
         let mut encoder = Encoder::new(Vec::new());
         encoder.tag(Tag::new(EPOCH_TAG)).unwrap();
         f(&mut encoder);
-        encoder.into_writer()
+        encoder.into_inner()
     }
 
     fn encode_tag0(f: impl FnOnce(&mut Encoder<Vec<u8>>)) -> Vec<u8> {
         let mut encoder = Encoder::new(Vec::new());
         encoder.tag(Tag::new(DATE_TIME_STRING_TAG)).unwrap();
         f(&mut encoder);
-        encoder.into_writer()
+        encoder.into_inner()
     }
 
     fn encode_string(value: &str) -> Vec<u8> {
         encode_tag0(|encoder| {
-            encoder.str(value).unwrap();
+            encoder.text(value).unwrap();
         })
     }
 
@@ -158,19 +132,19 @@ mod tests {
     }
 
     fn decode(bytes: &[u8]) -> Result<DateTime, DecodeError> {
-        minicbor::decode(bytes)
+        ::cbor::from_slice(bytes)
     }
 
     #[test]
     fn encodes_tagged_integer_seconds() {
         let value = parse(ISO);
-        assert_eq!(minicbor::to_vec(value).unwrap(), encode_integer(value.unix()));
+        assert_eq!(::cbor::to_vec(&value), encode_integer(value.unix()));
     }
 
     #[test]
     fn truncates_subseconds() {
         let value = parse(ISO);
-        let decoded = decode(&minicbor::to_vec(value).unwrap()).unwrap();
+        let decoded = decode(&::cbor::to_vec(&value)).unwrap();
         assert_eq!(decoded, parse("2026-10-27T12:34:56Z"));
         assert_eq!(decoded.nanosecond(), 0);
     }
@@ -178,7 +152,7 @@ mod tests {
     #[test]
     fn round_trips_whole_seconds() {
         let value = parse("2026-10-27T12:34:56Z");
-        let encoded = minicbor::to_vec(value).unwrap();
+        let encoded = ::cbor::to_vec(&value);
         assert_eq!(decode(&encoded).unwrap(), value);
     }
 
@@ -306,13 +280,13 @@ mod tests {
 
     #[test]
     fn rejects_untagged_integers() {
-        assert!(decode(&minicbor::to_vec(0i64).unwrap()).is_err());
+        assert!(decode(&::cbor::to_vec(&0i64)).is_err());
     }
 
     #[test]
     fn rejects_wrong_content_type() {
         let mut bytes = std::vec![0xc1];
-        bytes.extend_from_slice(&minicbor::to_vec("2026-10-27T12:34:56Z").unwrap());
+        bytes.extend_from_slice(&::cbor::to_vec("2026-10-27T12:34:56Z"));
         assert!(decode(&bytes).is_err());
     }
 
@@ -330,17 +304,17 @@ mod tests {
     #[test]
     fn optional_round_trips() {
         let value = parse("2026-10-27T12:34:56Z");
-        let encoded = minicbor::to_vec(Some(value)).unwrap();
-        assert_eq!(minicbor::decode::<Option<DateTime>>(&encoded).unwrap(), Some(value));
+        let encoded = ::cbor::to_vec(&Some(value));
+        assert_eq!(::cbor::from_slice::<Option<DateTime>>(&encoded).unwrap(), Some(value));
 
-        let encoded = minicbor::to_vec(Option::<DateTime>::None).unwrap();
-        assert_eq!(minicbor::decode::<Option<DateTime>>(&encoded).unwrap(), None);
+        let encoded = ::cbor::to_vec(&Option::<DateTime>::None);
+        assert_eq!(::cbor::from_slice::<Option<DateTime>>(&encoded).unwrap(), None);
     }
 
     #[test]
     fn truncation_is_idempotent() {
         let value = parse(ISO).truncate(Period::seconds(1));
-        let encoded = minicbor::to_vec(value).unwrap();
+        let encoded = ::cbor::to_vec(&value);
         assert_eq!(decode(&encoded).unwrap(), value);
     }
 }

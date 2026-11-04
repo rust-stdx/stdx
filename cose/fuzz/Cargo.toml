@@ -1,0 +1,35 @@
+[package]
+name = "cose-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+cose = { path = "..", features = ["std"] }
+
+[workspace]
+
+[[bin]]
+name = "structures"
+path = "fuzz_targets/structures.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "keys"
+path = "fuzz_targets/keys.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "mac"
+path = "fuzz_targets/mac.rs"
+test = false
+doc = false
+
+[profile.release]
+debug = 1

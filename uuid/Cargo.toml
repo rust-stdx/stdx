@@ -15,16 +15,19 @@ path = "./uuid.rs"
 default = ["std"]
 std = ["dep:rand"]
 serde = ["dep:serde"]
-cbor = ["dep:minicbor"]
+cbor = ["dep:cbor"]
 
 [dependencies]
+cbor = { workspace = true, optional = true, default-features = false }
 heapless = { workspace = true }
-minicbor = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
+# Tests use `cbor::to_vec`, which requires alloc. Keep this out of the
+# `cbor` feature so the library itself remains alloc-free.
+cbor = { workspace = true, default-features = false, features = ["alloc"] }
 serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

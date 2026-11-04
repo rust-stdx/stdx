@@ -184,6 +184,21 @@ let yaml = serde_yaml::to_string(&config)?;
 use serde_urlencoded;
 let params = vec![("key", "value"), ("foo", "bar")];
 let body: String = serde_urlencoded::to_string(&params)?;
+
+// CBOR — typed, no_std-capable, with integer map keys and tags
+use cbor::{Decode, Encode};
+
+#[derive(Encode, Decode)]
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+let bytes = cbor::to_vec(&Point { x: 1.5, y: -2.0 });
+let point: Point = cbor::from_slice(&bytes)?;
+
+// Optional serde adapter
+let bytes = cbor::serde::to_vec(&point).unwrap();
 ```
 
 ### Networking

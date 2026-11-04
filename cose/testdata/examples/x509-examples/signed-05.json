@@ -1,0 +1,43 @@
+{
+   "title":"signed-05: Signed message w/ certificate digest",
+   "input":{
+      "plaintext":"This is the content.",
+      "sign":{
+         "protected":{
+            "ctyp":0
+         },
+         "signers":[
+            {
+               "key":{
+                  "kty":"EC2",
+                  "kid":"Alice Lovelace",
+                  "crv":"P-256",
+                  "x_hex":"863aa7bc0326716aa59db5bf66cc660d0591d51e4891bc2e6a9baff5077d927c",
+		  "y_hex":"ad4eed482a7985be019e9b1936c16e00190e8bcc48ee12d35ff89f0fc7a099ca",
+                  "d_hex":"d42044eb2cd2691e926da4871cf3529ddec6b034f824ba5e050d2c702f97c7a5"
+               },
+               "unprotected":{
+		  "x5t": [
+	             "SHA-256",
+		     "11FA0500D6763AE15A3238296E04C048A8FDD220A0DDA0234824B18FB6666600"
+		  ]
+               },
+               "protected":{
+                  "alg":"ES256"
+               }
+            }
+         ]
+      }
+   },
+   "intermediates":{
+      "signers":[
+         {
+	    "ToBeSign_hex":"85695369676E617475726543A1030043A101264054546869732069732074686520636F6E74656E742E"
+         }
+      ]
+   },
+   "output":{
+      "cbor_diag":"98([h'A10300', {}, h'546869732069732074686520636F6E74656E742E', [[h'A10126', {34: [-16, h'11FA0500D6763AE15A3238296E04C048A8FDD220A0DDA0234824B18FB6666600']}, h'E2868433DB5EB82E91F8BE52E8A67903A93332634470DE3DD90D52422B62DFE062248248AC388FAF77B277F91C4FB6EE776EDC52069C67F17D9E7FA57AC9BBA9']]])",
+      "cbor":"D8628443A10300A054546869732069732074686520636F6E74656E742E818343A10126A11822822F582011FA0500D6763AE15A3238296E04C048A8FDD220A0DDA0234824B18FB66666005840E2868433DB5EB82E91F8BE52E8A67903A93332634470DE3DD90D52422B62DFE062248248AC388FAF77B277F91C4FB6EE776EDC52069C67F17D9E7FA57AC9BBA9"
+   }
+}

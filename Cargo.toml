@@ -12,7 +12,10 @@ members = [
     "bel/examples",
     # "bel/fuzz",
     "big_number",
+    "cbor",
+    "cbor/cbor_derive",
     "constant_time_eq",
+    "cose",
     "count_instructions",
     "countries",
     "crc32",
@@ -45,6 +48,7 @@ members = [
     "net",
     "num_cpus",
     "padme",
+    "passkey_aaguids",
     "percent_encoding",
     "pin_project_lite",
     "postgresql",
@@ -110,6 +114,9 @@ opt-level = 3
 [profile.test.package.jwt]
 opt-level = 3
 
+[profile.test.package.cose]
+opt-level = 3
+
 [workspace.lints.clippy]
 needless_return = "allow"
 type_complexity = "allow"
@@ -124,6 +131,7 @@ antlr4rust = "=0.3.0-rc2"
 arbitrary = { version = "1", features = ["derive"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 bytes = { version = "1", default-features = false }
+cbor = { path = "cbor" }
 futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }
 heapless = "0.9"
@@ -132,7 +140,6 @@ indexmap = { path = "indexmap" }
 js-sys = "0.3"
 libc = "0.2"
 memchr = { version = "2", default-features = false }
-minicbor = { version = "2", default-features = false, features = ["derive", "std"] }
 nom = "8"
 padme = { path = "padme" }
 paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }

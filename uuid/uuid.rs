@@ -27,6 +27,7 @@
 //! |--------|-------------------------------------------------------------------|---------|
 //! | `std`  | Enables `Uuid::new_v4` and `Uuid::new_v7` via `rand`            | Yes     |
 //! | `serde`| Enables `serde` serialization/deserialization                  | No      |
+//! | `cbor` | Enables CBOR serialization using IANA tag 37                   | No      |
 //!
 //! When `std` is not enabled, the crate is `#![no_std]` compatible.
 //! Parsing, formatting, and version detection are all available.

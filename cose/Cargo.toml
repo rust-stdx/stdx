@@ -1,0 +1,48 @@
+[package]
+name = "cose"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "CBOR Object Signing and Encryption (COSE, RFC 9052/9053) with a no_std, zero-allocation core"
+
+[lints]
+workspace = true
+
+[lib]
+path = "cose.rs"
+
+[features]
+default = ["std", "zeroize"]
+
+# Adds Vec-returning conveniences, owned header/key values, and
+# CoseKey::from(&crypto_key).
+alloc = ["crypto/alloc", "cbor/alloc"]
+
+# Enables the standard library, randomness, and the std-backed features of the
+# dependencies. Implies `alloc`.
+std = ["alloc", "random", "crypto/std", "cbor/std"]
+
+# Enables ML-DSA key generation and signing, which require a random number generator.
+random = ["crypto/random"]
+
+zeroize = ["dep:zeroize", "crypto/zeroize"]
+
+[dependencies]
+cbor = { workspace = true, default-features = false }
+constant_time_eq = { path = "../constant_time_eq", default-features = false }
+crypto = { path = "../crypto", default-features = false }
+heapless = { workspace = true }
+zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
+base64 = { path = "../base64" }
+hex = { path = "../hex" }
+serde_json = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "cose"
+harness = false

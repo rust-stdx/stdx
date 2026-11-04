@@ -284,6 +284,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
+name = "cbor"
+version = "0.1.0"
+dependencies = [
+ "alloc_counter",
+ "bytes",
+ "cbor_derive",
+ "heapless",
+ "serde",
+ "serde_bytes",
+ "small_collections",
+]
+
+[[package]]
+name = "cbor_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "cc"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,6 +434,22 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "cose"
+version = "0.1.0"
+dependencies = [
+ "alloc_counter",
+ "base64 0.1.0",
+ "cbor",
+ "constant_time_eq",
+ "criterion",
+ "crypto",
+ "heapless",
+ "hex",
+ "serde_json",
+ "zeroize 1.9.1",
+]
 
 [[package]]
 name = "count_instructions"
@@ -1337,26 +1375,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
-name = "minicbor"
-version = "2.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7244eafd1e09e7c4e33043881997aa6ab6dffff3ed2cee3395a278980481d6e"
-dependencies = [
- "minicbor-derive",
-]
-
-[[package]]
-name = "minicbor-derive"
-version = "0.19.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84f5ad8dfe10176465fe33f19ecfcf08783ba66630fdb40b2e4542547c1046f0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "miniz_oxide"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1471,6 +1489,13 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
+]
+
+[[package]]
+name = "passkey_aaguids"
+version = "0.1.0"
+dependencies = [
+ "uuid 0.1.0",
 ]
 
 [[package]]
@@ -2253,8 +2278,8 @@ dependencies = [
 name = "time"
 version = "0.1.0"
 dependencies = [
+ "cbor",
  "js-sys",
- "minicbor",
  "serde",
  "serde_json",
  "small_collections",
@@ -2491,9 +2516,9 @@ name = "uuid"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
+ "cbor",
  "criterion",
  "heapless",
- "minicbor",
  "rand",
  "serde",
  "serde_json",
