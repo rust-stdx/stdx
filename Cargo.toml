@@ -82,6 +82,7 @@ members = [
     "tools/duplicates",
     "tools/energy_bench",
     "unsafe_libyaml",
+    "utf8",
     "uuid",
     "xxhash",
     "zeroize",
@@ -135,6 +136,7 @@ cbor = { path = "cbor" }
 futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }
 heapless = "0.9"
+hex = { path = "hex", default-features = false }
 hyper = { version = "1", features = ["full"] }
 indexmap = { path = "indexmap" }
 js-sys = "0.3"
@@ -159,6 +161,7 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 unicode-width = "0.1"
 url = "2"
+utf8 = { path = "utf8", default-features = false }
 walkdir = "2"
 zeroize = { path = "zeroize", default-features = false, features = ["derive"] }
 

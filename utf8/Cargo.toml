@@ -1,0 +1,25 @@
+[package]
+name = "utf8"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "SIMD-accelerated UTF-8 validation and safe string construction"
+
+[lints]
+workspace = true
+
+[lib]
+path = "./utf8.rs"
+
+[features]
+default = ["std"]
+# Enables runtime CPU feature detection. Without it, SIMD kernels are selected
+# at compile time from the target features.
+std = []
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false

@@ -291,9 +291,11 @@ dependencies = [
  "bytes",
  "cbor_derive",
  "heapless",
+ "hex",
  "serde",
  "serde_bytes",
  "small_collections",
+ "utf8",
 ]
 
 [[package]]
@@ -2494,6 +2496,13 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+]
+
+[[package]]
+name = "utf8"
+version = "0.1.0"
+dependencies = [
+ "criterion",
 ]
 
 [[package]]

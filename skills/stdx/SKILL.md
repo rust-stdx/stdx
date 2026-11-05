@@ -73,6 +73,10 @@ let decoded = hex::decode("68656c6c6f").unwrap();
 // Base32
 use base32;
 let encoded = base32::encode(b"data");
+
+// UTF-8 validation and safe &str construction (SIMD-accelerated)
+let valid = utf8::validate(b"hello");
+let text = utf8::from_utf8(b"hello").unwrap();
 ```
 
 ### Error Handling
