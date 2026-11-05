@@ -4,7 +4,11 @@
 //! ML-KEM-512 is not implemented, mostly due to security concerns and recommendations against it
 //! by the security community.
 //!
-//! It also implements the `MLKEM1024-X25519` composite KEM, which combines
+//! It also implements X-Wing, which combines ML-KEM-768 with X25519 as
+//! specified in draft-connolly-cfrg-xwing-kem. See [`XWingSecretKey`] for
+//! details.
+//!
+//! Finally, it implements the `MLKEM1024-X25519` composite KEM, which combines
 //! ML-KEM-1024 with X25519 using the universal combiner from
 //! draft-irtf-cfrg-hybrid-kems. See [`MlKem1024X25519SecretKey`] for details.
 //!
@@ -12,10 +16,11 @@
 //! | --- | --- | --- | --- | --- |
 //! | ML-KEM-768 | [`SecretKey768`] | [`PublicKey768`] | 1184 B | 1088 B |
 //! | ML-KEM-1024 | [`SecretKey1024`] | [`PublicKey1024`] | 1568 B | 1568 B |
+//! | X-Wing (MLKEM768-X25519) | [`XWingSecretKey`] | [`XWingPublicKey`] | 1216 B | 1120 B |
 //! | MLKEM1024-X25519 | [`MlKem1024X25519SecretKey`] | [`MlKem1024X25519PublicKey`] | 1600 B | 1600 B |
 //!
 //! Shared secrets are always [`SHARED_SECRET_SIZE`] bytes (32 B). The composite
-//! secret key is a 32-byte seed.
+//! and X-Wing secret keys are 32-byte seeds.
 //!
 //! Encapsulation keys are validated when parsed with
 //! [`PublicKey768::from_bytes`] / [`PublicKey1024::from_bytes`] (FIPS 203
@@ -31,6 +36,7 @@ mod mlkem;
 mod mlkem1024;
 mod mlkem768;
 mod mlkem_composite;
+mod xwing;
 
 pub use mlkem::{MlKemError, SHARED_SECRET_SIZE};
 pub use mlkem_composite::{
@@ -40,3 +46,7 @@ pub use mlkem_composite::{
 };
 pub use mlkem768::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SECRET_KEY_SIZE_768, SecretKey768};
 pub use mlkem1024::{CIPHERTEXT_SIZE_1024, PUBLIC_KEY_SIZE_1024, PublicKey1024, SECRET_KEY_SIZE_1024, SecretKey1024};
+pub use xwing::{
+    XWING_CIPHERTEXT_SIZE, XWING_PUBLIC_KEY_SIZE, XWING_SECRET_KEY_SIZE, XWING_SHARED_SECRET_SIZE, XWingError,
+    XWingPublicKey, XWingSecretKey, generate_xwing_keypair, generate_xwing_keypair_derand,
+};

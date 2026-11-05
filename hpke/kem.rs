@@ -284,32 +284,32 @@ pub struct MLKEM768X25519;
 
 impl Kem for MLKEM768X25519 {
     const HPKE_KEM_ID: u16 = 0x647a;
-    const SHARED_SECRET_SIZE: usize = crypto::xwing::SHARED_SECRET_SIZE;
-    const ENCAPPED_KEY_SIZE: usize = crypto::xwing::CIPHERTEXT_SIZE;
-    const PUBLIC_KEY_SIZE: usize = crypto::xwing::PUBLIC_KEY_SIZE;
-    const SECRET_KEY_SIZE: usize = crypto::xwing::SECRET_KEY_SIZE;
+    const SHARED_SECRET_SIZE: usize = crypto::mlkem::XWING_SHARED_SECRET_SIZE;
+    const ENCAPPED_KEY_SIZE: usize = crypto::mlkem::XWING_CIPHERTEXT_SIZE;
+    const PUBLIC_KEY_SIZE: usize = crypto::mlkem::XWING_PUBLIC_KEY_SIZE;
+    const SECRET_KEY_SIZE: usize = crypto::mlkem::XWING_SECRET_KEY_SIZE;
     const RANDOMNESS_SIZE: usize = 64;
 
-    type PublicKey = crypto::xwing::PublicKey;
-    type SecretKey = crypto::xwing::SecretKey;
-    type EncappedKey = [u8; crypto::xwing::CIPHERTEXT_SIZE];
+    type PublicKey = crypto::mlkem::XWingPublicKey;
+    type SecretKey = crypto::mlkem::XWingSecretKey;
+    type EncappedKey = [u8; crypto::mlkem::XWING_CIPHERTEXT_SIZE];
 
     fn derive_keypair(input_keying_material: &[u8]) -> Result<(Self::SecretKey, Self::PublicKey), HpkeError> {
         // draft-ietf-hpke-pq-05 Section 4 (MLKEM768-X25519):
         //   seed = SHAKE256.LabeledDerive(input_keying_material, "DeriveKeyPair", "", 32)
         //   return KEM.DeriveKeyPair(seed)
         let suite_id = kem_suite_id(Self::HPKE_KEM_ID);
-        let mut seed = [0u8; crypto::xwing::SECRET_KEY_SIZE];
+        let mut seed = [0u8; crypto::mlkem::XWING_SECRET_KEY_SIZE];
         <Shake256Kdf as Kdf>::labeled_derive(&mut seed, &[input_keying_material], &suite_id, b"DeriveKeyPair", &[])?;
 
-        let keypair = crypto::xwing::generate_keypair_derand(&seed);
+        let keypair = crypto::mlkem::generate_xwing_keypair_derand(&seed);
         wipe(&mut seed);
         return Ok(keypair);
     }
 
     #[cfg(feature = "random")]
     fn generate_keypair() -> Result<(Self::SecretKey, Self::PublicKey), HpkeError> {
-        return crypto::xwing::generate_keypair().map_err(HpkeError::from);
+        return crypto::mlkem::generate_xwing_keypair().map_err(HpkeError::from);
     }
 
     fn derive_public_key(secret_key: &Self::SecretKey) -> Self::PublicKey {
@@ -326,7 +326,7 @@ impl Kem for MLKEM768X25519 {
 
     fn public_key_from_bytes(bytes: &[u8]) -> Result<Self::PublicKey, HpkeError> {
         let bytes: &[u8; Self::PUBLIC_KEY_SIZE] = bytes.try_into().map_err(|_| HpkeError::DeserializeError)?;
-        return crypto::xwing::PublicKey::from_bytes(bytes).map_err(HpkeError::from);
+        return crypto::mlkem::XWingPublicKey::from_bytes(bytes).map_err(HpkeError::from);
     }
 
     fn secret_key_to_bytes(out: &mut [u8], secret_key: &Self::SecretKey) -> Result<(), HpkeError> {
@@ -339,7 +339,7 @@ impl Kem for MLKEM768X25519 {
 
     fn secret_key_from_bytes(bytes: &[u8]) -> Result<Self::SecretKey, HpkeError> {
         let bytes: &[u8; Self::SECRET_KEY_SIZE] = bytes.try_into().map_err(|_| HpkeError::DeserializeError)?;
-        return Ok(crypto::xwing::generate_keypair_derand(bytes).0);
+        return Ok(crypto::mlkem::generate_xwing_keypair_derand(bytes).0);
     }
 
     fn encapped_key_to_bytes(out: &mut [u8], encapped_key: &Self::EncappedKey) -> Result<(), HpkeError> {

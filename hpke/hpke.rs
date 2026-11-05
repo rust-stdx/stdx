@@ -319,11 +319,11 @@ impl From<crypto::RandomError> for HpkeError {
     }
 }
 
-impl From<crypto::xwing::XWingError> for HpkeError {
-    fn from(err: crypto::xwing::XWingError) -> Self {
+impl From<crypto::mlkem::XWingError> for HpkeError {
+    fn from(err: crypto::mlkem::XWingError) -> Self {
         match err {
-            crypto::xwing::XWingError::MlKem(err) => HpkeError::MlKem(err),
-            crypto::xwing::XWingError::Random(err) => HpkeError::Random(err),
+            crypto::mlkem::XWingError::MlKem(err) => HpkeError::MlKem(err),
+            crypto::mlkem::XWingError::Random(err) => HpkeError::Random(err),
         }
     }
 }
