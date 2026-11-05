@@ -296,3 +296,227 @@ fn canonical_sorts_btreemap_keys() {
     let bytes = cbor::to_canonical_vec(&map);
     assert!(cbor::validate_canonical(&bytes).is_ok());
 }
+
+#[test]
+fn try_canonical_validates_the_output() {
+    let value = ("hello", 42u64);
+    let bytes = cbor::try_to_canonical_vec(&value).unwrap();
+    assert_eq!(bytes, cbor::to_canonical_vec(&value));
+    assert!(cbor::validate_canonical(&bytes).is_ok());
+
+    let mut buffer = Vec::new();
+    cbor::try_to_canonical_vec_into(&value, &mut buffer).unwrap();
+    assert_eq!(buffer, bytes);
+
+    let mut fixed = [0u8; 64];
+    let used = cbor::try_to_canonical_slice(&value, &mut fixed).unwrap();
+    assert_eq!(used, &bytes[..]);
+}
+
+#[test]
+fn try_canonical_rejects_duplicate_and_collapsing_keys() {
+    let mut map = cbor::Map::<cbor::Value, cbor::Value>::new();
+    map.push("a".into(), 1u8.into());
+    map.push("a".into(), 2u8.into());
+    assert!(cbor::try_to_canonical_vec(&cbor::Value::Map(map)).is_err());
+
+    let mut map = cbor::Map::<cbor::Value, cbor::Value>::new();
+    map.push(cbor::Value::Float(f64::from_bits(0x7ff8_0000_0000_0001)), 1u8.into());
+    map.push(cbor::Value::Float(f64::from_bits(0x7ff8_0000_0000_0002)), 2u8.into());
+    assert!(cbor::try_to_canonical_vec(&cbor::Value::Map(map)).is_err());
+}
+
+#[test]
+fn try_canonical_rejects_declaration_order_maps() {
+    #[derive(Encode)]
+    #[cbor(declaration_order)]
+    struct Unsorted {
+        aa: u8,
+        z: u8,
+    }
+
+    assert!(
+        cbor::try_to_canonical_vec(&Unsorted {
+            aa: 1,
+            z: 2
+        })
+        .is_err()
+    );
+}
+
+#[test]
+fn diagnostics_use_rfc_style_floats_and_inline_errors() {
+    assert_eq!(cbor::to_diagnostic_string(&[0xf9, 0x3c, 0x00]), "1.0");
+    assert_eq!(cbor::to_diagnostic_string(&[0xf9, 0x00, 0x00]), "0.0");
+    assert_eq!(cbor::to_diagnostic_string(&[0xf9, 0x80, 0x00]), "-0.0");
+    assert_eq!(cbor::to_diagnostic_string(&cbor::to_vec(&1.0e300f64)), "1e300");
+
+    let invalid_utf8 = cbor::to_diagnostic_string(&[0x61, 0xff]);
+    assert!(invalid_utf8.contains("!invalid UTF-8"), "{invalid_utf8}");
+
+    let truncated = cbor::to_diagnostic_string(&[0x41]);
+    assert!(truncated.contains("!unexpected end of input"), "{truncated}");
+
+    let bytes = cbor::to_vec(&cbor::Value::Bytes(vec![0xde, 0xad]));
+    assert_eq!(cbor::to_diagnostic_string(&bytes), "h'dead'");
+}
+
+#[test]
+fn diagnostics_escape_del_and_c1_controls() {
+    let text = "a\u{1b}b\u{7f}c\u{9b}d";
+    let bytes = cbor::to_vec(&text);
+    let diagnostic = cbor::to_diagnostic_string(&bytes);
+    assert!(diagnostic.contains("\\u001b"), "{diagnostic}");
+    assert!(diagnostic.contains("\\u007f"), "{diagnostic}");
+    assert!(diagnostic.contains("\\u009b"), "{diagnostic}");
+    assert!(!diagnostic.contains('\u{7f}'), "{diagnostic}");
+    assert!(!diagnostic.contains('\u{9b}'), "{diagnostic}");
+}
+
+#[test]
+fn documented_nan_and_value_duplicate_behavior() {
+    // Map<Value, _> uses PartialEq: NaN != NaN, so two byte-identical NaN keys
+    // are kept. This is a documented limitation.
+    let nan_keys = [0xa2, 0xf9, 0x7e, 0x00, 0x01, 0xf9, 0x7e, 0x00, 0x02];
+    let map: cbor::Map<cbor::Value, u8> = cbor::from_slice(&nan_keys).unwrap();
+    assert_eq!(map.len(), 2);
+
+    // Value preserves duplicate keys regardless of Options::duplicate_keys.
+    let duplicates = [0xa2, 0x01, 0x02, 0x01, 0x03];
+    let value: cbor::Value = cbor::from_slice(&duplicates).unwrap();
+    assert_eq!(value.as_map().unwrap().len(), 2);
+}
+
+#[test]
+fn canonical_validation_documents_the_negative_zero_gap() {
+    // RFC 8949 section 5.6.1 treats -0.0 and 0.0 as the same map key, but
+    // canonical validation compares deterministic encodings, so both are
+    // currently accepted. This is documented.
+    let bytes = [0xa2, 0xf9, 0x00, 0x00, 0x01, 0xf9, 0x80, 0x00, 0x02];
+    assert!(cbor::validate_canonical(&bytes).is_ok());
+}
+
+#[test]
+fn duplicate_key_errors_point_at_the_key() {
+    // [ {1: 2, 1: 3} ]: the second (duplicate) key starts at offset 4.
+    let bytes = [0x81, 0xa2, 0x01, 0x02, 0x01, 0x03];
+    let error = cbor::from_slice::<Vec<std::collections::BTreeMap<u8, u8>>>(&bytes).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::DuplicateKey);
+    assert_eq!(error.offset(), 4);
+}
+
+#[test]
+fn map_duplicate_check_budget_is_enforced() {
+    fn encode_map(n: u8) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let mut encoder = cbor::Encoder::new(&mut bytes);
+        encoder.map(usize::from(n)).unwrap();
+        for i in 0..n {
+            encoder.u8(i).unwrap();
+            encoder.u8(i).unwrap();
+        }
+        bytes
+    }
+
+    let options = cbor::Options {
+        max_duplicate_checks: Some(10),
+        ..Default::default()
+    };
+
+    // 5 entries need 5 * 4 / 2 = 10 comparisons.
+    let map: cbor::Map<u8, u8> = cbor::from_slice_with_options(&encode_map(5), options).unwrap();
+    assert_eq!(map.len(), 5);
+
+    // 6 entries need 15 comparisons.
+    let error = cbor::from_slice_with_options::<cbor::Map<u8, u8>>(&encode_map(6), options).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::DuplicateCheckLimitExceeded);
+}
+
+#[test]
+fn default_map_duplicate_check_budget() {
+    assert_eq!(cbor::DEFAULT_MAX_MAP_ENTRIES, 2048);
+    assert_eq!(cbor::DEFAULT_MAX_DUPLICATE_CHECKS, 2_096_128);
+
+    // A single 2049-entry map exceeds the default budget before any entries
+    // are decoded.
+    let mut bytes = vec![0xb9, 0x08, 0x01];
+    bytes.resize(3 + 2049 * 2, 0x00);
+    let error = cbor::from_slice::<cbor::Map<u64, u64>>(&bytes).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::DuplicateCheckLimitExceeded);
+}
+
+#[test]
+fn container_entry_limit_bounds_definite_containers() {
+    let options = cbor::Options {
+        max_container_entries: Some(2),
+        ..Default::default()
+    };
+
+    // Arrays: two entries fit, three do not.
+    let array_2 = [0x82, 0x01, 0x02];
+    let array_3 = [0x83, 0x01, 0x02, 0x03];
+    assert_eq!(cbor::from_slice_with_options::<Vec<u8>>(&array_2, options).unwrap(), vec![1, 2]);
+    let error = cbor::from_slice_with_options::<Vec<u8>>(&array_3, options).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::ContainerLimitExceeded);
+    assert_eq!(error.offset(), 0);
+
+    // Maps: the limit counts pairs, not items.
+    let map_2 = [0xa2, 0x01, 0x01, 0x02, 0x02];
+    let map_3 = [0xa3, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03];
+    assert_eq!(
+        cbor::from_slice_with_options::<std::collections::BTreeMap<u8, u8>>(&map_2, options)
+            .unwrap()
+            .len(),
+        2
+    );
+    let error = cbor::from_slice_with_options::<std::collections::BTreeMap<u8, u8>>(&map_3, options).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::ContainerLimitExceeded);
+
+    // The header readers enforce it directly.
+    let mut decoder = cbor::Decoder::with_options(&array_3, options);
+    assert_eq!(decoder.array().unwrap_err().kind(), cbor::ErrorKind::ContainerLimitExceeded);
+
+    // `skip` and `Value` enforce it too, including nested containers.
+    assert_eq!(
+        cbor::Decoder::with_options(&array_3, options)
+            .skip()
+            .unwrap_err()
+            .kind(),
+        cbor::ErrorKind::ContainerLimitExceeded
+    );
+    let nested = [0x81, 0x83, 0x01, 0x02, 0x03];
+    let error = cbor::from_slice_with_options::<cbor::Value>(&nested, options).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::ContainerLimitExceeded);
+    assert_eq!(error.offset(), 1);
+
+    // Validation uses the same bound.
+    let error = cbor::validate_prefix_with(&array_3, options, cbor::KeyOrder::Core, false).unwrap_err();
+    assert_eq!(error.kind(), cbor::ErrorKind::ContainerLimitExceeded);
+
+    // `None` keeps the previous behaviour.
+    assert!(cbor::from_slice::<Vec<u8>>(&array_3).is_ok());
+}
+
+#[test]
+fn container_entry_limit_rejects_indefinite_containers() {
+    let options = cbor::Options {
+        max_container_entries: Some(16),
+        ..Default::default()
+    };
+
+    // Indefinite array: `[_ 1, 2]`, indefinite map: `{_ 1: 1}`.
+    let array = [0x9f, 0x01, 0x02, 0xff];
+    let map = [0xbf, 0x01, 0x01, 0xff];
+    for bytes in [&array[..], &map[..]] {
+        let error = cbor::from_slice_with_options::<cbor::Value>(bytes, options).unwrap_err();
+        assert_eq!(error.kind(), cbor::ErrorKind::ContainerLimitExceeded);
+        assert_eq!(
+            cbor::Decoder::with_options(bytes, options).skip().unwrap_err().kind(),
+            cbor::ErrorKind::ContainerLimitExceeded
+        );
+    }
+
+    // Without a limit, indefinite-length containers still decode.
+    assert!(cbor::from_slice::<cbor::Value>(&array).is_ok());
+    assert!(cbor::from_slice::<cbor::Value>(&map).is_ok());
+}

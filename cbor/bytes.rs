@@ -1,8 +1,10 @@
 //! Byte-string helpers.
 //!
-//! `Vec<T>` and `&[T]` are CBOR arrays. A field annotated with
+//! `Vec<T>` and bare `&[T]` are CBOR arrays. A field annotated with
 //! `#[cbor(bytes)]` uses the [`DecodeBytes`] trait instead, which constructs
-//! the target from a CBOR byte string.
+//! the target from a CBOR byte string. Borrowed byte-slice fields must use
+//! `#[cbor(bytes)]`: an array of `u8` values is not contiguous and therefore
+//! cannot be decoded into `&[u8]` without copying.
 
 #[cfg(feature = "alloc")]
 use alloc::borrow::Cow;
@@ -11,15 +13,20 @@ use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+#[cfg(feature = "alloc")]
 use crate::{
-    decode::{Decode, Decoder},
-    error::Result,
+    decode::Decode,
+    encode::{Encode, Encoder, Write},
 };
+use crate::{decode::Decoder, error::Result};
 
 /// Construct a value from a CBOR byte string.
 ///
 /// This is used by `#[cbor(bytes)]` fields. It is implemented for the common
 /// byte containers; users can implement it for their own types.
+///
+/// Implementations may only support definite-length byte strings when they
+/// borrow from the input; see the individual implementations.
 pub trait DecodeBytes<'b>: Sized {
     /// Decode a definite- or indefinite-length byte string.
     fn decode_bytes(decoder: &mut Decoder<'b>) -> Result<Self>;
@@ -54,11 +61,12 @@ impl<'b> DecodeBytes<'b> for Box<[u8]> {
 impl<'b, T: DecodeBytes<'b>> DecodeBytes<'b> for Option<T> {
     #[inline]
     fn decode_bytes(decoder: &mut Decoder<'b>) -> Result<Self> {
-        if decoder.peek_byte()? == 0xf6 {
-            decoder.null()?;
-            Ok(None)
-        } else {
-            Ok(Some(T::decode_bytes(decoder)?))
+        match decoder.datatype()? {
+            crate::Type::Null | crate::Type::Undefined => {
+                decoder.skip()?;
+                Ok(None)
+            }
+            _ => Ok(Some(T::decode_bytes(decoder)?)),
         }
     }
 }
@@ -95,16 +103,6 @@ pub fn decode_bytes<'b, T: DecodeBytes<'b>>(decoder: &mut Decoder<'b>) -> Result
     T::decode_bytes(decoder)
 }
 
-impl<'b, 'a> Decode<'b> for &'a [u8]
-where
-    'b: 'a,
-{
-    #[inline]
-    fn decode(decoder: &mut Decoder<'b>) -> Result<Self> {
-        decoder.bytes()
-    }
-}
-
 #[cfg(feature = "alloc")]
 impl<'b, 'a> Decode<'b> for Cow<'a, [u8]>
 where
@@ -113,5 +111,21 @@ where
     #[inline]
     fn decode(decoder: &mut Decoder<'b>) -> Result<Self> {
         <Cow<'a, [u8]> as DecodeBytes<'b>>::decode_bytes(decoder)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl Encode for Cow<'_, str> {
+    #[inline]
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
+        encoder.text(self)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl Encode for Cow<'_, [u8]> {
+    #[inline]
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
+        encoder.bytes(self)
     }
 }

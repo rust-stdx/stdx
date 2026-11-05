@@ -22,6 +22,7 @@ pub(crate) fn options() -> cbor::Options {
     cbor::Options {
         max_depth: MAX_DEPTH,
         duplicate_keys: cbor::DuplicateKeys::Allow,
+        ..Default::default()
     }
 }
 

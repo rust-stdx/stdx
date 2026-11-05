@@ -13,7 +13,7 @@ path = "./cbor.rs"
 
 [features]
 default = ["std"]
-std = ["alloc", "serde?/std"]
+std = ["alloc", "serde?/std", "utf8/std"]
 alloc = []
 derive = ["dep:cbor_derive"]
 serde = ["dep:serde", "alloc"]
@@ -25,8 +25,10 @@ bytes = ["dep:bytes", "alloc"]
 bytes = { workspace = true, optional = true }
 cbor_derive = { path = "./cbor_derive", optional = true }
 heapless = { workspace = true, optional = true }
+hex = { workspace = true }
 serde = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
 small_collections = { path = "../small_collections", optional = true, default-features = false }
+utf8 = { workspace = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }

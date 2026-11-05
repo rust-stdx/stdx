@@ -102,3 +102,15 @@ fn vec_decode_does_not_amplify_large_elements() {
     assert!(result.is_err());
     assert!(counters.bytes <= 64 * 1024, "preallocated {} bytes", counters.bytes);
 }
+
+#[cfg(feature = "std")]
+#[test]
+fn reader_capacity_hint_is_small() {
+    use std::io::{BufReader, Cursor};
+
+    let input = vec![0u8; 1];
+    let mut reader = BufReader::with_capacity(64 * 1024, Cursor::new(input));
+    let item = cbor::reader::read_item(&mut reader).unwrap();
+    assert_eq!(item, vec![0u8]);
+    assert!(item.capacity() <= 1024, "initial capacity {}", item.capacity());
+}

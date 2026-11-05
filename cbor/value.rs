@@ -64,9 +64,18 @@ impl Bignum {
 ///
 /// Duplicate detection during decoding compares each key with the entries
 /// already seen. With the default [`DuplicateKeys::Error`](crate::DuplicateKeys)
-/// policy this is quadratic in the number of entries. For large maps from
-/// untrusted input, use [`DuplicateKeys::Allow`](crate::DuplicateKeys) and
-/// validate separately, or decode into [`Value`].
+/// policy this is quadratic in the number of entries. The decoder's
+/// [`Options::max_duplicate_checks`](crate::Options::max_duplicate_checks)
+/// budget bounds the total work. For very large maps from untrusted input,
+/// use [`DuplicateKeys::Allow`](crate::DuplicateKeys) and validate separately,
+/// or decode into [`Value`].
+///
+/// Comparison uses [`PartialEq`]. This means `-0.0` and `0.0` keys are
+/// considered duplicates, while `NaN` is not equal to itself: byte-identical
+/// `NaN` keys are not detected, and `First`/`Last` cannot replace a `NaN` key
+/// by value. Different `NaN` payloads are distinct at the generic data-model
+/// level, but deterministic encoding collapses them; use
+/// [`try_to_canonical_vec`](crate::try_to_canonical_vec) when that matters.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Map<K = Value, V = Value>(Vec<(K, V)>);
 
@@ -191,7 +200,10 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
 impl Map<Value, Value> {
     /// Sort the map by the RFC 8949 core-deterministic encoding of its keys.
     ///
-    /// Nested maps are canonicalized before their keys are compared.
+    /// Nested maps are canonicalized before their keys are compared. This does
+    /// not reject duplicate or collapsing keys; the sorted map retains them.
+    /// Use [`try_to_canonical_vec`](crate::try_to_canonical_vec) to validate an
+    /// encoding.
     pub fn sort_canonical(&mut self) {
         for (key, value) in &mut self.0 {
             key.canonicalize();
@@ -214,6 +226,9 @@ impl Map<Value, Value> {
 }
 
 /// A dynamic CBOR value.
+///
+/// Decoding into `Value` preserves map wire order and keeps duplicate keys;
+/// [`Options::duplicate_keys`](crate::Options::duplicate_keys) does not apply.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Value {
@@ -248,6 +263,10 @@ impl Value {
     ///
     /// This normalizes bignums, canonicalizes nested map ordering and leaves
     /// floats to the encoder's shortest-form/NaN handling.
+    ///
+    /// This does not reject duplicate or collapsing map keys. Use
+    /// [`try_to_canonical_vec`](crate::try_to_canonical_vec) to validate the
+    /// final encoding.
     pub fn canonicalize(&mut self) {
         match self {
             Value::Bignum(b) => {
@@ -628,13 +647,21 @@ impl<'b, K: Decode<'b> + PartialEq, V: Decode<'b>> Decode<'b> for Map<K, V> {
     fn decode(d: &mut Decoder<'b>) -> Result<Self> {
         let mut map = Map::new();
         let policy = d.options().duplicate_keys;
+        let checks_duplicates = policy != crate::decode::DuplicateKeys::Allow;
         match d.map()? {
             Some(len) => {
+                if checks_duplicates {
+                    // Charging the whole map up front bounds the O(n^2) work
+                    // before any key or value is decoded.
+                    let cost = len.saturating_mul(len.saturating_sub(1)) / 2;
+                    d.charge_duplicate_checks(cost)?;
+                }
                 map = Map::with_capacity(collection_capacity::<(K, V)>(len, d.remaining()));
                 for _ in 0..len {
+                    let key_start = d.position();
                     let key = K::decode(d)?;
                     let value = V::decode(d)?;
-                    insert_pair(&mut map, key, value, policy)?;
+                    insert_pair(&mut map, key, value, policy, key_start)?;
                 }
             }
             None => loop {
@@ -642,12 +669,18 @@ impl<'b, K: Decode<'b> + PartialEq, V: Decode<'b>> Decode<'b> for Map<K, V> {
                     d.read_break()?;
                     break;
                 }
+                if checks_duplicates {
+                    // `insert_pair` scans the entries already present, so the
+                    // cost of this insertion is `map.len()`.
+                    d.charge_duplicate_checks(map.len())?;
+                }
+                let key_start = d.position();
                 let key = K::decode(d)?;
                 if d.is_break() {
                     return Err(Error::message("indefinite map has an odd number of items").at(d.position()));
                 }
                 let value = V::decode(d)?;
-                insert_pair(&mut map, key, value, policy)?;
+                insert_pair(&mut map, key, value, policy, key_start)?;
             },
         }
         Ok(map)
@@ -659,23 +692,22 @@ fn insert_pair<K: PartialEq, V>(
     key: K,
     value: V,
     policy: crate::decode::DuplicateKeys,
+    offset: usize,
 ) -> Result<()> {
     if policy == crate::decode::DuplicateKeys::Allow {
         map.push(key, value);
         return Ok(());
     }
-    if map.get(&key).is_some() {
-        match policy {
-            crate::decode::DuplicateKeys::Error => return Err(Error::duplicate_key()),
-            crate::decode::DuplicateKeys::First => return Ok(()),
-            crate::decode::DuplicateKeys::Last => {
-                map.insert(key, value);
-                return Ok(());
-            }
-            crate::decode::DuplicateKeys::Allow => return Ok(()),
-        }
+    let position = map.0.iter().position(|(existing, _)| *existing == key);
+    match position {
+        None => map.push(key, value),
+        Some(index) => match policy {
+            crate::decode::DuplicateKeys::Error => return Err(Error::duplicate_key().at(offset)),
+            crate::decode::DuplicateKeys::First => {}
+            crate::decode::DuplicateKeys::Last => map.0[index].1 = value,
+            crate::decode::DuplicateKeys::Allow => {}
+        },
     }
-    map.push(key, value);
     Ok(())
 }
 

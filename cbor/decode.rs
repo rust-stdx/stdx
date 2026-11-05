@@ -9,7 +9,7 @@ use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
 use alloc::string::String;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
-use core::{marker::PhantomData, str};
+use core::marker::PhantomData;
 
 use crate::{
     data::{Integer, Simple, Tag, Type},
@@ -52,20 +52,82 @@ pub(crate) fn collection_capacity<T>(len: usize, remaining: usize) -> usize {
     len.min(budget / element_size)
 }
 
+/// Tag handling policy for the serde adapter.
+///
+/// The typed API ignores this policy: tags are represented explicitly with
+/// [`Tagged`](crate::Tagged) and [`TaggedValue`](crate::TaggedValue).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TagPolicy {
+    /// Ignore every tag and decode its content as if it were untagged.
+    ///
+    /// This is lossy: the tag number is discarded. Use `Reject` for protocols
+    /// where tags carry security-relevant meaning.
+    Skip,
+    /// Reject any tag unless the target explicitly uses
+    /// [`Tagged`](crate::Tagged) or [`TaggedValue`](crate::TaggedValue).
+    Reject,
+}
+
+/// Default number of entries used to derive the duplicate-check budget.
+///
+/// The default budget allows one map of this many entries, or many smaller
+/// maps that together cost no more comparisons.
+pub const DEFAULT_MAX_MAP_ENTRIES: usize = 2048;
+
+/// Default decoder-wide duplicate-check budget.
+///
+/// This is the number of key comparisons needed to check a single map with
+/// [`DEFAULT_MAX_MAP_ENTRIES`] entries:
+/// e.g. `2048 * 2047 / 2`.
+pub const DEFAULT_MAX_DUPLICATE_CHECKS: usize =
+    DEFAULT_MAX_MAP_ENTRIES.saturating_mul(DEFAULT_MAX_MAP_ENTRIES.saturating_sub(1)) / 2;
+
 /// Decoder configuration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
     /// Maximum nesting depth for recursive decoding and validation.
     pub max_depth: usize,
-    /// Duplicate-key policy for typed maps.
+    /// Maximum number of entries accepted in a container.
+    ///
+    /// `None` disables the bound. When set, a definite-length array or map
+    /// whose declared length exceeds it is rejected as soon as the header is
+    /// read, and an indefinite-length array or map is rejected outright
+    /// because its size is not declared up front and therefore cannot be
+    /// checked.
+    ///
+    /// The bound applies to [`Decoder::array`], [`Decoder::map`], [`Decoder::skip`],
+    /// typed collections, `Value` and validation. It is the container-level
+    /// counterpart of [`Options::max_duplicate_checks`], which bounds the cost
+    /// of duplicate-key detection rather than the number of entries.
+    pub max_container_entries: Option<usize>,
+    /// Duplicate-key policy for typed maps (`BTreeMap`, `HashMap`, `Map`).
+    ///
+    /// This is ignored when decoding into `cbor::Value`, which is
+    /// order-preserving and keeps duplicate keys. Derived maps always reject a
+    /// duplicate field, regardless of this policy, because the derive knows
+    /// the complete key set at compile time. It is also only partially honored
+    /// by the serde adapter; see [`DuplicateKeys`].
     pub duplicate_keys: DuplicateKeys,
+    /// Decoder-wide budget for pairwise key comparisons spent on duplicate
+    /// checks in `cbor::Map` decoding.
+    ///
+    /// `None` disables the bound. The default equals
+    /// [`DEFAULT_MAX_DUPLICATE_CHECKS`]. The budget is shared by all maps
+    /// decoded by one [`Decoder`], so nested maps cannot multiply the
+    /// quadratic cost.
+    pub max_duplicate_checks: Option<usize>,
+    /// Tag handling for the serde adapter. Ignored by the typed API.
+    pub serde_tags_policy: TagPolicy,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Options {
             max_depth: 32,
+            max_container_entries: None,
             duplicate_keys: DuplicateKeys::Error,
+            max_duplicate_checks: Some(DEFAULT_MAX_DUPLICATE_CHECKS),
+            serde_tags_policy: TagPolicy::Skip,
         }
     }
 }
@@ -76,6 +138,8 @@ pub struct Decoder<'b> {
     input: &'b [u8],
     pos: usize,
     depth: usize,
+    #[cfg(feature = "alloc")]
+    duplicate_checks: usize,
     options: Options,
 }
 
@@ -87,6 +151,8 @@ impl<'b> Decoder<'b> {
             input,
             pos: 0,
             depth: 0,
+            #[cfg(feature = "alloc")]
+            duplicate_checks: 0,
             options: Options::default(),
         }
     }
@@ -98,6 +164,8 @@ impl<'b> Decoder<'b> {
             input,
             pos: 0,
             depth: 0,
+            #[cfg(feature = "alloc")]
+            duplicate_checks: 0,
             options,
         }
     }
@@ -109,9 +177,52 @@ impl<'b> Decoder<'b> {
     }
 
     /// Replace the decoder options.
+    ///
+    /// The duplicate-check budget already consumed by this decoder is
+    /// preserved.
     #[inline]
     pub fn set_options(&mut self, options: Options) {
         self.options = options;
+    }
+
+    /// Consume part of the decoder-wide duplicate-check budget.
+    #[cfg(feature = "alloc")]
+    #[inline]
+    pub(crate) fn charge_duplicate_checks(&mut self, checks: usize) -> Result<()> {
+        let Some(limit) = self.options.max_duplicate_checks else {
+            return Ok(());
+        };
+        self.duplicate_checks = self.duplicate_checks.saturating_add(checks);
+        if self.duplicate_checks > limit {
+            return Err(Error::new(ErrorKind::DuplicateCheckLimitExceeded, self.pos));
+        }
+        Ok(())
+    }
+
+    /// Reject a container whose declared entry count exceeds
+    /// [`Options::max_container_entries`].
+    #[inline]
+    fn check_container_entries(&self, len: u64, start: usize) -> Result<()> {
+        if let Some(limit) = self.options.max_container_entries
+            && len > limit as u64
+        {
+            return Err(Error::container_limit().at(start));
+        }
+        Ok(())
+    }
+
+    /// Reject an indefinite-length container while a container limit is
+    /// configured.
+    ///
+    /// Indefinite containers have no declared size, so the limit cannot be
+    /// checked up front. Callers that accept untrusted input should encode
+    /// definite-length containers instead.
+    #[inline]
+    fn check_indefinite_container(&self, start: usize) -> Result<()> {
+        if self.options.max_container_entries.is_some() {
+            return Err(Error::container_limit().at(start));
+        }
+        Ok(())
     }
 
     /// Return the current byte position.
@@ -187,23 +298,33 @@ impl<'b> Decoder<'b> {
         self.take(len)
     }
 
+    /// Read a 1-, 2-, 4-, or 8-byte big-endian argument.
+    #[inline(always)]
+    fn read_width(&mut self, len: usize) -> Result<u64> {
+        debug_assert!(matches!(len, 1 | 2 | 4 | 8));
+        if self.remaining() >= 8 {
+            // One unaligned word load covers every argument width. The
+            // argument occupies the most significant `len` bytes.
+            let bytes: [u8; 8] = self.input[self.pos..self.pos + 8].try_into().unwrap();
+            self.pos += len;
+            Ok(u64::from_be_bytes(bytes) >> (64 - 8 * len))
+        } else {
+            let bytes = self.take(len)?;
+            Ok(match len {
+                1 => u64::from(bytes[0]),
+                2 => u64::from(u16::from_be_bytes([bytes[0], bytes[1]])),
+                4 => u64::from(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
+                8 => u64::from_be_bytes(bytes.try_into().unwrap()),
+                _ => unreachable!(),
+            })
+        }
+    }
+
     #[inline(always)]
     fn read_arg(&mut self, ai: u8) -> Result<u64> {
         match ai {
             0..=23 => Ok(u64::from(ai)),
-            24 => Ok(u64::from(self.read()?)),
-            25 => {
-                let b = self.take(2)?;
-                Ok(u64::from(u16::from_be_bytes([b[0], b[1]])))
-            }
-            26 => {
-                let b = self.take(4)?;
-                Ok(u64::from(u32::from_be_bytes([b[0], b[1], b[2], b[3]])))
-            }
-            27 => {
-                let b = self.take(8)?;
-                Ok(u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))
-            }
+            24..=27 => self.read_width(1usize << (ai - 24)),
             28..=30 => Err(Error::message("reserved additional information").at(self.pos)),
             31 => Err(Error::message("unexpected indefinite length or break").at(self.pos)),
             _ => unreachable!(),
@@ -617,7 +738,7 @@ impl<'b> Decoder<'b> {
     /// Decode a definite-length byte string.
     ///
     /// Indefinite-length strings must be read with [`Decoder::bytes_iter`] or
-    /// [`Decoder::bytes_owned`].
+    /// `Decoder::bytes_owned`.
     pub fn bytes(&mut self) -> Result<&'b [u8]> {
         let start = self.pos;
         let b = self.read()?;
@@ -631,7 +752,7 @@ impl<'b> Decoder<'b> {
     /// Decode a definite-length text string.
     ///
     /// Indefinite-length strings must be read with [`Decoder::text_iter`] or
-    /// [`Decoder::text_owned`].
+    /// `Decoder::text_owned`.
     pub fn text(&mut self) -> Result<&'b str> {
         let start = self.pos;
         let b = self.read()?;
@@ -640,7 +761,7 @@ impl<'b> Decoder<'b> {
         }
         let len = self.read_arg(b & 0x1f)?;
         let bytes = self.take_u64(len)?;
-        str::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, start))
+        utf8::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, start))
     }
 
     /// Return an iterator over the chunks of a byte string.
@@ -697,7 +818,9 @@ impl<'b> Decoder<'b> {
 
     /// Read an array header.
     ///
-    /// Returns `None` for an indefinite-length array.
+    /// Returns `None` for an indefinite-length array. When
+    /// [`Options::max_container_entries`] is set, a longer-than-allowed definite
+    /// array or any indefinite-length array is rejected.
     pub fn array(&mut self) -> Result<Option<usize>> {
         let start = self.pos;
         let b = self.read()?;
@@ -705,9 +828,11 @@ impl<'b> Decoder<'b> {
             return Err(Error::type_mismatch(Type::Array, type_of_byte(b)).at(start));
         }
         if b & 0x1f == 31 {
+            self.check_indefinite_container(start)?;
             return Ok(None);
         }
         let len = self.read_arg(b & 0x1f)?;
+        self.check_container_entries(len, start)?;
         if len > self.remaining() as u64 {
             return Err(Error::eof().at(self.pos));
         }
@@ -716,7 +841,9 @@ impl<'b> Decoder<'b> {
 
     /// Read a map header.
     ///
-    /// Returns `None` for an indefinite-length map.
+    /// Returns `None` for an indefinite-length map. When
+    /// [`Options::max_container_entries`] is set, a longer-than-allowed definite
+    /// map or any indefinite-length map is rejected.
     pub fn map(&mut self) -> Result<Option<usize>> {
         let start = self.pos;
         let b = self.read()?;
@@ -724,9 +851,11 @@ impl<'b> Decoder<'b> {
             return Err(Error::type_mismatch(Type::Map, type_of_byte(b)).at(start));
         }
         if b & 0x1f == 31 {
+            self.check_indefinite_container(start)?;
             return Ok(None);
         }
         let len = self.read_arg(b & 0x1f)?;
+        self.check_container_entries(len, start)?;
         if len > (self.remaining() / 2) as u64 {
             return Err(Error::eof().at(self.pos));
         }
@@ -757,7 +886,9 @@ impl<'b> Decoder<'b> {
     /// Skip one complete item.
     ///
     /// Text strings are checked for UTF-8 validity, matching [`validate`](crate::validate).
-    /// The configured depth limit applies to nested containers and tags.
+    /// The configured depth limit applies to nested containers and tags. When
+    /// [`Options::max_container_entries`] is set, definite-length arrays and maps
+    /// are checked against it and indefinite-length ones are rejected.
     pub fn skip(&mut self) -> Result<()> {
         self.skip_depth(0)
     }
@@ -780,75 +911,132 @@ impl<'b> Decoder<'b> {
                 } else {
                     let len = self.read_arg(ai)?;
                     let bytes = self.take_u64(len)?;
-                    if major == 0x60 && str::from_utf8(bytes).is_err() {
+                    if major == 0x60 && !utf8::validate(bytes) {
                         return Err(Error::new(ErrorKind::InvalidUtf8, start));
                     }
                 }
             }
             0x80 => {
                 if ai == 31 {
+                    self.check_indefinite_container(start)?;
                     loop {
                         if self.is_break() {
                             self.read_break()?;
                             break;
                         }
-                        self.skip_depth(depth + 1)?;
+                        self.skip_one(depth + 1)?;
                     }
                 } else {
                     let len = self.read_arg(ai)?;
-                    for _ in 0..len {
-                        self.skip_depth(depth + 1)?;
-                    }
+                    self.check_container_entries(len, start)?;
+                    self.skip_items(len, 1, depth)?;
                 }
             }
             0xa0 => {
                 if ai == 31 {
+                    self.check_indefinite_container(start)?;
                     loop {
                         if self.is_break() {
                             self.read_break()?;
                             break;
                         }
-                        self.skip_depth(depth + 1)?;
+                        self.skip_one(depth + 1)?;
                         if self.is_break() {
                             return Err(Error::message("indefinite map has an odd number of items").at(self.pos));
                         }
-                        self.skip_depth(depth + 1)?;
+                        self.skip_one(depth + 1)?;
                     }
                 } else {
                     let len = self.read_arg(ai)?;
-                    for _ in 0..len {
-                        self.skip_depth(depth + 1)?;
-                        self.skip_depth(depth + 1)?;
-                    }
+                    self.check_container_entries(len, start)?;
+                    self.skip_items(len, 2, depth)?;
                 }
             }
             0xc0 => {
                 self.read_arg(ai)?;
-                self.skip_depth(depth + 1)?;
+                self.skip_one(depth + 1)?;
             }
-            _ => match ai {
-                0..=23 => {}
-                24 => {
-                    let value = self.read()?;
-                    if value < 32 {
-                        return Err(Error::new(ErrorKind::InvalidSimple(value), start));
-                    }
-                }
-                25 => {
-                    self.take(2)?;
-                }
-                26 => {
-                    self.take(4)?;
-                }
-                27 => {
-                    self.take(8)?;
-                }
-                28..=30 => return Err(Error::message("reserved additional information").at(start)),
-                31 => return Err(Error::message("unexpected break").at(start)),
-                _ => unreachable!(),
-            },
+            _ => self.skip_simple(start, ai)?,
         }
         Ok(())
+    }
+
+    /// Skip `count` definite container entries, `per` items each.
+    ///
+    /// Primitive items are handled in this loop instead of through a recursive
+    /// call per item. Nested containers still recurse through [`skip_depth`].
+    #[inline]
+    fn skip_items(&mut self, count: u64, per: u64, depth: usize) -> Result<()> {
+        for _ in 0..count {
+            for _ in 0..per {
+                self.skip_one(depth + 1)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Skip one item, inlining the primitive cases.
+    #[inline(always)]
+    fn skip_one(&mut self, depth: usize) -> Result<()> {
+        if depth > self.options.max_depth {
+            return Err(Error::depth_limit().at(self.pos));
+        }
+        let start = self.pos;
+        let b = self.read()?;
+        let major = b & 0xe0;
+        let ai = b & 0x1f;
+        match major {
+            0x00 | 0x20 => {
+                self.read_arg(ai)?;
+                Ok(())
+            }
+            0x40 | 0x60 => {
+                if ai == 31 {
+                    self.pos = start;
+                    return self.skip_depth(depth);
+                }
+                let len = self.read_arg(ai)?;
+                let bytes = self.take_u64(len)?;
+                if major == 0x60 && !utf8::validate(bytes) {
+                    return Err(Error::new(ErrorKind::InvalidUtf8, start));
+                }
+                Ok(())
+            }
+            0x80 | 0xa0 | 0xc0 => {
+                self.pos = start;
+                self.skip_depth(depth)
+            }
+            _ => self.skip_simple(start, ai),
+        }
+    }
+
+    #[inline(always)]
+    fn skip_simple(&mut self, start: usize, ai: u8) -> Result<()> {
+        match ai {
+            0..=23 => Ok(()),
+            24 => {
+                let value = self.read()?;
+                if value < 32 {
+                    return Err(Error::new(ErrorKind::InvalidSimple(value), start));
+                }
+                Ok(())
+            }
+            25 => {
+                self.take(2)?;
+                Ok(())
+            }
+            26 => {
+                self.take(4)?;
+                Ok(())
+            }
+            27 => {
+                self.take(8)?;
+                Ok(())
+            }
+            28..=30 => Err(Error::message("reserved additional information").at(start)),
+            31 => Err(Error::message("unexpected break").at(start)),
+            _ => unreachable!(),
+        }
     }
 
     fn skip_indefinite_string(&mut self, major: u8, depth: usize) -> Result<()> {
@@ -865,7 +1053,7 @@ impl<'b> Decoder<'b> {
             self.pos += 1;
             let len = self.read_arg(b & 0x1f)?;
             let bytes = self.take_u64(len)?;
-            if major == 0x60 && str::from_utf8(bytes).is_err() {
+            if major == 0x60 && !utf8::validate(bytes) {
                 return Err(Error::new(ErrorKind::InvalidUtf8, start));
             }
             let _ = depth;
@@ -883,7 +1071,9 @@ impl<'b> Decoder<'b> {
         if b & 0x1f != 31 {
             let len = self.read_arg(b & 0x1f)?;
             let bytes = self.take_u64(len)?;
-            return String::from_utf8(bytes.to_vec()).map_err(|_| Error::new(ErrorKind::InvalidUtf8, start));
+            return utf8::from_utf8(bytes)
+                .map(String::from)
+                .map_err(|_| Error::new(ErrorKind::InvalidUtf8, start));
         }
         let mut out = String::new();
         loop {
@@ -899,7 +1089,7 @@ impl<'b> Decoder<'b> {
             self.pos += 1;
             let len = self.read_arg(b & 0x1f)?;
             let bytes = self.take_u64(len)?;
-            let text = str::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, chunk_start))?;
+            let text = utf8::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, chunk_start))?;
             out.push_str(text);
         }
     }
@@ -1018,7 +1208,7 @@ impl<'b> Iterator for TextIter<'_, 'b> {
                 return None;
             }
             return Some(match self.decoder.take_u64(remaining) {
-                Ok(bytes) => str::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, self.decoder.pos)),
+                Ok(bytes) => utf8::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, self.decoder.pos)),
                 Err(e) => Err(e),
             });
         }
@@ -1039,7 +1229,7 @@ impl<'b> Iterator for TextIter<'_, 'b> {
                     }
                 };
                 match self.decoder.take_u64(len) {
-                    Ok(bytes) => Some(str::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, start))),
+                    Ok(bytes) => Some(utf8::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidUtf8, start))),
                     Err(e) => {
                         self.done = true;
                         Some(Err(e))
@@ -1183,6 +1373,22 @@ impl<'b> Decode<'b> for String {
     #[inline]
     fn decode(d: &mut Decoder<'b>) -> Result<Self> {
         d.text_owned()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'b, 'a> Decode<'b> for alloc::borrow::Cow<'a, str>
+where
+    'b: 'a,
+{
+    #[inline]
+    fn decode(d: &mut Decoder<'b>) -> Result<Self> {
+        let head = d.peek_byte()?;
+        if head & 0xe0 == 0x60 && head & 0x1f == 31 {
+            Ok(alloc::borrow::Cow::Owned(d.text_owned()?))
+        } else {
+            Ok(alloc::borrow::Cow::Borrowed(d.text()?))
+        }
     }
 }
 
@@ -1382,9 +1588,10 @@ where
     match d.map()? {
         Some(len) => {
             for _ in 0..len {
+                let key_start = d.position();
                 let key = K::decode(d)?;
                 let value = V::decode(d)?;
-                insert_map(out, key, value, duplicate)?;
+                insert_map(out, key, value, duplicate, key_start)?;
             }
         }
         None => loop {
@@ -1392,12 +1599,13 @@ where
                 d.read_break()?;
                 break;
             }
+            let key_start = d.position();
             let key = K::decode(d)?;
             if d.is_break() {
                 return Err(Error::message("indefinite map has an odd number of items").at(d.position()));
             }
             let value = V::decode(d)?;
-            insert_map(out, key, value, duplicate)?;
+            insert_map(out, key, value, duplicate, key_start)?;
         },
     }
     Ok(())
@@ -1405,44 +1613,55 @@ where
 
 #[cfg(feature = "alloc")]
 trait MapInsert<K, V> {
-    fn contains(&self, key: &K) -> bool;
-    fn insert(&mut self, key: K, value: V);
+    fn insert_with_policy(&mut self, key: K, value: V, policy: DuplicateKeys, offset: usize) -> Result<()>;
 }
 
 #[cfg(feature = "alloc")]
 impl<K: Ord, V> MapInsert<K, V> for BTreeMap<K, V> {
-    fn contains(&self, key: &K) -> bool {
-        BTreeMap::contains_key(self, key)
-    }
-    fn insert(&mut self, key: K, value: V) {
-        BTreeMap::insert(self, key, value);
+    fn insert_with_policy(&mut self, key: K, value: V, policy: DuplicateKeys, offset: usize) -> Result<()> {
+        match self.entry(key) {
+            alloc::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(value);
+                Ok(())
+            }
+            alloc::collections::btree_map::Entry::Occupied(mut entry) => match policy {
+                DuplicateKeys::Error => Err(Error::duplicate_key().at(offset)),
+                DuplicateKeys::First => Ok(()),
+                DuplicateKeys::Last | DuplicateKeys::Allow => {
+                    entry.insert(value);
+                    Ok(())
+                }
+            },
+        }
     }
 }
 
 #[cfg(feature = "std")]
 impl<K: core::hash::Hash + Eq, V, S: core::hash::BuildHasher> MapInsert<K, V> for std::collections::HashMap<K, V, S> {
-    fn contains(&self, key: &K) -> bool {
-        std::collections::HashMap::contains_key(self, key)
-    }
-    fn insert(&mut self, key: K, value: V) {
-        std::collections::HashMap::insert(self, key, value);
+    fn insert_with_policy(&mut self, key: K, value: V, policy: DuplicateKeys, offset: usize) -> Result<()> {
+        match self.entry(key) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(value);
+                Ok(())
+            }
+            std::collections::hash_map::Entry::Occupied(mut entry) => match policy {
+                DuplicateKeys::Error => Err(Error::duplicate_key().at(offset)),
+                DuplicateKeys::First => Ok(()),
+                DuplicateKeys::Last | DuplicateKeys::Allow => {
+                    entry.insert(value);
+                    Ok(())
+                }
+            },
+        }
     }
 }
 
 #[cfg(feature = "alloc")]
-fn insert_map<M, K, V>(out: &mut M, key: K, value: V, policy: DuplicateKeys) -> Result<()>
+fn insert_map<M, K, V>(out: &mut M, key: K, value: V, policy: DuplicateKeys, offset: usize) -> Result<()>
 where
     M: MapInsert<K, V>,
 {
-    if out.contains(&key) {
-        match policy {
-            DuplicateKeys::Error => return Err(Error::duplicate_key()),
-            DuplicateKeys::First => return Ok(()),
-            DuplicateKeys::Last | DuplicateKeys::Allow => {}
-        }
-    }
-    out.insert(key, value);
-    Ok(())
+    out.insert_with_policy(key, value, policy, offset)
 }
 
 macro_rules! impl_tuple_decode {

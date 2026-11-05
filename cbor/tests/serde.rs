@@ -189,3 +189,66 @@ fn serde_depth_limit() {
     bytes.push(0x00);
     assert!(cbor::serde::from_slice::<cbor::Value>(&bytes).is_err());
 }
+
+#[test]
+fn serde_tag_policy_skip_and_reject() {
+    let skip = cbor::Options {
+        serde_tags_policy: cbor::TagPolicy::Skip,
+        ..Default::default()
+    };
+    let reject = cbor::Options {
+        serde_tags_policy: cbor::TagPolicy::Reject,
+        ..Default::default()
+    };
+
+    // tag(0)("hi")
+    let tagged_text = [0xc0u8, 0x62, b'h', b'i'];
+    assert_eq!(
+        cbor::serde::from_slice_with_options::<String>(&tagged_text, skip).unwrap(),
+        "hi"
+    );
+    assert!(cbor::serde::from_slice_with_options::<String>(&tagged_text, reject).is_err());
+
+    // tag(1)(7)
+    let tagged_int = [0xc1u8, 0x07];
+    assert_eq!(cbor::serde::from_slice_with_options::<u64>(&tagged_int, skip).unwrap(), 7);
+    assert!(cbor::serde::from_slice_with_options::<u64>(&tagged_int, reject).is_err());
+
+    // Explicit tag wrappers still work under Reject.
+    let tagged = cbor::TaggedValue {
+        tag: cbor::Tag::new(1),
+        value: 7u8,
+    };
+    let bytes = cbor::serde::to_vec(&tagged).unwrap();
+    let decoded: cbor::TaggedValue<u8> = cbor::serde::from_slice_with_options(&bytes, reject).unwrap();
+    assert_eq!(decoded, tagged);
+}
+
+#[test]
+fn serde_is_not_human_readable() {
+    struct Binary;
+
+    impl Serialize for Binary {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            if serializer.is_human_readable() {
+                serializer.serialize_str("human")
+            } else {
+                serializer.serialize_bytes(b"bin")
+            }
+        }
+    }
+
+    assert_eq!(cbor::serde::to_vec(&Binary).unwrap(), vec![0x43, b'b', b'i', b'n']);
+
+    struct BinaryRead;
+
+    impl<'de> Deserialize<'de> for BinaryRead {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            assert!(!deserializer.is_human_readable());
+            u8::deserialize(deserializer)?;
+            Ok(BinaryRead)
+        }
+    }
+
+    assert!(cbor::serde::from_slice::<BinaryRead>(&[0x00]).is_ok());
+}

@@ -56,7 +56,10 @@ impl Encode for RawValue<'_> {
     }
 }
 
-impl<'b> Decode<'b> for RawValue<'b> {
+impl<'b, 'a> Decode<'b> for RawValue<'a>
+where
+    'b: 'a,
+{
     #[inline]
     fn decode(d: &mut Decoder<'b>) -> Result<Self> {
         let start = d.position();

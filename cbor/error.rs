@@ -26,6 +26,11 @@ pub enum ErrorKind {
     InvalidSimple(u8),
     /// The configured recursion limit was exceeded.
     DepthLimitExceeded,
+    /// The configured container entry limit was exceeded, or an
+    /// indefinite-length container was found while a limit was configured.
+    ContainerLimitExceeded,
+    /// The decoder-wide duplicate-check budget was exceeded.
+    DuplicateCheckLimitExceeded,
     /// A map contained the same key twice.
     DuplicateKey,
     /// An enum variant index or name was not recognized.
@@ -139,6 +144,12 @@ impl Error {
     pub const fn depth_limit() -> Self {
         Error::new(ErrorKind::DepthLimitExceeded, 0)
     }
+
+    /// Create a container entry-limit error.
+    #[inline]
+    pub const fn container_limit() -> Self {
+        Error::new(ErrorKind::ContainerLimitExceeded, 0)
+    }
 }
 
 impl fmt::Display for Error {
@@ -155,6 +166,12 @@ impl fmt::Display for Error {
             ErrorKind::InvalidSimple(v) => write!(f, "invalid simple value {v} at offset {}", self.offset),
             ErrorKind::DepthLimitExceeded => {
                 write!(f, "recursion limit exceeded at offset {}", self.offset)
+            }
+            ErrorKind::ContainerLimitExceeded => {
+                write!(f, "container entry limit exceeded at offset {}", self.offset)
+            }
+            ErrorKind::DuplicateCheckLimitExceeded => {
+                write!(f, "duplicate-check limit exceeded at offset {}", self.offset)
             }
             ErrorKind::DuplicateKey => write!(f, "duplicate map key at offset {}", self.offset),
             ErrorKind::UnknownVariant => write!(f, "unknown enum variant at offset {}", self.offset),

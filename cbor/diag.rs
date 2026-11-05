@@ -33,6 +33,10 @@ struct Printer<'a, 'b, W> {
 }
 
 impl<W: fmt::Write> Printer<'_, '_, W> {
+    fn write_error(&mut self, error: crate::Error) -> fmt::Result {
+        write!(self.out, "!{error}")
+    }
+
     fn item(&mut self, depth: usize) -> fmt::Result {
         if depth > 128 {
             return self.out.write_str("...");
@@ -46,68 +50,94 @@ impl<W: fmt::Write> Printer<'_, '_, W> {
         };
         use crate::data::Type::*;
         match ty {
-            Null => {
-                self.decoder.null().map_err(|_| fmt::Error)?;
-                self.out.write_str("null")
-            }
-            Undefined => {
-                self.decoder.undefined().map_err(|_| fmt::Error)?;
-                self.out.write_str("undefined")
-            }
-            Bool => {
-                let value = self.decoder.bool().map_err(|_| fmt::Error)?;
-                self.out.write_str(if value { "true" } else { "false" })
-            }
-            U8 | U16 | U32 | U64 | I8 | I16 | I32 | I64 => {
-                let value = self.decoder.int().map_err(|_| fmt::Error)?;
-                write!(self.out, "{value}")
-            }
-            F16 | F32 | F64 => {
-                let value = self.decoder.f64().map_err(|_| fmt::Error)?;
-                write_float(self.out, value)
-            }
-            Simple => {
-                let value = self.decoder.simple().map_err(|_| fmt::Error)?;
-                write!(self.out, "simple({})", value.get())
-            }
-            Bytes => {
-                let bytes = self.decoder.bytes().map_err(|_| fmt::Error)?;
-                write_bytes(self.out, bytes)
-            }
+            Null => match self.decoder.null() {
+                Ok(()) => self.out.write_str("null"),
+                Err(error) => self.write_error(error),
+            },
+            Undefined => match self.decoder.undefined() {
+                Ok(()) => self.out.write_str("undefined"),
+                Err(error) => self.write_error(error),
+            },
+            Bool => match self.decoder.bool() {
+                Ok(value) => self.out.write_str(if value { "true" } else { "false" }),
+                Err(error) => self.write_error(error),
+            },
+            U8 | U16 | U32 | U64 | I8 | I16 | I32 | I64 => match self.decoder.int() {
+                Ok(value) => write!(self.out, "{value}"),
+                Err(error) => self.write_error(error),
+            },
+            F16 | F32 | F64 => match self.decoder.f64() {
+                Ok(value) => write_float(self.out, value),
+                Err(error) => self.write_error(error),
+            },
+            Simple => match self.decoder.simple() {
+                Ok(value) => write!(self.out, "simple({})", value.get()),
+                Err(error) => self.write_error(error),
+            },
+            Bytes => match self.decoder.bytes() {
+                Ok(bytes) => write_bytes(self.out, bytes),
+                Err(error) => self.write_error(error),
+            },
             BytesIndef => {
                 self.out.write_str("(_ ")?;
-                let iter = self.decoder.bytes_iter().map_err(|_| fmt::Error)?;
+                let iter = match self.decoder.bytes_iter() {
+                    Ok(iter) => iter,
+                    Err(error) => {
+                        self.write_error(error)?;
+                        return self.out.write_str(")");
+                    }
+                };
                 let mut first = true;
                 for chunk in iter {
-                    let chunk = chunk.map_err(|_| fmt::Error)?;
                     if !first {
                         self.out.write_str(", ")?;
                     }
                     first = false;
-                    write_bytes(self.out, chunk)?;
+                    match chunk {
+                        Ok(chunk) => write_bytes(self.out, chunk)?,
+                        Err(error) => {
+                            self.write_error(error)?;
+                            break;
+                        }
+                    }
                 }
                 self.out.write_str(")")
             }
-            Text => {
-                let text = self.decoder.text().map_err(|_| fmt::Error)?;
-                write_text(self.out, text)
-            }
+            Text => match self.decoder.text() {
+                Ok(text) => write_text(self.out, text),
+                Err(error) => self.write_error(error),
+            },
             TextIndef => {
                 self.out.write_str("(_ ")?;
-                let iter = self.decoder.text_iter().map_err(|_| fmt::Error)?;
+                let iter = match self.decoder.text_iter() {
+                    Ok(iter) => iter,
+                    Err(error) => {
+                        self.write_error(error)?;
+                        return self.out.write_str(")");
+                    }
+                };
                 let mut first = true;
                 for chunk in iter {
-                    let chunk = chunk.map_err(|_| fmt::Error)?;
                     if !first {
                         self.out.write_str(", ")?;
                     }
                     first = false;
-                    write_text(self.out, chunk)?;
+                    match chunk {
+                        Ok(chunk) => write_text(self.out, chunk)?,
+                        Err(error) => {
+                            self.write_error(error)?;
+                            break;
+                        }
+                    }
                 }
                 self.out.write_str(")")
             }
             Array => {
-                let len = self.decoder.array().map_err(|_| fmt::Error)?.unwrap_or(0);
+                let len = match self.decoder.array() {
+                    Ok(Some(len)) => len,
+                    Ok(None) => 0,
+                    Err(error) => return self.write_error(error),
+                };
                 self.out.write_str("[")?;
                 for i in 0..len {
                     if i > 0 {
@@ -118,7 +148,9 @@ impl<W: fmt::Write> Printer<'_, '_, W> {
                 self.out.write_str("]")
             }
             ArrayIndef => {
-                let _ = self.decoder.array().map_err(|_| fmt::Error)?;
+                if let Err(error) = self.decoder.array() {
+                    return self.write_error(error);
+                }
                 self.out.write_str("[_ ")?;
                 let mut first = true;
                 while !self.decoder.is_break() {
@@ -129,14 +161,24 @@ impl<W: fmt::Write> Printer<'_, '_, W> {
                     let before = self.decoder.position();
                     self.item(depth + 1)?;
                     if self.decoder.position() == before {
-                        return Err(fmt::Error);
+                        self.out.write_str("...")?;
+                        break;
                     }
                 }
-                self.decoder.read_break().map_err(|_| fmt::Error)?;
-                self.out.write_str("]")
+                match self.decoder.read_break() {
+                    Ok(()) => self.out.write_str("]"),
+                    Err(error) => {
+                        self.write_error(error)?;
+                        self.out.write_str("]")
+                    }
+                }
             }
             Map => {
-                let len = self.decoder.map().map_err(|_| fmt::Error)?.unwrap_or(0);
+                let len = match self.decoder.map() {
+                    Ok(Some(len)) => len,
+                    Ok(None) => 0,
+                    Err(error) => return self.write_error(error),
+                };
                 self.out.write_str("{")?;
                 for i in 0..len {
                     if i > 0 {
@@ -149,7 +191,9 @@ impl<W: fmt::Write> Printer<'_, '_, W> {
                 self.out.write_str("}")
             }
             MapIndef => {
-                let _ = self.decoder.map().map_err(|_| fmt::Error)?;
+                if let Err(error) = self.decoder.map() {
+                    return self.write_error(error);
+                }
                 self.out.write_str("{_ ")?;
                 let mut first = true;
                 while !self.decoder.is_break() {
@@ -160,24 +204,33 @@ impl<W: fmt::Write> Printer<'_, '_, W> {
                     let before = self.decoder.position();
                     self.item(depth + 1)?;
                     if self.decoder.position() == before {
-                        return Err(fmt::Error);
+                        self.out.write_str("...")?;
+                        break;
                     }
                     self.out.write_str(": ")?;
                     let before = self.decoder.position();
                     self.item(depth + 1)?;
                     if self.decoder.position() == before {
-                        return Err(fmt::Error);
+                        self.out.write_str("...")?;
+                        break;
                     }
                 }
-                self.decoder.read_break().map_err(|_| fmt::Error)?;
-                self.out.write_str("}")
+                match self.decoder.read_break() {
+                    Ok(()) => self.out.write_str("}"),
+                    Err(error) => {
+                        self.write_error(error)?;
+                        self.out.write_str("}")
+                    }
+                }
             }
-            Tag => {
-                let tag = self.decoder.tag().map_err(|_| fmt::Error)?;
-                write!(self.out, "{}(", tag.get())?;
-                self.item(depth + 1)?;
-                self.out.write_str(")")
-            }
+            Tag => match self.decoder.tag() {
+                Ok(tag) => {
+                    write!(self.out, "{}(", tag.get())?;
+                    self.item(depth + 1)?;
+                    self.out.write_str(")")
+                }
+                Err(error) => self.write_error(error),
+            },
             Break => self.out.write_str("break"),
             Unknown(b) => write!(self.out, "unknown(0x{b:02x})"),
         }
@@ -242,14 +295,20 @@ fn write_float<W: fmt::Write>(out: &mut W, value: f64) -> fmt::Result {
     } else if value == f64::NEG_INFINITY {
         out.write_str("-Infinity")
     } else {
-        write!(out, "{value}")
+        // Debug preserves the float/integer distinction (`1.0`, `-0.0`) and
+        // uses a compact exponent form for very large or small values.
+        write!(out, "{value:?}")
     }
 }
 
 fn write_bytes<W: fmt::Write>(out: &mut W, bytes: &[u8]) -> fmt::Result {
     out.write_str("h'")?;
-    for byte in bytes {
-        write!(out, "{byte:02x}")?;
+    const CHUNK: usize = 256;
+    let mut buffer = [0u8; CHUNK * 2];
+    for chunk in bytes.chunks(CHUNK) {
+        let len = chunk.len() * 2;
+        hex::encode_into(&mut buffer[..len], chunk, hex::Alphabet::Lower).map_err(|_| fmt::Error)?;
+        out.write_str(core::str::from_utf8(&buffer[..len]).map_err(|_| fmt::Error)?)?;
     }
     out.write_str("'")
 }
@@ -263,7 +322,7 @@ fn write_text<W: fmt::Write>(out: &mut W, text: &str) -> fmt::Result {
             '\n' => out.write_str("\\n")?,
             '\r' => out.write_str("\\r")?,
             '\t' => out.write_str("\\t")?,
-            c if (c as u32) < 0x20 => write!(out, "\\u{:04x}", c as u32)?,
+            c if c.is_control() => write!(out, "\\u{:04x}", c as u32)?,
             c => out.write_char(c)?,
         }
     }

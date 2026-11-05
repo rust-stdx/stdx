@@ -37,5 +37,11 @@ path = "fuzz_targets/serde.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "reader"
+path = "fuzz_targets/reader.rs"
+test = false
+doc = false
+
 [profile.release]
 debug = 1

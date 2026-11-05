@@ -12,6 +12,7 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use crate::{
+    canonical::validate_canonical,
     data::{Integer, Simple, Tag},
     error::{Error, Result},
     float::{f16_to_f64, f64_to_f16, shortest_f64},
@@ -117,9 +118,9 @@ impl<W: Write> Encoder<W> {
 
     /// Create an encoder in deterministic mode.
     ///
-    /// The mode affects `Value` map ordering, NaN canonicalization and
-    /// dynamic map helpers. Derived types already emit map keys in canonical
-    /// order at compile time.
+    /// The mode affects dynamic map ordering. Floats always use their shortest
+    /// form and NaNs are always canonicalized, even in normal mode. Derived
+    /// types already emit map keys in canonical order at compile time.
     #[inline]
     pub fn canonical(writer: W) -> Self {
         Encoder {
@@ -838,11 +839,12 @@ fn encode_with_capacity<T: Encode + ?Sized>(value: &T, capacity: usize, canonica
 /// Encode a value into a new `Vec<u8>`.
 ///
 /// The vector starts with a modest capacity so small values need only one
-/// allocation. Use [`to_vec_with_capacity`] when the size is known.
+/// allocation. Use [`to_vec_with_capacity`] when the size is known, or
+/// [`to_vec_into`] to reuse an allocation across calls.
 #[cfg(feature = "alloc")]
 #[inline]
 pub fn to_vec<T: Encode + ?Sized>(value: &T) -> Vec<u8> {
-    encode_with_capacity(value, 128, false)
+    encode_with_capacity(value, 256, false)
 }
 
 /// Encode a value into a new `Vec<u8>` with the given initial capacity.
@@ -852,6 +854,41 @@ pub fn to_vec_with_capacity<T: Encode + ?Sized>(value: &T, capacity: usize) -> V
     encode_with_capacity(value, capacity, false)
 }
 
+/// Encode a value into `buffer`, replacing its contents.
+///
+/// The allocation is reused across calls. This is useful when encoding a stream
+/// of values in a loop.
+#[cfg(feature = "alloc")]
+#[inline]
+pub fn to_vec_into<T: Encode + ?Sized>(value: &T, buffer: &mut Vec<u8>) {
+    encode_into_vec(value, buffer, false);
+}
+
+/// Encode a value into `buffer` in deterministic mode, replacing its contents.
+///
+/// See [`to_canonical_vec`] for what deterministic mode changes. This trusts
+/// the [`Encode`] implementation; use [`try_to_canonical_vec_into`] when the
+/// output must be guaranteed deterministic.
+#[cfg(feature = "alloc")]
+#[inline]
+pub fn to_canonical_vec_into<T: Encode + ?Sized>(value: &T, buffer: &mut Vec<u8>) {
+    encode_into_vec(value, buffer, true);
+}
+
+#[cfg(feature = "alloc")]
+fn encode_into_vec<T: Encode + ?Sized>(value: &T, buffer: &mut Vec<u8>, canonical: bool) {
+    buffer.clear();
+    let mut encoder = if canonical {
+        Encoder::canonical(&mut *buffer)
+    } else {
+        Encoder::new(&mut *buffer)
+    };
+    match value.encode(&mut encoder) {
+        Ok(()) => {}
+        Err(never) => match never {},
+    }
+}
+
 /// Encode a value into a new `Vec<u8>` in deterministic mode.
 ///
 /// Derived maps are emitted in canonical key order by default. The built-in
@@ -859,12 +896,47 @@ pub fn to_vec_with_capacity<T: Encode + ?Sized>(value: &T, capacity: usize) -> V
 /// maps are sorted in canonical mode, and small [`Bignum`](crate::Bignum)
 /// values are emitted as basic integers. Types that use
 /// `#[cbor(declaration_order)]` and manual [`Encode`] implementations are
-/// responsible for writing their own map keys in canonical order; use
-/// [`validate_canonical`](crate::validate_canonical) to check the result.
+/// responsible for writing their own map keys in canonical order.
+///
+/// This function trusts the [`Encode`] implementation and does not validate
+/// the result. Use [`try_to_canonical_vec`] when the output must be guaranteed
+/// deterministic, for example before signing or hashing.
 #[cfg(feature = "alloc")]
 #[inline]
 pub fn to_canonical_vec<T: Encode + ?Sized>(value: &T) -> Vec<u8> {
-    encode_with_capacity(value, 128, true)
+    encode_with_capacity(value, 256, true)
+}
+
+/// Encode a value into a new `Vec<u8>` in deterministic mode and validate it.
+///
+/// This is the guaranteed variant of [`to_canonical_vec`]: after encoding, the
+/// result is checked with [`validate_canonical`](crate::validate_canonical).
+/// It therefore rejects duplicate or collapsing map keys, unsorted keys from
+/// manual [`Encode`] implementations, indefinite-length output, and malformed
+/// items. It costs one extra validation pass.
+///
+/// # Errors
+///
+/// Returns the validation error if the encoded bytes are not one canonical
+/// CBOR item. The documented `-0.0`/`0.0` semantic-equivalence limitation of
+/// [`validate_canonical`](crate::validate_canonical) also applies here.
+#[cfg(feature = "alloc")]
+#[inline]
+pub fn try_to_canonical_vec<T: Encode + ?Sized>(value: &T) -> Result<Vec<u8>> {
+    let bytes = to_canonical_vec(value);
+    validate_canonical(&bytes)?;
+    Ok(bytes)
+}
+
+/// Encode a value into `buffer` in deterministic mode and validate the result.
+///
+/// See [`try_to_canonical_vec`]. The contents of `buffer` are unspecified if
+/// validation fails.
+#[cfg(feature = "alloc")]
+#[inline]
+pub fn try_to_canonical_vec_into<T: Encode + ?Sized>(value: &T, buffer: &mut Vec<u8>) -> Result<()> {
+    to_canonical_vec_into(value, buffer);
+    validate_canonical(buffer)
 }
 
 /// Encode a value into the front of a caller-provided buffer.
@@ -884,6 +956,10 @@ pub fn to_slice<'a, T: Encode + ?Sized>(value: &T, buffer: &'a mut [u8]) -> Resu
 }
 
 /// Encode a value into the front of a caller-provided buffer in deterministic mode.
+///
+/// This function trusts the [`Encode`] implementation and does not validate
+/// the result. Use [`try_to_canonical_slice`] when the output must be
+/// guaranteed deterministic.
 #[inline]
 pub fn to_canonical_slice<'a, T: Encode + ?Sized>(value: &T, buffer: &'a mut [u8]) -> Result<&'a mut [u8]> {
     let total = buffer.len();
@@ -894,6 +970,17 @@ pub fn to_canonical_slice<'a, T: Encode + ?Sized>(value: &T, buffer: &'a mut [u8
         total - writer.len()
     };
     Ok(&mut buffer[..used])
+}
+
+/// Encode a value into the front of a caller-provided buffer in deterministic
+/// mode and validate the result.
+///
+/// See `try_to_canonical_vec`.
+#[inline]
+pub fn try_to_canonical_slice<'a, T: Encode + ?Sized>(value: &T, buffer: &'a mut [u8]) -> Result<&'a mut [u8]> {
+    let used = to_canonical_slice(value, buffer)?;
+    validate_canonical(used)?;
+    Ok(used)
 }
 
 #[cfg(feature = "std")]

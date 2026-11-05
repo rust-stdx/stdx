@@ -619,6 +619,12 @@ fn optional_bytes_encode_null_or_byte_string() {
             data: Some(vec![1, 2])
         }
     );
+    assert_eq!(
+        cbor::from_slice::<OptionalBytes>(&[0xa1, 0x00, 0xf7]).unwrap(),
+        OptionalBytes {
+            data: None
+        }
+    );
 }
 
 #[derive(Debug, PartialEq, Encode, Decode)]
@@ -662,4 +668,73 @@ enum ExplicitIndex {
 fn index_only_honours_explicit_indices() {
     assert_eq!(cbor::to_vec(&ExplicitIndex::A), vec![0x03]);
     assert_eq!(cbor::to_vec(&ExplicitIndex::B), vec![0x07]);
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct MixedKeys {
+    #[cbor(key = -1)]
+    a: u8,
+    #[cbor(key = 1)]
+    b: u8,
+}
+
+#[test]
+fn mixed_sign_integer_keys() {
+    let value = MixedKeys {
+        a: 1,
+        b: 2,
+    };
+    let bytes = cbor::to_vec(&value);
+    assert_eq!(cbor::from_slice::<MixedKeys>(&bytes).unwrap(), value);
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+enum MixedEnum {
+    #[cbor(key = -1)]
+    A(u8),
+    #[cbor(key = 1)]
+    B(u8),
+}
+
+#[test]
+fn mixed_sign_enum_keys() {
+    for value in [MixedEnum::A(1), MixedEnum::B(2)] {
+        let bytes = cbor::to_vec(&value);
+        assert_eq!(cbor::from_slice::<MixedEnum>(&bytes).unwrap(), value);
+    }
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[cbor(tagged)]
+enum MixedTagged {
+    V {
+        #[cbor(key = -1)]
+        a: u8,
+        #[cbor(key = 1)]
+        b: u8,
+    },
+}
+
+#[test]
+fn mixed_sign_tagged_field_keys() {
+    let value = MixedTagged::V {
+        a: 1,
+        b: 2,
+    };
+    let bytes = cbor::to_vec(&value);
+    assert_eq!(cbor::from_slice::<MixedTagged>(&bytes).unwrap(), value);
+}
+
+#[derive(Debug, PartialEq, Decode)]
+#[cbor(transparent)]
+struct BorrowedRaw<'a> {
+    #[cbor(borrow)]
+    raw: cbor::RawValue<'a>,
+}
+
+#[test]
+fn borrowed_raw_value_field() {
+    let bytes = cbor::to_vec(&(1u8, 2u8));
+    let value: BorrowedRaw<'_> = cbor::from_slice(&bytes).unwrap();
+    assert_eq!(value.raw.as_bytes(), &bytes[..]);
 }

@@ -16,6 +16,13 @@
 //! serde roundtrip of [`Value`] normalizes `Simple` to an integer, turns
 //! `Undefined` into `null`, and does not preserve tags on the decoding side.
 //!
+//! Tags are controlled by [`Options::serde_tags_policy`](crate::Options::serde_tags_policy).
+//! The default, [`TagPolicy::Skip`], ignores tags
+//! (lossy). [`TagPolicy::Reject`] rejects every tag
+//! unless the target explicitly uses [`Tagged`](crate::Tagged) or
+//! [`TaggedValue`](crate::TaggedValue). Use
+//! [`from_slice_with_options`] to choose a policy.
+//!
 //! With the default [`DuplicateKeys::Error`](crate::DuplicateKeys) policy, the
 //! deserializer rejects duplicate map keys whose wire encodings are identical.
 //! It cannot detect semantically equal keys encoded differently (for example
@@ -23,6 +30,15 @@
 //! or the native typed API when that distinction matters. The `First` and
 //! `Last` policies are not applied by serde because serde's `MapAccess` cannot
 //! suppress an already-decoded entry.
+//!
+//! # Preallocation
+//!
+//! serde uses the declared element count as a capacity hint for `Vec` and
+//! `HashMap`. serde caps that hint at roughly 1 MiB per collection based on
+//! `size_of::<T>()`, but a tiny attacker-controlled header can still cause a
+//! relatively large allocation when `T` is large. The typed API uses a
+//! different bound (64 KiB, capped at about 8× the remaining input). For
+//! untrusted input, bound the input size or use the typed API.
 
 use alloc::{
     borrow::Cow,
@@ -46,7 +62,7 @@ use serde::{
 
 use crate::{
     data::{Simple, Type},
-    decode::{Decoder, DuplicateKeys},
+    decode::{Decoder, DuplicateKeys, Options, TagPolicy},
     encode::{Count, Encoder, Write},
     error::Error as CoreError,
     value::Value,
@@ -144,7 +160,7 @@ impl From<CoreError> for DeError {
 
 /// Serialize a value into a new `Vec<u8>`.
 pub fn to_vec<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, Error<core::convert::Infallible>> {
-    let mut buffer = Vec::with_capacity(128);
+    let mut buffer = Vec::with_capacity(256);
     {
         let mut serializer = Serializer {
             encoder: Encoder::new(&mut buffer),
@@ -152,6 +168,22 @@ pub fn to_vec<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, Error<core::c
         value.serialize(&mut serializer)?;
     }
     Ok(buffer)
+}
+
+/// Serialize a value into `buffer`, replacing its contents.
+///
+/// The allocation is reused across calls. This is useful when serializing a
+/// stream of values in a loop.
+pub fn to_vec_into<T: Serialize + ?Sized>(
+    value: &T,
+    buffer: &mut Vec<u8>,
+) -> Result<(), Error<core::convert::Infallible>> {
+    buffer.clear();
+    let mut serializer = Serializer {
+        encoder: Encoder::new(&mut *buffer),
+    };
+    value.serialize(&mut serializer)?;
+    Ok(())
 }
 
 /// Serialize a value into a caller-provided buffer.
@@ -205,18 +237,33 @@ impl<W: std::io::Write> Write for StdWriter<W> {
 /// Serialize a value in deterministic form.
 ///
 /// This serializes normally, decodes the result into [`Value`], canonicalizes
-/// it and re-encodes it. It is intended for signing and hashing, not for the
-/// hot path.
+/// it, re-encodes it, and validates the result with
+/// [`validate_canonical`](crate::validate_canonical). It is intended for
+/// signing and hashing, not for the hot path.
+///
+/// Returns an error if the value cannot be represented as one canonical CBOR
+/// item, for example because two distinct keys collapse to the same canonical
+/// encoding.
 pub fn to_canonical_vec<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, Error<core::convert::Infallible>> {
     let bytes = to_vec(value)?;
     let mut value: Value = crate::decode::from_slice(&bytes).map_err(|_| Error::Message("canonicalization failed"))?;
     value.canonicalize();
-    Ok(crate::encode::to_canonical_vec(&value))
+    crate::encode::try_to_canonical_vec(&value).map_err(|error| Error::Custom(error.to_string()))
 }
 
 /// Deserialize a value from a byte slice.
 pub fn from_slice<'de, T: serde::Deserialize<'de>>(bytes: &'de [u8]) -> Result<T, DeError> {
-    let mut deserializer = Deserializer::new(Decoder::new(bytes));
+    from_slice_with_options(bytes, Options::default())
+}
+
+/// Deserialize a value from a byte slice with explicit decoder options.
+///
+/// The [`Options::serde_tags_policy`] field controls how tags are handled.
+pub fn from_slice_with_options<'de, T: serde::Deserialize<'de>>(
+    bytes: &'de [u8],
+    options: Options,
+) -> Result<T, DeError> {
+    let mut deserializer = Deserializer::new(Decoder::with_options(bytes, options));
     let value = T::deserialize(&mut deserializer)?;
     if !deserializer.decoder.is_empty() {
         return Err(DeError::from_core(
@@ -228,7 +275,16 @@ pub fn from_slice<'de, T: serde::Deserialize<'de>>(bytes: &'de [u8]) -> Result<T
 
 /// Deserialize a value from a byte slice, returning the unconsumed remainder.
 pub fn from_slice_prefix<'de, T: serde::Deserialize<'de>>(bytes: &'de [u8]) -> Result<(T, &'de [u8]), DeError> {
-    let mut deserializer = Deserializer::new(Decoder::new(bytes));
+    from_slice_prefix_with_options(bytes, Options::default())
+}
+
+/// Deserialize a value from a byte slice with explicit options, returning the
+/// unconsumed remainder.
+pub fn from_slice_prefix_with_options<'de, T: serde::Deserialize<'de>>(
+    bytes: &'de [u8],
+    options: Options,
+) -> Result<(T, &'de [u8]), DeError> {
+    let mut deserializer = Deserializer::new(Decoder::with_options(bytes, options));
     let value = T::deserialize(&mut deserializer)?;
     let position = deserializer.decoder.position();
     Ok((value, &bytes[position..]))
@@ -752,6 +808,10 @@ where
             serializer: self,
         })
     }
+
+    fn is_human_readable(&self) -> bool {
+        false
+    }
 }
 
 /// Serializer for CBOR arrays and tuples.
@@ -1178,7 +1238,16 @@ impl<'de> Deserializer<'de> {
 
     fn skip_tags(&mut self) -> Result<(), DeError> {
         while self.decoder.datatype()? == Type::Tag {
-            let _ = self.decoder.tag()?;
+            match self.decoder.options().serde_tags_policy {
+                TagPolicy::Skip => {
+                    let _ = self.decoder.tag()?;
+                }
+                TagPolicy::Reject => {
+                    return Err(DeError::from_core(
+                        CoreError::message("unexpected CBOR tag").at(self.decoder.position()),
+                    ));
+                }
+            }
         }
         Ok(())
     }
@@ -1233,48 +1302,63 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
     }
 
     fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_bool(self.decoder.bool()?)
     }
     fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_i8(self.decoder.i8()?)
     }
     fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_i16(self.decoder.i16()?)
     }
     fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_i32(self.decoder.i32()?)
     }
     fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_i64(self.decoder.i64()?)
     }
     fn deserialize_i128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_i128(self.decoder.i128()?)
     }
     fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_u8(self.decoder.u8()?)
     }
     fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_u16(self.decoder.u16()?)
     }
     fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_u32(self.decoder.u32()?)
     }
     fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_u64(self.decoder.u64()?)
     }
     fn deserialize_u128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_u128(self.decoder.u128()?)
     }
     fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_f32(self.decoder.f32()?)
     }
     fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_f64(self.decoder.f64()?)
     }
     fn deserialize_char<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_char(self.decoder.decode::<char>()?)
     }
     fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         if self.decoder.peek_byte()? & 0x1f == 31 {
             visitor.visit_string(self.decoder.text_owned()?)
         } else {
@@ -1282,9 +1366,11 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         }
     }
     fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_string(self.decoder.text_owned()?)
     }
     fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         if self.decoder.peek_byte()? & 0x1f == 31 {
             visitor.visit_byte_buf(self.decoder.bytes_owned()?)
         } else {
@@ -1292,9 +1378,11 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         }
     }
     fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         visitor.visit_byte_buf(self.decoder.bytes_owned()?)
     }
     fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         match self.decoder.datatype()? {
             Type::Null | Type::Undefined => {
                 self.decoder.skip()?;
@@ -1304,6 +1392,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         }
     }
     fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         self.decoder.null()?;
         visitor.visit_unit()
     }
@@ -1333,8 +1422,10 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
             });
         }
         if name == SIMPLE_MARKER {
+            self.skip_tags()?;
             return visitor.visit_u8(self.decoder.simple()?.get());
         }
+        self.skip_tags()?;
         visitor.visit_newtype_struct(self)
     }
     fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -1386,9 +1477,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        while self.decoder.datatype()? == Type::Tag {
-            let _ = self.decoder.tag()?;
-        }
+        self.skip_tags()?;
         self.enter()?;
         let result = (|| match self.decoder.datatype()? {
             Type::Text => {
@@ -1449,6 +1538,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         result
     }
     fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         match self.decoder.datatype()? {
             Type::Text => visitor.visit_borrowed_str(self.decoder.text()?),
             Type::U8 | Type::U16 | Type::U32 | Type::U64 => visitor.visit_u64(self.decoder.u64()?),
@@ -1457,8 +1547,13 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         }
     }
     fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        self.skip_tags()?;
         self.decoder.skip()?;
         visitor.visit_unit()
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 }
 
@@ -1484,6 +1579,9 @@ impl<'de> de::SeqAccess<'de> for SeqAccess<'_, 'de> {
     }
 
     fn size_hint(&self) -> Option<usize> {
+        // The declared count is attacker-controlled. serde caps the resulting
+        // allocation at roughly 1 MiB per collection, but large element types
+        // can still amplify a tiny header. See the module preallocation notes.
         self.remaining
     }
 }
@@ -1589,6 +1687,8 @@ impl<'de> de::MapAccess<'de> for MapAccess<'_, 'de> {
     }
 
     fn size_hint(&self) -> Option<usize> {
+        // See the module preallocation notes: the count comes from untrusted
+        // input.
         self.remaining
     }
 }
@@ -1827,7 +1927,16 @@ impl<'a, 'de> de::VariantAccess<'de> for EnumVariant<'a, 'de> {
 
 /// Deserialize a value from a buffered reader.
 #[cfg(feature = "std")]
-pub fn from_reader<R: BufRead, T: DeserializeOwned>(mut reader: R) -> Result<T, DeError> {
+pub fn from_reader<R: BufRead, T: DeserializeOwned>(reader: R) -> Result<T, DeError> {
+    from_reader_with_options(reader, Options::default())
+}
+
+/// Deserialize a value from a buffered reader with explicit decoder options.
+#[cfg(feature = "std")]
+pub fn from_reader_with_options<R: BufRead, T: DeserializeOwned>(
+    mut reader: R,
+    options: Options,
+) -> Result<T, DeError> {
     let bytes = crate::reader::read_item(&mut reader).map_err(|error| DeError::message(error.to_string()))?;
-    from_slice(&bytes)
+    from_slice_with_options(&bytes, options)
 }

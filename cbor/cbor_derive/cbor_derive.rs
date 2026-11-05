@@ -357,6 +357,7 @@ fn expand(input: TokenStream2, direction: Direction) -> syn::Result<TokenStream2
     if direction == Direction::Decode && container.encode_only {
         return Ok(TokenStream2::new());
     }
+    validate_borrowed_byte_slices(&input, direction)?;
     if container.map && container.array {
         return Err(syn::Error::new(input.ident.span(), "`map` and `array` are mutually exclusive"));
     }
@@ -587,6 +588,10 @@ fn expand_struct_map(
                 let n = fields.len();
                 init.push(quote!(let mut __seen = [false; #n];));
             }
+            let all_non_negative = keys.iter().all(|key| match key {
+                WireKey::Int(value) => *value >= 0,
+                _ => true,
+            });
             for (index, (field, key)) in fields.iter().zip(keys.iter()).enumerate() {
                 let ident = field_ident(field, index);
                 let ty = &field.ty;
@@ -594,7 +599,7 @@ fn expand_struct_map(
                 if field.attrs.skip {
                     continue;
                 }
-                let key_match = key_match(&krate, key)?;
+                let key_match = key_match(&krate, key, !all_non_negative)?;
                 let decode_expr = decode_field_expr(&krate, &field.ty, &field.attrs, direction)?;
                 let seen_check = if fields.len() <= 128 {
                     let flag = quote!(1u128 << #index);
@@ -617,10 +622,6 @@ fn expand_struct_map(
             }
             let construct = struct_construct(fields, container, &krate)?;
             let has_key = fields.iter().any(|f| f.attrs.key.is_some());
-            let all_non_negative = keys.iter().all(|key| match key {
-                WireKey::Int(value) => *value >= 0,
-                _ => true,
-            });
             let key_read = if has_key && all_non_negative {
                 quote!(let __key = d.u64()?;)
             } else if has_key {
@@ -983,7 +984,7 @@ fn expand_enum_tagged(
                     if attrs.skip {
                         continue;
                     }
-                    let key_match = key_match(krate, &keys[position])?;
+                    let key_match = key_match(krate, &keys[position], !all_non_negative)?;
                     let decode_expr = decode_field_expr(krate, &field.ty, &attrs, direction)?;
                     let seen_check = if small {
                         let flag = quote!(1u128 << #position);
@@ -1358,6 +1359,10 @@ fn expand_enum_map(
             let lifetime = decode_lifetime(input);
             let mut unit_arms = Vec::new();
             let mut map_arms = Vec::new();
+            let all_non_negative = keys.iter().all(|key| match key {
+                WireKey::Int(value) => *value >= 0,
+                _ => true,
+            });
             for (variant, key) in variants.iter().zip(keys.iter()) {
                 let ident = &variant.ident;
                 if external && matches!(variant.fields, Fields::Unit) {
@@ -1367,15 +1372,7 @@ fn expand_enum_map(
                     unit_arms.push(quote!(#name => Ok(Self::#ident),));
                     continue;
                 }
-                let key_match = match key {
-                    WireKey::Text(name) => quote!(#name),
-                    WireKey::Int(value) if *value >= 0 => {
-                        let value = *value as u64;
-                        quote!(#value)
-                    }
-                    WireKey::Int(value) => quote!(#value),
-                    WireKey::Skip(_) => quote!(_),
-                };
+                let key_match = key_match(krate, key, !all_non_negative)?;
                 let decode_payload = decode_variant_payload(variant, krate, container)?;
                 map_arms.push(quote! {
                     #key_match => { #decode_payload }
@@ -1401,10 +1398,6 @@ fn expand_enum_map(
                 }
             };
 
-            let all_non_negative = keys.iter().all(|key| match key {
-                WireKey::Int(value) => *value >= 0,
-                _ => true,
-            });
             let dispatch = if external {
                 quote! {
                     match d.datatype()? {
@@ -1654,6 +1647,70 @@ fn validate_field(attrs: &FieldAttrs, field: &Field) -> syn::Result<()> {
         ));
     }
     Ok(())
+}
+
+/// Reject a bare borrowed byte slice.
+///
+/// A CBOR array of `u8` values is not contiguous, so `&[u8]` cannot implement
+/// `Decode` for arrays. Requiring `#[cbor(bytes)]` prevents an encode/decode
+/// asymmetry where the field encodes as an array but has no matching decoder.
+fn validate_borrowed_byte_slices(input: &DeriveInput, direction: Direction) -> syn::Result<()> {
+    fn check(field: &Field, direction: Direction) -> syn::Result<()> {
+        let attrs = parse_field(&field.attrs)?;
+        if attrs.bytes || attrs.skip {
+            return Ok(());
+        }
+        let handles_decode = attrs.decode_with.is_some() || attrs.with.is_some();
+        let handles_encode = attrs.encode_with.is_some() || attrs.with.is_some();
+        let handled = match direction {
+            Direction::Encode => handles_encode,
+            Direction::Decode => handles_decode,
+        };
+        if handled {
+            return Ok(());
+        }
+        if is_borrowed_byte_slice(&field.ty) {
+            return Err(syn::Error::new(
+                field.span(),
+                "borrowed byte slices must use `#[cbor(bytes)]`; a CBOR array of u8 cannot be decoded into `&[u8]`",
+            ));
+        }
+        Ok(())
+    }
+
+    match &input.data {
+        Data::Struct(data) => {
+            for field in &data.fields {
+                check(field, direction)?;
+            }
+        }
+        Data::Enum(data) => {
+            for variant in &data.variants {
+                for field in &variant.fields {
+                    check(field, direction)?;
+                }
+            }
+        }
+        Data::Union(_) => {}
+    }
+    Ok(())
+}
+
+fn is_borrowed_byte_slice(ty: &Type) -> bool {
+    let Type::Reference(reference) = ty else {
+        return false;
+    };
+    let Type::Slice(slice) = &*reference.elem else {
+        return false;
+    };
+    let Type::Path(path) = &*slice.elem else {
+        return false;
+    };
+    path.path
+        .segments
+        .last()
+        .map(|segment| segment.ident == "u8" && segment.arguments.is_empty())
+        .unwrap_or(false)
 }
 
 struct FieldInfo {
@@ -1945,10 +2002,11 @@ fn keys_write(krate: &Path, key: &WireKey) -> syn::Result<TokenStream2> {
     })
 }
 
-fn key_match(krate: &Path, key: &WireKey) -> syn::Result<TokenStream2> {
+fn key_match(krate: &Path, key: &WireKey, signed: bool) -> syn::Result<TokenStream2> {
     let _ = krate;
     Ok(match key {
         WireKey::Text(name) => quote!(#name),
+        WireKey::Int(value) if signed => quote!(#value),
         WireKey::Int(value) if *value >= 0 => {
             let value = *value as u64;
             quote!(#value)
@@ -2192,4 +2250,33 @@ fn tag_check(container: &ContainerAttrs, _krate: &Path) -> TokenStream2 {
 
 fn unraw(ident: &Ident) -> String {
     ident.to_string().trim_start_matches("r#").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::ToTokens;
+
+    use super::*;
+
+    #[test]
+    fn borrowed_byte_slices_require_the_bytes_attribute() {
+        let input: DeriveInput = syn::parse_quote! {
+            struct S<'a> {
+                data: &'a [u8],
+            }
+        };
+        let error = expand(input.to_token_stream(), Direction::Decode).unwrap_err();
+        assert!(error.to_string().contains("#[cbor(bytes)]"));
+    }
+
+    #[test]
+    fn annotated_borrowed_byte_slices_are_accepted() {
+        let input: DeriveInput = syn::parse_quote! {
+            struct S<'a> {
+                #[cbor(bytes)]
+                data: &'a [u8],
+            }
+        };
+        assert!(expand(input.to_token_stream(), Direction::Decode).is_ok());
+    }
 }
